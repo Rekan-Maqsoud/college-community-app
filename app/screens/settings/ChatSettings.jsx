@@ -17,52 +17,52 @@ import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
 
 const BUBBLE_STYLES = [
-  { key: 'modern', label: 'Modern', icon: 'chatbubble', description: 'Rounded corners with shadow' },
-  { key: 'classic', label: 'Classic', icon: 'chatbubble-outline', description: 'Traditional chat style' },
-  { key: 'minimal', label: 'Minimal', icon: 'remove-outline', description: 'Clean, subtle design' },
-  { key: 'bubble', label: 'Bubble', icon: 'ellipse-outline', description: 'Soft rounded bubbles' },
-  { key: 'sharp', label: 'Sharp', icon: 'square-outline', description: 'Angular modern look' },
+  { key: 'modern', labelKey: 'settings.bubbleStyleModern', icon: 'chatbubble', descKey: 'settings.bubbleStyleModernDesc' },
+  { key: 'classic', labelKey: 'settings.bubbleStyleClassic', icon: 'chatbubble-outline', descKey: 'settings.bubbleStyleClassicDesc' },
+  { key: 'minimal', labelKey: 'settings.bubbleStyleMinimal', icon: 'remove-outline', descKey: 'settings.bubbleStyleMinimalDesc' },
+  { key: 'bubble', labelKey: 'settings.bubbleStyleBubble', icon: 'ellipse-outline', descKey: 'settings.bubbleStyleBubbleDesc' },
+  { key: 'sharp', labelKey: 'settings.bubbleStyleSharp', icon: 'square-outline', descKey: 'settings.bubbleStyleSharpDesc' },
 ];
 
 // Solid colors
 const BUBBLE_COLORS_SOLID = [
-  { key: '#667eea', label: 'Purple' },
-  { key: '#3B82F6', label: 'Blue' },
-  { key: '#10B981', label: 'Green' },
-  { key: '#F59E0B', label: 'Orange' },
-  { key: '#EF4444', label: 'Red' },
-  { key: '#EC4899', label: 'Pink' },
-  { key: '#6366F1', label: 'Indigo' },
-  { key: '#14B8A6', label: 'Teal' },
+  { key: '#667eea', labelKey: 'settings.colorPurple' },
+  { key: '#3B82F6', labelKey: 'settings.colorBlue' },
+  { key: '#10B981', labelKey: 'settings.colorGreen' },
+  { key: '#F59E0B', labelKey: 'settings.colorOrange' },
+  { key: '#EF4444', labelKey: 'settings.colorRed' },
+  { key: '#EC4899', labelKey: 'settings.colorPink' },
+  { key: '#6366F1', labelKey: 'settings.colorIndigo' },
+  { key: '#14B8A6', labelKey: 'settings.colorTeal' },
 ];
 
 // Gradient colors (stored as JSON string)
 const BUBBLE_COLORS_GRADIENT = [
-  { key: 'gradient::#667eea,#764ba2', label: 'Purple Fade', colors: ['#667eea', '#764ba2'] },
-  { key: 'gradient::#f093fb,#f5576c', label: 'Pink Glow', colors: ['#f093fb', '#f5576c'] },
-  { key: 'gradient::#4facfe,#00f2fe', label: 'Ocean Wave', colors: ['#4facfe', '#00f2fe'] },
-  { key: 'gradient::#43e97b,#38f9d7', label: 'Mint Fresh', colors: ['#43e97b', '#38f9d7'] },
-  { key: 'gradient::#fa709a,#fee140', label: 'Sunset Glow', colors: ['#fa709a', '#fee140'] },
-  { key: 'gradient::#a18cd1,#fbc2eb', label: 'Lavender', colors: ['#a18cd1', '#fbc2eb'] },
-  { key: 'gradient::#ff9a9e,#fecfef', label: 'Soft Pink', colors: ['#ff9a9e', '#fecfef'] },
-  { key: 'gradient::#667eea,#43e97b', label: 'Aurora', colors: ['#667eea', '#43e97b'] },
+  { key: 'gradient::#667eea,#764ba2', labelKey: 'settings.gradientPurpleFade', colors: ['#667eea', '#764ba2'] },
+  { key: 'gradient::#f093fb,#f5576c', labelKey: 'settings.gradientPinkGlow', colors: ['#f093fb', '#f5576c'] },
+  { key: 'gradient::#4facfe,#00f2fe', labelKey: 'settings.gradientOceanWave', colors: ['#4facfe', '#00f2fe'] },
+  { key: 'gradient::#43e97b,#38f9d7', labelKey: 'settings.gradientMintFresh', colors: ['#43e97b', '#38f9d7'] },
+  { key: 'gradient::#fa709a,#fee140', labelKey: 'settings.gradientSunsetGlow', colors: ['#fa709a', '#fee140'] },
+  { key: 'gradient::#a18cd1,#fbc2eb', labelKey: 'settings.gradientLavender', colors: ['#a18cd1', '#fbc2eb'] },
+  { key: 'gradient::#ff9a9e,#fecfef', labelKey: 'settings.gradientSoftPink', colors: ['#ff9a9e', '#fecfef'] },
+  { key: 'gradient::#667eea,#43e97b', labelKey: 'settings.gradientAurora', colors: ['#667eea', '#43e97b'] },
 ];
 
 const BACKGROUND_PRESETS = [
-  { key: null, label: 'Default', preview: null },
+  { key: null, labelKey: 'settings.defaultBackground', preview: null },
   // Gradient backgrounds
-  { key: 'gradient_purple', label: 'Purple Night', colors: ['#667eea', '#764ba2'] },
-  { key: 'gradient_blue', label: 'Deep Space', colors: ['#1a1a2e', '#16213e'] },
-  { key: 'gradient_green', label: 'Forest', colors: ['#134e5e', '#71b280'] },
-  { key: 'gradient_sunset', label: 'Sunset', colors: ['#ff7e5f', '#feb47b'] },
-  { key: 'gradient_ocean', label: 'Ocean', colors: ['#2193b0', '#6dd5ed'] },
-  { key: 'gradient_midnight', label: 'Midnight', colors: ['#232526', '#414345'] },
-  { key: 'gradient_aurora', label: 'Aurora', colors: ['#00c6fb', '#005bea'] },
-  { key: 'gradient_rose', label: 'Rose Gold', colors: ['#f4c4f3', '#fc67fa'] },
+  { key: 'gradient_purple', labelKey: 'settings.backgroundPurpleNight', colors: ['#667eea', '#764ba2'] },
+  { key: 'gradient_blue', labelKey: 'settings.backgroundDeepSpace', colors: ['#1a1a2e', '#16213e'] },
+  { key: 'gradient_green', labelKey: 'settings.backgroundForest', colors: ['#134e5e', '#71b280'] },
+  { key: 'gradient_sunset', labelKey: 'settings.backgroundSunset', colors: ['#ff7e5f', '#feb47b'] },
+  { key: 'gradient_ocean', labelKey: 'settings.backgroundOcean', colors: ['#2193b0', '#6dd5ed'] },
+  { key: 'gradient_midnight', labelKey: 'settings.backgroundMidnight', colors: ['#232526', '#414345'] },
+  { key: 'gradient_aurora', labelKey: 'settings.backgroundAurora', colors: ['#00c6fb', '#005bea'] },
+  { key: 'gradient_rose', labelKey: 'settings.backgroundRoseGold', colors: ['#f4c4f3', '#fc67fa'] },
   // Pattern backgrounds (using color key to identify pattern type)
-  { key: 'pattern_dots', label: 'Dots', pattern: 'dots', baseColor: '#1a1a2e' },
-  { key: 'pattern_grid', label: 'Grid', pattern: 'grid', baseColor: '#1a1a2e' },
-  { key: 'pattern_waves', label: 'Waves', pattern: 'waves', baseColor: '#16213e' },
+  { key: 'pattern_dots', labelKey: 'settings.backgroundDots', pattern: 'dots', baseColor: '#1a1a2e' },
+  { key: 'pattern_grid', labelKey: 'settings.backgroundGrid', pattern: 'grid', baseColor: '#1a1a2e' },
+  { key: 'pattern_waves', labelKey: 'settings.backgroundWaves', pattern: 'waves', baseColor: '#16213e' },
 ];
 
 const ChatSettings = ({ navigation }) => {
@@ -292,13 +292,13 @@ const ChatSettings = ({ navigation }) => {
                       fontSize: responsiveFontSize(12),
                     }
                   ]}>
-                    {style.label}
+                    {t(style.labelKey)}
                   </Text>
                   <Text style={[
                     styles.styleDescription,
                     { color: theme.textSecondary, fontSize: responsiveFontSize(9) }
                   ]} numberOfLines={1}>
-                    {style.description}
+                    {t(style.descKey)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -387,7 +387,7 @@ const ChatSettings = ({ navigation }) => {
                       end={{ x: 1, y: 1 }}
                     >
                       <Text style={[styles.bgLabel, { fontSize: responsiveFontSize(8) }]} numberOfLines={1}>
-                        {bg.label}
+                        {t(bg.labelKey)}
                       </Text>
                     </LinearGradient>
                   ) : bg.pattern ? (
@@ -414,7 +414,7 @@ const ChatSettings = ({ navigation }) => {
                         </View>
                       )}
                       <Text style={[styles.bgLabel, { fontSize: responsiveFontSize(8) }]} numberOfLines={1}>
-                        {bg.label}
+                        {t(bg.labelKey)}
                       </Text>
                     </View>
                   ) : (

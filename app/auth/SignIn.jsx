@@ -405,10 +405,7 @@ const SignIn = ({ navigation }) => {
               <TouchableOpacity 
                 style={styles.forgotPasswordButton}
                 activeOpacity={0.7}
-                onPress={() => Alert.alert(
-                  t('auth.forgotPassword'),
-                  t('auth.forgotPasswordMessage') || 'Password recovery feature coming soon!'
-                )}>
+                onPress={() => navigation.navigate('ForgotPassword')}>
                 <Text style={[styles.forgotPasswordText, { 
                   color: theme.primary,
                   fontSize: fontSize(13),

@@ -177,7 +177,7 @@ const ManageRepresentatives = ({ navigation }) => {
               {item.name}
             </Text>
             <Text style={[styles.chatMeta, { fontSize: fontSize(11), color: theme.textSecondary }]}>
-              {item.representatives?.length || 0} representatives
+              {item.representatives?.length || 0} {t('chats.representatives').toLowerCase()}
             </Text>
           </View>
         </View>
@@ -278,7 +278,7 @@ const ManageRepresentatives = ({ navigation }) => {
             <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { fontSize: fontSize(20), color: theme.text }]}>
-            Manage Representatives
+            {t('chats.manageRepresentatives')}
           </Text>
           <View style={styles.headerSpacer} />
         </View>
@@ -286,7 +286,7 @@ const ManageRepresentatives = ({ navigation }) => {
         <View style={styles.content}>
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { fontSize: fontSize(16), color: theme.text }]}>
-              Select Chat
+              {t('chats.selectChat')}
             </Text>
             <FlatList
               data={chats}
@@ -302,7 +302,7 @@ const ManageRepresentatives = ({ navigation }) => {
             <>
               <View style={styles.section}>
                 <Text style={[styles.sectionTitle, { fontSize: fontSize(16), color: theme.text }]}>
-                  Current Representatives ({selectedChat.representatives?.length || 0})
+                  {t('chats.currentRepresentatives')} ({selectedChat.representatives?.length || 0})
                 </Text>
                 {selectedChat.representatives && selectedChat.representatives.length > 0 ? (
                   <FlatList
@@ -313,20 +313,20 @@ const ManageRepresentatives = ({ navigation }) => {
                   />
                 ) : (
                   <Text style={[styles.emptyText, { fontSize: fontSize(13), color: theme.textSecondary }]}>
-                    No representatives assigned yet
+                    {t('chats.noRepresentativesYet')}
                   </Text>
                 )}
               </View>
 
               <View style={styles.section}>
                 <Text style={[styles.sectionTitle, { fontSize: fontSize(16), color: theme.text }]}>
-                  Add Representative
+                  {t('chats.addRepresentative')}
                 </Text>
                 <GlassContainer borderRadius={borderRadius.lg} style={styles.searchContainer}>
                   <Ionicons name="search" size={moderateScale(20)} color={theme.textSecondary} />
                   <TextInput
                     style={[styles.searchInput, { fontSize: fontSize(14), color: theme.text }]}
-                    placeholder="Search users by name or email..."
+                    placeholder={t('chats.searchUsersPlaceholder')}
                     placeholderTextColor={theme.textSecondary}
                     value={searchQuery}
                     onChangeText={setSearchQuery}

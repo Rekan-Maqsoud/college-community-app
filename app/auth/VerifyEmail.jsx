@@ -37,7 +37,7 @@ import {
 import { borderRadius } from '../theme/designTokens';
 
 const VerifyEmail = ({ route, navigation }) => {
-  const { email, expiresAt } = route.params || {};
+  const { email, expiresAt, formData } = route.params || {};
   const [isVerifying, setIsVerifying] = useState(false);
   const [canResend, setCanResend] = useState(false);
   const [countdown, setCountdown] = useState(60);
@@ -284,8 +284,8 @@ const VerifyEmail = ({ route, navigation }) => {
 
   const handleGoBack = async () => {
     Alert.alert(
-      t('auth.cancelVerification') || 'Cancel Verification',
-      t('auth.cancelVerificationMessage') || 'Your signup data will be deleted. You will need to sign up again.',
+      t('auth.changeEmail') || 'Change Email',
+      t('auth.changeEmailMessage') || 'Go back to change your email address? Your other information will be preserved.',
       [
         {
           text: t('common.cancel') || 'Cancel',
@@ -296,7 +296,7 @@ const VerifyEmail = ({ route, navigation }) => {
           onPress: async () => {
             try {
               await cancelPendingVerification();
-              navigation.replace('SignUp');
+              navigation.replace('SignUp', { preservedData: formData });
             } catch (error) {
               navigation.replace('SignUp');
             }
@@ -397,7 +397,8 @@ const VerifyEmail = ({ route, navigation }) => {
                           styles.otpInput,
                           { 
                             borderColor: otpError ? '#FF3B30' : (digit ? theme.primary : 'rgba(0,0,0,0.2)'),
-                            backgroundColor: digit ? 'rgba(102, 126, 234, 0.1)' : 'rgba(255,255,255,0.9)',
+                            backgroundColor: digit ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.9)',
+                            color: '#1a1a2e',
                           }
                         ]}
                         value={digit}
@@ -617,7 +618,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize(22),
     fontWeight: 'bold',
     textAlign: 'center',
-    color: '#333',
   },
   errorContainer: {
     flexDirection: 'row',

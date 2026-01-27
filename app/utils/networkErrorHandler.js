@@ -1,8 +1,11 @@
+// Returns error info with translatable message keys
+// Callers should use t(result.messageKey) or fall back to result.fallbackMessage
 export const handleNetworkError = (error) => {
   if (!error) {
     return {
       isNetworkError: false,
-      message: 'Unknown error occurred'
+      messageKey: 'errors.unknownError',
+      fallbackMessage: 'Unknown error occurred'
     };
   }
 
@@ -22,26 +25,30 @@ export const handleNetworkError = (error) => {
   if (isNetworkError) {
     return {
       isNetworkError: true,
-      message: 'No internet connection. Please check your network and try again.'
+      messageKey: 'errors.noInternet',
+      fallbackMessage: 'No internet connection. Please check your network and try again.'
     };
   }
 
   if (error.code === 401 || error.code === 403) {
     return {
       isNetworkError: false,
-      message: 'Authentication error. Please sign in again.'
+      messageKey: 'errors.authError',
+      fallbackMessage: 'Authentication error. Please sign in again.'
     };
   }
 
   if (error.code === 404) {
     return {
       isNetworkError: false,
-      message: 'Resource not found.'
+      messageKey: 'errors.notFound',
+      fallbackMessage: 'Resource not found.'
     };
   }
 
   return {
     isNetworkError: false,
-    message: error.message || 'An error occurred. Please try again.'
+    messageKey: 'errors.genericError',
+    fallbackMessage: error.message || 'An error occurred. Please try again.'
   };
 };

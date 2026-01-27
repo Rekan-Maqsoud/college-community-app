@@ -1,9 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from '../hooks/useTranslation';
 
 const LanguageSelector = () => {
   const { currentLanguage, changeLanguage } = useLanguage();
+  const { t } = useTranslation();
 
   const languages = [
     { code: 'en', name: 'English', nativeName: 'English' },
@@ -14,15 +16,15 @@ const LanguageSelector = () => {
   const handleLanguageChange = (languageCode) => {
     if (languageCode === 'ar') {
       Alert.alert(
-        'RTL Support',
-        'Arabic requires app restart for full RTL support. Please restart the app.',
+        t('settings.rtlSupportTitle'),
+        t('settings.rtlSupportMessage'),
         [
           {
-            text: 'OK',
+            text: t('common.ok'),
             onPress: () => changeLanguage(languageCode),
           },
           {
-            text: 'Cancel',
+            text: t('common.cancel'),
             style: 'cancel',
           },
         ]

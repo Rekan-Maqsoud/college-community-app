@@ -10,7 +10,9 @@ WebBrowser.maybeCompleteAuthSession();
 
 const PENDING_VERIFICATION_KEY = 'pending_verification';
 const PENDING_OAUTH_KEY = 'pending_oauth_signup';
+const PENDING_PASSWORD_RESET_KEY = 'pending_password_reset';
 const VERIFICATION_TIMEOUT = 15 * 60 * 1000; // 15 minutes in milliseconds
+const PASSWORD_RESET_TIMEOUT = 15 * 60 * 1000; // 15 minutes for password reset
 
 // List of blocked public email domains
 const BLOCKED_EMAIL_DOMAINS = [
@@ -839,5 +841,152 @@ export const deleteAccount = async () => {
         }
     } catch (error) {
         throw error;
+    }
+};
+
+// ==================== PASSWORD RESET ====================
+
+// Get the recovery redirect URL for the app
+const getRecoveryRedirectUrl = () => {
+    // Use the hosted redirect page that will forward to the app's deep link
+    // This page catches Appwrite's recovery params and redirects to collegecommunity://reset-password
+    return 'https://collegecommunity.app/reset-password';
+};
+
+// Send password reset email using Appwrite Recovery
+export const sendPasswordResetOTP = async (email) => {
+    console.log('[PasswordReset] Starting for email:', email);
+    try {
+        const sanitizedEmail = sanitizeInput(email).toLowerCase();
+        console.log('[PasswordReset] Sanitized email:', sanitizedEmail);
+        
+        if (!sanitizedEmail) {
+            throw new Error('Invalid email');
+        }
+        
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(sanitizedEmail)) {
+            throw new Error('Invalid email format');
+        }
+        
+        // Check if user exists by trying to find their document
+        let userDoc = null;
+        try {
+            console.log('[PasswordReset] Checking if user exists...');
+            const users = await databases.listDocuments(
+                config.databaseId,
+                config.usersCollectionId || '68fc7b42001bf7efbba3',
+                [Query.equal('email', sanitizedEmail)]
+            );
+            console.log('[PasswordReset] User search results:', users.documents.length);
+            
+            if (users.documents.length === 0) {
+                throw new Error('User not found');
+            }
+            
+            userDoc = users.documents[0];
+            console.log('[PasswordReset] User found:', userDoc.$id);
+        } catch (error) {
+            console.log('[PasswordReset] User check error:', error.message);
+            if (error.message === 'User not found') {
+                throw error;
+            }
+            throw new Error('Failed to verify user: ' + error.message);
+        }
+        
+        // Use Appwrite's Recovery feature - sends email with recovery link
+        const redirectUrl = getRecoveryRedirectUrl();
+        console.log('[PasswordReset] Redirect URL:', redirectUrl);
+        
+        try {
+            console.log('[PasswordReset] Calling account.createRecovery...');
+            const result = await account.createRecovery(sanitizedEmail, redirectUrl);
+            console.log('[PasswordReset] Recovery created successfully:', JSON.stringify(result));
+            
+            // Store pending reset data
+            const pendingData = {
+                email: sanitizedEmail,
+                userId: userDoc.userID || userDoc.$id,
+                timestamp: Date.now(),
+                expiresAt: Date.now() + PASSWORD_RESET_TIMEOUT,
+            };
+            
+            await AsyncStorage.setItem(PENDING_PASSWORD_RESET_KEY, JSON.stringify(pendingData));
+            
+            return {
+                success: true,
+                email: sanitizedEmail,
+                useDeepLink: true,
+            };
+        } catch (recoveryError) {
+            console.log('[PasswordReset] Recovery error code:', recoveryError.code);
+            console.log('[PasswordReset] Recovery error message:', recoveryError.message);
+            console.log('[PasswordReset] Recovery error type:', recoveryError.type);
+            
+            // Throw a more descriptive error
+            if (recoveryError.code === 501 || recoveryError.message?.includes('SMTP') || recoveryError.message?.includes('mail')) {
+                throw new Error('SMTP_NOT_CONFIGURED');
+            }
+            if (recoveryError.code === 404) {
+                throw new Error('User not found');
+            }
+            if (recoveryError.message?.includes('URL')) {
+                throw new Error('REDIRECT_URL_NOT_ALLOWED');
+            }
+            throw new Error(recoveryError.message || 'Unknown error occurred');
+        }
+    } catch (error) {
+        console.log('[PasswordReset] Final error:', error.message);
+        throw error;
+    }
+};
+
+// Complete password reset using recovery token from deep link
+export const completePasswordReset = async (userId, secret, newPassword) => {
+    try {
+        if (!userId || !secret) {
+            throw new Error('Invalid recovery link. Please request a new password reset.');
+        }
+        
+        if (!newPassword || newPassword.length < 8) {
+            throw new Error('Password must be at least 8 characters');
+        }
+        
+        // Use Appwrite's updateRecovery to set the new password
+        await account.updateRecovery(userId, secret, newPassword);
+        
+        // Clean up stored data
+        await AsyncStorage.removeItem(PENDING_PASSWORD_RESET_KEY);
+        
+        return {
+            success: true,
+        };
+    } catch (error) {
+        if (error.message?.includes('expired') || error.code === 401) {
+            throw new Error('Recovery link has expired. Please request a new password reset.');
+        }
+        if (error.message?.includes('Invalid')) {
+            throw new Error('Invalid recovery link. Please request a new password reset.');
+        }
+        
+        throw error;
+    }
+};
+
+// Resend password reset email
+export const resendPasswordResetOTP = async (email) => {
+    try {
+        return await sendPasswordResetOTP(email);
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Clear pending password reset data
+export const clearPendingPasswordReset = async () => {
+    try {
+        await AsyncStorage.removeItem(PENDING_PASSWORD_RESET_KEY);
+    } catch (error) {
+        // Ignore errors
     }
 };

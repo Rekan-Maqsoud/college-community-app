@@ -30,16 +30,33 @@ const NOTIFICATION_TYPES = {
 };
 
 // Group notifications by post and type
+// Only group LIKES on the same post within 24 hours
+// Replies are shown separately for better visibility
 const groupNotifications = (notifications) => {
   const groups = {};
   const standalone = [];
+  const GROUPING_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
   
-  notifications.forEach(notification => {
-    // Only group post-related notifications (likes, replies, mentions)
-    if (notification.postId && 
-        (notification.type === NOTIFICATION_TYPES.POST_LIKE || 
-         notification.type === NOTIFICATION_TYPES.POST_REPLY)) {
+  // Filter out invalid notifications first
+  const validNotifications = notifications.filter(n => n && n.$id && n.type);
+  
+  validNotifications.forEach(notification => {
+    // Only group LIKES on the same post (not replies - show each reply separately)
+    if (notification.postId && notification.type === NOTIFICATION_TYPES.POST_LIKE) {
       const key = `${notification.postId}_${notification.type}`;
+      
+      // Check if existing group is within 24 hour window
+      if (groups[key]) {
+        const timeDiff = Math.abs(
+          new Date(notification.$createdAt) - new Date(groups[key].latestTimestamp)
+        );
+        // If outside window, treat as standalone
+        if (timeDiff > GROUPING_WINDOW_MS) {
+          standalone.push({ isGroup: false, notification });
+          return;
+        }
+      }
+      
       if (!groups[key]) {
         groups[key] = {
           type: notification.type,
@@ -59,17 +76,25 @@ const groupNotifications = (notifications) => {
         groups[key].latestTimestamp = notification.$createdAt;
       }
     } else {
-      // Keep as standalone (follows, mentions, friend posts)
+      // Keep as standalone (replies, follows, mentions, friend posts)
       standalone.push({ isGroup: false, notification });
     }
   });
   
-  // Convert groups to array
-  const groupedItems = Object.values(groups).map(group => ({
-    isGroup: true,
-    ...group,
-    id: `group_${group.postId}_${group.type}`,
-  }));
+  // Convert groups to array, but only if they have more than 1 notification
+  // Single-item groups become standalone for cleaner UI
+  const groupedItems = [];
+  Object.values(groups).forEach(group => {
+    if (group.notifications.length > 1) {
+      groupedItems.push({
+        isGroup: true,
+        ...group,
+        id: `group_${group.postId}_${group.type}`,
+      });
+    } else if (group.notifications.length === 1) {
+      standalone.push({ isGroup: false, notification: group.notifications[0] });
+    }
+  });
   
   // Merge and sort by timestamp
   const allItems = [...groupedItems, ...standalone].sort((a, b) => {
@@ -86,7 +111,7 @@ const getNotificationIcon = (type) => {
     case NOTIFICATION_TYPES.POST_LIKE:
       return { name: 'heart', color: '#FF3B30' };
     case NOTIFICATION_TYPES.POST_REPLY:
-      return { name: 'chatbubble', color: '#007AFF' };
+      return { name: 'chatbubble-ellipses', color: '#007AFF' };
     case NOTIFICATION_TYPES.MENTION:
       return { name: 'at', color: '#5856D6' };
     case NOTIFICATION_TYPES.FRIEND_POST:
@@ -117,32 +142,40 @@ const formatNotificationTime = (dateString, t) => {
 };
 
 const NotificationItem = ({ notification, onPress, onLongPress, onDelete, theme, isDarkMode, t }) => {
-  const icon = getNotificationIcon(notification?.type);
-  const isUnread = !notification?.isRead;
+  // Skip rendering early if notification is invalid
+  if (!notification || !notification.$id || !notification.type) {
+    return null;
+  }
   
-  // Add safeguards for missing data
-  const senderName = notification?.senderName || t('common.user') || 'User';
-  const createdAt = notification?.$createdAt;
+  const icon = getNotificationIcon(notification.type);
+  const isUnread = !notification.isRead;
+  
+  // Add safeguards for missing data with fallbacks
+  const senderName = notification.senderName || t('common.user') || 'User';
+  const createdAt = notification.$createdAt;
+  const postPreview = notification.postPreview || '';
   
   const getNotificationMessage = () => {
-    switch (notification?.type) {
+    switch (notification.type) {
       case NOTIFICATION_TYPES.POST_LIKE:
-        return t('notifications.liked') || 'liked';
+        return t('notifications.likedPost') || 'liked your post';
       case NOTIFICATION_TYPES.POST_REPLY:
-        return t('notifications.replied') || 'replied';
+        return t('notifications.repliedPost') || 'replied to your post';
       case NOTIFICATION_TYPES.MENTION:
-        return t('notifications.mentioned') || 'mentioned';
+        return t('notifications.mentionedYou') || 'mentioned you';
       case NOTIFICATION_TYPES.FRIEND_POST:
-        return t('notifications.posted') || 'posted';
+        return t('notifications.newPost') || 'shared a new post';
       case NOTIFICATION_TYPES.FOLLOW:
-        return t('notifications.followed') || 'followed you';
+        return t('notifications.startedFollowing') || 'started following you';
       default:
         return '';
     }
   };
-
-  // Skip rendering if notification is invalid
-  if (!notification || !notification.$id) {
+  
+  const message = getNotificationMessage();
+  
+  // Additional validation - don't show if no meaningful content
+  if (!senderName && !message) {
     return null;
   }
 
@@ -192,7 +225,7 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, theme,
               >
                 <Text style={[styles.senderName, { color: theme.text }]}>{senderName}</Text>
                 {' '}
-                <Text style={{ color: theme.textSecondary }}>{getNotificationMessage()}</Text>
+                <Text style={{ color: theme.textSecondary }}>{message}</Text>
               </Text>
               <View style={styles.timeRow}>
                 <Ionicons name="time-outline" size={10} color={theme.textSecondary} />
@@ -201,14 +234,14 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, theme,
                 </Text>
               </View>
             </View>
-            {notification.postPreview && (
+            {postPreview ? (
               <Text
                 style={[styles.previewText, { color: theme.textSecondary }]}
                 numberOfLines={1}
               >
-                {notification.postPreview}
+                {postPreview}
               </Text>
-            )}
+            ) : null}
           </View>
 
           <View style={styles.rightSection}>
@@ -250,21 +283,21 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t }) => {
     
     if (group.type === NOTIFICATION_TYPES.POST_LIKE) {
       if (uniqueCount === 1) {
-        return { name: firstName, action: t('notifications.liked') || 'liked' };
+        return { name: firstName, action: t('notifications.likedPost') || 'liked your post' };
       } else if (uniqueCount === 2) {
         const secondName = uniqueUsers[1]?.senderName?.split(' ')[0] || '';
-        return { name: `${firstName}, ${secondName}`, action: t('notifications.liked') || 'liked' };
+        return { name: `${firstName}, ${secondName}`, action: t('notifications.likedPost') || 'liked your post' };
       } else {
-        return { name: `${firstName} +${uniqueCount - 1}`, action: t('notifications.liked') || 'liked' };
+        return { name: `${firstName} +${uniqueCount - 1}`, action: t('notifications.likedPost') || 'liked your post' };
       }
     } else if (group.type === NOTIFICATION_TYPES.POST_REPLY) {
       if (uniqueCount === 1) {
-        return { name: firstName, action: t('notifications.replied') || 'replied' };
+        return { name: firstName, action: t('notifications.repliedPost') || 'replied to your post' };
       } else if (uniqueCount === 2) {
         const secondName = uniqueUsers[1]?.senderName?.split(' ')[0] || '';
-        return { name: `${firstName}, ${secondName}`, action: t('notifications.replied') || 'replied' };
+        return { name: `${firstName}, ${secondName}`, action: t('notifications.repliedPost') || 'replied to your post' };
       } else {
-        return { name: `${firstName} +${uniqueCount - 1}`, action: t('notifications.replied') || 'replied' };
+        return { name: `${firstName} +${uniqueCount - 1}`, action: t('notifications.repliedPost') || 'replied to your post' };
       }
     }
     return { name: '', action: '' };
@@ -398,16 +431,26 @@ const Notifications = ({ navigation }) => {
 
   // Handle real-time notification updates
   const handleNewNotification = useCallback((newNotification) => {
-    if (!newNotification || !newNotification.$id) {
+    // Validate notification has required fields
+    if (!newNotification || !newNotification.$id || !newNotification.type) {
       return;
     }
     
     setNotifications(prev => {
       // Check if notification already exists
-      const exists = prev.some(n => n.$id === newNotification.$id);
-      if (exists) {
-        // Update existing notification
-        return prev.map(n => n.$id === newNotification.$id ? newNotification : n);
+      const existingIndex = prev.findIndex(n => n.$id === newNotification.$id);
+      if (existingIndex !== -1) {
+        // Update existing notification, preserving any missing fields from the old one
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...prev[existingIndex],
+          ...newNotification,
+          // Ensure these fields are never lost
+          senderName: newNotification.senderName || prev[existingIndex].senderName,
+          senderProfilePicture: newNotification.senderProfilePicture || prev[existingIndex].senderProfilePicture,
+          postPreview: newNotification.postPreview || prev[existingIndex].postPreview,
+        };
+        return updated;
       }
       // Add new notification at the beginning
       return [newNotification, ...prev];
@@ -446,25 +489,42 @@ const Notifications = ({ navigation }) => {
   };
 
   const handleNotificationPress = async (notification) => {
-    // Mark as read
+    if (!notification || !notification.$id) return;
+    
+    // Store the notification data before any async operations
+    const notificationData = { ...notification };
+    
+    // Mark as read (optimistic update)
     if (!notification.isRead) {
+      // Update UI immediately
+      setNotifications(prev =>
+        prev.map(n =>
+          n.$id === notificationData.$id 
+            ? { ...n, isRead: true } 
+            : n
+        )
+      );
+      
+      // Then persist to database
       try {
-        await markNotificationAsRead(notification.$id);
+        await markNotificationAsRead(notificationData.$id);
+      } catch (error) {
+        // Revert on error
         setNotifications(prev =>
           prev.map(n =>
-            n.$id === notification.$id ? { ...n, isRead: true } : n
+            n.$id === notificationData.$id 
+              ? { ...n, isRead: false } 
+              : n
           )
         );
-      } catch (error) {
-        // Handle error silently
       }
     }
 
     // Navigate based on notification type
-    if (notification.postId) {
-      navigation.navigate('PostDetails', { postId: notification.postId });
-    } else if (notification.senderId) {
-      navigation.navigate('UserProfile', { userId: notification.senderId });
+    if (notificationData.postId) {
+      navigation.navigate('PostDetails', { postId: notificationData.postId });
+    } else if (notificationData.senderId) {
+      navigation.navigate('UserProfile', { userId: notificationData.senderId });
     }
   };
 
@@ -538,29 +598,42 @@ const Notifications = ({ navigation }) => {
 
   // Handle grouped notification press
   const handleGroupPress = async (group) => {
-    // Mark all notifications in group as read
-    const unreadInGroup = group.notifications.filter(n => !n.isRead);
-    if (unreadInGroup.length > 0) {
+    if (!group || !group.postId) return;
+    
+    // Store notification IDs before any async operations
+    const notificationIds = group.notifications.map(n => n.$id);
+    const unreadIds = group.notifications.filter(n => !n.isRead).map(n => n.$id);
+    
+    // Mark all notifications in group as read (optimistic update)
+    if (unreadIds.length > 0) {
+      // Update UI immediately
+      setNotifications(prev =>
+        prev.map(n =>
+          notificationIds.includes(n.$id)
+            ? { ...n, isRead: true }
+            : n
+        )
+      );
+      
+      // Then persist to database
       try {
         await Promise.all(
-          unreadInGroup.map(n => markNotificationAsRead(n.$id))
+          unreadIds.map(id => markNotificationAsRead(id))
         );
+      } catch (error) {
+        // Revert on error
         setNotifications(prev =>
           prev.map(n =>
-            group.notifications.some(gn => gn.$id === n.$id)
-              ? { ...n, isRead: true }
+            unreadIds.includes(n.$id)
+              ? { ...n, isRead: false }
               : n
           )
         );
-      } catch (error) {
-        // Handle error silently
       }
     }
 
     // Navigate to post
-    if (group.postId) {
-      navigation.navigate('PostDetails', { postId: group.postId });
-    }
+    navigation.navigate('PostDetails', { postId: group.postId });
   };
 
   const renderEmptyState = () => (

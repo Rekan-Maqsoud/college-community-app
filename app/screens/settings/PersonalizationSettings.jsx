@@ -233,14 +233,14 @@ const PersonalizationSettings = ({ navigation }) => {
           <GlassCard>
             <View style={styles.colorPickerContainer}>
               {[
-                { color: null, label: 'Default' },
-                { color: '#007AFF', label: 'Blue' },
-                { color: '#34C759', label: 'Green' },
-                { color: '#FF9500', label: 'Orange' },
-                { color: '#FF3B30', label: 'Red' },
-                { color: '#AF52DE', label: 'Purple' },
-                { color: '#FF2D55', label: 'Pink' },
-                { color: '#5AC8FA', label: 'Cyan' },
+                { color: null, labelKey: 'settings.colorDefault' },
+                { color: '#007AFF', labelKey: 'settings.colorBlue' },
+                { color: '#34C759', labelKey: 'settings.colorGreen' },
+                { color: '#FF9500', labelKey: 'settings.colorOrange' },
+                { color: '#FF3B30', labelKey: 'settings.colorRed' },
+                { color: '#AF52DE', labelKey: 'settings.colorPurple' },
+                { color: '#FF2D55', labelKey: 'settings.colorPink' },
+                { color: '#5AC8FA', labelKey: 'settings.colorCyan' },
               ].map((item) => (
                 <TouchableOpacity
                   key={item.color || 'default'}

@@ -314,7 +314,7 @@ const Home = ({ navigation, route }) => {
       const errorInfo = handleNetworkError(error);
       showAlert(
         errorInfo.isNetworkError ? t('error.noInternet') : t('error.title'),
-        errorInfo.message,
+        t(errorInfo.messageKey) || errorInfo.fallbackMessage,
         [{ text: t('common.ok') }]
       );
     } finally {
@@ -466,7 +466,7 @@ const Home = ({ navigation, route }) => {
       const errorInfo = handleNetworkError(error);
       showAlert(
         errorInfo.isNetworkError ? t('error.noInternet') : t('error.title'),
-        errorInfo.message,
+        t(errorInfo.messageKey) || errorInfo.fallbackMessage,
         [{ text: t('common.ok') }]
       );
     }
@@ -493,7 +493,7 @@ const Home = ({ navigation, route }) => {
       const errorInfo = handleNetworkError(error);
       showAlert(
         errorInfo.isNetworkError ? t('error.noInternet') : t('error.title'),
-        errorInfo.message,
+        t(errorInfo.messageKey) || errorInfo.fallbackMessage,
         [{ text: t('common.ok') }]
       );
     }
@@ -520,7 +520,7 @@ const Home = ({ navigation, route }) => {
               const errorInfo = handleNetworkError(error);
               showAlert(
                 errorInfo.isNetworkError ? t('error.noInternet') : t('error.title'),
-                errorInfo.message,
+                t(errorInfo.messageKey) || errorInfo.fallbackMessage,
                 'error'
               );
             }

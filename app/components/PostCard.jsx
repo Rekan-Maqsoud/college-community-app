@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Share,
   Linking,
-  Modal,
   Pressable,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -512,20 +511,15 @@ const PostCard = ({
         t={t}
       />
 
-      {/* Image Gallery Modal */}
-      <Modal
-        visible={imageGalleryVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setImageGalleryVisible(false)}
-      >
+      {/* Image Gallery - ZoomableImageModal handles its own Modal */}
+      {imageGalleryVisible && (
         <PostCardImageGallery
           images={post.images || []}
           initialIndex={selectedImageIndex}
           onClose={() => setImageGalleryVisible(false)}
           t={t}
         />
-      </Modal>
+      )}
     </View>
   );
 };

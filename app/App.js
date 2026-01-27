@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Platform, ActivityIndicator, View, Animated, Image, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as Linking from 'expo-linking';
 import { AppSettingsProvider, useAppSettings } from './context/AppSettingsContext';
 import { UserProvider, useUser } from './context/UserContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -25,6 +26,7 @@ import {
 import SignIn from './auth/SignIn';
 import SignUp from './auth/SignUp';
 import VerifyEmail from './auth/VerifyEmail';
+import ForgotPassword from './auth/ForgotPassword';
 
 import Home from './tabs/Home';
 import Chats from './tabs/Chats';
@@ -264,6 +266,10 @@ const MainStack = () => {
         component={VerifyEmail}
       />
       <Stack.Screen 
+        name="ForgotPassword" 
+        component={ForgotPassword}
+      />
+      <Stack.Screen 
         name="MainTabs" 
         component={TabNavigator}
       />
@@ -461,6 +467,51 @@ const NotificationSetup = ({ navigationRef }) => {
   return null;
 };
 
+// Component to handle deep links for password recovery
+const DeepLinkHandler = ({ navigationRef }) => {
+  useEffect(() => {
+    const handleDeepLink = (event) => {
+      const url = event.url;
+      if (!url) return;
+      
+      try {
+        const parsed = Linking.parse(url);
+        
+        // Handle password reset deep link (both schemes)
+        // collegecommunity://reset-password OR appwrite-callback-xxx://reset-password
+        if (parsed.path === 'reset-password' || url.includes('reset-password')) {
+          const { userId, secret } = parsed.queryParams || {};
+          if (userId && secret && navigationRef.current) {
+            // Navigate to ForgotPassword with recovery params
+            navigationRef.current.navigate('ForgotPassword', { userId, secret });
+          }
+        }
+      } catch (error) {
+        // Silent fail for deep link parsing errors
+      }
+    };
+
+    // Check initial URL when app opens
+    const checkInitialURL = async () => {
+      const initialUrl = await Linking.getInitialURL();
+      if (initialUrl) {
+        handleDeepLink({ url: initialUrl });
+      }
+    };
+
+    checkInitialURL();
+
+    // Listen for deep links while app is open
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [navigationRef]);
+
+  return null;
+};
+
 export default function App() {
   const navigationRef = useNavigationContainerRef();
   
@@ -474,6 +525,7 @@ export default function App() {
                 <UserProvider>
                   <NavigationContainer ref={navigationRef}>
                     <NotificationSetup navigationRef={navigationRef} />
+                    <DeepLinkHandler navigationRef={navigationRef} />
                     <MainStack />
                   </NavigationContainer>
                 </UserProvider>

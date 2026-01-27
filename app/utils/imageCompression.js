@@ -138,7 +138,9 @@ export const pickAndCompressImages = async (options = {}) => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
     if (!permissionResult.granted) {
-      throw new Error('Permission to access gallery was denied');
+      const error = new Error('Permission to access gallery was denied');
+      error.translationKey = 'errors.galleryPermissionDenied';
+      throw error;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -155,7 +157,10 @@ export const pickAndCompressImages = async (options = {}) => {
     const selectedImages = result.assets || [result];
     
     if (selectedImages.length > maxImages) {
-      throw new Error(`Maximum ${maxImages} images allowed`);
+      const error = new Error(`Maximum ${maxImages} images allowed`);
+      error.translationKey = 'errors.maxImagesExceeded';
+      error.translationParams = { max: maxImages };
+      throw error;
     }
 
     // Compress images and get base64 for upload
@@ -193,7 +198,9 @@ export const takePictureAndCompress = async (options = {}) => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     
     if (!permissionResult.granted) {
-      throw new Error('Permission to access camera was denied');
+      const error = new Error('Permission to access camera was denied');
+      error.translationKey = 'errors.cameraPermissionDenied';
+      throw error;
     }
 
     const result = await ImagePicker.launchCameraAsync({

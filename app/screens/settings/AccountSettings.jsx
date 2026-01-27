@@ -6,8 +6,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
-  Alert,
 } from 'react-native';
+import CustomAlert from '../../components/CustomAlert';
+import { useCustomAlert } from '../../hooks/useCustomAlert';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -24,12 +25,14 @@ const AccountSettings = ({ navigation }) => {
   const { t, theme, isDarkMode, resetSettings } = useAppSettings();
   const { user, clearUser } = useUser();
   const [isClearingCache, setIsClearingCache] = useState(false);
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   const handleClearCache = () => {
-    Alert.alert(
-      t('settings.clearCache') || 'Clear Cache',
-      t('settings.clearCacheConfirm') || 'This will clear all cached data. The app may load slower temporarily.',
-      [
+    showAlert({
+      type: 'warning',
+      title: t('settings.clearCache') || 'Clear Cache',
+      message: t('settings.clearCacheConfirm') || 'This will clear all cached data. The app may load slower temporarily.',
+      buttons: [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('common.clear') || 'Clear',
@@ -37,42 +40,41 @@ const AccountSettings = ({ navigation }) => {
             setIsClearingCache(true);
             try {
               await cacheManager.clear();
-              Alert.alert(
-                t('common.success'),
-                t('settings.cacheCleared') || 'Cache cleared successfully!'
-              );
+              showAlert(t('common.success'), t('settings.cacheCleared') || 'Cache cleared successfully!', 'success');
             } catch (error) {
-              Alert.alert(t('common.error'), t('settings.clearCacheError') || 'Failed to clear cache');
+              showAlert(t('common.error'), t('settings.clearCacheError') || 'Failed to clear cache', 'error');
             } finally {
               setIsClearingCache(false);
             }
           },
           style: 'destructive',
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleResetSettings = () => {
-    Alert.alert(
-      t('settings.resetSettings'),
-      t('settings.resetConfirm'),
-      [
+    showAlert({
+      type: 'warning',
+      title: t('settings.resetSettings'),
+      message: t('settings.resetConfirm'),
+      buttons: [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('common.yes'),
           onPress: resetSettings,
           style: 'destructive',
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      t('settings.logout'),
-      t('settings.logoutConfirm'),
-      [
+    showAlert({
+      type: 'warning',
+      title: t('settings.logout'),
+      message: t('settings.logoutConfirm'),
+      buttons: [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('common.yes'),
@@ -86,16 +88,13 @@ const AccountSettings = ({ navigation }) => {
               await clearUser();
               navigation.replace('SignIn');
             } catch (error) {
-              Alert.alert(
-                t('common.error'),
-                t('settings.logoutError')
-              );
+              showAlert(t('common.error'), t('settings.logoutError'), 'error');
             }
           },
           style: 'destructive',
         },
-      ]
-    );
+      ],
+    });
   };
 
   const GlassCard = ({ children, style }) => (
@@ -248,6 +247,8 @@ const AccountSettings = ({ navigation }) => {
 
         <View style={styles.bottomPadding} />
       </ScrollView>
+      
+      <CustomAlert {...alertConfig} onDismiss={hideAlert} />
     </View>
   );
 };

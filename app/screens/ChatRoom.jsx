@@ -370,6 +370,19 @@ const ChatRoom = ({ route, navigation }) => {
     !chatSettings.backgroundImage.startsWith('pattern_') &&
     chatSettings.backgroundImage !== null;
 
+  const handleScrollToIndexFailed = useCallback((info) => {
+    // Handle failed scroll - wait and retry
+    setTimeout(() => {
+      if (flatListRef.current && info.index < memoizedMessages.length) {
+        flatListRef.current.scrollToIndex({
+          index: info.index,
+          animated: true,
+          viewPosition: 0.5,
+        });
+      }
+    }, 100);
+  }, [memoizedMessages.length]);
+
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: isDarkMode ? '#1a1a2e' : '#f0f4ff' }]}>
@@ -384,19 +397,6 @@ const ChatRoom = ({ route, navigation }) => {
       </View>
     );
   }
-
-  const handleScrollToIndexFailed = useCallback((info) => {
-    // Handle failed scroll - wait and retry
-    setTimeout(() => {
-      if (flatListRef.current && info.index < memoizedMessages.length) {
-        flatListRef.current.scrollToIndex({
-          index: info.index,
-          animated: true,
-          viewPosition: 0.5,
-        });
-      }
-    }, 100);
-  }, [memoizedMessages.length]);
 
   const renderSearchBar = () => {
     if (!searchActive) return null;

@@ -268,12 +268,12 @@ const EditPost = ({ navigation, route }) => {
           >
             <Ionicons name="close" size={28} color="#111827" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Error</Text>
+          <Text style={styles.headerTitle}>{t('common.error')}</Text>
           <View style={styles.headerButton} />
         </View>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={{ fontSize: 16, color: '#6B7280', marginTop: 10 }}>Loading...</Text>
+          <Text style={{ fontSize: 16, color: '#6B7280', marginTop: 10 }}>{t('common.loading')}</Text>
         </View>
       </SafeAreaView>
     );

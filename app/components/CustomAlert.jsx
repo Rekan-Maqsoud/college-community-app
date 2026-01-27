@@ -11,6 +11,7 @@ import {
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { useTranslation } from '../hooks/useTranslation';
 import { borderRadius, shadows } from '../theme/designTokens';
 import { wp, fontSize, spacing } from '../utils/responsive';
 
@@ -25,6 +26,7 @@ const CustomAlert = ({
   onDismiss,
 }) => {
   const { theme, isDarkMode } = useAppSettings();
+  const { t } = useTranslation();
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -76,7 +78,7 @@ const CustomAlert = ({
 
   const defaultButtons = buttons.length > 0 ? buttons : [
     {
-      text: 'OK',
+      text: t('common.ok') || 'OK',
       onPress: onDismiss,
       style: 'primary',
     },

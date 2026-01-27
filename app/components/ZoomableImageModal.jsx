@@ -16,7 +16,8 @@ import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-g
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
+  withTiming,
+  Easing,
   runOnJS,
 } from 'react-native-reanimated';
 import * as FileSystem from 'expo-file-system';
@@ -35,9 +36,10 @@ const ZoomableImage = ({ uri, onLongPress, isActive }) => {
   const savedTranslateY = useSharedValue(0);
 
   const resetZoom = () => {
-    scale.value = withSpring(1, { damping: 15 });
-    translateX.value = withSpring(0, { damping: 15 });
-    translateY.value = withSpring(0, { damping: 15 });
+    const timingConfig = { duration: 250, easing: Easing.out(Easing.cubic) };
+    scale.value = withTiming(1, timingConfig);
+    translateX.value = withTiming(0, timingConfig);
+    translateY.value = withTiming(0, timingConfig);
     savedScale.value = 1;
     savedTranslateX.value = 0;
     savedTranslateY.value = 0;
@@ -50,9 +52,10 @@ const ZoomableImage = ({ uri, onLongPress, isActive }) => {
     .onEnd(() => {
       savedScale.value = scale.value;
       if (savedScale.value < 1) {
-        scale.value = withSpring(1, { damping: 15 });
-        translateX.value = withSpring(0, { damping: 15 });
-        translateY.value = withSpring(0, { damping: 15 });
+        const timingConfig = { duration: 250, easing: Easing.out(Easing.cubic) };
+        scale.value = withTiming(1, timingConfig);
+        translateX.value = withTiming(0, timingConfig);
+        translateY.value = withTiming(0, timingConfig);
         savedScale.value = 1;
         savedTranslateX.value = 0;
         savedTranslateY.value = 0;
@@ -85,7 +88,7 @@ const ZoomableImage = ({ uri, onLongPress, isActive }) => {
       if (savedScale.value > 1) {
         runOnJS(resetZoom)();
       } else {
-        scale.value = withSpring(2.5, { damping: 15 });
+        scale.value = withTiming(2.5, { duration: 250, easing: Easing.out(Easing.cubic) });
         savedScale.value = 2.5;
       }
     });

@@ -1,6 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
+// Note: ErrorBoundary is a class component and cannot use hooks for translations.
+// Basic multi-language strings are hardcoded here as a fallback when the app crashes.
+const errorStrings = {
+  title: '⚠️ Something went wrong / حدث خطأ / هەڵەیەک ڕوویدا',
+  instruction: 'Please restart the app / الرجاء إعادة تشغيل التطبيق / تکایە ئەپەکە ڕیستارت بکەوە',
+};
+
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -19,12 +26,12 @@ class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <View style={styles.container}>
-          <Text style={styles.title}>⚠️ Something went wrong</Text>
+          <Text style={styles.title}>{errorStrings.title}</Text>
           <Text style={styles.message}>
             {this.state.error?.toString()}
           </Text>
           <Text style={styles.instruction}>
-            Please restart the app
+            {errorStrings.instruction}
           </Text>
         </View>
       );

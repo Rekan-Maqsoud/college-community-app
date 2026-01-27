@@ -39,17 +39,18 @@ const SignUp = ({ navigation, route }) => {
   const oauthEmail = route?.params?.oauthEmail || '';
   const oauthName = route?.params?.oauthName || '';
   const oauthUserId = route?.params?.oauthUserId || '';
+  const preservedData = route?.params?.preservedData || null;
   
   const { setUserData } = useUser();
-  const [fullName, setFullName] = useState(oauthName);
-  const [email, setEmail] = useState(oauthEmail);
-  const [age, setAge] = useState('');
+  const [fullName, setFullName] = useState(preservedData?.fullName || oauthName);
+  const [email, setEmail] = useState(preservedData?.email || oauthEmail);
+  const [age, setAge] = useState(preservedData?.age || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [university, setUniversity] = useState('');
-  const [college, setCollege] = useState('');
-  const [department, setDepartment] = useState('');
-  const [stage, setStage] = useState('');
+  const [university, setUniversity] = useState(preservedData?.university || '');
+  const [college, setCollege] = useState(preservedData?.college || '');
+  const [department, setDepartment] = useState(preservedData?.department || '');
+  const [stage, setStage] = useState(preservedData?.stage || '');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -64,6 +65,7 @@ const SignUp = ({ navigation, route }) => {
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const isInitialMount = useRef(true);
 
   // Handle email change and show suggestion when @ is typed
   const handleEmailChange = (text) => {
@@ -119,6 +121,10 @@ const SignUp = ({ navigation, route }) => {
   }, []);
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     if (university) {
       setCollege('');
       setDepartment('');
@@ -126,6 +132,7 @@ const SignUp = ({ navigation, route }) => {
   }, [university]);
 
   useEffect(() => {
+    if (isInitialMount.current) return;
     if (college) {
       setDepartment('');
     }
@@ -173,7 +180,7 @@ const SignUp = ({ navigation, route }) => {
     }
     
     if (fullName.trim().length < 2 || fullName.trim().length > 100) {
-      Alert.alert(t('common.error'), 'Name must be between 2 and 100 characters');
+      Alert.alert(t('common.error'), t('auth.nameLengthError') || 'Name must be between 2 and 100 characters');
       return false;
     }
     
@@ -301,7 +308,16 @@ const SignUp = ({ navigation, route }) => {
           userId: result.userId,
           name: result.name,
           expiresAt: Date.now() + (15 * 60 * 1000),
-          verificationCode: result.verificationCode
+          verificationCode: result.verificationCode,
+          formData: {
+            fullName,
+            email: result.email,
+            age,
+            university,
+            college,
+            department,
+            stage,
+          }
         });
       }
       
