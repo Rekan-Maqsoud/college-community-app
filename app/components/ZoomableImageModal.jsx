@@ -155,6 +155,9 @@ const ZoomableImageModal = ({
   }, [currentIndex, images?.length]);
 
   const handleDownload = async () => {
+    let permissionResult = null;
+    let downloadResult = null;
+    let fileUri = null;
     try {
       setIsDownloading(true);
       const imageUrl = images[currentIndex];
@@ -168,12 +171,13 @@ const ZoomableImageModal = ({
       }
 
       // Request permissions
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      permissionResult = await MediaLibrary.requestPermissionsAsync();
+      const { status } = permissionResult;
       
       if (status !== 'granted') {
         Alert.alert(
           t('common.error'),
-          t('post.galleryPermissionRequired') || 'Gallery permission is required to save images'
+          t('post.galleryPermissionRequired')
         );
         return;
       }
@@ -184,10 +188,10 @@ const ZoomableImageModal = ({
       const extension = urlParts.length > 1 ? urlParts[urlParts.length - 1].toLowerCase() : 'jpg';
       const validExtension = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension) ? extension : 'jpg';
       const filename = `college_image_${Date.now()}.${validExtension}`;
-      const fileUri = FileSystem.cacheDirectory + filename;
+      fileUri = FileSystem.cacheDirectory + filename;
 
       // Download the image
-      const downloadResult = await FileSystem.downloadAsync(imageUrl, fileUri, {
+      downloadResult = await FileSystem.downloadAsync(imageUrl, fileUri, {
         headers: {
           'Accept': 'image/*',
           'User-Agent': 'Mozilla/5.0 (compatible; CollegeCommunity/1.0)',
@@ -201,10 +205,10 @@ const ZoomableImageModal = ({
         if (asset) {
           Alert.alert(
             t('common.success'),
-            t('post.imageSaved') || 'Image saved to gallery'
+            t('post.imageSaved')
           );
         } else {
-          throw new Error('Failed to create asset');
+          throw new Error(t('post.downloadErrorAssetCreate'));
         }
 
         // Clean up temp file
@@ -214,12 +218,23 @@ const ZoomableImageModal = ({
           // Ignore deletion errors
         }
       } else {
-        throw new Error('Download failed with status: ' + (downloadResult?.status || 'unknown'));
+        throw new Error(t('post.downloadErrorDownload'));
       }
     } catch (error) {
+      const imageUrl = images[currentIndex];
+      const details = [
+        `${t('post.downloadErrorReasonLabel')}: ${error?.message || t('post.downloadErrorUnknown')}`,
+        `${t('post.downloadErrorStatusLabel')}: ${downloadResult?.status ?? t('post.downloadErrorUnknown')}`,
+        `${t('post.downloadErrorPermissionLabel')}: ${permissionResult?.status ?? t('post.downloadErrorUnknown')}`,
+        `${t('post.downloadErrorAccessLabel')}: ${permissionResult?.accessPrivileges ?? t('post.downloadErrorUnknown')}`,
+        `${t('post.downloadErrorPlatformLabel')}: ${Platform.OS}`,
+        `${t('post.downloadErrorUrlLabel')}: ${imageUrl || t('post.downloadErrorUnknown')}`,
+        `${t('post.downloadErrorFileLabel')}: ${fileUri || t('post.downloadErrorUnknown')}`,
+      ].join('\n');
+
       Alert.alert(
         t('common.error'),
-        t('post.downloadFailed') || 'Failed to download image'
+        `${t('post.downloadFailed')}\n\n${details}`
       );
     } finally {
       setIsDownloading(false);

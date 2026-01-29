@@ -25,6 +25,7 @@ export const useRealtimeSubscription = (
   const retryCountRef = useRef(0);
   const maxRetries = 3;
   const hasSubscribedRef = useRef(false);
+  const retryTimeoutRef = useRef(null);
 
   // Keep refs updated to avoid stale closures
   useEffect(() => {
@@ -46,6 +47,20 @@ export const useRealtimeSubscription = (
       ? `databases.${config.databaseId}.collections.${collectionId}.documents.${documentId}`
       : `databases.${config.databaseId}.collections.${collectionId}.documents`;
 
+    const scheduleRetry = () => {
+      if (retryCountRef.current >= maxRetries) {
+        return;
+      }
+
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+
+      retryTimeoutRef.current = setTimeout(() => {
+        subscribe();
+      }, 2000);
+    };
+
     const subscribe = async () => {
       // Prevent duplicate subscriptions
       if (hasSubscribedRef.current) {
@@ -62,6 +77,7 @@ export const useRealtimeSubscription = (
         await account.getSession('current');
       } catch (authError) {
         retryCountRef.current++;
+        scheduleRetry();
         return;
       }
 
@@ -93,6 +109,7 @@ export const useRealtimeSubscription = (
         isConnectedRef.current = false;
         hasSubscribedRef.current = false;
         retryCountRef.current++;
+        scheduleRetry();
       }
     };
 
@@ -100,6 +117,10 @@ export const useRealtimeSubscription = (
 
     return () => {
       hasSubscribedRef.current = false;
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
       if (unsubscribeRef.current) {
         try {
           unsubscribeRef.current();

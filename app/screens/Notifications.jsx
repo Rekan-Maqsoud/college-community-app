@@ -398,6 +398,28 @@ const Notifications = ({ navigation }) => {
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
 
+  const sanitizeNotification = useCallback((notification) => {
+    if (!notification || !notification.$id || !notification.type) {
+      return null;
+    }
+    return notification;
+  }, []);
+
+  const mergeNotification = useCallback((previous, incoming) => {
+    if (!previous) return incoming;
+    return {
+      ...previous,
+      ...incoming,
+      type: incoming.type || previous.type,
+      postId: incoming.postId || previous.postId,
+      senderId: incoming.senderId || previous.senderId,
+      senderName: incoming.senderName || previous.senderName,
+      senderProfilePicture: incoming.senderProfilePicture || previous.senderProfilePicture,
+      postPreview: incoming.postPreview || previous.postPreview,
+      $createdAt: incoming.$createdAt || previous.$createdAt,
+    };
+  }, []);
+
   const loadNotifications = useCallback(async (reset = false) => {
     if (!user?.$id) {
       setIsLoading(false);
@@ -409,11 +431,26 @@ const Notifications = ({ navigation }) => {
     try {
       const fetchedNotifications = await getNotifications(user.$id, 20, currentPage * 20);
       
+      const sanitized = (fetchedNotifications || [])
+        .map(sanitizeNotification)
+        .filter(Boolean);
+
       if (reset) {
-        setNotifications(fetchedNotifications || []);
+        setNotifications(sanitized);
         setPage(1);
       } else {
-        setNotifications(prev => [...prev, ...(fetchedNotifications || [])]);
+        setNotifications(prev => {
+          const merged = [...prev];
+          sanitized.forEach((incoming) => {
+            const existingIndex = merged.findIndex(n => n.$id === incoming.$id);
+            if (existingIndex !== -1) {
+              merged[existingIndex] = mergeNotification(merged[existingIndex], incoming);
+            } else {
+              merged.push(incoming);
+            }
+          });
+          return merged;
+        });
         setPage(prev => prev + 1);
       }
       
@@ -427,7 +464,7 @@ const Notifications = ({ navigation }) => {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [user?.$id, page]);
+  }, [user?.$id, page, sanitizeNotification, mergeNotification]);
 
   // Handle real-time notification updates
   const handleNewNotification = useCallback((newNotification) => {
@@ -442,20 +479,13 @@ const Notifications = ({ navigation }) => {
       if (existingIndex !== -1) {
         // Update existing notification, preserving any missing fields from the old one
         const updated = [...prev];
-        updated[existingIndex] = {
-          ...prev[existingIndex],
-          ...newNotification,
-          // Ensure these fields are never lost
-          senderName: newNotification.senderName || prev[existingIndex].senderName,
-          senderProfilePicture: newNotification.senderProfilePicture || prev[existingIndex].senderProfilePicture,
-          postPreview: newNotification.postPreview || prev[existingIndex].postPreview,
-        };
+        updated[existingIndex] = mergeNotification(prev[existingIndex], newNotification);
         return updated;
       }
       // Add new notification at the beginning
       return [newNotification, ...prev];
     });
-  }, []);
+  }, [mergeNotification]);
 
   // Subscribe to real-time notification updates
   useNotifications(user?.$id, handleNewNotification, handleNewNotification, !!user?.$id);

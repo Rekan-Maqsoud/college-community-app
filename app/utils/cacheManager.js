@@ -222,12 +222,12 @@ export const messagesCacheManager = {
     if (cached?.value) {
       const messages = cached.value;
       if (!messages.some(m => m.$id === message.$id)) {
-        messages.push(message);
-        // Keep only the last 'limit' messages
-        if (messages.length > limit) {
-          messages.shift();
+        const updatedMessages = [message, ...messages];
+        // Keep only the last 'limit' messages (newest first)
+        if (updatedMessages.length > limit) {
+          updatedMessages.pop();
         }
-        await cacheManager.set(key, messages, CACHE_DURATIONS.messages);
+        await cacheManager.set(key, updatedMessages, CACHE_DURATIONS.messages);
       }
     }
   }

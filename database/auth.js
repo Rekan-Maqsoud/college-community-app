@@ -848,17 +848,25 @@ export const deleteAccount = async () => {
 
 // Get the recovery redirect URL for the app
 const getRecoveryRedirectUrl = () => {
-    // Use the hosted redirect page that will forward to the app's deep link
-    // This page catches Appwrite's recovery params and redirects to collegecommunity://reset-password
-    return 'https://collegecommunity.app/reset-password';
+    const configuredUrl = process.env.EXPO_PUBLIC_APPWRITE_RECOVERY_REDIRECT_URL;
+    const fallbackUrl = 'https://collegecommunity.app/reset-password';
+    const rawUrl = (configuredUrl || fallbackUrl || '').trim();
+
+    if (!rawUrl) {
+        return 'https://collegecommunity.app/reset-password';
+    }
+
+    if (/^https?:\/\//i.test(rawUrl)) {
+        return rawUrl;
+    }
+
+    return `https://${rawUrl.replace(/^\/+/, '')}`;
 };
 
 // Send password reset email using Appwrite Recovery
 export const sendPasswordResetOTP = async (email) => {
-    console.log('[PasswordReset] Starting for email:', email);
     try {
         const sanitizedEmail = sanitizeInput(email).toLowerCase();
-        console.log('[PasswordReset] Sanitized email:', sanitizedEmail);
         
         if (!sanitizedEmail) {
             throw new Error('Invalid email');
@@ -872,22 +880,18 @@ export const sendPasswordResetOTP = async (email) => {
         // Check if user exists by trying to find their document
         let userDoc = null;
         try {
-            console.log('[PasswordReset] Checking if user exists...');
             const users = await databases.listDocuments(
                 config.databaseId,
                 config.usersCollectionId || '68fc7b42001bf7efbba3',
                 [Query.equal('email', sanitizedEmail)]
             );
-            console.log('[PasswordReset] User search results:', users.documents.length);
             
             if (users.documents.length === 0) {
                 throw new Error('User not found');
             }
             
             userDoc = users.documents[0];
-            console.log('[PasswordReset] User found:', userDoc.$id);
         } catch (error) {
-            console.log('[PasswordReset] User check error:', error.message);
             if (error.message === 'User not found') {
                 throw error;
             }
@@ -896,12 +900,9 @@ export const sendPasswordResetOTP = async (email) => {
         
         // Use Appwrite's Recovery feature - sends email with recovery link
         const redirectUrl = getRecoveryRedirectUrl();
-        console.log('[PasswordReset] Redirect URL:', redirectUrl);
         
         try {
-            console.log('[PasswordReset] Calling account.createRecovery...');
             const result = await account.createRecovery(sanitizedEmail, redirectUrl);
-            console.log('[PasswordReset] Recovery created successfully:', JSON.stringify(result));
             
             // Store pending reset data
             const pendingData = {
@@ -919,10 +920,6 @@ export const sendPasswordResetOTP = async (email) => {
                 useDeepLink: true,
             };
         } catch (recoveryError) {
-            console.log('[PasswordReset] Recovery error code:', recoveryError.code);
-            console.log('[PasswordReset] Recovery error message:', recoveryError.message);
-            console.log('[PasswordReset] Recovery error type:', recoveryError.type);
-            
             // Throw a more descriptive error
             if (recoveryError.code === 501 || recoveryError.message?.includes('SMTP') || recoveryError.message?.includes('mail')) {
                 throw new Error('SMTP_NOT_CONFIGURED');
@@ -936,7 +933,6 @@ export const sendPasswordResetOTP = async (email) => {
             throw new Error(recoveryError.message || 'Unknown error occurred');
         }
     } catch (error) {
-        console.log('[PasswordReset] Final error:', error.message);
         throw error;
     }
 };

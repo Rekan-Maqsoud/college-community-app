@@ -3,14 +3,17 @@ import { NavigationContainer, useNavigationContainerRef } from '@react-navigatio
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, ActivityIndicator, View, Animated, Image, StyleSheet } from 'react-native';
+import { Platform, ActivityIndicator, View, Animated, Image, StyleSheet, AppState, Modal, TouchableOpacity, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
+import * as Updates from 'expo-updates';
 import { AppSettingsProvider, useAppSettings } from './context/AppSettingsContext';
 import { UserProvider, useUser } from './context/UserContext';
 import { LanguageProvider } from './context/LanguageContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import { wp, normalize, spacing } from './utils/responsive';
+import { borderRadius, shadows } from './theme/designTokens';
 import { getCurrentUser, getUserDocument, signOut } from '../database/auth';
 import { getAllUserChats } from '../database/chatHelpers';
 import { getTotalUnreadCount } from '../database/chats';
@@ -382,6 +385,226 @@ const MainStack = () => {
   );
 };
 
+const UpdatePrompt = () => {
+  const { t, theme, isDarkMode } = useAppSettings();
+  const [isVisible, setIsVisible] = useState(false);
+  const [status, setStatus] = useState('idle');
+  const [progress, setProgress] = useState(null);
+
+  const checkForUpdates = useCallback(async () => {
+    if (!Updates.isEnabled) return;
+
+    try {
+      const update = await Updates.checkForUpdateAsync();
+      if (update.isAvailable) {
+        setIsVisible(true);
+        setStatus('available');
+      }
+    } catch (error) {
+      // Silent fail for update check
+    }
+  }, []);
+
+  useEffect(() => {
+    checkForUpdates();
+
+    const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        checkForUpdates();
+      }
+    });
+
+    let updatesSubscription;
+    if (Updates.addListener) {
+      updatesSubscription = Updates.addListener((event) => {
+        if (event?.type === 'downloadProgress') {
+          const { totalBytes, downloadedBytes } = event;
+          if (totalBytes > 0) {
+            setProgress(downloadedBytes / totalBytes);
+          }
+        }
+      });
+    }
+
+    return () => {
+      appStateSubscription?.remove();
+      updatesSubscription?.remove?.();
+    };
+  }, [checkForUpdates]);
+
+  const handleLater = () => {
+    setIsVisible(false);
+    setStatus('idle');
+    setProgress(null);
+  };
+
+  const handleDownload = async () => {
+    setStatus('downloading');
+    setProgress(null);
+
+    try {
+      await Updates.fetchUpdateAsync();
+      setStatus('ready');
+    } catch (error) {
+      setStatus('error');
+    }
+  };
+
+  const handleInstall = async () => {
+    setStatus('installing');
+    try {
+      await Updates.reloadAsync();
+    } catch (error) {
+      setStatus('error');
+    }
+  };
+
+  const titleText = t('common.updates.title');
+  const bodyText = (() => {
+    if (status === 'available') return t('common.updates.availableBody');
+    if (status === 'downloading') return t('common.updates.downloading');
+    if (status === 'ready') return t('common.updates.ready');
+    if (status === 'installing') return t('common.updates.installing');
+    if (status === 'error') return t('common.updates.error');
+    return t('common.updates.availableBody');
+  })();
+
+  if (!isVisible || !Updates.isEnabled) {
+    return null;
+  }
+
+  return (
+    <Modal visible={isVisible} transparent animationType="fade">
+      <View style={[updateStyles.overlay, { backgroundColor: theme.overlay }]}>
+        <View
+          style={[
+            updateStyles.card,
+            {
+              backgroundColor: theme.card || theme.backgroundSecondary,
+              borderColor: theme.border,
+              shadowColor: theme.shadow,
+            },
+          ]}
+        >
+          <Text style={[updateStyles.title, { color: theme.text }]}>{titleText}</Text>
+          <Text style={[updateStyles.body, { color: theme.textSecondary }]}>{bodyText}</Text>
+
+          {status === 'downloading' && (
+            <View style={updateStyles.progressContainer}>
+              <ActivityIndicator size="small" color={theme.primary} />
+              <Text style={[updateStyles.progressText, { color: theme.textSecondary }]}>
+                {progress !== null
+                  ? t('common.updates.progress', { percent: Math.round(progress * 100) })
+                  : t('common.updates.downloading')}
+              </Text>
+              <View
+                style={[
+                  updateStyles.progressTrack,
+                  { backgroundColor: theme.borderSecondary },
+                ]}
+              >
+                <View
+                  style={[
+                    updateStyles.progressFill,
+                    {
+                      backgroundColor: theme.primary,
+                      width: progress !== null ? `${Math.max(4, Math.round(progress * 100))}%` : '12%',
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          )}
+
+          {status === 'installing' && (
+            <View style={updateStyles.progressContainer}>
+              <ActivityIndicator size="small" color={theme.primary} />
+              <Text style={[updateStyles.progressText, { color: theme.textSecondary }]}>
+                {t('common.updates.installing')}
+              </Text>
+            </View>
+          )}
+
+          <View style={updateStyles.actions}>
+            {status === 'available' && (
+              <>
+                <TouchableOpacity
+                  style={[updateStyles.secondaryButton, { borderColor: theme.border }]}
+                  activeOpacity={0.8}
+                  onPress={handleLater}
+                >
+                  <Text style={[updateStyles.secondaryText, { color: theme.textSecondary }]}>
+                    {t('common.updates.later')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[updateStyles.primaryButton, { backgroundColor: theme.primary }]}
+                  activeOpacity={0.85}
+                  onPress={handleDownload}
+                >
+                  <Text
+                    style={[
+                      updateStyles.primaryText,
+                      { color: isDarkMode ? theme.text : theme.background },
+                    ]}
+                  >
+                    {t('common.updates.download')}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {status === 'ready' && (
+              <TouchableOpacity
+                style={[updateStyles.primaryButton, { backgroundColor: theme.primary }]}
+                activeOpacity={0.85}
+                onPress={handleInstall}
+              >
+                <Text
+                  style={[
+                    updateStyles.primaryText,
+                    { color: isDarkMode ? theme.text : theme.background },
+                  ]}
+                >
+                  {t('common.updates.install')}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {status === 'error' && (
+              <>
+                <TouchableOpacity
+                  style={[updateStyles.secondaryButton, { borderColor: theme.border }]}
+                  activeOpacity={0.8}
+                  onPress={handleLater}
+                >
+                  <Text style={[updateStyles.secondaryText, { color: theme.textSecondary }]}>
+                    {t('common.updates.later')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[updateStyles.primaryButton, { backgroundColor: theme.primary }]}
+                  activeOpacity={0.85}
+                  onPress={handleDownload}
+                >
+                  <Text
+                    style={[
+                      updateStyles.primaryText,
+                      { color: isDarkMode ? theme.text : theme.background },
+                    ]}
+                  >
+                    {t('common.updates.retry')}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 // Component to handle notification setup and listeners
 const NotificationSetup = ({ navigationRef }) => {
   const { user } = useUser();
@@ -526,6 +749,7 @@ export default function App() {
                   <NavigationContainer ref={navigationRef}>
                     <NotificationSetup navigationRef={navigationRef} />
                     <DeepLinkHandler navigationRef={navigationRef} />
+                    <UpdatePrompt />
                     <MainStack />
                   </NavigationContainer>
                 </UserProvider>
@@ -554,5 +778,79 @@ const loadingStyles = StyleSheet.create({
   },
   loader: {
     marginTop: 10,
+  },
+});
+
+const updateStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  card: {
+    width: wp(86),
+    maxWidth: 420,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    padding: spacing.lg,
+    ...shadows.medium,
+  },
+  title: {
+    fontSize: normalize(18),
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+  },
+  body: {
+    fontSize: normalize(14),
+    lineHeight: normalize(20),
+    marginBottom: spacing.md,
+  },
+  progressContainer: {
+    marginTop: spacing.sm,
+  },
+  progressText: {
+    marginTop: spacing.xs,
+    fontSize: normalize(12),
+  },
+  progressTrack: {
+    width: '100%',
+    height: normalize(6),
+    borderRadius: borderRadius.round,
+    overflow: 'hidden',
+    marginTop: spacing.sm,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: borderRadius.round,
+  },
+  actions: {
+    marginTop: spacing.lg,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  primaryButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    minWidth: wp(28),
+    alignItems: 'center',
+  },
+  primaryText: {
+    fontSize: normalize(14),
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    marginRight: spacing.sm,
+    minWidth: wp(28),
+    alignItems: 'center',
+  },
+  secondaryText: {
+    fontSize: normalize(14),
+    fontWeight: '600',
   },
 });

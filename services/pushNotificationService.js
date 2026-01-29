@@ -7,6 +7,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const PUSH_TOKEN_KEY = 'expoPushToken';
 const PERMISSION_STATUS_KEY = 'notificationPermissionStatus';
 
+const getExpoProjectId = () => {
+  return (
+    Constants.easConfig?.projectId ||
+    Constants.expoConfig?.extra?.eas?.projectId ||
+    Constants.expoConfig?.extra?.projectId ||
+    Constants.manifest?.extra?.eas?.projectId ||
+    Constants.manifest?.extra?.projectId ||
+    Constants.manifest2?.extra?.eas?.projectId ||
+    Constants.manifest2?.extra?.projectId ||
+    null
+  );
+};
+
 /**
  * Check if the user has enabled notifications globally and for specific category
  * @param {string} notificationType - The type of notification (chat_message, post_like, post_reply, follow, etc.)
@@ -170,7 +183,7 @@ export const registerForPushNotifications = async () => {
     }
 
     // Get the Expo push token
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    const projectId = getExpoProjectId();
     
     if (!projectId) {
       return null;

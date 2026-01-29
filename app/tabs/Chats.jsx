@@ -23,6 +23,7 @@ import {
   initializeUserGroups,
   getAllUserChats,
 } from '../../database/chatHelpers';
+import { getUserById } from '../../database/users';
 import { getUnreadCount } from '../../database/chats';
 import { chatsCacheManager } from '../utils/cacheManager';
 import { 
@@ -85,11 +86,63 @@ const Chats = ({ navigation }) => {
       return false;
     };
 
-    // Try updating in each list
-    if (!updateChatInList(defaultGroups, setDefaultGroups)) {
-      if (!updateChatInList(customGroups, setCustomGroups)) {
-        updateChatInList(privateChats, setPrivateChats);
+    const addChatToList = async () => {
+      if (!payload?.$id) return false;
+
+      if (payload.type === 'private') {
+        let chatToAdd = payload;
+        const otherUserId = payload.participants?.find(id => id !== user?.$id);
+        if (otherUserId) {
+          try {
+            const otherUser = await getUserById(otherUserId);
+            chatToAdd = { ...payload, otherUser };
+          } catch (error) {
+            chatToAdd = payload;
+          }
+        }
+
+        setPrivateChats(prev => {
+          if (prev.some(c => c.$id === payload.$id)) return prev;
+          return [...prev, chatToAdd].sort((a, b) => 
+            new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0)
+          );
+        });
+        return true;
       }
+
+      if (payload.type === 'custom_group') {
+        setCustomGroups(prev => {
+          if (prev.some(c => c.$id === payload.$id)) return prev;
+          return [...prev, payload].sort((a, b) => 
+            new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0)
+          );
+        });
+        return true;
+      }
+
+      if (payload.type === 'stage_group' || payload.type === 'department_group') {
+        setDefaultGroups(prev => {
+          if (prev.some(c => c.$id === payload.$id)) return prev;
+          return [...prev, payload].sort((a, b) => 
+            new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0)
+          );
+        });
+        return true;
+      }
+
+      return false;
+    };
+
+    // Try updating in each list
+    let updated = updateChatInList(defaultGroups, setDefaultGroups);
+    if (!updated) {
+      updated = updateChatInList(customGroups, setCustomGroups);
+    }
+    if (!updated) {
+      updated = updateChatInList(privateChats, setPrivateChats);
+    }
+    if (!updated) {
+      await addChatToList();
     }
 
     // Refresh unread count for this chat
