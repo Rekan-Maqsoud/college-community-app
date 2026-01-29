@@ -175,17 +175,17 @@ const SignUp = ({ navigation, route }) => {
 
   const validateForm = () => {
     if (!fullName.trim()) {
-      Alert.alert(t('common.error'), t('auth.fullNameRequired') || 'Full name is required');
+      Alert.alert(t('common.error'), t('auth.fullNameRequired'));
       return false;
     }
     
     if (fullName.trim().length < 2 || fullName.trim().length > 100) {
-      Alert.alert(t('common.error'), t('auth.nameLengthError') || 'Name must be between 2 and 100 characters');
+      Alert.alert(t('common.error'), t('auth.nameLengthError'));
       return false;
     }
     
     if (!email.trim() || !email.includes('@')) {
-      Alert.alert(t('common.error'), t('auth.validEmailRequired') || 'Valid email is required');
+      Alert.alert(t('common.error'), t('auth.validEmailRequired'));
       return false;
     }
     
@@ -196,29 +196,29 @@ const SignUp = ({ navigation, route }) => {
     }
     
     if (!age || parseInt(age) < 16 || parseInt(age) > 100) {
-      Alert.alert(t('common.error'), t('auth.validAgeRequired') || 'Valid age is required');
+      Alert.alert(t('common.error'), t('auth.validAgeRequired'));
       return false;
     }
     if (!university) {
-      Alert.alert(t('common.error'), t('auth.universityRequired') || 'Please select a university');
+      Alert.alert(t('common.error'), t('auth.universityRequired'));
       return false;
     }
     if (!college) {
-      Alert.alert(t('common.error'), t('auth.collegeRequired') || 'Please select a college');
+      Alert.alert(t('common.error'), t('auth.collegeRequired'));
       return false;
     }
     if (!department) {
-      Alert.alert(t('common.error'), t('auth.departmentRequired') || 'Please select a department');
+      Alert.alert(t('common.error'), t('auth.departmentRequired'));
       return false;
     }
     if (!stage) {
-      Alert.alert(t('common.error'), t('auth.stageRequired') || 'Please select your stage');
+      Alert.alert(t('common.error'), t('auth.stageRequired'));
       return false;
     }
     
     if (!oauthMode) {
       if (password.length < 8) {
-        Alert.alert(t('common.error'), t('auth.passwordTooShort') || 'Password must be at least 8 characters');
+        Alert.alert(t('common.error'), t('auth.passwordTooShort'));
         return false;
       }
       if (passwordStrength === 'weak') {
@@ -324,14 +324,14 @@ const SignUp = ({ navigation, route }) => {
     } catch (error) {
       setIsLoading(false);
       
-      let errorMessage = t('auth.signUpError') || 'Failed to create account. Please try again.';
+      let errorMessage = t('auth.signUpError');
       
       if (error.message?.includes('user with the same email')) {
-        errorMessage = t('auth.emailAlreadyExists') || 'An account with this email already exists.';
+        errorMessage = t('auth.emailAlreadyExists');
       } else if (error.message?.includes('Password')) {
-        errorMessage = t('auth.passwordRequirements') || 'Password must be at least 8 characters.';
+        errorMessage = t('auth.passwordRequirements');
       } else if (error.message?.includes('educational email') || error.message?.includes('Only educational')) {
-        errorMessage = t('auth.educationalEmailRequired') || 'Only educational email addresses are allowed. Please use your university or college email (e.g., name@university.edu).';
+        errorMessage = t('auth.educationalEmailRequired');
       }
       
       Alert.alert(t('common.error'), errorMessage);
@@ -555,7 +555,7 @@ const SignUp = ({ navigation, route }) => {
                       style={[styles.emailSuggestion, { backgroundColor: theme.primary }]}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.emailSuggestionText}>@epu.edu.iq</Text>
+                      <Text style={styles.emailSuggestionText}>{t('auth.epuEmailDomain')}</Text>
                     </TouchableOpacity>
                   )}
                   {oauthMode ? (
@@ -577,7 +577,7 @@ const SignUp = ({ navigation, route }) => {
               </GlassInput>
               {!oauthMode && email.length > 0 && !isEducationalEmail(email) && (
                 <Text style={[styles.emailWarning, { color: '#EF4444' }]}>
-                  {t('auth.useEducationalEmail') || 'Please use your educational email (e.g., name@university.edu)'}
+                  {t('auth.useEducationalEmail')}
                 </Text>
               )}
 

@@ -41,7 +41,15 @@
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.RECORD_AUDIO"
       ],
       "intentFilters": [
         {
@@ -59,9 +67,10 @@
         },
         {
           "action": "VIEW",
+          "autoVerify": true,
           "data": [
             {
-              "scheme": "appwrite-callback-68fc77710039413087aa"
+              "scheme": "collegecommunity"
             }
           ],
           "category": [
@@ -106,6 +115,12 @@
       "eas": {
         "projectId": "d0af52e7-8e63-4426-9e92-30f0e835652d"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d0af52e7-8e63-4426-9e92-30f0e835652d"
     }
   }
 }

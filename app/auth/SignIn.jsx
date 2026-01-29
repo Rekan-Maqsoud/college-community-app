@@ -96,12 +96,12 @@ const SignIn = ({ navigation }) => {
 
   const handleSignIn = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert(t('common.error'), t('auth.fillAllFields') || 'Please fill in all fields');
+      Alert.alert(t('common.error'), t('auth.fillAllFields'));
       return;
     }
 
     if (!email.includes('@')) {
-      Alert.alert(t('common.error'), t('auth.validEmailRequired') || 'Please enter a valid email address');
+      Alert.alert(t('common.error'), t('auth.validEmailRequired'));
       return;
     }
 
@@ -168,14 +168,14 @@ const SignIn = ({ navigation }) => {
       
       navigation.replace('MainTabs');
     } catch (error) {
-      let errorMessage = t('auth.signInError') || 'Failed to sign in. Please try again.';
+      let errorMessage = t('auth.signInError');
       
       if (error.message?.includes('Invalid credentials') || error.message?.includes('user') || error.message?.includes('password')) {
-        errorMessage = t('auth.invalidCredentials') || 'Invalid email or password. Please check your credentials and try again.';
+        errorMessage = t('auth.invalidCredentials');
       } else if (error.message?.includes('network') || error.message?.includes('Network')) {
-        errorMessage = t('common.networkError') || 'Network error. Please check your connection.';
+        errorMessage = t('common.networkError');
       } else if (error.message?.includes('session is active')) {
-        errorMessage = t('auth.sessionActiveError') || 'A session is already active. Please try again.';
+        errorMessage = t('auth.sessionActiveError');
         
         try {
           await signOut();
@@ -243,10 +243,10 @@ const SignIn = ({ navigation }) => {
         return;
       }
     } catch (error) {
-      let errorMessage = t('auth.googleSignInError') || 'Failed to sign in with Google. Please try again.';
+      let errorMessage = t('auth.googleSignInError');
       
       if (error.message?.includes('network') || error.message?.includes('Network')) {
-        errorMessage = t('common.networkError') || 'Network error. Please check your connection.';
+        errorMessage = t('common.networkError');
       }
       
       Alert.alert(t('common.error'), errorMessage);
@@ -445,7 +445,7 @@ const SignIn = ({ navigation }) => {
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
                 <Text style={[styles.dividerText, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
-                  {t('auth.orContinueWith') || 'OR'}
+                  {t('auth.orContinueWith')}
                 </Text>
                 <View style={styles.dividerLine} />
               </View>
@@ -466,7 +466,7 @@ const SignIn = ({ navigation }) => {
                         color="#DB4437" 
                       />
                       <Text style={[styles.googleButtonText, { color: theme.text, fontSize: fontSize(14) }]}>
-                        {t('auth.continueWithGoogle') || 'Continue with Google'}
+                        {t('auth.continueWithGoogle')}
                       </Text>
                     </>
                   )}

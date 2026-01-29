@@ -20,7 +20,7 @@ import Animated, {
   Easing,
   runOnJS,
 } from 'react-native-reanimated';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -165,7 +165,7 @@ const ZoomableImageModal = ({
       if (!imageUrl) {
         Alert.alert(
           t('common.error'),
-          t('post.downloadFailed') || 'Failed to download image'
+          t('post.downloadFailed')
         );
         return;
       }
@@ -188,7 +188,11 @@ const ZoomableImageModal = ({
       const extension = urlParts.length > 1 ? urlParts[urlParts.length - 1].toLowerCase() : 'jpg';
       const validExtension = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension) ? extension : 'jpg';
       const filename = `college_image_${Date.now()}.${validExtension}`;
-      fileUri = FileSystem.cacheDirectory + filename;
+      const baseDirectory = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+      if (!baseDirectory) {
+        throw new Error(t('post.downloadErrorUnknown'));
+      }
+      fileUri = `${baseDirectory}${filename}`;
 
       // Download the image
       downloadResult = await FileSystem.downloadAsync(imageUrl, fileUri, {
@@ -331,7 +335,7 @@ const ZoomableImageModal = ({
 
         <View style={styles.hintContainer}>
           <Text style={styles.hintText}>
-            {t('post.pinchToZoomRotate') || 'Double-tap to zoom • Pinch to zoom • Long press to save'}
+            {t('post.pinchToZoomRotate')}
           </Text>
         </View>
       </GestureHandlerRootView>

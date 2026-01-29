@@ -146,7 +146,7 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
 
   const pollMessages = useCallback(async () => {
     try {
-      const fetchedMessages = await getMessages(chat.$id, 100);
+      const fetchedMessages = await getMessages(chat.$id, 100, 0, false);
       const reversedMessages = fetchedMessages.reverse();
       
       const newLastId = reversedMessages.length > 0 ? reversedMessages[reversedMessages.length - 1].$id : null;
@@ -250,7 +250,7 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
   const loadMessages = async () => {
     try {
       setLoading(true);
-      const fetchedMessages = await getMessages(chat.$id, 100);
+      const fetchedMessages = await getMessages(chat.$id, 100, 0, false);
       const reversedMessages = fetchedMessages.reverse();
       lastMessageId.current = reversedMessages.length > 0 ? reversedMessages[reversedMessages.length - 1].$id : null;
       setMessages(reversedMessages);

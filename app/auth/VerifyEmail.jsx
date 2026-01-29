@@ -140,11 +140,11 @@ const VerifyEmail = ({ route, navigation }) => {
   const handleExpired = async () => {
     await cancelPendingVerification();
     Alert.alert(
-      t('auth.verificationExpired') || 'Verification Expired',
-      t('auth.verificationExpiredMessage') || 'Your verification has expired. Please sign up again.',
+      t('auth.verificationExpired'),
+      t('auth.verificationExpiredMessage'),
       [
         {
-          text: t('common.ok') || 'OK',
+          text: t('common.ok'),
           onPress: () => navigation.replace('SignUp'),
         },
       ]
@@ -190,7 +190,7 @@ const VerifyEmail = ({ route, navigation }) => {
     const otpString = code || otpCode.join('');
     
     if (otpString.length !== 6) {
-      setOtpError(t('auth.enterCompleteCode') || 'Please enter the complete 6-digit code');
+      setOtpError(t('auth.enterCompleteCode'));
       return;
     }
     
@@ -226,7 +226,7 @@ const VerifyEmail = ({ route, navigation }) => {
       navigation.replace('MainTabs');
     } catch (error) {
       setIsVerifying(false);
-      setOtpError(error.message || t('auth.verificationError') || 'Verification failed. Please try again.');
+      setOtpError(t('auth.verificationError'));
       // Clear the OTP inputs on error
       setOtpCode(['', '', '', '', '', '']);
       otpInputRefs.current[0]?.focus();
@@ -257,12 +257,12 @@ const VerifyEmail = ({ route, navigation }) => {
 
       Alert.alert(
         t('common.success'),
-        t('auth.codeSent') || 'Verification code sent to your email!'
+        t('auth.codeSent')
       );
     } catch (error) {
       Alert.alert(
         t('common.error'),
-        error.message || t('auth.resendError') || 'Failed to resend code. Please try again.'
+        t('auth.resendError')
       );
     }
   };
@@ -276,23 +276,23 @@ const VerifyEmail = ({ route, navigation }) => {
       }
     } catch (error) {
       Alert.alert(
-        t('common.info') || 'Info',
-        t('auth.openEmailManually') || 'Please open your email app manually to get the verification code.'
+        t('common.info'),
+        t('auth.openEmailManually')
       );
     }
   };
 
   const handleGoBack = async () => {
     Alert.alert(
-      t('auth.changeEmail') || 'Change Email',
-      t('auth.changeEmailMessage') || 'Go back to change your email address? Your other information will be preserved.',
+      t('auth.changeEmail'),
+      t('auth.changeEmailMessage'),
       [
         {
-          text: t('common.cancel') || 'Cancel',
+          text: t('common.cancel'),
           style: 'cancel'
         },
         {
-          text: t('common.ok') || 'OK',
+          text: t('common.ok'),
           onPress: async () => {
             try {
               await cancelPendingVerification();
@@ -357,10 +357,10 @@ const VerifyEmail = ({ route, navigation }) => {
 
               <View style={styles.headerContainer}>
                 <Text style={[styles.headerText, { fontSize: fontSize(22) }]}>
-                  {t('auth.verifyYourEmail') || 'Verify Your Email'}
+                  {t('auth.verifyYourEmail')}
                 </Text>
                 <Text style={[styles.subHeaderText, { fontSize: fontSize(13) }]}>
-                  {t('auth.verificationCodeSent') || 'We sent a verification code to'}
+                  {t('auth.verificationCodeSent')}
                 </Text>
                 <View style={styles.emailBox}>
                   <Text style={[styles.emailText, { fontSize: fontSize(13) }]} numberOfLines={1}>
@@ -371,7 +371,7 @@ const VerifyEmail = ({ route, navigation }) => {
                   <View style={styles.expirationContainer}>
                     <Ionicons name="time-outline" size={moderateScale(16)} color="#FF9500" />
                     <Text style={styles.expirationText}>
-                      {(t('auth.expiresIn') || 'Expires in') + ' ' + formatTime(expirationCountdown)}
+                      {`${t('auth.expiresIn')} ${formatTime(expirationCountdown)}`}
                     </Text>
                   </View>
                 )}
@@ -385,7 +385,7 @@ const VerifyEmail = ({ route, navigation }) => {
                 {/* OTP Input Section */}
                 <View style={styles.otpSection}>
                   <Text style={[styles.otpLabel, { color: theme.text }]}>
-                    {t('auth.enterCode') || 'Enter the 6-digit code'}
+                    {t('auth.enterCode')}
                   </Text>
                   
                   <View style={styles.otpContainer}>
@@ -438,7 +438,7 @@ const VerifyEmail = ({ route, navigation }) => {
                     <>
                       <Ionicons name="checkmark-circle-outline" size={moderateScale(20)} color="#FFFFFF" />
                       <Text style={[styles.verifyButtonText, { fontSize: fontSize(16) }]}>
-                        {t('auth.verify') || 'Verify Email'}
+                        {t('auth.verify')}
                       </Text>
                     </>
                   )}
@@ -457,7 +457,7 @@ const VerifyEmail = ({ route, navigation }) => {
                   activeOpacity={0.8}>
                   <Ionicons name="mail-open-outline" size={moderateScale(20)} color={theme.primary} />
                   <Text style={[styles.openEmailButtonText, { fontSize: fontSize(14), color: theme.primary }]}>
-                    {t('auth.openEmailApp') || 'Open Email App'}
+                    {t('auth.openEmailApp')}
                   </Text>
                 </TouchableOpacity>
 
@@ -465,7 +465,7 @@ const VerifyEmail = ({ route, navigation }) => {
                 <View style={styles.spamNotice}>
                   <Ionicons name="information-circle-outline" size={moderateScale(16)} color={theme.textSecondary} />
                   <Text style={[styles.spamNoticeText, { color: theme.textSecondary }]}>
-                    {t('auth.checkSpamFolder') || "Can't find the email? Check your spam folder."}
+                    {t('auth.checkSpamFolder')}
                   </Text>
                 </View>
 
@@ -481,8 +481,8 @@ const VerifyEmail = ({ route, navigation }) => {
                     }
                   ]}>
                     {canResend 
-                      ? (t('auth.resendCode') || 'Resend Code')
-                      : `${t('auth.resendIn') || 'Resend in'} ${countdown}s`
+                      ? t('auth.resendCode')
+                      : `${t('auth.resendIn')} ${countdown}s`
                     }
                   </Text>
                 </TouchableOpacity>
@@ -499,7 +499,7 @@ const VerifyEmail = ({ route, navigation }) => {
                     styles.changeEmailText,
                     { color: theme.textSecondary, fontSize: fontSize(14) }
                   ]}>
-                    {t('auth.useAnotherEmail') || 'Use a different email'}
+                    {t('auth.useAnotherEmail')}
                   </Text>
                 </TouchableOpacity>
               </GlassContainer>

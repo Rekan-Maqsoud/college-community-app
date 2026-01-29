@@ -196,7 +196,6 @@ const ForgotPassword = ({ navigation, route }) => {
   };
 
   const handleSendResetEmail = async () => {
-    console.log('[ForgotPassword UI] Send button pressed, email:', email);
     
     if (!email.trim()) {
       showAlert(t('common.error'), t('auth.validEmailRequired'), 'error');
@@ -209,24 +208,20 @@ const ForgotPassword = ({ navigation, route }) => {
     }
 
     setIsLoading(true);
-    console.log('[ForgotPassword UI] Calling sendPasswordResetOTP...');
-
     try {
       await sendPasswordResetOTP(email.trim());
-      console.log('[ForgotPassword UI] sendPasswordResetOTP succeeded');
       setStep('checkEmail');
       setResendTimer(60);
-      showAlert(t('common.success'), t('auth.resetEmailSent') || 'Password reset email sent! Please check your inbox and click the link.', 'success');
+      showAlert(t('common.success'), t('auth.resetEmailSent'), 'success');
     } catch (error) {
-      console.log('[ForgotPassword UI] sendPasswordResetOTP failed:', error.message);
       let errorMessage = t('auth.sendResetCodeError');
       
       if (error.message === 'User not found' || error.message?.includes('not found')) {
         errorMessage = t('auth.emailNotRegistered');
       } else if (error.message === 'SMTP_NOT_CONFIGURED') {
-        errorMessage = t('auth.smtpNotConfigured') || 'Email service is not configured. Please contact support or try again later.';
+        errorMessage = t('auth.smtpNotConfigured');
       } else if (error.message === 'REDIRECT_URL_NOT_ALLOWED') {
-        errorMessage = t('auth.redirectUrlError') || 'Password reset is temporarily unavailable. Please contact support.';
+        errorMessage = t('auth.redirectUrlError');
       } else if (error.message?.includes('network') || error.message?.includes('Network')) {
         errorMessage = t('common.networkError');
       } else if (error.message) {
@@ -248,7 +243,7 @@ const ForgotPassword = ({ navigation, route }) => {
     try {
       await resendPasswordResetOTP(email.trim());
       setResendTimer(60);
-      showAlert(t('common.success'), t('auth.resetEmailResent') || 'Reset email sent again!', 'success');
+      showAlert(t('common.success'), t('auth.resetEmailResent'), 'success');
     } catch (error) {
       showAlert(t('common.error'), t('auth.sendResetCodeError'), 'error');
     } finally {
@@ -258,7 +253,7 @@ const ForgotPassword = ({ navigation, route }) => {
 
   const handleResetPassword = async () => {
     if (!recoveryUserId || !recoverySecret) {
-      showAlert(t('common.error'), t('auth.invalidRecoveryLink') || 'Invalid recovery link. Please request a new password reset.', 'error');
+      showAlert(t('common.error'), t('auth.invalidRecoveryLink'), 'error');
       setStep('email');
       return;
     }
@@ -297,12 +292,12 @@ const ForgotPassword = ({ navigation, route }) => {
       let errorMessage = t('auth.passwordResetError');
       
       if (error.message?.includes('expired')) {
-        errorMessage = t('auth.recoveryLinkExpired') || 'Recovery link has expired. Please request a new password reset.';
+        errorMessage = t('auth.recoveryLinkExpired');
         setStep('email');
         setRecoveryUserId(null);
         setRecoverySecret(null);
       } else if (error.message?.includes('Invalid')) {
-        errorMessage = t('auth.invalidRecoveryLink') || 'Invalid recovery link. Please request a new password reset.';
+        errorMessage = t('auth.invalidRecoveryLink');
         setStep('email');
         setRecoveryUserId(null);
         setRecoverySecret(null);
@@ -368,7 +363,7 @@ const ForgotPassword = ({ navigation, route }) => {
             >
               <Ionicons name="flash" size={16} color="#BB86FC" />
               <Text style={[styles.suggestionText, { fontSize: fontSize(13) }]}>
-                {t('auth.useEpuEmail') || 'Use @epu.edu.iq'}
+                {t('auth.useEpuEmail')}
               </Text>
             </TouchableOpacity>
           )}
@@ -391,7 +386,7 @@ const ForgotPassword = ({ navigation, route }) => {
             ) : (
               <>
                 <Text style={[styles.buttonText, { fontSize: fontSize(16) }]}>
-                  {t('auth.sendResetLink') || 'Send Reset Link'}
+                  {t('auth.sendResetLink')}
                 </Text>
                 <Ionicons name="arrow-forward" size={20} color="#FFFFFF" style={styles.buttonIcon} />
               </>
@@ -413,10 +408,10 @@ const ForgotPassword = ({ navigation, route }) => {
           />
         </View>
         <Text style={[styles.headerText, { fontSize: fontSize(isTablet() ? 28 : 24) }]}>
-          {t('auth.checkYourEmail') || 'Check Your Email'}
+          {t('auth.checkYourEmail')}
         </Text>
         <Text style={[styles.subHeaderText, { fontSize: fontSize(14) }]}>
-          {t('auth.resetEmailInstructions') || `We sent a password reset link to ${email}. Click the link in the email to reset your password.`}
+          {t('auth.resetEmailInstructions')?.replace('{email}', email)}
         </Text>
       </View>
 
@@ -427,7 +422,7 @@ const ForgotPassword = ({ navigation, route }) => {
         <View style={styles.instructionsBox}>
           <Ionicons name="information-circle-outline" size={24} color="#BB86FC" />
           <Text style={[styles.instructionsText, { fontSize: fontSize(14) }]}>
-            {t('auth.checkSpamFolder') || "Can't find the email? Check your spam folder or request a new link below."}
+            {t('auth.checkSpamFolder')}
           </Text>
         </View>
 
@@ -445,8 +440,8 @@ const ForgotPassword = ({ navigation, route }) => {
           ) : (
             <Text style={[styles.secondaryButtonText, { fontSize: fontSize(15) }]}>
               {resendTimer > 0 
-                ? `${t('auth.resendIn') || 'Resend in'} ${resendTimer}s` 
-                : t('auth.resendResetLink') || 'Resend Reset Link'}
+                ? `${t('auth.resendIn')} ${resendTimer}s` 
+                : t('auth.resendResetLink')}
             </Text>
           )}
         </TouchableOpacity>
@@ -461,7 +456,7 @@ const ForgotPassword = ({ navigation, route }) => {
         >
           <Ionicons name="arrow-back" size={18} color="rgba(255, 255, 255, 0.7)" />
           <Text style={[styles.changeEmailText, { fontSize: fontSize(14) }]}>
-            {t('auth.useAnotherEmail') || 'Use a different email'}
+            {t('auth.useAnotherEmail')}
           </Text>
         </TouchableOpacity>
       </GlassContainer>
@@ -536,9 +531,9 @@ const ForgotPassword = ({ navigation, route }) => {
                 />
               </View>
               <Text style={[styles.strengthText, { color: getStrengthColor(), fontSize: fontSize(12) }]}>
-                {passwordStrength === 'weak' && (t('auth.weakPassword') || 'Weak')}
-                {passwordStrength === 'medium' && (t('auth.mediumPassword') || 'Medium')}
-                {passwordStrength === 'strong' && (t('auth.strongPassword') || 'Strong')}
+                {passwordStrength === 'weak' && t('auth.weakPassword')}
+                {passwordStrength === 'medium' && t('auth.mediumPassword')}
+                {passwordStrength === 'strong' && t('auth.strongPassword')}
               </Text>
             </View>
           )}
@@ -559,7 +554,7 @@ const ForgotPassword = ({ navigation, route }) => {
                 { fontSize: fontSize(15) },
                 confirmPasswordFocused && styles.inputFocused,
               ]}
-              placeholder={t('auth.confirmNewPassword') || 'Confirm New Password'}
+              placeholder={t('auth.confirmNewPassword')}
               placeholderTextColor="rgba(255, 255, 255, 0.4)"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -589,7 +584,7 @@ const ForgotPassword = ({ navigation, route }) => {
             <View style={styles.matchIndicator}>
               <Ionicons name="checkmark-circle" size={16} color="#44DD44" />
               <Text style={[styles.matchText, { fontSize: fontSize(12) }]}>
-                {t('auth.passwordsMatch') || 'Passwords match'}
+                {t('auth.passwordsMatch')}
               </Text>
             </View>
           )}
