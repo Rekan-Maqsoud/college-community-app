@@ -14,6 +14,7 @@ import {
   markChatAsRead,
   markAllMessagesAsRead,
   clearChatMessages,
+  decryptMessageForChat,
 } from '../../../database/chats';
 import { getUserById, blockUser, getFriends } from '../../../database/users';
 import { 
@@ -66,16 +67,17 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
     isRealtimeActive.current = true;
     
     if (payload.chatId === chat.$id) {
+      const decryptedPayload = await decryptMessageForChat(chat.$id, payload, user?.$id);
       // Add message to cache
-      await messagesCacheManager.addMessageToCache(chat.$id, payload, 100);
+      await messagesCacheManager.addMessageToCache(chat.$id, decryptedPayload, 100);
       
       setMessages(prev => {
         // Check if this message already exists (exact ID match)
-        const existingIndex = prev.findIndex(m => m.$id === payload.$id);
+        const existingIndex = prev.findIndex(m => m.$id === decryptedPayload.$id);
         if (existingIndex >= 0) {
           // Update existing message with server data (e.g., status updates)
           const updated = [...prev];
-          updated[existingIndex] = { ...updated[existingIndex], ...payload, _isOptimistic: false };
+          updated[existingIndex] = { ...updated[existingIndex], ...decryptedPayload, _isOptimistic: false };
           return updated;
         }
         
@@ -83,28 +85,28 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
         // Match by content, senderId, and approximate timestamp
         const optimisticIndex = prev.findIndex(m => 
           m._isOptimistic && 
-          m.senderId === payload.senderId &&
-          m.content === payload.content
+          m.senderId === decryptedPayload.senderId &&
+          m.content === decryptedPayload.content
         );
         
         if (optimisticIndex >= 0) {
           // Replace optimistic message with real one
           const updated = [...prev];
-          updated[optimisticIndex] = { ...payload, _status: 'sent', _isOptimistic: false };
+          updated[optimisticIndex] = { ...decryptedPayload, _status: 'sent', _isOptimistic: false };
           return updated;
         }
         
         // New message from another user or different content
-        return [...prev, payload];
+        return [...prev, decryptedPayload];
       });
       
-      if (payload.senderId && !userCacheRef.current[payload.senderId]) {
+      if (decryptedPayload.senderId && !userCacheRef.current[decryptedPayload.senderId]) {
         try {
-          const userData = await getUserById(payload.senderId);
-          userCacheRef.current[payload.senderId] = userData;
+          const userData = await getUserById(decryptedPayload.senderId);
+          userCacheRef.current[decryptedPayload.senderId] = userData;
           setUserCache({ ...userCacheRef.current });
         } catch (e) {
-          userCacheRef.current[payload.senderId] = { name: payload.senderName || 'Unknown' };
+          userCacheRef.current[decryptedPayload.senderId] = { name: decryptedPayload.senderName || 'Unknown' };
         }
       }
       
@@ -112,7 +114,7 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [chat.$id]);
+  }, [chat.$id, user?.$id]);
 
   const handleRealtimeMessageDeleted = useCallback(async (payload) => {
     isRealtimeActive.current = true;
@@ -146,7 +148,7 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
 
   const pollMessages = useCallback(async () => {
     try {
-      const fetchedMessages = await getMessages(chat.$id, 100, 0, false);
+      const fetchedMessages = await getMessages(chat.$id, user?.$id, 100, 0, false);
       const reversedMessages = fetchedMessages.reverse();
       
       const newLastId = reversedMessages.length > 0 ? reversedMessages[reversedMessages.length - 1].$id : null;
@@ -250,7 +252,7 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
   const loadMessages = async () => {
     try {
       setLoading(true);
-      const fetchedMessages = await getMessages(chat.$id, 100, 0, false);
+      const fetchedMessages = await getMessages(chat.$id, user?.$id, 100, 0, false);
       const reversedMessages = fetchedMessages.reverse();
       lastMessageId.current = reversedMessages.length > 0 ? reversedMessages[reversedMessages.length - 1].$id : null;
       setMessages(reversedMessages);
@@ -354,7 +356,7 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
 
   const handleViewPinnedMessages = async () => {
     try {
-      const pinned = await getPinnedMessages(chat.$id);
+      const pinned = await getPinnedMessages(chat.$id, user?.$id);
       setPinnedMessages(pinned);
       setShowPinnedModal(true);
     } catch (error) {
@@ -519,6 +521,7 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
         senderId: user.$id,
         senderName: user.fullName,
         senderPhoto: user.profilePicture || null,
+        notificationPreview: t('chats.newMessage'),
       };
       
       if (imageUrl && typeof imageUrl === 'string') {

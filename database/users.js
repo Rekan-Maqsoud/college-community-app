@@ -113,6 +113,36 @@ export const getUsersByDepartment = async (department, limit = 20, offset = 0) =
     }
 };
 
+export const updateUserPublicKey = async (userId, publicKey) => {
+    try {
+        if (!userId || typeof userId !== 'string') {
+            throw new Error('Invalid user ID');
+        }
+
+        if (!publicKey || typeof publicKey !== 'string') {
+            throw new Error('Invalid public key');
+        }
+
+        const userDoc = await databases.updateDocument(
+            config.databaseId,
+            config.usersCollectionId || '68fc7b42001bf7efbba3',
+            userId,
+            { publicKey }
+        );
+
+        await userCacheManager.invalidateUser(userId);
+
+        return userDoc;
+    } catch (error) {
+        // If the schema doesn't include publicKey, avoid breaking chat encryption
+        if (error?.message?.includes('Unknown attribute') && error?.message?.includes('publicKey')) {
+            return null;
+        }
+
+        throw error;
+    }
+};
+
 /**
  * Follow a user - uses arrays in user document (simpler approach)
  */

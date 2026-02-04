@@ -279,3 +279,54 @@ export const updateNotificationPreferences = async (userId, chatId, notifyOnMent
         throw error;
     }
 };
+
+/**
+ * Delete all user chat settings for a chat
+ */
+export const deleteUserChatSettingsByChatId = async (chatId) => {
+    try {
+        if (!chatId) {
+            throw new Error('Chat ID is required');
+        }
+
+        if (!config.userChatSettingsCollectionId) {
+            return true;
+        }
+
+        let hasMore = true;
+
+        while (hasMore) {
+            const settings = await databases.listDocuments(
+                config.databaseId,
+                config.userChatSettingsCollectionId,
+                [
+                    Query.equal('chatId', chatId),
+                    Query.limit(100)
+                ]
+            );
+
+            if (settings.documents.length === 0) {
+                hasMore = false;
+                break;
+            }
+
+            await Promise.all(
+                settings.documents.map(item =>
+                    databases.deleteDocument(
+                        config.databaseId,
+                        config.userChatSettingsCollectionId,
+                        item.$id
+                    )
+                )
+            );
+
+            if (settings.documents.length < 100) {
+                hasMore = false;
+            }
+        }
+
+        return true;
+    } catch (error) {
+        throw error;
+    }
+};

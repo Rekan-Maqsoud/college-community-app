@@ -278,6 +278,59 @@ export const deleteAllNotifications = async (userId) => {
 };
 
 /**
+ * Delete all notifications for a post
+ * @param {string} postId - Post ID
+ * @returns {Promise<boolean>} Success status
+ */
+export const deleteNotificationsByPostId = async (postId) => {
+    try {
+        if (!postId || typeof postId !== 'string') {
+            throw new Error('Invalid post ID');
+        }
+
+        if (!config.notificationsCollectionId) {
+            return true;
+        }
+
+        let hasMore = true;
+
+        while (hasMore) {
+            const notifications = await databases.listDocuments(
+                config.databaseId,
+                config.notificationsCollectionId,
+                [
+                    Query.equal('postId', postId),
+                    Query.limit(100),
+                ]
+            );
+
+            if (notifications.documents.length === 0) {
+                hasMore = false;
+                break;
+            }
+
+            await Promise.all(
+                notifications.documents.map(notification =>
+                    databases.deleteDocument(
+                        config.databaseId,
+                        config.notificationsCollectionId,
+                        notification.$id
+                    )
+                )
+            );
+
+            if (notifications.documents.length < 100) {
+                hasMore = false;
+            }
+        }
+
+        return true;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
  * Create notification for post like
  * @param {string} postOwnerId - Post owner's user ID
  * @param {string} likerId - User who liked the post

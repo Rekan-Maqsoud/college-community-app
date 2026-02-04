@@ -413,6 +413,12 @@ export const deletePost = async (postId, imageDeleteUrls = []) => {
             throw new Error('Invalid post ID');
         }
         
+        const { deleteRepliesByPost } = require('./replies');
+        const { deleteNotificationsByPostId } = require('./notifications');
+        
+        await deleteRepliesByPost(postId);
+        await deleteNotificationsByPostId(postId);
+        
         await databases.deleteDocument(
             config.databaseId,
             config.postsCollectionId,

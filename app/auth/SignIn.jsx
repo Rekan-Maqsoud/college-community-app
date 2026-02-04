@@ -33,6 +33,7 @@ import {
 import { borderRadius } from '../theme/designTokens';
 
 const SignIn = ({ navigation }) => {
+  const googleLogoUri = 'https://www.gstatic.com/images/branding/product/1x/googleg_48dp.png';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailFocused, setEmailFocused] = useState(false);
@@ -460,10 +461,10 @@ const SignIn = ({ navigation }) => {
                     <ActivityIndicator color={theme.text} size="small" />
                   ) : (
                     <>
-                      <Ionicons 
-                        name="logo-google" 
-                        size={moderateScale(20)} 
-                        color="#DB4437" 
+                      <Image
+                        source={{ uri: googleLogoUri }}
+                        style={styles.googleLogo}
+                        resizeMode="contain"
                       />
                       <Text style={[styles.googleButtonText, { color: theme.text, fontSize: fontSize(14) }]}>
                         {t('auth.continueWithGoogle')}
@@ -668,6 +669,10 @@ const styles = StyleSheet.create({
   googleButtonText: {
     fontWeight: '600',
     letterSpacing: 0.3,
+  },
+  googleLogo: {
+    width: moderateScale(18),
+    height: moderateScale(18),
   },
 });
 

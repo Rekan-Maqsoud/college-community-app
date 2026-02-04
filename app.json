@@ -4,7 +4,7 @@
     "slug": "college-community",
     "scheme": [
       "collegecommunity",
-      "appwrite-callback-68fc77710039413087aa"
+      "appwrite-callback-6973c51d0000bdd71f7a"
     ],
     "version": "1.0.0",
     "orientation": "portrait",
@@ -23,7 +23,7 @@
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
-              "appwrite-callback-68fc77710039413087aa"
+              "appwrite-callback-6973c51d0000bdd71f7a"
             ]
           }
         ],
@@ -58,19 +58,9 @@
           "data": [
             {
               "scheme": "collegecommunity"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        },
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
+            },
             {
-              "scheme": "collegecommunity"
+              "scheme": "appwrite-callback-6973c51d0000bdd71f7a"
             }
           ],
           "category": [

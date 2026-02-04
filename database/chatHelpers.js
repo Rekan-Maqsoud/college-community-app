@@ -1,6 +1,6 @@
 import { databases, config } from './config';
 import { ID, Query } from 'appwrite';
-import { CHAT_TYPES, createGroupChat, getUserGroupChats } from './chats';
+import { CHAT_TYPES, createGroupChat, getUserGroupChats, decryptChatPreviews, ensureChatParticipant } from './chats';
 import { getUserById } from './users';
 import { chatsCacheManager } from '../app/utils/cacheManager';
 
@@ -88,7 +88,7 @@ export const getOrCreateDepartmentGroup = async (department) => {
     }
 };
 
-export const initializeUserGroups = async (department, stage) => {
+export const initializeUserGroups = async (department, stage, userId = null) => {
     try {
         const results = {
             stageGroup: null,
@@ -108,8 +108,18 @@ export const initializeUserGroups = async (department, stage) => {
         results.stageGroup = stageGroup;
         results.departmentGroup = departmentGroup;
 
-        const allChats = await getUserGroupChats(department, stage);
-        results.allChats = allChats;
+        const allChats = await getUserGroupChats(department, stage, userId);
+
+        if (userId) {
+            const updatedChats = [];
+            for (const chat of allChats) {
+                const updatedChat = await ensureChatParticipant(chat.$id, userId);
+                updatedChats.push(updatedChat || chat);
+            }
+            results.allChats = updatedChats;
+        } else {
+            results.allChats = allChats;
+        }
 
         return results;
     } catch (error) {
@@ -303,13 +313,13 @@ export const getAllUserChats = async (userId, department, stage, useCache = true
         }
 
         const [groupChats, customGroups, privateChats] = await Promise.all([
-            department ? getUserGroupChats(department, stage) : Promise.resolve([]),
+            department ? getUserGroupChats(department, stage, userId) : Promise.resolve([]),
             getUserCustomGroups(userId),
             getUserPrivateChats(userId),
         ]);
 
-        results.defaultGroups = groupChats;
-        results.customGroups = customGroups;
+        results.defaultGroups = await decryptChatPreviews(groupChats, userId);
+        results.customGroups = await decryptChatPreviews(customGroups, userId);
         
         // Populate otherUser for private chats
         const privateChatsWithOtherUser = await Promise.all(
@@ -327,7 +337,7 @@ export const getAllUserChats = async (userId, department, stage, useCache = true
             })
         );
         
-        results.privateChats = privateChatsWithOtherUser;
+        results.privateChats = await decryptChatPreviews(privateChatsWithOtherUser, userId);
         
         // Cache the results
         await chatsCacheManager.cacheChats(cacheKey, results);

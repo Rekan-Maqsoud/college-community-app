@@ -169,7 +169,7 @@ const Chats = ({ navigation }) => {
       setInitializing(true);
       const stageValue = stageToValue(user?.stage);
       
-      await initializeUserGroups(user.department, stageValue);
+      await initializeUserGroups(user.department, stageValue, user.$id);
       
       setInitializing(false);
       await loadChats();

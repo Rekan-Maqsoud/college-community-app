@@ -180,18 +180,47 @@ export const deleteRepliesByPost = async (postId) => {
             throw new Error('Invalid post ID');
         }
         
-        const replies = await getRepliesByPost(postId, 1000, 0);
+        let hasMore = true;
+        const allImageDeleteUrls = [];
         
-        for (const reply of replies) {
-            await databases.deleteDocument(
+        while (hasMore) {
+            const replies = await databases.listDocuments(
                 config.databaseId,
                 config.repliesCollectionId,
-                reply.$id
+                [
+                    Query.equal('postId', postId),
+                    Query.limit(100)
+                ]
             );
+            
+            if (replies.documents.length === 0) {
+                hasMore = false;
+                break;
+            }
+            
+            for (const reply of replies.documents) {
+                await databases.deleteDocument(
+                    config.databaseId,
+                    config.repliesCollectionId,
+                    reply.$id
+                );
 
-            if (reply.imageDeleteUrls && reply.imageDeleteUrls.length > 0) {
+                if (reply.imageDeleteUrls && reply.imageDeleteUrls.length > 0) {
+                    allImageDeleteUrls.push(...reply.imageDeleteUrls);
+                }
+            }
+            
+            if (replies.documents.length < 100) {
+                hasMore = false;
             }
         }
+        
+        if (allImageDeleteUrls.length > 0) {
+            const { deleteMultipleImages } = require('../services/imgbbService');
+            await deleteMultipleImages(allImageDeleteUrls);
+        }
+        
+        await repliesCacheManager.invalidateReplies(postId);
     } catch (error) {
         throw error;
     }

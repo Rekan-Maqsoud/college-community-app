@@ -1,11 +1,486 @@
 import { databases, config } from './config';
 import { ID, Query } from 'appwrite';
+import * as SecureStore from 'expo-secure-store';
+import * as Random from 'expo-random';
+import nacl from 'tweetnacl';
+import { encodeBase64, decodeBase64, encodeUTF8, decodeUTF8 } from 'tweetnacl-util';
 import { messagesCacheManager } from '../app/utils/cacheManager';
 import { sendChatPushNotification } from '../services/pushNotificationService';
+import { getUserById, updateUserPublicKey } from './users';
 
 export const CHAT_TYPES = {
     STAGE_GROUP: 'stage_group',
     DEPARTMENT_GROUP: 'department_group',
+};
+
+const E2EE_PREFIX = 'enc:v1:';
+const CHAT_KEY_PREFIX = 'e2ee_chat_key_';
+const PUBLIC_KEY_PREFIX = 'e2ee_public_key_';
+const PRIVATE_KEY_PREFIX = 'e2ee_private_key_';
+const getSecureRandomBytes = (size) => {
+    if (Random && typeof Random.getRandomBytes === 'function') {
+        return Random.getRandomBytes(size);
+    }
+
+    if (typeof global !== 'undefined' && global?.crypto?.getRandomValues) {
+        const buffer = new Uint8Array(size);
+        global.crypto.getRandomValues(buffer);
+        return buffer;
+    }
+
+    return null;
+};
+
+const generateBoxKeypair = () => {
+    const secretKey = getSecureRandomBytes(nacl.box.secretKeyLength);
+    if (!secretKey) return null;
+    return nacl.box.keyPair.fromSecretKey(secretKey);
+};
+
+const getSecureStoreKey = (prefix, id) => `${prefix}${id}`;
+
+const encodeBytes = (bytes) => encodeBase64(bytes);
+const decodeBytes = (value) => decodeBase64(value);
+
+const getOrCreateUserKeypair = async (userId) => {
+    const publicKeyKey = getSecureStoreKey(PUBLIC_KEY_PREFIX, userId);
+    const privateKeyKey = getSecureStoreKey(PRIVATE_KEY_PREFIX, userId);
+
+    const storedPublicKey = await SecureStore.getItemAsync(publicKeyKey);
+    const storedPrivateKey = await SecureStore.getItemAsync(privateKeyKey);
+
+    if (storedPublicKey && storedPrivateKey) {
+        return {
+            publicKey: decodeBytes(storedPublicKey),
+            secretKey: decodeBytes(storedPrivateKey),
+        };
+    }
+
+    const keypair = generateBoxKeypair();
+    if (!keypair) return null;
+
+    await SecureStore.setItemAsync(publicKeyKey, encodeBytes(keypair.publicKey));
+    await SecureStore.setItemAsync(privateKeyKey, encodeBytes(keypair.secretKey));
+
+    return keypair;
+};
+
+const ensureUserPublicKeyStored = async (userId, publicKeyBase64) => {
+    const userDoc = await getUserById(userId, true);
+    if (!userDoc?.publicKey) {
+        await updateUserPublicKey(userId, publicKeyBase64);
+    }
+};
+
+const ensureChatPublicKeyStored = async (chat, userId) => {
+    if (!chat || !userId) return null;
+
+    const keypair = await getOrCreateUserKeypair(userId);
+    if (!keypair) return null;
+
+    const publicKey = encodeBytes(keypair.publicKey);
+    const settings = parseChatSettings(chat.settings);
+    const existing = settings?.e2ee?.publicKeys?.[userId];
+
+    if (existing === publicKey) {
+        return { publicKey, settings };
+    }
+
+    const nextSettings = {
+        ...settings,
+        e2ee: {
+            ...settings.e2ee,
+            publicKeys: {
+                ...(settings.e2ee?.publicKeys || {}),
+                [userId]: publicKey,
+            },
+        },
+    };
+
+    await databases.updateDocument(
+        config.databaseId,
+        config.chatsCollectionId,
+        chat.$id,
+        { settings: JSON.stringify(nextSettings) }
+    );
+
+    return { publicKey, settings: nextSettings };
+};
+
+const getParticipantPublicKey = async (settings, userId) => {
+    const storedKey = settings?.e2ee?.publicKeys?.[userId];
+    if (storedKey && typeof storedKey === 'string') {
+        return storedKey;
+    }
+
+    return await getUserPublicKey(userId);
+};
+
+const getUserPublicKey = async (userId) => {
+    const userDoc = await getUserById(userId, true);
+    if (userDoc?.publicKey && typeof userDoc.publicKey === 'string') {
+        return userDoc.publicKey;
+    }
+    return null;
+};
+
+const encryptWithBox = (dataBytes, senderSecretKey, recipientPublicKey) => {
+    const nonce = getSecureRandomBytes(nacl.box.nonceLength);
+    if (!nonce) return null;
+    const cipher = nacl.box(dataBytes, nonce, recipientPublicKey, senderSecretKey);
+    return { nonce, cipher };
+};
+
+const decryptWithBox = (cipherBytes, nonceBytes, recipientSecretKey, senderPublicKey) => {
+    return nacl.box.open(cipherBytes, nonceBytes, senderPublicKey, recipientSecretKey);
+};
+
+const encryptContent = (content, chatKey) => {
+    if (!content) return '';
+    const nonce = getSecureRandomBytes(nacl.secretbox.nonceLength);
+    if (!nonce) return content;
+    const contentBytes = decodeUTF8(content);
+    const cipher = nacl.secretbox(contentBytes, nonce, chatKey);
+    return `${E2EE_PREFIX}${encodeBytes(nonce)}:${encodeBytes(cipher)}`;
+};
+
+const decryptContent = (content, chatKey) => {
+    if (!content || typeof content !== 'string') return content;
+    if (!content.startsWith(E2EE_PREFIX)) return content;
+
+    const payload = content.substring(E2EE_PREFIX.length);
+    const [nonceB64, cipherB64] = payload.split(':');
+    if (!nonceB64 || !cipherB64) return '';
+
+    try {
+        const nonce = decodeBytes(nonceB64);
+        const cipher = decodeBytes(cipherB64);
+        const decrypted = nacl.secretbox.open(cipher, nonce, chatKey);
+        if (!decrypted) return '';
+        return encodeUTF8(decrypted);
+    } catch (error) {
+        return '';
+    }
+};
+
+const parseChatSettings = (settingsString) => {
+    try {
+        return settingsString ? JSON.parse(settingsString) : {};
+    } catch (e) {
+        return {};
+    }
+};
+
+const storeChatKey = async (chatId, chatKey) => {
+    const key = getSecureStoreKey(CHAT_KEY_PREFIX, chatId);
+    await SecureStore.setItemAsync(key, encodeBytes(chatKey));
+};
+
+const getStoredChatKey = async (chatId) => {
+    const key = getSecureStoreKey(CHAT_KEY_PREFIX, chatId);
+    const stored = await SecureStore.getItemAsync(key);
+    if (!stored) return null;
+    return decodeBytes(stored);
+};
+
+const buildE2eeSettings = async (chat, creatorId) => {
+    if (!chat || !creatorId) return null;
+
+    const participants = Array.isArray(chat.participants)
+        ? Array.from(new Set([...chat.participants, creatorId]))
+        : [creatorId];
+
+    if (!participants || participants.length === 0) {
+        return null;
+    }
+
+    const keypair = await getOrCreateUserKeypair(creatorId);
+    if (!keypair) return null;
+    const creatorPublicKey = encodeBytes(keypair.publicKey);
+    await ensureUserPublicKeyStored(creatorId, creatorPublicKey);
+
+    const settings = parseChatSettings(chat.settings);
+    const publicKeys = {
+        ...(settings.e2ee?.publicKeys || {}),
+        [creatorId]: creatorPublicKey,
+    };
+
+    const chatKey = getSecureRandomBytes(nacl.secretbox.keyLength);
+    if (!chatKey) return null;
+    const keys = {};
+
+    for (const participantId of participants) {
+        const participantPublicKey =
+            participantId === creatorId
+                ? creatorPublicKey
+                : await getParticipantPublicKey(settings, participantId);
+        if (!participantPublicKey) {
+            continue;
+        }
+
+        if (!publicKeys[participantId]) {
+            publicKeys[participantId] = participantPublicKey;
+        }
+
+        const encrypted = encryptWithBox(
+            chatKey,
+            keypair.secretKey,
+            decodeBytes(participantPublicKey)
+        );
+        if (!encrypted) {
+            continue;
+        }
+
+        keys[participantId] = {
+            nonce: encodeBytes(encrypted.nonce),
+            cipher: encodeBytes(encrypted.cipher),
+            senderPublicKey: creatorPublicKey,
+        };
+    }
+
+    return {
+        chatKey,
+        e2ee: {
+            version: 1,
+            creatorId,
+            creatorPublicKey,
+            publicKeys,
+            keys,
+        },
+    };
+};
+
+const resolveChatKey = async (chat, userId) => {
+    if (!chat || !userId) return null;
+
+    const publicKeyResult = await ensureChatPublicKeyStored(chat, userId);
+    if (publicKeyResult?.settings) {
+        chat.settings = JSON.stringify(publicKeyResult.settings);
+    }
+
+    const cached = await getStoredChatKey(chat.$id);
+    if (cached) return cached;
+
+    const settings = parseChatSettings(chat.settings);
+    const e2ee = settings.e2ee;
+    if (!e2ee?.keys || !e2ee?.creatorPublicKey) return null;
+
+    const entry = e2ee.keys[userId];
+    if (!entry?.nonce || !entry?.cipher) return null;
+
+    const keypair = await getOrCreateUserKeypair(userId);
+    if (!keypair) return null;
+    const userPublicKey = encodeBytes(keypair.publicKey);
+    await ensureUserPublicKeyStored(userId, userPublicKey);
+
+    const senderPublicKey = entry.senderPublicKey || e2ee.creatorPublicKey;
+    if (!senderPublicKey) return null;
+
+    const decrypted = decryptWithBox(
+        decodeBytes(entry.cipher),
+        decodeBytes(entry.nonce),
+        keypair.secretKey,
+        decodeBytes(senderPublicKey)
+    );
+
+    if (!decrypted) return null;
+
+    await storeChatKey(chat.$id, decrypted);
+    return decrypted;
+};
+
+const addMissingE2eeKeys = async (chat, chatKey, senderId) => {
+    if (!chat || !chatKey || !senderId) return;
+
+    const settings = parseChatSettings(chat.settings);
+    if (!settings.e2ee || !settings.e2ee.keys) return;
+
+    const participants = Array.isArray(chat.participants) ? chat.participants : [];
+    if (participants.length === 0) return;
+
+    const senderKeypair = await getOrCreateUserKeypair(senderId);
+    if (!senderKeypair) return;
+    const senderPublicKey = encodeBytes(senderKeypair.publicKey);
+    await ensureUserPublicKeyStored(senderId, senderPublicKey);
+
+    const publicKeyResult = await ensureChatPublicKeyStored(chat, senderId);
+    const publicKeys = {
+        ...(settings.e2ee?.publicKeys || {}),
+        ...(publicKeyResult?.settings?.e2ee?.publicKeys || {}),
+    };
+
+    const nextKeys = { ...settings.e2ee.keys };
+    let updated = false;
+
+    for (const participantId of participants) {
+        if (nextKeys[participantId]) {
+            continue;
+        }
+
+        const participantPublicKey = await getParticipantPublicKey({ e2ee: { publicKeys } }, participantId);
+        if (!participantPublicKey) {
+            continue;
+        }
+
+        if (!publicKeys[participantId]) {
+            publicKeys[participantId] = participantPublicKey;
+        }
+
+        const encrypted = encryptWithBox(
+            chatKey,
+            senderKeypair.secretKey,
+            decodeBytes(participantPublicKey)
+        );
+        if (!encrypted) {
+            continue;
+        }
+
+        nextKeys[participantId] = {
+            nonce: encodeBytes(encrypted.nonce),
+            cipher: encodeBytes(encrypted.cipher),
+            senderPublicKey,
+        };
+        updated = true;
+    }
+
+    if (!updated) return;
+
+    const nextSettings = {
+        ...settings,
+        e2ee: {
+            ...settings.e2ee,
+            publicKeys,
+            keys: nextKeys,
+        },
+    };
+
+    await databases.updateDocument(
+        config.databaseId,
+        config.chatsCollectionId,
+        chat.$id,
+        { settings: JSON.stringify(nextSettings) }
+    );
+};
+
+export const ensureChatParticipant = async (chatId, userId) => {
+    try {
+        if (!chatId || !userId) return null;
+
+        const chat = await getChat(chatId);
+        const participants = Array.isArray(chat.participants) ? chat.participants : [];
+
+        if (participants.includes(userId)) {
+            return chat;
+        }
+
+        const updatedChat = await databases.updateDocument(
+            config.databaseId,
+            config.chatsCollectionId,
+            chatId,
+            { participants: [...participants, userId] }
+        );
+
+        return updatedChat;
+    } catch (error) {
+        return null;
+    }
+};
+
+const ensureChatEncryption = async (chat, userId) => {
+    if (!chat || !userId) return null;
+
+    const publicKeyResult = await ensureChatPublicKeyStored(chat, userId);
+    if (publicKeyResult?.settings) {
+        chat.settings = JSON.stringify(publicKeyResult.settings);
+    }
+
+    const existingKey = await resolveChatKey(chat, userId);
+    if (existingKey) {
+        await addMissingE2eeKeys(chat, existingKey, userId);
+        return existingKey;
+    }
+
+    const settings = parseChatSettings(chat.settings);
+    if (settings.e2ee?.version) {
+        return null;
+    }
+
+    const built = await buildE2eeSettings(chat, userId);
+    if (!built) return null;
+
+    const nextSettings = {
+        ...settings,
+        e2ee: built.e2ee,
+    };
+
+    await databases.updateDocument(
+        config.databaseId,
+        config.chatsCollectionId,
+        chat.$id,
+        { settings: JSON.stringify(nextSettings) }
+    );
+
+    await storeChatKey(chat.$id, built.chatKey);
+    return built.chatKey;
+};
+
+const decryptMessageFields = (message, chatKey) => {
+    if (!message || !chatKey) return message;
+
+    const decrypted = {
+        ...message,
+        content: decryptContent(message.content, chatKey),
+    };
+
+    if (message.replyToContent) {
+        decrypted.replyToContent = decryptContent(message.replyToContent, chatKey);
+    }
+
+    return decrypted;
+};
+
+export const decryptChatPreview = async (chat, userId) => {
+    try {
+        if (!chat || !userId) return chat;
+        if (!chat.lastMessage || typeof chat.lastMessage !== 'string') return chat;
+
+        if (!chat.lastMessage.startsWith(E2EE_PREFIX)) {
+            return chat;
+        }
+
+        const chatKey = await resolveChatKey(chat, userId);
+        if (!chatKey) {
+            return { ...chat, lastMessage: '' };
+        }
+
+        const decryptedLastMessage = decryptContent(chat.lastMessage, chatKey);
+        return { ...chat, lastMessage: decryptedLastMessage };
+    } catch (error) {
+        return { ...chat, lastMessage: '' };
+    }
+};
+
+export const decryptChatPreviews = async (chats, userId) => {
+    if (!Array.isArray(chats) || chats.length === 0) return chats;
+
+    const results = [];
+    for (const chat of chats) {
+        results.push(await decryptChatPreview(chat, userId));
+    }
+
+    return results;
+};
+
+export const decryptMessageForChat = async (chatId, message, userId) => {
+    try {
+        if (!chatId || !message || !userId) return message;
+        const chat = await getChat(chatId);
+        const chatKey = await resolveChatKey(chat, userId);
+        if (!chatKey) return message;
+        return decryptMessageFields(message, chatKey);
+    } catch (error) {
+        return message;
+    }
 };
 
 export const createGroupChat = async (chatData) => {
@@ -59,7 +534,7 @@ export const createChat = async (chatData) => {
     }
 };
 
-export const getUserGroupChats = async (department, stage) => {
+export const getUserGroupChats = async (department, stage, userId = null) => {
     try {
         if (!department || typeof department !== 'string') {
             throw new Error('Invalid department');
@@ -98,11 +573,17 @@ export const getUserGroupChats = async (department, stage) => {
             allChats.push(...stageChats.documents);
         }
         
-        return allChats.sort((a, b) => {
+        const sorted = allChats.sort((a, b) => {
             const dateA = new Date(a.lastMessageAt || a.createdAt);
             const dateB = new Date(b.lastMessageAt || b.createdAt);
             return dateB - dateA;
         });
+        
+        if (userId) {
+            return await decryptChatPreviews(sorted, userId);
+        }
+        
+        return sorted;
     } catch (error) {
         throw error;
     }
@@ -122,7 +603,7 @@ export const getChats = async (userId) => {
                 Query.orderDesc('$updatedAt')
             ]
         );
-        return chats.documents;
+        return await decryptChatPreviews(chats.documents, userId);
     } catch (error) {
         throw error;
     }
@@ -151,11 +632,18 @@ export const deleteChat = async (chatId) => {
             throw new Error('Invalid chat ID');
         }
         
+        const { deleteUserChatSettingsByChatId } = require('./userChatSettings');
+        
+        await clearChatMessages(chatId);
+        await deleteUserChatSettingsByChatId(chatId);
+        
         await databases.deleteDocument(
             config.databaseId,
             config.chatsCollectionId,
             chatId
         );
+
+        await SecureStore.deleteItemAsync(getSecureStoreKey(CHAT_KEY_PREFIX, chatId));
     } catch (error) {
         throw error;
     }
@@ -237,15 +725,25 @@ export const sendMessage = async (chatId, messageData) => {
             throw new Error('User does not have permission to send messages in this chat');
         }
 
+        const chat = await ensureChatParticipant(chatId, messageData.senderId) || await getChat(chatId);
+        const chatKey = await ensureChatEncryption(chat, messageData.senderId);
+        const shouldEncrypt = !!chatKey;
+
         // Check for @everyone mention
         const mentionsAll = checkForEveryoneMention(messageData.content);
+        const encryptedContent = hasContent
+            ? (shouldEncrypt ? encryptContent(messageData.content, chatKey) : messageData.content)
+            : '';
+        const encryptedReplyContent = messageData.replyToContent
+            ? (shouldEncrypt ? encryptContent(messageData.replyToContent, chatKey) : messageData.replyToContent)
+            : '';
         
         // Build document with only valid fields matching Appwrite schema
         const documentData = {
             chatId,
             senderId: messageData.senderId,
             senderName: messageData.senderName,
-            content: messageData.content || '',
+            content: encryptedContent,
             mentionsAll,
             status: 'sent', // Message status: sent -> delivered -> read
             deliveredTo: [], // Array of userIds who received push notification
@@ -260,7 +758,7 @@ export const sendMessage = async (chatId, messageData) => {
         // Add reply fields if this is a reply
         if (messageData.replyToId) {
             documentData.replyToId = messageData.replyToId;
-            documentData.replyToContent = messageData.replyToContent || '';
+            documentData.replyToContent = encryptedReplyContent || '';
             documentData.replyToSender = messageData.replyToSender || '';
         }
         
@@ -271,15 +769,12 @@ export const sendMessage = async (chatId, messageData) => {
             documentData
         );
         
-        const chat = await getChat(chatId);
         const currentCount = chat.messageCount || 0;
         
-        let lastMessagePreview = '';
-        if (hasContent) {
-            lastMessagePreview = messageData.content.substring(0, 100);
-        } else if (hasImages) {
-            lastMessagePreview = '📷 Image';
-        }
+        const lastMessagePreview = hasContent ? encryptedContent : '';
+        const notificationPreview = typeof messageData.notificationPreview === 'string'
+            ? messageData.notificationPreview
+            : '';
         
         await databases.updateDocument(
             config.databaseId,
@@ -302,7 +797,7 @@ export const sendMessage = async (chatId, messageData) => {
                 messageId: message.$id,
                 senderId: messageData.senderId,
                 senderName: messageData.senderName,
-                content: lastMessagePreview,
+                content: notificationPreview,
                 chatName: chat.name,
                 chatType: chat.type,
             });
@@ -310,13 +805,18 @@ export const sendMessage = async (chatId, messageData) => {
             // Push notification failed but message was sent successfully
         }
         
-        return message;
+        return decryptMessageFields(message, chatKey);
     } catch (error) {
         throw error;
     }
 };
 
-export const getMessages = async (chatId, limit = 50, offset = 0, useCache = true) => {
+export const getMessages = async (chatId, userIdOrLimit = 50, limitOrOffset = 0, offsetOrUseCache = 0, useCache = true) => {
+    let userId = null;
+    let limit = 50;
+    let offset = 0;
+    let shouldUseCache = true;
+
     try {
         if (!chatId || typeof chatId !== 'string') {
             throw new Error('Invalid chat ID');
@@ -326,8 +826,19 @@ export const getMessages = async (chatId, limit = 50, offset = 0, useCache = tru
             throw new Error('Messages collection not configured. Please check your .env file.');
         }
         
+        if (typeof userIdOrLimit === 'string') {
+            userId = userIdOrLimit;
+            limit = typeof limitOrOffset === 'number' ? limitOrOffset : 50;
+            offset = typeof offsetOrUseCache === 'number' ? offsetOrUseCache : 0;
+            shouldUseCache = typeof useCache === 'boolean' ? useCache : true;
+        } else {
+            limit = typeof userIdOrLimit === 'number' ? userIdOrLimit : 50;
+            offset = typeof limitOrOffset === 'number' ? limitOrOffset : 0;
+            shouldUseCache = typeof offsetOrUseCache === 'boolean' ? offsetOrUseCache : true;
+        }
+
         // Try to get cached data first (only for initial load without offset)
-        if (useCache && offset === 0) {
+        if (shouldUseCache && offset === 0) {
             const cached = await messagesCacheManager.getCachedMessages(chatId, limit);
             if (cached?.value && !cached.isStale) {
                 return cached.value;
@@ -345,12 +856,21 @@ export const getMessages = async (chatId, limit = 50, offset = 0, useCache = tru
             ]
         );
         
+        let documents = messages.documents;
+        if (userId) {
+            const chat = await getChat(chatId);
+            const chatKey = await resolveChatKey(chat, userId);
+            if (chatKey) {
+                documents = documents.map(message => decryptMessageFields(message, chatKey));
+            }
+        }
+
         // Cache the messages for initial load
         if (offset === 0) {
-            await messagesCacheManager.cacheMessages(chatId, messages.documents, limit);
+            await messagesCacheManager.cacheMessages(chatId, documents, limit);
         }
         
-        return messages.documents;
+        return documents;
     } catch (error) {
         // On network error, try to return stale cache
         if (offset === 0) {
@@ -748,7 +1268,7 @@ export const unpinMessage = async (chatId, messageId) => {
 /**
  * Get all pinned messages in a chat
  */
-export const getPinnedMessages = async (chatId) => {
+export const getPinnedMessages = async (chatId, userId = null) => {
     try {
         if (!chatId) {
             throw new Error('Chat ID is required');
@@ -765,7 +1285,17 @@ export const getPinnedMessages = async (chatId) => {
             ]
         );
 
-        return messages.documents;
+        if (!userId) {
+            return messages.documents;
+        }
+
+        const chat = await getChat(chatId);
+        const chatKey = await resolveChatKey(chat, userId);
+        if (!chatKey) {
+            return messages.documents;
+        }
+
+        return messages.documents.map(message => decryptMessageFields(message, chatKey));
     } catch (error) {
         return [];
     }

@@ -77,7 +77,7 @@ const ManageRepresentatives = ({ navigation }) => {
     try {
       setLoading(true);
       const stageValue = stageToValue(user.stage);
-      const fetchedChats = await getUserGroupChats(user.department, stageValue);
+      const fetchedChats = await getUserGroupChats(user.department, stageValue, user.$id);
       setChats(fetchedChats);
     } catch (error) {
       Alert.alert(t('common.error'), t('chats.errorLoadingChats'));
