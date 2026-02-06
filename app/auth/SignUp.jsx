@@ -54,6 +54,7 @@ const SignUp = ({ navigation, route }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
   const [showEmailSuggestion, setShowEmailSuggestion] = useState(false);
   
   const [nameFocused, setNameFocused] = useState(false);
@@ -66,6 +67,7 @@ const SignUp = ({ navigation, route }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const isInitialMount = useRef(true);
+  const scrollViewRef = useRef(null);
 
   // Handle email change and show suggestion when @ is typed
   const handleEmailChange = (text) => {
@@ -121,6 +123,12 @@ const SignUp = ({ navigation, route }) => {
   }, []);
 
   useEffect(() => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: 0, animated: true });
+    }
+  }, [currentStep]);
+
+  useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
@@ -137,6 +145,7 @@ const SignUp = ({ navigation, route }) => {
       setDepartment('');
     }
   }, [college]);
+
 
   const getPasswordStrength = (pwd) => {
     if (!pwd || pwd.length < 8) return 'weak';
@@ -233,6 +242,90 @@ const SignUp = ({ navigation, route }) => {
     return true;
   };
 
+  const steps = oauthMode ? ['basic', 'academic'] : ['basic', 'academic', 'security'];
+  const totalSteps = steps.length;
+  const isFinalStep = currentStep === totalSteps - 1;
+
+  const getStepLabel = () => {
+    const stepKey = steps[currentStep];
+    if (stepKey === 'basic') return t('auth.stepBasicInfo');
+    if (stepKey === 'academic') return t('auth.stepAcademicInfo');
+    return t('auth.stepSecurity');
+  };
+
+  const validateStep = (stepKey) => {
+    if (stepKey === 'basic') {
+      if (!fullName.trim()) {
+        Alert.alert(t('common.error'), t('auth.fullNameRequired'));
+        return false;
+      }
+      if (fullName.trim().length < 2 || fullName.trim().length > 100) {
+        Alert.alert(t('common.error'), t('auth.nameLengthError'));
+        return false;
+      }
+      if (!email.trim() || !email.includes('@')) {
+        Alert.alert(t('common.error'), t('auth.validEmailRequired'));
+        return false;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        Alert.alert(t('common.error'), t('auth.validEmailRequired'));
+        return false;
+      }
+      if (!age || parseInt(age) < 16 || parseInt(age) > 100) {
+        Alert.alert(t('common.error'), t('auth.validAgeRequired'));
+        return false;
+      }
+      return true;
+    }
+
+    if (stepKey === 'academic') {
+      if (!university) {
+        Alert.alert(t('common.error'), t('auth.universityRequired'));
+        return false;
+      }
+      if (!college) {
+        Alert.alert(t('common.error'), t('auth.collegeRequired'));
+        return false;
+      }
+      if (!department) {
+        Alert.alert(t('common.error'), t('auth.departmentRequired'));
+        return false;
+      }
+      if (!stage) {
+        Alert.alert(t('common.error'), t('auth.stageRequired'));
+        return false;
+      }
+      return true;
+    }
+
+    if (!oauthMode) {
+      if (password.length < 8) {
+        Alert.alert(t('common.error'), t('auth.passwordTooShort'));
+        return false;
+      }
+      if (passwordStrength === 'weak') {
+        Alert.alert(t('common.error'), t('auth.passwordGuideWeak'));
+        return false;
+      }
+      if (password !== confirmPassword) {
+        Alert.alert(t('common.error'), t('auth.passwordMismatch'));
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleNextStep = () => {
+    const stepKey = steps[currentStep];
+    if (!validateStep(stepKey)) return;
+    setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
+  };
+
+  const handlePrevStep = () => {
+    setCurrentStep((prev) => Math.max(prev - 1, 0));
+  };
+
   const isFormValid = () => {
     const baseValid = (
       fullName.trim() !== '' &&
@@ -263,13 +356,21 @@ const SignUp = ({ navigation, route }) => {
     setIsLoading(true);
     
     try {
-      const stageNumber = stage.replace(/\D/g, '');
+      const stageMap = {
+        firstYear: 1,
+        secondYear: 2,
+        thirdYear: 3,
+        fourthYear: 4,
+        fifthYear: 5,
+        sixthYear: 6,
+      };
+      const stageNumber = stageMap[stage] || parseInt(stage, 10);
       
       const additionalData = {
         university,
         college,
         department,
-        stage: parseInt(stageNumber) || 1,
+        stage: stageNumber || 1,
       };
 
       if (oauthMode && oauthUserId) {
@@ -367,7 +468,7 @@ const SignUp = ({ navigation, route }) => {
 
   const departments = getAvailableDepartments();
 
-  const stages = [
+  const baseStages = [
     { key: 'firstYear', label: t('stages.firstYear') },
     { key: 'secondYear', label: t('stages.secondYear') },
     { key: 'thirdYear', label: t('stages.thirdYear') },
@@ -375,6 +476,36 @@ const SignUp = ({ navigation, route }) => {
     { key: 'fifthYear', label: t('stages.fifthYear') },
     { key: 'sixthYear', label: t('stages.sixthYear') },
   ];
+
+  const extendedStagePrograms = {
+    universities: ['medical', 'medicine', 'health', 'law', 'legal', 'dent', 'pharmacy', 'nursing'],
+    colleges: ['technicalhealth', 'medical', 'medicine', 'health', 'law', 'legal', 'dent', 'pharmacy', 'nursing'],
+    departments: ['medicallaboratory', 'radiology', 'anesthesia', 'pharmacy', 'dentalhealth', 'nursing', 'medicine', 'law'],
+  };
+
+  const isExtendedStageProgram = () => {
+    const universityKey = (university || '').toLowerCase();
+    const collegeKey = (college || '').toLowerCase();
+    const departmentKey = (department || '').toLowerCase();
+
+    const keywordMatch = (value, keywords) => keywords.some((keyword) => value.includes(keyword));
+
+    return (
+      keywordMatch(universityKey, extendedStagePrograms.universities) ||
+      keywordMatch(collegeKey, extendedStagePrograms.colleges) ||
+      keywordMatch(departmentKey, extendedStagePrograms.departments)
+    );
+  };
+
+  useEffect(() => {
+    if (!stage) return;
+    const allowsExtendedStages = isExtendedStageProgram();
+    if (!allowsExtendedStages && ['fifthYear', 'sixthYear'].includes(stage)) {
+      setStage('');
+    }
+  }, [university, college, department, stage]);
+
+  const stages = isExtendedStageProgram() ? baseStages : baseStages.slice(0, 4);
 
   const ageOptions = Array.from({ length: 28 }, (_, i) => ({
     key: String(17 + i),
@@ -462,6 +593,7 @@ const SignUp = ({ navigation, route }) => {
         style={styles.keyboardAvoidingView}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
         <ScrollView 
+          ref={scrollViewRef}
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -491,6 +623,31 @@ const SignUp = ({ navigation, route }) => {
               intensity={isTablet() ? 30 : 25}
               borderRadius={borderRadius.xl}
             >
+              <View style={styles.stepHeader}>
+                <Text style={[styles.stepTitle, { fontSize: fontSize(13), color: theme.textSecondary }]}>
+                  {t('auth.stepIndicator', { current: currentStep + 1, total: totalSteps })}
+                </Text>
+                <Text style={[styles.stepLabel, { fontSize: fontSize(16), color: theme.text }]}>
+                  {getStepLabel()}
+                </Text>
+                <View style={styles.stepDots}>
+                  {steps.map((step, index) => (
+                    <View
+                      key={`${step}-${index}`}
+                      style={[
+                        styles.stepDot,
+                        {
+                          backgroundColor: index <= currentStep ? theme.primary : theme.input.border,
+                          width: index === currentStep ? moderateScale(22) : moderateScale(8),
+                        },
+                      ]}
+                    />
+                  ))}
+                </View>
+              </View>
+
+              {steps[currentStep] === 'basic' && (
+                <>
               <GlassInput focused={nameFocused}>
                 <View style={styles.inputWrapper}>
                   <Ionicons 
@@ -589,6 +746,11 @@ const SignUp = ({ navigation, route }) => {
                 icon="calendar-outline"
                 style={{ marginTop: spacing.md }}
               />
+                </>
+              )}
+
+              {steps[currentStep] === 'academic' && (
+                <>
 
               <SearchableDropdown
                 items={universities}
@@ -627,8 +789,10 @@ const SignUp = ({ navigation, route }) => {
                 icon="library-outline"
                 style={{ marginTop: spacing.md }}
               />
+                </>
+              )}
 
-              {!oauthMode && (
+              {steps[currentStep] === 'security' && !oauthMode && (
                 <>
                   <GlassInput focused={passwordFocused} style={{ marginTop: spacing.md }}>
                     <View style={styles.inputWrapper}>
@@ -757,37 +921,78 @@ const SignUp = ({ navigation, route }) => {
                   )}
                 </>
               )}
+              <View style={styles.stepActions}>
+                {currentStep > 0 && (
+                  <TouchableOpacity
+                    style={[
+                      styles.secondaryButton,
+                      { borderColor: theme.border, backgroundColor: theme.glass.background },
+                    ]}
+                    onPress={handlePrevStep}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="arrow-back" size={moderateScale(18)} color={theme.text} />
+                    <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
+                      {t('common.back')}
+                    </Text>
+                  </TouchableOpacity>
+                )}
 
-              <TouchableOpacity
-                style={[styles.signUpButton, shadows.large]}
-                onPress={handleSignUp}
-                disabled={isLoading || !isFormValid()}
-                activeOpacity={0.85}>
-                <LinearGradient
-                  colors={!isFormValid() ? ['#999', '#666'] : theme.gradient}
-                  style={styles.buttonGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}>
-                  {isLoading ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  ) : (
-                    <>
-                      <Text style={[
-                        styles.signUpButtonText,
-                        { fontSize: fontSize(17), opacity: !isFormValid() ? 0.6 : 1 }
-                      ]}>
-                        {oauthMode ? t('common.continue') : t('auth.createAccount')}
+                {isFinalStep ? (
+                  <TouchableOpacity
+                    style={[styles.signUpButton, shadows.large, currentStep > 0 ? styles.primaryButtonWide : null]}
+                    onPress={handleSignUp}
+                    disabled={isLoading || !isFormValid()}
+                    activeOpacity={0.85}>
+                    <LinearGradient
+                      colors={!isFormValid() ? ['#999', '#666'] : theme.gradient}
+                      style={styles.buttonGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}>
+                      {isLoading ? (
+                        <ActivityIndicator color="#FFFFFF" size="small" />
+                      ) : (
+                        <>
+                          <Text style={[
+                            styles.signUpButtonText,
+                            { fontSize: fontSize(17), opacity: !isFormValid() ? 0.6 : 1 }
+                          ]}>
+                            {oauthMode ? t('common.continue') : t('auth.createAccount')}
+                          </Text>
+                          <Ionicons 
+                            name="arrow-forward" 
+                            size={moderateScale(20)} 
+                            color="#FFFFFF" 
+                            style={[styles.buttonIcon, { opacity: !isFormValid() ? 0.6 : 1 }]}
+                          />
+                        </>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.signUpButton, shadows.large, currentStep > 0 ? styles.primaryButtonWide : null]}
+                    onPress={handleNextStep}
+                    disabled={isLoading}
+                    activeOpacity={0.85}>
+                    <LinearGradient
+                      colors={theme.gradient}
+                      style={styles.buttonGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}>
+                      <Text style={[styles.signUpButtonText, { fontSize: fontSize(17) }]}>
+                        {t('common.next')}
                       </Text>
                       <Ionicons 
                         name="arrow-forward" 
                         size={moderateScale(20)} 
                         color="#FFFFFF" 
-                        style={[styles.buttonIcon, { opacity: !isFormValid() ? 0.6 : 1 }]}
+                        style={styles.buttonIcon}
                       />
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
+              </View>
             </GlassContainer>
 
             <View style={styles.footer}>
@@ -871,6 +1076,26 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
   },
+  stepHeader: {
+    marginBottom: spacing.md,
+  },
+  stepTitle: {
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  stepLabel: {
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+  },
+  stepDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  stepDot: {
+    height: moderateScale(8),
+    borderRadius: borderRadius.round,
+  },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -936,9 +1161,37 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
     marginTop: spacing.lg,
+    minHeight: moderateScale(48),
+    flex: 1,
+  },
+  stepActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.lg,
+  },
+  secondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    minHeight: moderateScale(48),
+  },
+  secondaryButtonText: {
+    fontWeight: '700',
+    fontSize: fontSize(15),
+  },
+  primaryButtonWide: {
+    flex: 1,
   },
   buttonGradient: {
     paddingVertical: spacing.md + spacing.xs,
+    paddingHorizontal: spacing.lg,
+    minHeight: moderateScale(48),
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',

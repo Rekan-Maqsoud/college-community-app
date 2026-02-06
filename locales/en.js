@@ -274,6 +274,10 @@ export default {
     dontHaveAccount: "Don't have an account? ",
     alreadyHaveAccount: 'Already have an account? ',
     createAccount: 'Create Account',
+    stepIndicator: 'Step {current} of {total}',
+    stepBasicInfo: 'Basic Information',
+    stepAcademicInfo: 'Academic Details',
+    stepSecurity: 'Password & Security',
     joinCommunity: 'Join the Community',
     fullName: 'Full Name',
     age: 'Age',
@@ -1448,6 +1452,9 @@ export default {
   // Common
   common: {
     save: 'Save',
+    next: 'Next',
+    back: 'Back',
+    continue: 'Continue',
     cancel: 'Cancel',
     delete: 'Delete',
     edit: 'Edit',

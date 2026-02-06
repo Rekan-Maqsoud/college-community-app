@@ -274,6 +274,10 @@ export default {
     dontHaveAccount: 'ئەکاونتت نییە؟ ',
     alreadyHaveAccount: 'پێشتر ئەکاونتت هەیە؟ ',
     createAccount: 'دروستکردنی ئەکاونت',
+    stepIndicator: 'هەنگاو {current} لە {total}',
+    stepBasicInfo: 'زانیاری بنەڕەتی',
+    stepAcademicInfo: 'زانیاری ئەکادیمی',
+    stepSecurity: 'وشەی نهێنی و ئاسایش',
     joinCommunity: 'بەشداریکردن لە کۆمەڵگا',
     fullName: 'ناوی تەواو',
     age: 'تەمەن',
@@ -1443,6 +1447,9 @@ export default {
   // Common
   common: {
     save: 'پاشەکەوتکردن',
+    next: 'دواتر',
+    back: 'گەڕانەوە',
+    continue: 'بەردەوامبە',
     cancel: 'پاشگەزبوونەوە',
     delete: 'سڕینەوە',
     edit: 'دەستکاریکردن',

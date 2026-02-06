@@ -1,7 +1,7 @@
 import { databases, config } from './config';
 import { ID, Query } from 'appwrite';
 import * as SecureStore from 'expo-secure-store';
-import * as Random from 'expo-random';
+import * as Crypto from 'expo-crypto';
 import nacl from 'tweetnacl';
 import { encodeBase64, decodeBase64, encodeUTF8, decodeUTF8 } from 'tweetnacl-util';
 import { messagesCacheManager } from '../app/utils/cacheManager';
@@ -17,9 +17,13 @@ const E2EE_PREFIX = 'enc:v1:';
 const CHAT_KEY_PREFIX = 'e2ee_chat_key_';
 const PUBLIC_KEY_PREFIX = 'e2ee_public_key_';
 const PRIVATE_KEY_PREFIX = 'e2ee_private_key_';
+const chatKeyMemoryCache = new Map();
 const getSecureRandomBytes = (size) => {
-    if (Random && typeof Random.getRandomBytes === 'function') {
-        return Random.getRandomBytes(size);
+    if (Crypto && typeof Crypto.getRandomBytes === 'function') {
+        if (typeof Crypto.assertByteCount === 'function') {
+            Crypto.assertByteCount(size);
+        }
+        return Crypto.getRandomBytes(size);
     }
 
     if (typeof global !== 'undefined' && global?.crypto?.getRandomValues) {
@@ -41,6 +45,16 @@ const getSecureStoreKey = (prefix, id) => `${prefix}${id}`;
 
 const encodeBytes = (bytes) => encodeBase64(bytes);
 const decodeBytes = (value) => decodeBase64(value);
+
+const getMemoryChatKey = (chatId) => {
+    if (!chatId) return null;
+    return chatKeyMemoryCache.get(chatId) || null;
+};
+
+const setMemoryChatKey = (chatId, chatKey) => {
+    if (!chatId || !chatKey) return;
+    chatKeyMemoryCache.set(chatId, chatKey);
+};
 
 const getOrCreateUserKeypair = async (userId) => {
     const publicKeyKey = getSecureStoreKey(PUBLIC_KEY_PREFIX, userId);
@@ -174,6 +188,7 @@ const parseChatSettings = (settingsString) => {
 const storeChatKey = async (chatId, chatKey) => {
     const key = getSecureStoreKey(CHAT_KEY_PREFIX, chatId);
     await SecureStore.setItemAsync(key, encodeBytes(chatKey));
+    setMemoryChatKey(chatId, chatKey);
 };
 
 const getStoredChatKey = async (chatId) => {
@@ -253,13 +268,19 @@ const buildE2eeSettings = async (chat, creatorId) => {
 const resolveChatKey = async (chat, userId) => {
     if (!chat || !userId) return null;
 
+    const memoryKey = getMemoryChatKey(chat.$id);
+    if (memoryKey) return memoryKey;
+
+    const cached = await getStoredChatKey(chat.$id);
+    if (cached) {
+        setMemoryChatKey(chat.$id, cached);
+        return cached;
+    }
+
     const publicKeyResult = await ensureChatPublicKeyStored(chat, userId);
     if (publicKeyResult?.settings) {
         chat.settings = JSON.stringify(publicKeyResult.settings);
     }
-
-    const cached = await getStoredChatKey(chat.$id);
-    if (cached) return cached;
 
     const settings = parseChatSettings(chat.settings);
     const e2ee = settings.e2ee;
@@ -362,11 +383,10 @@ const addMissingE2eeKeys = async (chat, chatKey, senderId) => {
     );
 };
 
-export const ensureChatParticipant = async (chatId, userId) => {
+const ensureChatParticipantWithChat = async (chat, userId) => {
     try {
-        if (!chatId || !userId) return null;
+        if (!chat || !userId) return null;
 
-        const chat = await getChat(chatId);
         const participants = Array.isArray(chat.participants) ? chat.participants : [];
 
         if (participants.includes(userId)) {
@@ -376,11 +396,22 @@ export const ensureChatParticipant = async (chatId, userId) => {
         const updatedChat = await databases.updateDocument(
             config.databaseId,
             config.chatsCollectionId,
-            chatId,
+            chat.$id,
             { participants: [...participants, userId] }
         );
 
         return updatedChat;
+    } catch (error) {
+        return null;
+    }
+};
+
+export const ensureChatParticipant = async (chatId, userId) => {
+    try {
+        if (!chatId || !userId) return null;
+
+        const chat = await getChat(chatId);
+        return await ensureChatParticipantWithChat(chat, userId);
     } catch (error) {
         return null;
     }
@@ -463,19 +494,14 @@ export const decryptChatPreview = async (chat, userId) => {
 export const decryptChatPreviews = async (chats, userId) => {
     if (!Array.isArray(chats) || chats.length === 0) return chats;
 
-    const results = [];
-    for (const chat of chats) {
-        results.push(await decryptChatPreview(chat, userId));
-    }
-
-    return results;
+    return await Promise.all(chats.map(chat => decryptChatPreview(chat, userId)));
 };
 
-export const decryptMessageForChat = async (chatId, message, userId) => {
+export const decryptMessageForChat = async (chatId, message, userId, chat = null) => {
     try {
         if (!chatId || !message || !userId) return message;
-        const chat = await getChat(chatId);
-        const chatKey = await resolveChatKey(chat, userId);
+        const chatDoc = chat || await getChat(chatId);
+        const chatKey = await resolveChatKey(chatDoc, userId);
         if (!chatKey) return message;
         return decryptMessageFields(message, chatKey);
     } catch (error) {
@@ -649,6 +675,46 @@ export const deleteChat = async (chatId) => {
     }
 };
 
+const canUserSendMessageForChat = (chat, userId) => {
+    if (!chat || !userId) {
+        return false;
+    }
+
+    if (chat.type === 'private') {
+        return chat.participants?.includes(userId) || false;
+    }
+
+    if (chat.type === 'custom_group') {
+        // Must be a participant first
+        if (!chat.participants?.includes(userId)) {
+            return false;
+        }
+
+        // Check if onlyAdminsCanPost is enabled in settings
+        let settings = {};
+        try {
+            settings = chat.settings ? JSON.parse(chat.settings) : {};
+        } catch (e) {
+            settings = {};
+        }
+
+        // If only admins can post, check if user is admin
+        if (settings.onlyAdminsCanPost) {
+            return chat.admins?.includes(userId) ||
+                   chat.representatives?.includes(userId) ||
+                   false;
+        }
+
+        return true;
+    }
+
+    if (!chat.requiresRepresentative) {
+        return true;
+    }
+
+    return chat.representatives?.includes(userId) || false;
+};
+
 export const canUserSendMessage = async (chatId, userId) => {
     try {
         if (!chatId || !userId) {
@@ -661,39 +727,7 @@ export const canUserSendMessage = async (chatId, userId) => {
             chatId
         );
         
-        if (chat.type === 'private') {
-            return chat.participants?.includes(userId) || false;
-        }
-        
-        if (chat.type === 'custom_group') {
-            // Must be a participant first
-            if (!chat.participants?.includes(userId)) {
-                return false;
-            }
-            
-            // Check if onlyAdminsCanPost is enabled in settings
-            let settings = {};
-            try {
-                settings = chat.settings ? JSON.parse(chat.settings) : {};
-            } catch (e) {
-                settings = {};
-            }
-            
-            // If only admins can post, check if user is admin
-            if (settings.onlyAdminsCanPost) {
-                return chat.admins?.includes(userId) || 
-                       chat.representatives?.includes(userId) || 
-                       false;
-            }
-            
-            return true;
-        }
-        
-        if (!chat.requiresRepresentative) {
-            return true;
-        }
-        
-        return chat.representatives?.includes(userId) || false;
+        return canUserSendMessageForChat(chat, userId);
     } catch (error) {
         return false;
     }
@@ -720,13 +754,14 @@ export const sendMessage = async (chatId, messageData) => {
             throw new Error('Message must have either content or an image');
         }
         
-        const canSend = await canUserSendMessage(chatId, messageData.senderId);
+        const chat = await getChat(chatId);
+        const canSend = canUserSendMessageForChat(chat, messageData.senderId);
         if (!canSend) {
             throw new Error('User does not have permission to send messages in this chat');
         }
 
-        const chat = await ensureChatParticipant(chatId, messageData.senderId) || await getChat(chatId);
-        const chatKey = await ensureChatEncryption(chat, messageData.senderId);
+        const ensuredChat = await ensureChatParticipantWithChat(chat, messageData.senderId) || chat;
+        const chatKey = await ensureChatEncryption(ensuredChat, messageData.senderId);
         const shouldEncrypt = !!chatKey;
 
         // Check for @everyone mention
@@ -787,23 +822,21 @@ export const sendMessage = async (chatId, messageData) => {
             }
         );
         
-        // Add message to cache
-        await messagesCacheManager.addMessageToCache(chatId, message, 100);
+        // Add message to cache (fire-and-forget)
+        messagesCacheManager.addMessageToCache(chatId, message, 100);
         
-        // Send push notifications to other participants
-        try {
-            await sendChatPushNotification({
-                chatId,
-                messageId: message.$id,
-                senderId: messageData.senderId,
-                senderName: messageData.senderName,
-                content: notificationPreview,
-                chatName: chat.name,
-                chatType: chat.type,
-            });
-        } catch (pushError) {
+        // Send push notifications to other participants (fire-and-forget)
+        sendChatPushNotification({
+            chatId,
+            messageId: message.$id,
+            senderId: messageData.senderId,
+            senderName: messageData.senderName,
+            content: notificationPreview,
+            chatName: chat.name,
+            chatType: chat.type,
+        }).catch(() => {
             // Push notification failed but message was sent successfully
-        }
+        });
         
         return decryptMessageFields(message, chatKey);
     } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useState, useRef, memo, useEffect } from 'react';
+import React, { useState, useRef, memo, useEffect, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -41,17 +41,17 @@ const SWIPE_THRESHOLD = 60;
 
 // Message status indicator component
 // Status flow: sending -> sent (1 check) -> delivered (2 checks) -> read (pfp in private, blue checks in group)
-const MessageStatusIndicator = ({ 
-  status, 
-  readBy, 
+const MessageStatusIndicator = memo(({
+  status,
+  readBy,
   deliveredTo,
-  chatType, 
-  otherUserPhoto, 
+  chatType,
+  otherUserPhoto,
   otherUserName,
   participantCount,
   theme,
   isDarkMode,
-  isLastSeenMessage 
+  isLastSeenMessage
 }) => {
   // Animation value for the read receipt avatar
   const scaleAnim = useRef(new Animated.Value(0)).current;
@@ -195,7 +195,7 @@ const MessageStatusIndicator = ({
       <Ionicons name="checkmark" size={moderateScale(12)} color="rgba(255,255,255,0.6)" />
     </View>
   );
-};
+});
 
 const statusStyles = StyleSheet.create({
   container: {
@@ -313,23 +313,23 @@ const MessageBubble = ({
   };
 
   // Render message content with @everyone highlighting, link detection, and search highlighting
-  const renderMessageContent = () => {
+  const messageContentNode = useMemo(() => {
     if (!hasText) return null;
-    
-    const content = message.content;
-    
+
+    const content = message.content || '';
+
     // Helper to highlight search matches in text
     const highlightSearchMatches = (text, keyPrefix = '') => {
       if (!searchQuery || searchQuery.trim().length === 0) {
         return text;
       }
-      
+
       const query = searchQuery.toLowerCase();
       const lowerText = text.toLowerCase();
       const parts = [];
       let lastIndex = 0;
       let matchIndex = lowerText.indexOf(query, lastIndex);
-      
+
       while (matchIndex !== -1) {
         // Add text before match
         if (matchIndex > lastIndex) {
@@ -337,11 +337,11 @@ const MessageBubble = ({
         }
         // Add highlighted match
         parts.push(
-          <Text 
-            key={`${keyPrefix}-match-${matchIndex}`} 
+          <Text
+            key={`${keyPrefix}-match-${matchIndex}`}
             style={[
-              styles.searchHighlight, 
-              { 
+              styles.searchHighlight,
+              {
                 backgroundColor: isCurrentSearchResult ? '#FFEB3B' : '#FFF176',
                 color: '#000000',
               }
@@ -353,26 +353,25 @@ const MessageBubble = ({
         lastIndex = matchIndex + query.length;
         matchIndex = lowerText.indexOf(query, lastIndex);
       }
-      
+
       // Add remaining text
       if (lastIndex < text.length) {
         parts.push(text.substring(lastIndex));
       }
-      
+
       return parts.length > 0 ? parts : text;
     };
-    
+
     // URL regex pattern
     const urlPattern = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
     // Pattern for @everyone/@all and @username (username can contain letters, numbers, spaces)
     const everyoneMentionPattern = /(@everyone|@all)/gi;
-    const userMentionPattern = /@([a-zA-Z0-9\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\u0980-\u09FF\s]+?)(?=\s|$|[.,!?;:])/g;
-    
+
     // Combined pattern for links, @everyone, and @username mentions
     const combinedPattern = new RegExp(`(${urlPattern.source}|${everyoneMentionPattern.source}|@[a-zA-Z0-9\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF\\u0980-\\u09FF\\s]+?)(?=\\s|$|[.,!?;:])`, 'gi');
-    
+
     const parts = content.split(combinedPattern).filter(Boolean);
-    
+
     const handleLinkPress = (url) => {
       let finalUrl = url;
       if (url.startsWith('www.')) {
@@ -385,15 +384,15 @@ const MessageBubble = ({
     const handleMentionPress = (mentionText) => {
       // Remove @ symbol
       const username = mentionText.substring(1).trim();
-      
+
       // Try to find the user in mentions array or group members
       let mentionedUser = null;
-      
+
       // Check message.mentions array if available
       if (message.mentions && Array.isArray(message.mentions)) {
         // This would need user lookup, for now we'll use groupMembers
       }
-      
+
       // Look up in groupMembers if provided
       if (groupMembers && groupMembers.length > 0) {
         mentionedUser = groupMembers.find(member => {
@@ -401,7 +400,7 @@ const MessageBubble = ({
           return memberName.toLowerCase() === username.toLowerCase();
         });
       }
-      
+
       // If we found a user, show preview
       if (mentionedUser) {
         setMentionPreview({
@@ -411,24 +410,24 @@ const MessageBubble = ({
         });
       }
     };
-    
+
     // Reset URL pattern last index
     urlPattern.lastIndex = 0;
     everyoneMentionPattern.lastIndex = 0;
-    
+
     const hasSpecialContent = urlPattern.test(content) || everyoneMentionPattern.test(content) || /@\w+/.test(content);
-    
+
     // Reset again after test
     urlPattern.lastIndex = 0;
     everyoneMentionPattern.lastIndex = 0;
-    
+
     if (hasSpecialContent) {
       return (
         <Text style={[
           styles.messageText,
-          { 
+          {
             fontSize: fontSize(14),
-            color: isCurrentUser ? '#FFFFFF' : theme.text 
+            color: isCurrentUser ? '#FFFFFF' : theme.text
           },
           hasImage && styles.messageTextWithImage,
         ]}>
@@ -443,8 +442,8 @@ const MessageBubble = ({
             // Check for user mentions (@username)
             if (part.startsWith('@') && part.length > 1 && part.toLowerCase() !== '@everyone' && part.toLowerCase() !== '@all') {
               return (
-                <Text 
-                  key={index} 
+                <Text
+                  key={index}
                   style={[styles.userMentionText, { color: isCurrentUser ? '#93C5FD' : theme.primary }]}
                   onPress={() => handleMentionPress(part)}
                 >
@@ -457,8 +456,8 @@ const MessageBubble = ({
             if (urlPattern.test(part)) {
               urlPattern.lastIndex = 0;
               return (
-                <Text 
-                  key={index} 
+                <Text
+                  key={index}
                   style={[styles.linkText, { color: isCurrentUser ? '#93C5FD' : theme.primary }]}
                   onPress={() => handleLinkPress(part)}
                 >
@@ -475,25 +474,55 @@ const MessageBubble = ({
     return (
       <Text style={[
         styles.messageText,
-        { 
+        {
           fontSize: fontSize(14),
-          color: isCurrentUser ? '#FFFFFF' : theme.text 
+          color: isCurrentUser ? '#FFFFFF' : theme.text
         },
         hasImage && styles.messageTextWithImage,
       ]}>
         {highlightSearchMatches(content, 'content')}
       </Text>
     );
-  };
+  }, [
+    hasText,
+    message.content,
+    message.mentions,
+    searchQuery,
+    isCurrentSearchResult,
+    isCurrentUser,
+    theme.text,
+    theme.primary,
+    hasImage,
+    groupMembers,
+  ]);
 
-  const actionButtons = [
+  const actionButtons = useMemo(() => ([
     { icon: 'copy-outline', label: t('chats.copy'), action: onCopy, show: hasText },
     { icon: 'arrow-undo-outline', label: t('chats.reply'), action: onReply, show: true },
     { icon: 'arrow-redo-outline', label: t('chats.forward'), action: onForward, show: true },
     { icon: isPinned ? 'pin' : 'pin-outline', label: isPinned ? t('chats.unpin') : t('chats.pin'), action: isPinned ? onUnpin : onPin, show: onPin || onUnpin },
     { icon: isBookmarked ? 'bookmark' : 'bookmark-outline', label: isBookmarked ? t('chats.unbookmark') : t('chats.bookmark'), action: isBookmarked ? onUnbookmark : onBookmark, show: onBookmark || onUnbookmark },
     { icon: 'trash-outline', label: t('common.delete'), action: onDelete, show: isCurrentUser && onDelete, danger: true },
-  ].filter(btn => btn.show);
+  ].filter(btn => btn.show)), [
+    t,
+    hasText,
+    onCopy,
+    onReply,
+    onForward,
+    isPinned,
+    onUnpin,
+    onPin,
+    isBookmarked,
+    onUnbookmark,
+    onBookmark,
+    isCurrentUser,
+    onDelete,
+  ]);
+
+  const formattedTime = useMemo(
+    () => formatTime(message.createdAt || message.$createdAt),
+    [message.createdAt, message.$createdAt]
+  );
 
   // Render bubble content (used by both gradient and solid bubbles)
   const renderBubbleContent = () => (
@@ -553,7 +582,7 @@ const MessageBubble = ({
         </TouchableOpacity>
       )}
 
-      {renderMessageContent()}
+      {messageContentNode}
       
       <View style={styles.timeStatusRow}>
         <Text style={[
@@ -565,7 +594,7 @@ const MessageBubble = ({
               : theme.textSecondary
           }
         ]}>
-          {formatTime(message.createdAt || message.$createdAt)}
+          {formattedTime}
         </Text>
         
         {/* Status indicator for current user's messages */}

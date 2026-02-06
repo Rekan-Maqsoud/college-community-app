@@ -274,6 +274,10 @@ export default {
     dontHaveAccount: 'ليس لديك حساب؟ ',
     alreadyHaveAccount: 'لديك حساب بالفعل؟ ',
     createAccount: 'إنشاء حساب',
+    stepIndicator: 'الخطوة {current} من {total}',
+    stepBasicInfo: 'المعلومات الأساسية',
+    stepAcademicInfo: 'التفاصيل الأكاديمية',
+    stepSecurity: 'كلمة المرور والأمان',
     joinCommunity: 'انضم إلى المجتمع',
     fullName: 'الاسم الكامل',
     age: 'العمر',
@@ -1443,6 +1447,9 @@ export default {
   // Common
   common: {
     save: 'حفظ',
+    next: 'التالي',
+    back: 'رجوع',
+    continue: 'متابعة',
     cancel: 'إلغاء',
     delete: 'حذف',
     edit: 'تعديل',

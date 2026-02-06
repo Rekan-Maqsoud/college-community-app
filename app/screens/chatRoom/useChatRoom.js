@@ -56,6 +56,27 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
   const userCacheRef = useRef({});
   const isRealtimeActive = useRef(false);
 
+  const fetchUsersByIds = useCallback(async (userIds) => {
+    if (!Array.isArray(userIds) || userIds.length === 0) return {};
+
+    const uniqueIds = [...new Set(userIds.filter(Boolean))];
+    if (uniqueIds.length === 0) return {};
+
+    const results = await Promise.allSettled(uniqueIds.map(id => getUserById(id)));
+    const usersMap = {};
+
+    results.forEach((result, index) => {
+      const id = uniqueIds[index];
+      if (result.status === 'fulfilled' && result.value) {
+        usersMap[id] = result.value;
+      } else {
+        usersMap[id] = { name: t('common.unknownUser') };
+      }
+    });
+
+    return usersMap;
+  }, [t]);
+
   const getChatDisplayName = useCallback(() => {
     if (chat.type === 'private' && chat.otherUser) {
       return chat.otherUser.name || chat.otherUser.fullName || chat.name;
@@ -67,7 +88,7 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
     isRealtimeActive.current = true;
     
     if (payload.chatId === chat.$id) {
-      const decryptedPayload = await decryptMessageForChat(chat.$id, payload, user?.$id);
+      const decryptedPayload = await decryptMessageForChat(chat.$id, payload, user?.$id, chat);
       // Add message to cache
       await messagesCacheManager.addMessageToCache(chat.$id, decryptedPayload, 100);
       
@@ -121,7 +142,7 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
     // Invalidate messages cache since data changed
     await messagesCacheManager.invalidateChatMessages(chat.$id);
     setMessages(prev => prev.filter(m => m.$id !== payload.$id));
-  }, [chat.$id]);
+  }, [chat.$id, fetchUsersByIds]);
 
   // Handle message updates (read status, delivery status, etc.)
   const handleRealtimeMessageUpdated = useCallback((payload) => {
@@ -206,15 +227,8 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
       const newUsers = uniqueSenderIds.filter(id => !userCacheRef.current[id]);
       
       if (newUsers.length > 0) {
-        const newUserCache = { ...userCacheRef.current };
-        for (const senderId of newUsers) {
-          try {
-            const userData = await getUserById(senderId);
-            newUserCache[senderId] = userData;
-          } catch (error) {
-            newUserCache[senderId] = { name: 'Unknown User' };
-          }
-        }
+        const fetchedUsers = await fetchUsersByIds(newUsers);
+        const newUserCache = { ...userCacheRef.current, ...fetchedUsers };
         userCacheRef.current = newUserCache;
         setUserCache(newUserCache);
       }
@@ -262,21 +276,13 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
       }
       
       const uniqueSenderIds = [...new Set(reversedMessages.map(m => m.senderId))];
-      const newUserCache = { ...userCacheRef.current };
-      
-      for (const senderId of uniqueSenderIds) {
-        if (!newUserCache[senderId]) {
-          try {
-            const userData = await getUserById(senderId);
-            newUserCache[senderId] = userData;
-          } catch (error) {
-            newUserCache[senderId] = { name: 'Unknown User' };
-          }
-        }
+      const missingSenderIds = uniqueSenderIds.filter(id => !userCacheRef.current[id]);
+      if (missingSenderIds.length > 0) {
+        const fetchedUsers = await fetchUsersByIds(missingSenderIds);
+        const newUserCache = { ...userCacheRef.current, ...fetchedUsers };
+        userCacheRef.current = newUserCache;
+        setUserCache(newUserCache);
       }
-      
-      userCacheRef.current = newUserCache;
-      setUserCache(newUserCache);
       
       // Mark messages as read when loading
       if (user?.$id) {

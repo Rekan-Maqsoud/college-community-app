@@ -206,6 +206,7 @@ const ChatRoom = ({ route, navigation }) => {
   }, [chat, isDarkMode, theme, muteStatus, chatSettings, openSearch, getChatDisplayName, handleChatHeaderPress, navigation, t]);
 
   const memoizedMessages = useMemo(() => messages, [messages]);
+  const prevMessageCount = useRef(0);
 
   // For private chats, find the last message sent by current user that was read by the other user
   const lastSeenMessageId = useMemo(() => {
@@ -226,7 +227,19 @@ const ChatRoom = ({ route, navigation }) => {
     return null;
   }, [messages, chat.type, chat.otherUser, user.$id]);
 
-  const renderMessage = ({ item, index }) => {
+  useEffect(() => {
+    const previousCount = prevMessageCount.current;
+    const currentCount = messages.length;
+    prevMessageCount.current = currentCount;
+
+    if (!searchActive && currentCount > 0 && currentCount !== previousCount) {
+      requestAnimationFrame(() => {
+        flatListRef.current?.scrollToEnd({ animated: previousCount > 0 });
+      });
+    }
+  }, [messages.length, searchActive, flatListRef]);
+
+  const renderMessage = useCallback(({ item, index }) => {
     const isCurrentUser = item.senderId === user.$id;
     const senderData = userCache[item.senderId];
     const senderName = senderData?.name || item.senderName || 'Unknown';
@@ -300,7 +313,30 @@ const ChatRoom = ({ route, navigation }) => {
         isCurrentSearchResult={isCurrentSearchResult}
       />
     );
-  };
+  }, [
+    user.$id,
+    userCache,
+    messages,
+    bookmarkedMsgIds,
+    chat,
+    canPin,
+    canMentionEveryone,
+    groupMembers,
+    searchActive,
+    searchQuery,
+    currentSearchMessageId,
+    lastSeenMessageId,
+    navigation,
+    handleCopyMessage,
+    handleDeleteMessage,
+    handleReplyMessage,
+    handleForwardMessage,
+    handlePinMessage,
+    handleUnpinMessage,
+    handleBookmarkMessage,
+    handleUnbookmarkMessage,
+    handleRetryMessage,
+  ]);
 
   const renderEmpty = () => {
     const cardBackground = isDarkMode 
@@ -485,16 +521,6 @@ const ChatRoom = ({ route, navigation }) => {
         keyExtractor={(item, index) => item.$id || `message-${index}`}
         contentContainerStyle={styles.messagesList}
         ListEmptyComponent={renderEmpty}
-        onContentSizeChange={() => {
-          if (!searchActive) {
-            flatListRef.current?.scrollToEnd({ animated: true });
-          }
-        }}
-        onLayout={() => {
-          if (!searchActive) {
-            flatListRef.current?.scrollToEnd({ animated: false });
-          }
-        }}
         onScrollToIndexFailed={handleScrollToIndexFailed}
         removeClippedSubviews={Platform.OS === 'android'}
         maxToRenderPerBatch={15}

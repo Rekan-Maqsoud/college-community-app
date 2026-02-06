@@ -135,7 +135,11 @@ export const updateUserPublicKey = async (userId, publicKey) => {
         return userDoc;
     } catch (error) {
         // If the schema doesn't include publicKey, avoid breaking chat encryption
-        if (error?.message?.includes('Unknown attribute') && error?.message?.includes('publicKey')) {
+        const message = `${error?.message || error?.response?.message || ''}`.toLowerCase();
+        if (
+            message.includes('publickey') &&
+            (message.includes('unknown attribute') || message.includes('invalid document structure') || message.includes('unknow attribute'))
+        ) {
             return null;
         }
 
