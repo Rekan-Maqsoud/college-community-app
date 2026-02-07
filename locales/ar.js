@@ -961,7 +961,9 @@ export default {
     noResultsFound: 'لا توجد نتائج',
     clearChat: 'مسح المحادثة',
     clearChatConfirm: 'هل أنت متأكد من مسح جميع الرسائل في هذه المحادثة؟ لا يمكن التراجع عن هذا الإجراء.',
+    clearChatLocalConfirm: 'سيتم مسح سجل المحادثة على جهازك فقط. لن يتأثر المشاركون الآخرون.',
     chatCleared: 'تم مسح المحادثة بنجاح. تم حذف {count} رسائل.',
+    chatClearedLocal: 'تم مسح المحادثة لك بنجاح.',
     clearChatError: 'فشل في مسح المحادثة',
     blockUser: 'حظر المستخدم',
     searchComingSoon: 'ميزة البحث قادمة قريباً!',
@@ -994,10 +996,37 @@ export default {
     sendLocation: 'إرسال الموقع',
     sendFile: 'إرسال ملف',
     comingSoon: 'هذه الميزة قادمة قريباً!',
+    // Share post to chat
+    sendToChat: 'إرسال إلى المحادثة',
+    postShared: 'تمت مشاركة المنشور بنجاح',
+    postShareError: 'فشل مشاركة المنشور',
+    tapToView: 'انقر للعرض',
+    // Location sharing
+    tapToOpenMap: 'انقر لفتح الخريطة',
+    locationPermissionDenied: 'تم رفض إذن الموقع',
+    locationError: 'فشل الحصول على الموقع',
+    // Batch message management
+    selected: 'محدد',
+    deleteForMe: 'حذف لي',
+    deleteForMeConfirm: 'هل أنت متأكد من إخفاء الرسائل المحددة؟ لن تظهر لك بعد الآن.',
+    messagesHidden: 'تم إخفاء الرسائل بنجاح',
+    hideError: 'فشل إخفاء الرسائل',
+    messagesCopied: 'تم نسخ الرسائل إلى الحافظة',
     // Message status
     messageSent: 'تم الإرسال',
     messageDelivered: 'تم التوصيل',
     messageRead: 'تمت القراءة',
+    // Smart message previews
+    sentImage: 'أرسل صورة',
+    sharedLocation: 'شارك موقعاً',
+    sharedAPost: 'شارك منشوراً',
+    // Location preview
+    locationPreview: 'معاينة الموقع',
+    sendLocationConfirm: 'إرسال هذا الموقع؟',
+    sendLocationButton: 'إرسال الموقع',
+    // Image save
+    imageSaved: 'تم حفظ الصورة بنجاح',
+    imageSaveError: 'فشل في حفظ الصورة',
   },
   
   // Lecture Screen
@@ -1392,6 +1421,8 @@ export default {
     editingReply: 'تعديل الرد',
     linkOpenError: 'فشل فتح الرابط',
     send: 'إرسال',
+    sendToChat: 'إرسال إلى المحادثة',
+    sharedPost: 'منشور مشترك',
   },
   
   // Search
@@ -1539,5 +1570,8 @@ export default {
     galleryPermissionDenied: 'تم رفض إذن الوصول إلى المعرض',
     cameraPermissionDenied: 'تم رفض إذن الوصول إلى الكاميرا',
     maxImagesExceeded: 'الحد الأقصى {{max}} صور مسموح بها',
+    locationFailed: 'فشل في الحصول على موقعك. يرجى التأكد من تفعيل خدمات الموقع والمحاولة مرة أخرى.',
+    imageUploadFailed: 'فشل في رفع الصورة. يرجى المحاولة مرة أخرى.',
+    serverError: 'حدث خطأ في الخادم. يرجى المحاولة مرة أخرى.',
   },
 };

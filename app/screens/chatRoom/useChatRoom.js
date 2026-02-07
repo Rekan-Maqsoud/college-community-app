@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Alert, AppState } from 'react-native';
+import { AppState } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { 
   getMessages, 
@@ -25,13 +25,23 @@ import {
   unbookmarkMessage, 
   getBookmarkedMessages,
   MUTE_TYPES,
+  setChatClearedAt,
+  getChatClearedAt,
+  hideMessagesForUser,
+  getHiddenMessageIds,
 } from '../../../database/userChatSettings';
 import { useChatMessages } from '../../hooks/useRealtimeSubscription';
 import { messagesCacheManager } from '../../utils/cacheManager';
+import { normalizeRealtimeMessage, applyRealtimeMessageUpdate } from '../../utils/realtimeHelpers';
 
 const SMART_POLL_INTERVAL = 10000;
 
-export const useChatRoom = ({ chat, user, t, navigation }) => {
+export const useChatRoom = ({ chat, user, t, navigation, showAlert }) => {
+  const triggerAlert = (title, message, type = 'info', buttons = []) => {
+    if (showAlert) {
+      showAlert({ type, title, message, buttons });
+    }
+  };
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -48,6 +58,10 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
   const [showChatOptionsModal, setShowChatOptionsModal] = useState(false);
   const [groupMembers, setGroupMembers] = useState([]);
   const [userFriends, setUserFriends] = useState([]);
+  const [clearedAt, setClearedAtState] = useState(null);
+  const [hiddenMessageIds, setHiddenMessageIds] = useState([]);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState([]);
   
   const flatListRef = useRef(null);
   const pollingInterval = useRef(null);
@@ -55,6 +69,7 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
   const lastMessageId = useRef(null);
   const userCacheRef = useRef({});
   const isRealtimeActive = useRef(false);
+  const deletedMessageIds = useRef(new Set());
 
   const getChatDisplayName = useCallback(() => {
     if (chat.type === 'private' && chat.otherUser) {
@@ -63,85 +78,56 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
     return chat.name;
   }, [chat]);
 
+  const getNormalizedRealtimeMessage = useCallback((payload) => {
+    return normalizeRealtimeMessage(payload, chat.$id);
+  }, [chat.$id]);
+
   const handleRealtimeNewMessage = useCallback(async (payload) => {
     isRealtimeActive.current = true;
-    
-    if (payload.chatId === chat.$id) {
-      const decryptedPayload = await decryptMessageForChat(chat.$id, payload, user?.$id);
-      // Add message to cache
-      await messagesCacheManager.addMessageToCache(chat.$id, decryptedPayload, 100);
-      
-      setMessages(prev => {
-        // Check if this message already exists (exact ID match)
-        const existingIndex = prev.findIndex(m => m.$id === decryptedPayload.$id);
-        if (existingIndex >= 0) {
-          // Update existing message with server data (e.g., status updates)
-          const updated = [...prev];
-          updated[existingIndex] = { ...updated[existingIndex], ...decryptedPayload, _isOptimistic: false };
-          return updated;
-        }
-        
-        // Check for optimistic message that should be replaced
-        // Match by content, senderId, and approximate timestamp
-        const optimisticIndex = prev.findIndex(m => 
-          m._isOptimistic && 
-          m.senderId === decryptedPayload.senderId &&
-          m.content === decryptedPayload.content
-        );
-        
-        if (optimisticIndex >= 0) {
-          // Replace optimistic message with real one
-          const updated = [...prev];
-          updated[optimisticIndex] = { ...decryptedPayload, _status: 'sent', _isOptimistic: false };
-          return updated;
-        }
-        
-        // New message from another user or different content
-        return [...prev, decryptedPayload];
-      });
-      
-      if (decryptedPayload.senderId && !userCacheRef.current[decryptedPayload.senderId]) {
-        try {
-          const userData = await getUserById(decryptedPayload.senderId);
-          userCacheRef.current[decryptedPayload.senderId] = userData;
-          setUserCache({ ...userCacheRef.current });
-        } catch (e) {
-          userCacheRef.current[decryptedPayload.senderId] = { name: decryptedPayload.senderName || 'Unknown' };
-        }
-      }
-      
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+
+    const normalizedPayload = getNormalizedRealtimeMessage(payload);
+    if (!normalizedPayload) {
+      return;
     }
-  }, [chat.$id, user?.$id]);
+
+    let decryptedPayload = normalizedPayload;
+    try {
+      decryptedPayload = await decryptMessageForChat(chat.$id, normalizedPayload, user?.$id);
+    } catch (error) {
+      decryptedPayload = normalizedPayload;
+    }
+
+    await messagesCacheManager.addMessageToCache(chat.$id, decryptedPayload, 100);
+
+    setMessages(prev => applyRealtimeMessageUpdate(prev, decryptedPayload, user?.$id));
+
+    if (decryptedPayload.senderId && !userCacheRef.current[decryptedPayload.senderId]) {
+      try {
+        const userData = await getUserById(decryptedPayload.senderId);
+        userCacheRef.current[decryptedPayload.senderId] = userData;
+        setUserCache({ ...userCacheRef.current });
+      } catch (e) {
+        userCacheRef.current[decryptedPayload.senderId] = { name: decryptedPayload.senderName || 'Unknown' };
+      }
+    }
+
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  }, [chat.$id, getNormalizedRealtimeMessage, user?.$id]);
 
   const handleRealtimeMessageDeleted = useCallback(async (payload) => {
     isRealtimeActive.current = true;
+    // Track deleted ID to prevent ghost re-appearance from polling
+    deletedMessageIds.current.add(payload.$id);
     // Invalidate messages cache since data changed
     await messagesCacheManager.invalidateChatMessages(chat.$id);
     setMessages(prev => prev.filter(m => m.$id !== payload.$id));
   }, [chat.$id]);
 
-  // Handle message updates (read status, delivery status, etc.)
-  const handleRealtimeMessageUpdated = useCallback((payload) => {
-    if (payload.chatId === chat.$id) {
-      setMessages(prev => prev.map(m => 
-        m.$id === payload.$id ? { ...m, ...payload } : m
-      ));
-    }
-  }, [chat.$id]);
-
   useChatMessages(
     chat.$id,
-    (payload, events) => {
-      // Check if it's an update or create event
-      if (events?.some(e => e.includes('.update'))) {
-        handleRealtimeMessageUpdated(payload);
-      } else {
-        handleRealtimeNewMessage(payload);
-      }
-    },
+    handleRealtimeNewMessage,
     handleRealtimeMessageDeleted,
     !!chat.$id && !!user?.$id
   );
@@ -149,7 +135,26 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
   const pollMessages = useCallback(async () => {
     try {
       const fetchedMessages = await getMessages(chat.$id, user?.$id, 100, 0, false);
-      const reversedMessages = fetchedMessages.reverse();
+      let reversedMessages = fetchedMessages.reverse();
+
+      // Filter out messages deleted via realtime to prevent ghost re-appearance
+      if (deletedMessageIds.current.size > 0) {
+        reversedMessages = reversedMessages.filter(m => !deletedMessageIds.current.has(m.$id));
+      }
+
+      // Filter by clearedAt if set (non-destructive clear)
+      if (clearedAt) {
+        const clearedDate = new Date(clearedAt);
+        reversedMessages = reversedMessages.filter(m => {
+          const msgDate = new Date(m.$createdAt || m.createdAt);
+          return msgDate > clearedDate;
+        });
+      }
+
+      // Filter by hidden message IDs
+      if (hiddenMessageIds.length > 0) {
+        reversedMessages = reversedMessages.filter(m => !hiddenMessageIds.includes(m.$id));
+      }
       
       const newLastId = reversedMessages.length > 0 ? reversedMessages[reversedMessages.length - 1].$id : null;
       
@@ -221,20 +226,24 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
     } catch (error) {
       // Silent fail for polling
     }
-  }, [chat.$id]);
+  }, [chat.$id, clearedAt, hiddenMessageIds]);
 
   const loadChatSettings = async () => {
     try {
-      const [status, pinPermission, mentionPermission, bookmarks] = await Promise.all([
+      const [status, pinPermission, mentionPermission, bookmarks, chatClearedAt, hidden] = await Promise.all([
         getMuteStatus(user.$id, chat.$id),
         canUserPinMessage(chat.$id, user.$id),
         canUserMentionEveryone(chat.$id, user.$id),
         getBookmarkedMessages(user.$id, chat.$id),
+        getChatClearedAt(user.$id, chat.$id),
+        getHiddenMessageIds(user.$id, chat.$id),
       ]);
       setMuteStatus(status);
       setCanPin(pinPermission);
       setCanMentionEveryone(mentionPermission);
       setBookmarkedMsgIds(bookmarks);
+      setClearedAtState(chatClearedAt);
+      setHiddenMessageIds(hidden);
     } catch (error) {
       // Silently fail
     }
@@ -253,7 +262,27 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
     try {
       setLoading(true);
       const fetchedMessages = await getMessages(chat.$id, user?.$id, 100, 0, false);
-      const reversedMessages = fetchedMessages.reverse();
+      let reversedMessages = fetchedMessages.reverse();
+
+      // Filter out messages deleted via realtime to prevent ghost re-appearance
+      if (deletedMessageIds.current.size > 0) {
+        reversedMessages = reversedMessages.filter(m => !deletedMessageIds.current.has(m.$id));
+      }
+
+      // Filter by clearedAt if set (non-destructive clear)
+      if (clearedAt) {
+        const clearedDate = new Date(clearedAt);
+        reversedMessages = reversedMessages.filter(m => {
+          const msgDate = new Date(m.$createdAt || m.createdAt);
+          return msgDate > clearedDate;
+        });
+      }
+
+      // Filter by hidden message IDs
+      if (hiddenMessageIds.length > 0) {
+        reversedMessages = reversedMessages.filter(m => !hiddenMessageIds.includes(m.$id));
+      }
+
       lastMessageId.current = reversedMessages.length > 0 ? reversedMessages[reversedMessages.length - 1].$id : null;
       setMessages(reversedMessages);
       
@@ -283,7 +312,11 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
         markAllMessagesAsRead(chat.$id, user.$id);
       }
     } catch (error) {
-      Alert.alert(t('common.error'), error.message || t('chats.errorLoadingMessages'));
+      // Only show error on initial load when there are no messages yet
+      // Subsequent load failures are silently ignored since realtime will auto-recover
+      if (messages.length === 0) {
+        triggerAlert(t('common.error'), error.message || t('chats.errorLoadingMessages'));
+      }
     } finally {
       setLoading(false);
     }
@@ -360,7 +393,7 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
       setPinnedMessages(pinned);
       setShowPinnedModal(true);
     } catch (error) {
-      Alert.alert(t('common.error'), t('chats.pinError'));
+      triggerAlert(t('common.error'), t('chats.pinError'));
     }
   };
 
@@ -369,9 +402,9 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
       await muteChat(user.$id, chat.$id, muteType, duration);
       setMuteStatus({ isMuted: true, muteType, expiresAt: duration ? new Date(Date.now() + duration).toISOString() : null });
       setShowMuteModal(false);
-      Alert.alert(t('common.success'), t('chats.chatMuted'));
+      triggerAlert(t('common.success'), t('chats.chatMuted'), 'success');
     } catch (error) {
-      Alert.alert(t('common.error'), t('chats.muteError'));
+      triggerAlert(t('common.error'), t('chats.muteError'));
     }
   };
 
@@ -380,9 +413,9 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
       await unmuteChat(user.$id, chat.$id);
       setMuteStatus({ isMuted: false, muteType: MUTE_TYPES.NONE, expiresAt: null });
       setShowMuteModal(false);
-      Alert.alert(t('common.success'), t('chats.chatUnmuted'));
+      triggerAlert(t('common.success'), t('chats.chatUnmuted'), 'success');
     } catch (error) {
-      Alert.alert(t('common.error'), t('chats.unmuteError'));
+      triggerAlert(t('common.error'), t('chats.unmuteError'));
     }
   };
 
@@ -392,9 +425,9 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
       setMessages(prev => prev.map(m => 
         m.$id === message.$id ? { ...m, isPinned: true, pinnedBy: user.$id } : m
       ));
-      Alert.alert(t('common.success'), t('chats.messagePinned'));
+      triggerAlert(t('common.success'), t('chats.messagePinned'), 'success');
     } catch (error) {
-      Alert.alert(t('common.error'), t('chats.pinError'));
+      triggerAlert(t('common.error'), t('chats.pinError'));
     }
   };
 
@@ -404,9 +437,9 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
       setMessages(prev => prev.map(m => 
         m.$id === message.$id ? { ...m, isPinned: false, pinnedBy: null } : m
       ));
-      Alert.alert(t('common.success'), t('chats.messageUnpinned'));
+      triggerAlert(t('common.success'), t('chats.messageUnpinned'), 'success');
     } catch (error) {
-      Alert.alert(t('common.error'), t('chats.unpinError'));
+      triggerAlert(t('common.error'), t('chats.unpinError'));
     }
   };
 
@@ -414,9 +447,9 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
     try {
       await bookmarkMessage(user.$id, chat.$id, message.$id);
       setBookmarkedMsgIds(prev => [...prev, message.$id]);
-      Alert.alert(t('common.success'), t('chats.messageBookmarked'));
+      triggerAlert(t('common.success'), t('chats.messageBookmarked'), 'success');
     } catch (error) {
-      Alert.alert(t('common.error'), t('chats.bookmarkError'));
+      triggerAlert(t('common.error'), t('chats.bookmarkError'));
     }
   };
 
@@ -424,23 +457,24 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
     try {
       await unbookmarkMessage(user.$id, chat.$id, message.$id);
       setBookmarkedMsgIds(prev => prev.filter(id => id !== message.$id));
-      Alert.alert(t('common.success'), t('chats.messageUnbookmarked'));
+      triggerAlert(t('common.success'), t('chats.messageUnbookmarked'), 'success');
     } catch (error) {
-      Alert.alert(t('common.error'), t('chats.unbookmarkError'));
+      triggerAlert(t('common.error'), t('chats.unbookmarkError'));
     }
   };
 
   const handleCopyMessage = async (message) => {
     if (message.content) {
       await Clipboard.setStringAsync(message.content);
-      Alert.alert(t('common.success'), t('chats.messageCopied'));
+      triggerAlert(t('common.success'), t('chats.messageCopied'), 'success');
     }
   };
 
   const handleDeleteMessage = async (message) => {
-    Alert.alert(
+    triggerAlert(
       t('chats.deleteMessage'),
       t('chats.deleteMessageConfirm'),
+      'warning',
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -451,7 +485,7 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
               await deleteMessage(message.$id);
               setMessages(prev => prev.filter(m => m.$id !== message.$id));
             } catch (error) {
-              Alert.alert(t('common.error'), t('chats.deleteMessageError'));
+              triggerAlert(t('common.error'), t('chats.deleteMessageError'));
             }
           },
         },
@@ -472,9 +506,65 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
     setReplyingTo(null);
   };
 
-  const handleSendMessage = async (content, imageUrl = null) => {
+  // Batch selection mode handlers
+  const toggleSelectionMode = useCallback(() => {
+    setSelectionMode(prev => !prev);
+    setSelectedMessageIds([]);
+  }, []);
+
+  const toggleMessageSelection = useCallback((messageId) => {
+    setSelectedMessageIds(prev => {
+      if (prev.includes(messageId)) {
+        return prev.filter(id => id !== messageId);
+      }
+      return [...prev, messageId];
+    });
+  }, []);
+
+  const handleBatchCopy = useCallback(async () => {
+    const selected = messages.filter(m => selectedMessageIds.includes(m.$id));
+    const textParts = selected
+      .filter(m => m.content && m.content.trim().length > 0 && m.type !== 'post_share' && m.type !== 'location')
+      .map(m => m.content);
+    if (textParts.length > 0) {
+      await Clipboard.setStringAsync(textParts.join('\n'));
+      triggerAlert(t('common.success'), t('chats.messagesCopied'), 'success');
+    }
+    setSelectionMode(false);
+    setSelectedMessageIds([]);
+  }, [messages, selectedMessageIds, t]);
+
+  const handleBatchDeleteForMe = useCallback(async () => {
+    if (selectedMessageIds.length === 0) return;
+    triggerAlert(
+      t('chats.deleteForMe'),
+      t('chats.deleteForMeConfirm'),
+      'warning',
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const merged = await hideMessagesForUser(user.$id, chat.$id, selectedMessageIds);
+              setHiddenMessageIds(merged);
+              setMessages(prev => prev.filter(m => !selectedMessageIds.includes(m.$id)));
+              setSelectionMode(false);
+              setSelectedMessageIds([]);
+              triggerAlert(t('common.success'), t('chats.messagesHidden'), 'success');
+            } catch (error) {
+              triggerAlert(t('common.error'), t('chats.hideError'));
+            }
+          },
+        },
+      ]
+    );
+  }, [selectedMessageIds, user.$id, chat.$id, t]);
+
+  const handleSendMessage = async (content, imageUrl = null, messageType = null) => {
     if (!canSend) {
-      Alert.alert(t('chats.noPermission'), t('chats.representativeOnlyMessage'));
+      triggerAlert(t('chats.noPermission'), t('chats.representativeOnlyMessage'), 'warning');
       return;
     }
 
@@ -523,6 +613,11 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
         senderPhoto: user.profilePicture || null,
         notificationPreview: t('chats.newMessage'),
       };
+
+      // Add message type for special messages (location, post_share)
+      if (messageType) {
+        messageData.type = messageType;
+      }
       
       if (imageUrl && typeof imageUrl === 'string') {
         messageData.images = [imageUrl];
@@ -550,7 +645,7 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
           ? { ...msg, _status: 'failed' }
           : msg
       ));
-      Alert.alert(t('common.error'), error.message || t('chats.errorSendingMessage'));
+      triggerAlert(t('common.error'), error.message || t('chats.errorSendingMessage'));
     } finally {
       setSending(false);
     }
@@ -581,13 +676,14 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
     const otherUserName = chat.otherUser?.name || chat.otherUser?.fullName || getChatDisplayName();
     
     if (!otherUserId) {
-      Alert.alert(t('common.error'), t('chats.blockError') || 'Cannot block this user');
+      triggerAlert(t('common.error'), t('chats.blockError'));
       return;
     }
     
-    Alert.alert(
+    triggerAlert(
       t('chats.blockUser'),
-      (t('chats.blockConfirm') || 'Are you sure you want to block {name}?').replace('{name}', otherUserName),
+      (t('chats.blockConfirm')).replace('{name}', otherUserName),
+      'warning',
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -596,10 +692,10 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
           onPress: async () => {
             try {
               await blockUser(user.$id, otherUserId);
-              Alert.alert(t('common.success'), t('chats.userBlocked') || 'User has been blocked');
+              triggerAlert(t('common.success'), t('chats.userBlocked'), 'success');
               navigation.goBack();
             } catch (error) {
-              Alert.alert(t('common.error'), t('chats.blockError') || 'Failed to block user');
+              triggerAlert(t('common.error'), t('chats.blockError'));
             }
           }
         }
@@ -608,16 +704,28 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
   };
 
   const handleClearChat = async () => {
-    try {
-      const result = await clearChatMessages(chat.$id);
-      setMessages([]);
-      Alert.alert(
-        t('common.success'), 
-        (t('chats.chatCleared') || 'Chat cleared successfully. {count} messages deleted.').replace('{count}', result.deletedCount)
-      );
-    } catch (error) {
-      Alert.alert(t('common.error'), t('chats.clearChatError') || 'Failed to clear chat');
-    }
+    triggerAlert(
+      t('chats.clearChat'),
+      t('chats.clearChatLocalConfirm'),
+      'warning',
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('chats.clearChat'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const timestamp = await setChatClearedAt(user.$id, chat.$id);
+              setClearedAtState(timestamp);
+              setMessages([]);
+              triggerAlert(t('common.success'), t('chats.chatClearedLocal'), 'success');
+            } catch (error) {
+              triggerAlert(t('common.error'), t('chats.clearChatError'));
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleChatHeaderPress = () => {
@@ -645,6 +753,8 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
     chat,
     groupMembers,
     userFriends,
+    selectionMode,
+    selectedMessageIds,
     
     // Setters
     setShowMuteModal,
@@ -671,5 +781,9 @@ export const useChatRoom = ({ chat, user, t, navigation }) => {
     handleVisitProfile,
     handleBlockUser,
     handleClearChat,
+    toggleSelectionMode,
+    toggleMessageSelection,
+    handleBatchCopy,
+    handleBatchDeleteForMe,
   };
 };

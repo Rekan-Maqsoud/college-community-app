@@ -1,49 +1,46 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  StatusBar,
   TouchableOpacity,
   TextInput,
   FlatList,
   ActivityIndicator,
+  Modal,
+  Pressable,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useAppSettings } from '../../context/AppSettingsContext';
-import { useUser } from '../../context/UserContext';
-import AnimatedBackground from '../../components/AnimatedBackground';
-import ProfilePicture from '../../components/ProfilePicture';
-import CustomAlert from '../../components/CustomAlert';
-import { useCustomAlert } from '../../hooks/useCustomAlert';
-import { getAllUserChats } from '../../../database/chatHelpers';
-import { sendMessage } from '../../../database/chats';
-import { 
-  fontSize, 
-  spacing, 
+import { useAppSettings } from '../context/AppSettingsContext';
+import { useUser } from '../context/UserContext';
+import ProfilePicture from './ProfilePicture';
+import { getAllUserChats } from '../../database/chatHelpers';
+import { sendMessage } from '../../database/chats';
+import {
+  fontSize,
+  spacing,
   moderateScale,
   hp,
-} from '../../utils/responsive';
-import { borderRadius } from '../../theme/designTokens';
+} from '../utils/responsive';
+import { borderRadius } from '../theme/designTokens';
 
-const ForwardMessage = ({ navigation, route }) => {
-  const { message } = route.params || {};
+const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user } = useUser();
-  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [forwarding, setForwarding] = useState(null);
+  const [sending, setSending] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  React.useEffect(() => {
-    loadChats();
-  }, []);
+  useEffect(() => {
+    if (visible) {
+      loadChats();
+    }
+  }, [visible]);
 
   const loadChats = async () => {
     try {
+      setLoading(true);
       const result = await getAllUserChats(user.$id, user.department, user.stage);
       const allChats = [
         ...(result.defaultGroups || []),
@@ -58,38 +55,45 @@ const ForwardMessage = ({ navigation, route }) => {
     }
   };
 
-  const handleForward = async (chat) => {
-    if (forwarding) return;
+  const handleSendToChat = async (chat) => {
+    if (sending) return;
+    setSending(chat.$id);
 
-    setForwarding(chat.$id);
     try {
-      const forwardedContent = message.content 
-        ? `${t('chats.forwarded')}\n${message.content}`
-        : t('chats.forwarded');
-
-      const messageData = {
-        content: forwardedContent,
-        senderId: user.$id,
-        senderName: user.fullName,
+      const metadata = {
+        postId: post.$id,
+        title: post.topic || '',
+        thumbnailUrl: (post.images && post.images.length > 0) ? post.images[0] : '',
+        summaryText: post.text ? post.text.substring(0, 150) : '',
       };
 
-      if (message.images && message.images.length > 0) {
-        messageData.images = message.images;
-      } else if (message.imageUrl) {
-        messageData.images = [message.imageUrl];
-      }
+      const messageData = {
+        content: JSON.stringify(metadata),
+        senderId: user.$id,
+        senderName: user.fullName || user.name,
+        type: 'post_share',
+        metadata,
+      };
 
       await sendMessage(chat.$id, messageData);
-      
-      showAlert({
-        type: 'success',
-        title: t('common.success'),
-        message: t('chats.messageForwarded'),
-        buttons: [{ text: t('common.ok'), onPress: () => navigation.goBack() }],
-      });
+
+      if (showAlert) {
+        showAlert({
+          type: 'success',
+          title: t('common.success'),
+          message: t('chats.postShared'),
+          buttons: [{ text: t('common.ok'), onPress: onClose, style: 'primary' }],
+        });
+      }
     } catch (error) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('chats.forwardError') });
-      setForwarding(null);
+      if (showAlert) {
+        showAlert({
+          type: 'error',
+          title: t('common.error'),
+          message: t('chats.postShareError'),
+        });
+      }
+      setSending(null);
     }
   };
 
@@ -100,7 +104,7 @@ const ForwardMessage = ({ navigation, route }) => {
     return chat.name;
   };
 
-  const filteredChats = chats.filter(chat => {
+  const filteredChats = chats.filter((chat) => {
     if (!searchQuery) return true;
     const name = getChatName(chat).toLowerCase();
     return name.includes(searchQuery.toLowerCase());
@@ -114,90 +118,87 @@ const ForwardMessage = ({ navigation, route }) => {
       <TouchableOpacity
         style={[
           styles.chatItem,
-          { 
+          {
             backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)',
             borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
-          }
+          },
         ]}
-        onPress={() => handleForward(item)}
-        disabled={forwarding === item.$id}>
-        <ProfilePicture 
+        onPress={() => handleSendToChat(item)}
+        disabled={sending === item.$id}>
+        <ProfilePicture
           uri={isPrivate ? item.otherUser?.profilePicture : item.groupPhoto}
           name={chatName}
           size={moderateScale(44)}
         />
         <View style={styles.chatInfo}>
-          <Text style={[styles.chatName, { color: theme.text, fontSize: fontSize(15) }]} numberOfLines={1}>
+          <Text
+            style={[styles.chatName, { color: theme.text, fontSize: fontSize(15) }]}
+            numberOfLines={1}>
             {chatName}
           </Text>
           <Text style={[styles.chatType, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
             {isPrivate ? t('chats.privateChat') : t('chats.groupChat')}
           </Text>
         </View>
-        {forwarding === item.$id ? (
+        {sending === item.$id ? (
           <ActivityIndicator size="small" color={theme.primary} />
         ) : (
-          <Ionicons name="arrow-forward-circle" size={moderateScale(24)} color={theme.primary} />
+          <Ionicons name="send" size={moderateScale(20)} color={theme.primary} />
         )}
       </TouchableOpacity>
     );
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar 
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'} 
-        backgroundColor="transparent"
-        translucent
-      />
-      
-      <LinearGradient
-        colors={isDarkMode 
-          ? ['#1a1a2e', '#16213e', '#0f3460'] 
-          : ['#f0f4ff', '#d8e7ff', '#c0deff']
-        }
-        style={styles.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}>
-        
-        <AnimatedBackground particleCount={15} />
-        
-        <SafeAreaView style={styles.safeArea}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <View
+          style={[
+            styles.container,
+            { backgroundColor: isDarkMode ? '#1a1a2e' : '#FFFFFF' },
+          ]}>
+          {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.text} />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(20) }]}>
-              {t('chats.forwardTo')}
+            <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(18) }]}>
+              {t('chats.sendToChat')}
             </Text>
-            <View style={styles.placeholder} />
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close" size={moderateScale(24)} color={theme.text} />
+            </TouchableOpacity>
           </View>
 
-          {/* Message Preview */}
-          <View style={[
-            styles.messagePreview,
-            { 
-              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-              borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
-            }
-          ]}>
-            <Ionicons name="arrow-redo" size={moderateScale(18)} color={theme.primary} />
-            <Text style={[styles.previewText, { color: theme.text, fontSize: fontSize(14) }]} numberOfLines={2}>
-              {message?.content || t('chats.image')}
+          {/* Post Preview */}
+          <View
+            style={[
+              styles.postPreview,
+              {
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+              },
+            ]}>
+            <Ionicons name="newspaper-outline" size={moderateScale(18)} color={theme.primary} />
+            <Text
+              style={[styles.postPreviewText, { color: theme.text, fontSize: fontSize(14) }]}
+              numberOfLines={2}>
+              {post?.topic || post?.text || ''}
             </Text>
           </View>
 
           {/* Search */}
           <View style={styles.searchContainer}>
-            <View style={[
-              styles.searchInput,
-              { 
-                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                borderColor: isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
-              }
-            ]}>
+            <View
+              style={[
+                styles.searchInput,
+                {
+                  backgroundColor: isDarkMode
+                    ? 'rgba(255,255,255,0.1)'
+                    : 'rgba(0,0,0,0.05)',
+                },
+              ]}>
               <Ionicons name="search" size={moderateScale(18)} color={theme.textSecondary} />
               <TextInput
                 style={[styles.searchTextInput, { color: theme.text, fontSize: fontSize(14) }]}
@@ -209,6 +210,7 @@ const ForwardMessage = ({ navigation, route }) => {
             </View>
           </View>
 
+          {/* Chat List */}
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={theme.primary} />
@@ -229,61 +231,55 @@ const ForwardMessage = ({ navigation, route }) => {
               }
             />
           )}
-        </SafeAreaView>
-      </LinearGradient>
-      <CustomAlert
-        visible={alertConfig.visible}
-        type={alertConfig.type}
-        title={alertConfig.title}
-        message={alertConfig.message}
-        buttons={alertConfig.buttons}
-        onDismiss={hideAlert}
-      />
-    </View>
+        </View>
+      </View>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
   container: {
-    flex: 1,
-  },
-  gradient: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
+    maxHeight: hp(75),
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    paddingBottom: spacing.xl,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-  },
-  backButton: {
-    width: moderateScale(40),
-    height: moderateScale(40),
-    borderRadius: moderateScale(20),
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   headerTitle: {
     fontWeight: '700',
   },
-  placeholder: {
-    width: moderateScale(40),
+  closeButton: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  messagePreview: {
+  postPreview: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
     borderWidth: 1,
     gap: spacing.sm,
   },
-  previewText: {
+  postPreviewText: {
     flex: 1,
     fontWeight: '400',
   },
@@ -297,7 +293,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.lg,
-    borderWidth: 1,
     gap: spacing.sm,
   },
   searchTextInput: {
@@ -308,6 +303,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: spacing.xl,
   },
   listContent: {
     paddingHorizontal: spacing.md,
@@ -341,4 +337,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ForwardMessage;
+export default SharePostToChat;

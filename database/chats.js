@@ -1,4 +1,4 @@
-import { databases, config } from './config';
+import { databases, storage, config } from './config';
 import { ID, Query } from 'appwrite';
 import * as SecureStore from 'expo-secure-store';
 import * as Random from 'expo-random';
@@ -11,6 +11,50 @@ import { getUserById, updateUserPublicKey } from './users';
 export const CHAT_TYPES = {
     STAGE_GROUP: 'stage_group',
     DEPARTMENT_GROUP: 'department_group',
+};
+
+/**
+ * Upload an image to Appwrite Storage for chat messages
+ * @param {Object} file - File object with uri, name, type
+ * @returns {Promise<Object>} Upload result with $id and viewUrl
+ */
+export const uploadChatImage = async (file) => {
+    try {
+        if (!file || !file.uri) {
+            throw new Error('Invalid file object');
+        }
+
+        const fileData = {
+            uri: file.uri,
+            name: file.name || `chat_image_${Date.now()}.jpg`,
+            type: file.type || 'image/jpeg',
+        };
+
+        const uploadedFile = await storage.createFile(
+            config.bucketId,
+            ID.unique(),
+            fileData
+        );
+
+        const viewUrl = getChatImageUrl(uploadedFile.$id);
+
+        return {
+            fileId: uploadedFile.$id,
+            viewUrl,
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Get the view URL for a chat image stored in Appwrite Storage
+ * @param {string} fileId - The Appwrite Storage file ID
+ * @returns {string} The file view URL
+ */
+export const getChatImageUrl = (fileId) => {
+    if (!fileId) return '';
+    return `${config.endpoint}/storage/buckets/${config.bucketId}/files/${fileId}/view?project=${config.projectId}`;
 };
 
 const E2EE_PREFIX = 'enc:v1:';
@@ -161,6 +205,24 @@ const decryptContent = (content, chatKey) => {
     } catch (error) {
         return '';
     }
+};
+
+const isEncryptedContent = (value) => typeof value === 'string' && value.startsWith(E2EE_PREFIX);
+
+const sanitizeEncryptedMessage = (message) => {
+    if (!message || typeof message !== 'object') return message;
+
+    const sanitized = { ...message };
+
+    if (isEncryptedContent(sanitized.content)) {
+        sanitized.content = '';
+    }
+
+    if (isEncryptedContent(sanitized.replyToContent)) {
+        sanitized.replyToContent = '';
+    }
+
+    return sanitized;
 };
 
 const parseChatSettings = (settingsString) => {
@@ -362,6 +424,21 @@ const addMissingE2eeKeys = async (chat, chatKey, senderId) => {
     );
 };
 
+const ensureChatKeyCoverage = async (chat, chatKey, senderId) => {
+    if (!chat || !chatKey || !senderId) return false;
+
+    const participants = Array.isArray(chat.participants) ? chat.participants : [];
+    if (participants.length === 0) return false;
+
+    await addMissingE2eeKeys(chat, chatKey, senderId);
+
+    const refreshed = await getChat(chat.$id);
+    const settings = parseChatSettings(refreshed.settings);
+    const keys = settings?.e2ee?.keys || {};
+
+    return participants.every((participantId) => !!keys[participantId]);
+};
+
 export const ensureChatParticipant = async (chatId, userId) => {
     try {
         if (!chatId || !userId) return null;
@@ -476,10 +553,10 @@ export const decryptMessageForChat = async (chatId, message, userId) => {
         if (!chatId || !message || !userId) return message;
         const chat = await getChat(chatId);
         const chatKey = await resolveChatKey(chat, userId);
-        if (!chatKey) return message;
+        if (!chatKey) return sanitizeEncryptedMessage(message);
         return decryptMessageFields(message, chatKey);
     } catch (error) {
-        return message;
+        return sanitizeEncryptedMessage(message);
     }
 };
 
@@ -715,8 +792,9 @@ export const sendMessage = async (chatId, messageData) => {
 
         const hasContent = messageData.content && messageData.content.trim().length > 0;
         const hasImages = messageData.images && messageData.images.length > 0;
+        const hasType = messageData.type && messageData.type.trim().length > 0;
 
-        if (!hasContent && !hasImages) {
+        if (!hasContent && !hasImages && !hasType) {
             throw new Error('Message must have either content or an image');
         }
         
@@ -727,7 +805,9 @@ export const sendMessage = async (chatId, messageData) => {
 
         const chat = await ensureChatParticipant(chatId, messageData.senderId) || await getChat(chatId);
         const chatKey = await ensureChatEncryption(chat, messageData.senderId);
-        const shouldEncrypt = !!chatKey;
+        const shouldEncrypt = chatKey
+            ? await ensureChatKeyCoverage(chat, chatKey, messageData.senderId)
+            : false;
 
         // Check for @everyone mention
         const mentionsAll = checkForEveryoneMention(messageData.content);
@@ -750,9 +830,25 @@ export const sendMessage = async (chatId, messageData) => {
             readBy: [], // Array of userIds who have read the message
         };
         
+        // Add message type (text, image, post_share, location)
+        if (messageData.type) {
+            documentData.type = messageData.type;
+        }
+
+        // Add metadata for special message types (post_share, location, etc.)
+        if (messageData.metadata) {
+            documentData.content = typeof messageData.metadata === 'string'
+                ? messageData.metadata
+                : JSON.stringify(messageData.metadata);
+        }
+        
         // Handle image - use imageUrl field only (most reliable)
         if (hasImages) {
             documentData.imageUrl = messageData.images[0];
+            // Set type to image if not already set
+            if (!documentData.type) {
+                documentData.type = 'image';
+            }
         }
         
         // Add reply fields if this is a reply
@@ -771,7 +867,17 @@ export const sendMessage = async (chatId, messageData) => {
         
         const currentCount = chat.messageCount || 0;
         
-        const lastMessagePreview = hasContent ? encryptedContent : '';
+        // Build smart lastMessage preview based on message type
+        let lastMessagePreview = '';
+        if (messageData.type === 'image' || (hasImages && !hasContent)) {
+            lastMessagePreview = '\uD83D\uDCF7 Image';
+        } else if (messageData.type === 'location') {
+            lastMessagePreview = '\uD83D\uDCCD Location';
+        } else if (messageData.type === 'post_share') {
+            lastMessagePreview = '\uD83D\uDCDD Shared Post';
+        } else if (hasContent) {
+            lastMessagePreview = encryptedContent;
+        }
         const notificationPreview = typeof messageData.notificationPreview === 'string'
             ? messageData.notificationPreview
             : '';
@@ -841,6 +947,14 @@ export const getMessages = async (chatId, userIdOrLimit = 50, limitOrOffset = 0,
         if (shouldUseCache && offset === 0) {
             const cached = await messagesCacheManager.getCachedMessages(chatId, limit);
             if (cached?.value && !cached.isStale) {
+                if (userId) {
+                    const chat = await getChat(chatId);
+                    const chatKey = await resolveChatKey(chat, userId);
+                    if (chatKey) {
+                        return cached.value.map(message => decryptMessageFields(message, chatKey));
+                    }
+                    return cached.value.map(message => sanitizeEncryptedMessage(message));
+                }
                 return cached.value;
             }
         }
@@ -862,6 +976,8 @@ export const getMessages = async (chatId, userIdOrLimit = 50, limitOrOffset = 0,
             const chatKey = await resolveChatKey(chat, userId);
             if (chatKey) {
                 documents = documents.map(message => decryptMessageFields(message, chatKey));
+            } else {
+                documents = documents.map(message => sanitizeEncryptedMessage(message));
             }
         }
 

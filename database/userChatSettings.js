@@ -281,6 +281,58 @@ export const updateNotificationPreferences = async (userId, chatId, notifyOnMent
 };
 
 /**
+ * Set clearedAt timestamp for local-only chat clear
+ */
+export const setChatClearedAt = async (userId, chatId) => {
+    try {
+        const clearedAt = new Date().toISOString();
+        await updateUserChatSettings(userId, chatId, { muteExpiresAt: null, clearedAt });
+        return clearedAt;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Get the clearedAt timestamp for a user's chat
+ */
+export const getChatClearedAt = async (userId, chatId) => {
+    try {
+        const settings = await getUserChatSettings(userId, chatId);
+        return settings?.clearedAt || null;
+    } catch (error) {
+        return null;
+    }
+};
+
+/**
+ * Hide specific messages for a user (batch delete for me)
+ */
+export const hideMessagesForUser = async (userId, chatId, messageIds) => {
+    try {
+        const settings = await getUserChatSettings(userId, chatId);
+        const existing = settings?.hiddenMessageIds || [];
+        const merged = [...new Set([...existing, ...messageIds])];
+        await updateUserChatSettings(userId, chatId, { hiddenMessageIds: merged });
+        return merged;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Get hidden message IDs for a user in a chat
+ */
+export const getHiddenMessageIds = async (userId, chatId) => {
+    try {
+        const settings = await getUserChatSettings(userId, chatId);
+        return settings?.hiddenMessageIds || [];
+    } catch (error) {
+        return [];
+    }
+};
+
+/**
  * Delete all user chat settings for a chat
  */
 export const deleteUserChatSettingsByChatId = async (chatId) => {

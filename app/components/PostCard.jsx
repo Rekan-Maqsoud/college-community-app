@@ -17,6 +17,9 @@ import { POST_COLORS, POST_ICONS } from '../constants/postConstants';
 import PostCardImageGallery from './postCard/PostCardImageGallery';
 import PostCardMenu from './postCard/PostCardMenu';
 import ImageWithPlaceholder from './ImageWithPlaceholder';
+import SharePostToChat from './SharePostToChat';
+import CustomAlert from './CustomAlert';
+import useCustomAlert from '../hooks/useCustomAlert';
 import { 
   postCardStyles as styles, 
   STAGE_COLORS, 
@@ -44,6 +47,7 @@ const PostCard = ({
 }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user } = useUser();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const [showMenu, setShowMenu] = useState(false);
   const [imageGalleryVisible, setImageGalleryVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -53,6 +57,7 @@ const PostCard = ({
   const [resolved, setResolved] = useState(post.isResolved || false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [showShareToChat, setShowShareToChat] = useState(false);
 
   const lastTapTime = useRef(0);
   const DOUBLE_TAP_DELAY = 300;
@@ -506,9 +511,27 @@ const PostCard = ({
         }}
         onCopy={handleCopy}
         onBookmark={handleBookmark}
+        onShareToChat={() => setShowShareToChat(true)}
         isBookmarked={isBookmarked}
         theme={theme}
         t={t}
+      />
+
+      {/* Share Post to Chat Modal */}
+      <SharePostToChat
+        visible={showShareToChat}
+        onClose={() => setShowShareToChat(false)}
+        post={post}
+        showAlert={showAlert}
+      />
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onClose={hideAlert}
       />
 
       {/* Image Gallery - ZoomableImageModal handles its own Modal */}

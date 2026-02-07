@@ -10,7 +10,6 @@ import {
   Platform,
   StatusBar,
   Animated,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
+import { useCustomAlert } from '../hooks/useCustomAlert';
+import CustomAlert from '../components/CustomAlert';
 import LanguageDropdown from '../components/LanguageDropdown';
 import SearchableDropdown from '../components/SearchableDropdownNew';
 import AnimatedBackground from '../components/AnimatedBackground';
@@ -42,6 +43,7 @@ const SignUp = ({ navigation, route }) => {
   const preservedData = route?.params?.preservedData || null;
   
   const { setUserData } = useUser();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const [fullName, setFullName] = useState(preservedData?.fullName || oauthName);
   const [email, setEmail] = useState(preservedData?.email || oauthEmail);
   const [age, setAge] = useState(preservedData?.age || '');
@@ -175,58 +177,58 @@ const SignUp = ({ navigation, route }) => {
 
   const validateForm = () => {
     if (!fullName.trim()) {
-      Alert.alert(t('common.error'), t('auth.fullNameRequired'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.fullNameRequired') });
       return false;
     }
     
     if (fullName.trim().length < 2 || fullName.trim().length > 100) {
-      Alert.alert(t('common.error'), t('auth.nameLengthError'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.nameLengthError') });
       return false;
     }
     
     if (!email.trim() || !email.includes('@')) {
-      Alert.alert(t('common.error'), t('auth.validEmailRequired'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.validEmailRequired') });
       return false;
     }
     
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      Alert.alert(t('common.error'), t('auth.validEmailRequired'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.validEmailRequired') });
       return false;
     }
     
     if (!age || parseInt(age) < 16 || parseInt(age) > 100) {
-      Alert.alert(t('common.error'), t('auth.validAgeRequired'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.validAgeRequired') });
       return false;
     }
     if (!university) {
-      Alert.alert(t('common.error'), t('auth.universityRequired'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.universityRequired') });
       return false;
     }
     if (!college) {
-      Alert.alert(t('common.error'), t('auth.collegeRequired'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.collegeRequired') });
       return false;
     }
     if (!department) {
-      Alert.alert(t('common.error'), t('auth.departmentRequired'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.departmentRequired') });
       return false;
     }
     if (!stage) {
-      Alert.alert(t('common.error'), t('auth.stageRequired'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.stageRequired') });
       return false;
     }
     
     if (!oauthMode) {
       if (password.length < 8) {
-        Alert.alert(t('common.error'), t('auth.passwordTooShort'));
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.passwordTooShort') });
         return false;
       }
       if (passwordStrength === 'weak') {
-        Alert.alert(t('common.error'), t('auth.passwordGuideWeak'));
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.passwordGuideWeak') });
         return false;
       }
       if (password !== confirmPassword) {
-        Alert.alert(t('common.error'), t('auth.passwordMismatch'));
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.passwordMismatch') });
         return false;
       }
     }
@@ -334,7 +336,7 @@ const SignUp = ({ navigation, route }) => {
         errorMessage = t('auth.educationalEmailRequired');
       }
       
-      Alert.alert(t('common.error'), errorMessage);
+      showAlert({ type: 'error', title: t('common.error'), message: errorMessage });
     }
   };
 
@@ -818,6 +820,14 @@ const SignUp = ({ navigation, route }) => {
         </ScrollView>
       </KeyboardAvoidingView>
       </LinearGradient>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };

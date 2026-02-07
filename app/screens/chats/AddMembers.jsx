@@ -9,7 +9,6 @@ import {
   TextInput,
   FlatList,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +17,8 @@ import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
 import AnimatedBackground from '../../components/AnimatedBackground';
 import ProfilePicture from '../../components/ProfilePicture';
+import { useCustomAlert } from '../../hooks/useCustomAlert';
+import CustomAlert from '../../components/CustomAlert';
 import { searchUsers, getFriends } from '../../../database/users';
 import { addGroupMember } from '../../../database/chatHelpers';
 import { 
@@ -40,6 +41,7 @@ const AddMembers = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [adding, setAdding] = useState(false);
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   const existingParticipants = chat?.participants || [];
 
@@ -113,7 +115,7 @@ const AddMembers = ({ navigation, route }) => {
 
   const handleAddMembers = async () => {
     if (selectedUsers.length === 0) {
-      Alert.alert(t('common.error'), t('chats.selectMembers'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('chats.selectMembers') });
       return;
     }
 
@@ -138,20 +140,21 @@ const AddMembers = ({ navigation, route }) => {
         participants: [...(chat.participants || []), ...addedUsers],
       };
       
-      Alert.alert(
-        t('common.success'), 
-        t('chats.membersAdded') || 'Members added successfully',
-        [{ 
-          text: t('common.ok'), 
+      showAlert({
+        type: 'success',
+        title: t('common.success'),
+        message: t('chats.membersAdded') || 'Members added successfully',
+        buttons: [{
+          text: t('common.ok'),
           onPress: () => {
-            // Go back to GroupSettings with updated chat
+            hideAlert();
             navigation.navigate('GroupSettings', { chat: updatedChat });
           }
         }]
-      );
+      });
     } catch (error) {
       const errorMessage = error?.message || t('chats.addMembersError') || 'Failed to add members';
-      Alert.alert(t('common.error'), errorMessage);
+      showAlert({ type: 'error', title: t('common.error'), message: errorMessage });
     } finally {
       setAdding(false);
     }
@@ -320,6 +323,14 @@ const AddMembers = ({ navigation, route }) => {
           )}
         </SafeAreaView>
       </LinearGradient>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };

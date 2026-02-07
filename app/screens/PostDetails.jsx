@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
   BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +16,7 @@ import * as ExpoImagePicker from 'expo-image-picker';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
+import CustomAlert from '../components/CustomAlert';
 import { uploadImage } from '../../services/imgbbService';
 import { createReply, getRepliesByPost, updateReply, deleteReply, markReplyAsAccepted, unmarkReplyAsAccepted } from '../../database/replies';
 import { getUserDocument } from '../../database/auth';
@@ -30,7 +30,7 @@ import { postDetailsStyles as styles } from './postDetails/styles';
 const PostDetails = ({ navigation, route }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user } = useUser();
-  const { showAlert } = useCustomAlert();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { post: initialPost, postId: routePostId, onPostUpdate } = route.params || {};
 
   // State to hold the post - either from params or fetched
@@ -294,10 +294,11 @@ const PostDetails = ({ navigation, route }) => {
   };
 
   const handleDeleteReply = async (reply) => {
-    Alert.alert(
-      t('post.deleteReply'),
-      t('post.deleteReplyConfirm'),
-      [
+    showAlert({
+      type: 'warning',
+      title: t('post.deleteReply'),
+      message: t('post.deleteReplyConfirm'),
+      buttons: [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('common.delete'),
@@ -306,14 +307,14 @@ const PostDetails = ({ navigation, route }) => {
             try {
               await deleteReply(reply.$id, post.$id, reply.imageDeleteUrls);
               await loadReplies();
-              showAlert(t('common.success'), t('post.replyDeleted'), 'success');
+              showAlert({ type: 'success', title: t('common.success'), message: t('post.replyDeleted') });
             } catch (error) {
-              showAlert(t('common.error'), t('post.deleteReplyError'), 'error');
+              showAlert({ type: 'error', title: t('common.error'), message: t('post.deleteReplyError') });
             }
           },
         },
       ],
-    );
+    });
   };
 
   const handleAcceptReply = async (reply) => {
@@ -403,15 +404,16 @@ const PostDetails = ({ navigation, route }) => {
       return;
     }
 
-    Alert.alert(
-      t('post.addImage'),
-      t('post.selectImageSource'),
-      [
+    showAlert({
+      type: 'info',
+      title: t('post.addImage'),
+      message: t('post.selectImageSource'),
+      buttons: [
         { text: t('post.camera'), onPress: handleTakePhoto },
         { text: t('post.gallery'), onPress: handleGalleryPick },
         { text: t('common.cancel'), style: 'cancel' },
       ],
-    );
+    });
   };
 
   const handleGalleryPick = async () => {
@@ -633,6 +635,15 @@ const PostDetails = ({ navigation, route }) => {
         initialIndex={galleryIndex}
         onClose={() => setGalleryVisible(false)}
         t={t}
+      />
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
       />
     </SafeAreaView>
   );

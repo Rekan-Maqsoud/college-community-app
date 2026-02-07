@@ -250,6 +250,11 @@ const MessageBubble = ({
   onNavigateToProfile,
   searchQuery = '',
   isCurrentSearchResult = false,
+  onPostPress,
+  showAlert,
+  selectionMode = false,
+  isSelected = false,
+  onToggleSelect,
 }) => {
   const { theme, isDarkMode, t, chatSettings } = useAppSettings();
   const [imageModalVisible, setImageModalVisible] = useState(false);
@@ -300,9 +305,48 @@ const MessageBubble = ({
   const hasReply = message.replyToId && message.replyToContent;
   const isPinned = message.isPinned;
   const mentionsAll = message.mentionsAll;
+  const isPostShare = message.type === 'post_share';
+  const isLocation = message.type === 'location';
+
+  // Parse post share metadata
+  const postShareData = React.useMemo(() => {
+    if (!isPostShare) return null;
+    try {
+      if (typeof message.content === 'string') {
+        return JSON.parse(message.content);
+      }
+      return message.content;
+    } catch (e) {
+      return null;
+    }
+  }, [isPostShare, message.content]);
+
+  // Parse location data
+  const locationData = React.useMemo(() => {
+    if (!isLocation) return null;
+    try {
+      const parts = (message.content || '').split(',');
+      if (parts.length >= 2) {
+        return { lat: parseFloat(parts[0]), long: parseFloat(parts[1]) };
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }, [isLocation, message.content]);
 
   const handleLongPress = () => {
+    if (selectionMode && onToggleSelect) {
+      onToggleSelect(message.$id);
+      return;
+    }
     setActionsVisible(true);
+  };
+
+  const handlePress = () => {
+    if (selectionMode && onToggleSelect) {
+      onToggleSelect(message.$id);
+    }
   };
 
   const handleAction = (action) => {
@@ -538,9 +582,83 @@ const MessageBubble = ({
         </View>
       )}
 
-      {hasImage && (
+      {/* Post Share Card */}
+      {isPostShare && postShareData && (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          disabled={selectionMode}
+          onPress={() => onPostPress && onPostPress(postShareData.postId)}
+          style={styles.postShareCard}>
+          {postShareData.thumbnailUrl ? (
+            <Image
+              source={{ uri: postShareData.thumbnailUrl }}
+              style={styles.postShareThumbnail}
+              resizeMode="cover"
+            />
+          ) : null}
+          <View style={styles.postShareInfo}>
+            <Text
+              style={[
+                styles.postShareTitle,
+                { color: isCurrentUser ? '#FFFFFF' : theme.text, fontSize: fontSize(14) },
+              ]}
+              numberOfLines={2}>
+              {postShareData.title || t('post.sharedPost')}
+            </Text>
+            {postShareData.summaryText ? (
+              <Text
+                style={[
+                  styles.postShareSummary,
+                  { color: isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.textSecondary, fontSize: fontSize(12) },
+                ]}
+                numberOfLines={2}>
+                {postShareData.summaryText}
+              </Text>
+            ) : null}
+          </View>
+          <View style={styles.postShareFooter}>
+            <Ionicons name="newspaper-outline" size={moderateScale(12)} color={isCurrentUser ? 'rgba(255,255,255,0.6)' : theme.textSecondary} />
+            <Text style={[styles.postShareLabel, { color: isCurrentUser ? 'rgba(255,255,255,0.6)' : theme.textSecondary, fontSize: fontSize(10) }]}>
+              {t('chats.tapToView')}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Location Bubble */}
+      {isLocation && locationData && (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          disabled={selectionMode}
+          onPress={() => {
+            const url = `https://www.google.com/maps?q=${locationData.lat},${locationData.long}`;
+            Linking.openURL(url);
+          }}
+          style={styles.locationCard}>
+          <Image
+            source={{ uri: `https://maps.googleapis.com/maps/api/staticmap?center=${locationData.lat},${locationData.long}&zoom=15&size=300x150&markers=color:red%7C${locationData.lat},${locationData.long}&key=` }}
+            style={styles.locationMapPreview}
+            resizeMode="cover"
+          />
+          <View style={styles.locationOverlay}>
+            <Ionicons name="location" size={moderateScale(24)} color="#EF4444" />
+          </View>
+          <View style={styles.locationInfo}>
+            <Ionicons name="location-outline" size={moderateScale(14)} color={isCurrentUser ? 'rgba(255,255,255,0.8)' : theme.primary} />
+            <Text style={[styles.locationText, { color: isCurrentUser ? '#FFFFFF' : theme.text, fontSize: fontSize(12) }]}>
+              {`${locationData.lat.toFixed(6)}, ${locationData.long.toFixed(6)}`}
+            </Text>
+          </View>
+          <Text style={[styles.locationHint, { color: isCurrentUser ? 'rgba(255,255,255,0.5)' : theme.textSecondary, fontSize: fontSize(10) }]}>
+            {t('chats.tapToOpenMap')}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {!isPostShare && !isLocation && hasImage && (
         <TouchableOpacity 
           onPress={() => setImageModalVisible(true)}
+          disabled={selectionMode}
           activeOpacity={0.9}>
           <Image 
             source={{ uri: imageUrl }}
@@ -553,7 +671,7 @@ const MessageBubble = ({
         </TouchableOpacity>
       )}
 
-      {renderMessageContent()}
+      {!isPostShare && !isLocation && renderMessageContent()}
       
       <View style={styles.timeStatusRow}>
         <Text style={[
@@ -604,6 +722,20 @@ const MessageBubble = ({
       isCurrentUser ? styles.currentUserContainer : styles.otherUserContainer,
       isCurrentSearchResult && styles.currentSearchResultContainer,
     ]}>
+      {/* Selection Mode Checkbox */}
+      {selectionMode && (
+        <TouchableOpacity
+          style={styles.selectionCheckbox}
+          onPress={() => onToggleSelect && onToggleSelect(message.$id)}
+          activeOpacity={0.7}>
+          <Ionicons
+            name={isSelected ? 'checkbox' : 'square-outline'}
+            size={moderateScale(22)}
+            color={isSelected ? theme.primary : theme.textSecondary}
+          />
+        </TouchableOpacity>
+      )}
+
       {/* Show sender name for other users */}
       {!isCurrentUser && senderName && (
         <View style={[styles.senderNameRow, styles.senderNameWithAvatar]}>
@@ -653,6 +785,7 @@ const MessageBubble = ({
           {isCurrentUser && chatSettings?.bubbleColor?.startsWith('gradient::') ? (
             <Pressable
               onLongPress={handleLongPress}
+              onPress={handlePress}
               delayLongPress={300}>
               <LinearGradient
                 colors={chatSettings.bubbleColor.replace('gradient::', '').split(',')}
@@ -671,6 +804,7 @@ const MessageBubble = ({
           ) : (
             <Pressable
               onLongPress={handleLongPress}
+              onPress={handlePress}
               delayLongPress={300}
               style={[
                 styles.bubble,
@@ -1122,6 +1256,80 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     marginHorizontal: -spacing.xs,
     paddingHorizontal: spacing.xs,
+  },
+  // Selection mode styles
+  selectionCheckbox: {
+    position: 'absolute',
+    left: spacing.xs,
+    top: spacing.sm,
+    zIndex: 5,
+    padding: spacing.xs,
+  },
+  // Post share card styles
+  postShareCard: {
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    width: moderateScale(220),
+  },
+  postShareThumbnail: {
+    width: '100%',
+    height: moderateScale(120),
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.xs,
+  },
+  postShareInfo: {
+    paddingHorizontal: spacing.xs,
+  },
+  postShareTitle: {
+    fontWeight: '700',
+    marginBottom: spacing.xs / 2,
+  },
+  postShareSummary: {
+    fontWeight: '400',
+    lineHeight: fontSize(12) * 1.4,
+  },
+  postShareFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs / 2,
+    paddingHorizontal: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  postShareLabel: {
+    fontWeight: '500',
+  },
+  // Location card styles
+  locationCard: {
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    width: moderateScale(220),
+  },
+  locationMapPreview: {
+    width: '100%',
+    height: moderateScale(100),
+    borderRadius: borderRadius.md,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  locationOverlay: {
+    position: 'absolute',
+    top: moderateScale(35),
+    left: '50%',
+    marginLeft: -moderateScale(12),
+  },
+  locationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs / 2,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.xs,
+  },
+  locationText: {
+    fontWeight: '500',
+  },
+  locationHint: {
+    fontWeight: '400',
+    paddingHorizontal: spacing.xs,
+    marginTop: spacing.xs / 2,
   },
 });
 

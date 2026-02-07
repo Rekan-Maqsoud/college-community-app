@@ -8,13 +8,14 @@ import {
   Platform,
   Image,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
+import CustomAlert from '../../components/CustomAlert';
+import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { getBlockedUsers, unblockUser } from '../../../database/users';
 import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
@@ -22,6 +23,7 @@ import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '
 const BlockList = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user } = useUser();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unblocking, setUnblocking] = useState(null);
@@ -45,10 +47,11 @@ const BlockList = ({ navigation }) => {
   }, [loadBlockedUsers]);
 
   const handleUnblock = async (blockedUserId, blockedUserName) => {
-    Alert.alert(
-      t('settings.unblockUser') || 'Unblock User',
-      (t('settings.unblockConfirm') || 'Are you sure you want to unblock {name}?').replace('{name}', blockedUserName),
-      [
+    showAlert({
+      type: 'warning',
+      title: t('settings.unblockUser') || 'Unblock User',
+      message: (t('settings.unblockConfirm') || 'Are you sure you want to unblock {name}?').replace('{name}', blockedUserName),
+      buttons: [
         {
           text: t('common.cancel') || 'Cancel',
           style: 'cancel',
@@ -61,17 +64,18 @@ const BlockList = ({ navigation }) => {
               await unblockUser(user.$id, blockedUserId);
               setBlockedUsers(prev => prev.filter(u => u.$id !== blockedUserId));
             } catch (error) {
-              Alert.alert(
-                t('common.error') || 'Error',
-                t('settings.unblockError') || 'Failed to unblock user. Please try again.'
-              );
+              showAlert({
+                type: 'error',
+                title: t('common.error') || 'Error',
+                message: t('settings.unblockError') || 'Failed to unblock user. Please try again.',
+              });
             } finally {
               setUnblocking(null);
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const GlassCard = ({ children, style }) => (
@@ -191,6 +195,14 @@ const BlockList = ({ navigation }) => {
 
         <View style={styles.bottomPadding} />
       </ScrollView>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };

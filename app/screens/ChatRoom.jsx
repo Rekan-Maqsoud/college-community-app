@@ -18,6 +18,8 @@ import { useUser } from '../context/UserContext';
 import AnimatedBackground from '../components/AnimatedBackground';
 import MessageBubble from '../components/MessageBubble';
 import MessageInput from '../components/MessageInput';
+import CustomAlert from '../components/CustomAlert';
+import useCustomAlert from '../hooks/useCustomAlert';
 import { 
   wp, 
   fontSize, 
@@ -33,6 +35,7 @@ const ChatRoom = ({ route, navigation }) => {
   const { chat } = route.params;
   const { t, theme, isDarkMode, chatSettings } = useAppSettings();
   const { user } = useUser();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   const {
     messages,
@@ -53,6 +56,8 @@ const ChatRoom = ({ route, navigation }) => {
     chat: chatData,
     groupMembers,
     userFriends,
+    selectionMode,
+    selectedMessageIds,
     setShowMuteModal,
     setShowPinnedModal,
     setShowChatOptionsModal,
@@ -75,7 +80,11 @@ const ChatRoom = ({ route, navigation }) => {
     handleVisitProfile,
     handleBlockUser,
     handleClearChat,
-  } = useChatRoom({ chat, user, t, navigation });
+    toggleSelectionMode,
+    toggleMessageSelection,
+    handleBatchCopy,
+    handleBatchDeleteForMe,
+  } = useChatRoom({ chat, user, t, navigation, showAlert });
 
   // Search in chat state
   const [searchActive, setSearchActive] = useState(false);
@@ -298,6 +307,11 @@ const ChatRoom = ({ route, navigation }) => {
         onNavigateToProfile={handleNavigateToProfile}
         searchQuery={searchActive ? searchQuery : ''}
         isCurrentSearchResult={isCurrentSearchResult}
+        onPostPress={(postId) => navigation.push('PostDetails', { postId })}
+        showAlert={showAlert}
+        selectionMode={selectionMode}
+        isSelected={selectedMessageIds.includes(item.$id)}
+        onToggleSelect={toggleMessageSelection}
       />
     );
   };
@@ -504,6 +518,44 @@ const ChatRoom = ({ route, navigation }) => {
         maintainVisibleContentPosition={searchActive ? { minIndexForVisible: 0 } : undefined}
       />
 
+      {/* Selection Mode Toolbar */}
+      {selectionMode && (
+        <View style={[
+          styles.selectionToolbar,
+          { backgroundColor: isDarkMode ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)' }
+        ]}>
+          <TouchableOpacity
+            style={styles.selectionToolbarBtn}
+            onPress={toggleSelectionMode}>
+            <Ionicons name="close" size={moderateScale(22)} color={theme.text} />
+            <Text style={[styles.selectionToolbarText, { color: theme.text, fontSize: fontSize(13) }]}>
+              {selectedMessageIds.length} {t('chats.selected')}
+            </Text>
+          </TouchableOpacity>
+          <View style={styles.selectionToolbarActions}>
+            <TouchableOpacity
+              style={styles.selectionToolbarBtn}
+              onPress={handleBatchCopy}
+              disabled={selectedMessageIds.length === 0}>
+              <Ionicons name="copy-outline" size={moderateScale(20)} color={selectedMessageIds.length > 0 ? theme.primary : theme.textSecondary} />
+              <Text style={[styles.selectionToolbarText, { color: selectedMessageIds.length > 0 ? theme.primary : theme.textSecondary, fontSize: fontSize(12) }]}>
+                {t('chats.copy')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.selectionToolbarBtn}
+              onPress={handleBatchDeleteForMe}
+              disabled={selectedMessageIds.length === 0}>
+              <Ionicons name="eye-off-outline" size={moderateScale(20)} color={selectedMessageIds.length > 0 ? '#EF4444' : theme.textSecondary} />
+              <Text style={[styles.selectionToolbarText, { color: selectedMessageIds.length > 0 ? '#EF4444' : theme.textSecondary, fontSize: fontSize(12) }]}>
+                {t('chats.deleteForMe')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {!selectionMode && (
       <MessageInput 
         onSend={handleSendMessage}
         disabled={sending || !canSend}
@@ -518,7 +570,9 @@ const ChatRoom = ({ route, navigation }) => {
         canMentionEveryone={canMentionEveryone}
         groupMembers={groupMembers}
         friends={userFriends}
+        showAlert={showAlert}
       />
+      )}
     </KeyboardAvoidingView>
   );
 
@@ -595,6 +649,15 @@ const ChatRoom = ({ route, navigation }) => {
         theme={theme}
         isDarkMode={isDarkMode}
         t={t}
+      />
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
       />
     </View>
   );

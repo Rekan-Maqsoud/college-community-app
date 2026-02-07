@@ -968,7 +968,9 @@ export default {
     noResultsFound: 'No results found',
     clearChat: 'Clear Chat',
     clearChatConfirm: 'Are you sure you want to clear all messages in this chat? This action cannot be undone.',
+    clearChatLocalConfirm: 'This will clear the chat history on your device only. Other participants will not be affected.',
     chatCleared: 'Chat cleared successfully. {count} messages deleted.',
+    chatClearedLocal: 'Chat cleared for you successfully.',
     clearChatError: 'Failed to clear chat',
     blockUser: 'Block User',
     searchComingSoon: 'Search feature coming soon!',
@@ -999,10 +1001,37 @@ export default {
     sendLocation: 'Send Location',
     sendFile: 'Send File',
     comingSoon: 'This feature is coming soon!',
+    // Share post to chat
+    sendToChat: 'Send to Chat',
+    postShared: 'Post shared successfully',
+    postShareError: 'Failed to share post',
+    tapToView: 'Tap to view',
+    // Location sharing
+    tapToOpenMap: 'Tap to open map',
+    locationPermissionDenied: 'Location permission was denied',
+    locationError: 'Failed to get location',
+    // Batch message management
+    selected: 'selected',
+    deleteForMe: 'Delete for Me',
+    deleteForMeConfirm: 'Are you sure you want to hide the selected messages? They will no longer appear for you.',
+    messagesHidden: 'Messages hidden successfully',
+    hideError: 'Failed to hide messages',
+    messagesCopied: 'Messages copied to clipboard',
     // Message status
     messageSent: 'Sent',
     messageDelivered: 'Delivered',
     messageRead: 'Read',
+    // Smart message previews
+    sentImage: 'Sent an image',
+    sharedLocation: 'Shared a location',
+    sharedAPost: 'Shared a post',
+    // Location preview
+    locationPreview: 'Location Preview',
+    sendLocationConfirm: 'Send this location?',
+    sendLocationButton: 'Send Location',
+    // Image save
+    imageSaved: 'Image saved successfully',
+    imageSaveError: 'Failed to save image',
   },
   
   // Lecture Screen
@@ -1397,6 +1426,8 @@ export default {
     editingReply: 'Editing reply',
     linkOpenError: 'Failed to open link',
     send: 'Send',
+    sendToChat: 'Send to Chat',
+    sharedPost: 'Shared Post',
   },
   
   // Search
@@ -1544,5 +1575,8 @@ export default {
     galleryPermissionDenied: 'Permission to access gallery was denied',
     cameraPermissionDenied: 'Permission to access camera was denied',
     maxImagesExceeded: 'Maximum {{max}} images allowed',
+    locationFailed: 'Failed to get your location. Please make sure location services are enabled and try again.',
+    imageUploadFailed: 'Failed to upload image. Please try again.',
+    serverError: 'A server error occurred. Please try again.',
   },
 };

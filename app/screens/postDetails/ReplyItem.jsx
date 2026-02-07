@@ -6,11 +6,12 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Alert,
   Linking,
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useCustomAlert } from '../../hooks/useCustomAlert';
+import CustomAlert from '../../components/CustomAlert';
 
 const ReplyItem = ({ 
   reply, 
@@ -28,6 +29,7 @@ const ReplyItem = ({
   isDarkMode 
 }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   const formatTime = (timestamp) => {
     if (!timestamp) return '';
@@ -45,7 +47,7 @@ const ReplyItem = ({
     const isEmail = link.includes('@') && !link.startsWith('http');
     const url = isEmail ? `mailto:${link}` : (link.startsWith('http') ? link : `https://${link}`);
     Linking.openURL(url).catch(() => {
-      Alert.alert(t('common.error'), t('post.linkOpenError'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('post.linkOpenError') });
     });
   };
 
@@ -209,6 +211,14 @@ const ReplyItem = ({
           </View>
         </TouchableOpacity>
       </Modal>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };

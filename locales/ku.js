@@ -961,7 +961,9 @@ export default {
     noResultsFound: 'هیچ ئەنجامێک نەدۆزرایەوە',
     clearChat: 'سڕینەوەی گفتوگۆ',
     clearChatConfirm: 'ئایا دڵنیایت لە سڕینەوەی هەموو نامەکان لەم گفتوگۆیەدا؟ ئەم کردارە گەڕانەوەی نییە.',
+    clearChatLocalConfirm: 'ئەمە تەنها مێژووی گفتوگۆ لەسەر ئامێرەکەت سڕینەوە. بەشداربووانی دیکە کاریگەر نابن.',
     chatCleared: 'گفتوگۆ بە سەرکەوتوویی سڕایەوە. {count} نامە سڕانەوە.',
+    chatClearedLocal: 'گفتوگۆ بۆ تۆ بە سەرکەوتوویی سڕایەوە.',
     clearChatError: 'شکستی هێنا لە سڕینەوەی گفتوگۆ',
     blockUser: 'بلۆککردنی بەکارهێنەر',
     searchComingSoon: 'تایبەتمەندی گەڕان بەم زووانە دێت!',
@@ -994,10 +996,37 @@ export default {
     sendLocation: 'ناردنی شوێن',
     sendFile: 'ناردنی فایل',
     comingSoon: 'ئەم تایبەتمەندییە بەم زووانە دێت!',
+    // Share post to chat
+    sendToChat: 'ناردن بۆ گفتوگۆ',
+    postShared: 'پۆستەکە بە سەرکەوتوویی هاوبەشکرا',
+    postShareError: 'هاوبەشکردنی پۆست سەرکەوتوو نەبوو',
+    tapToView: 'کلیک بکە بۆ بینین',
+    // Location sharing
+    tapToOpenMap: 'کلیک بکە بۆ کردنەوەی نەخشە',
+    locationPermissionDenied: 'مۆڵەتی دەستگەیشتن بە شوێن ڕەتکرایەوە',
+    locationError: 'دۆزینەوەی شوێن سەرکەوتوو نەبوو',
+    // Batch message management
+    selected: 'هەڵبژێردراو',
+    deleteForMe: 'سڕینەوە بۆ من',
+    deleteForMeConfirm: 'دڵنیایت لە شاردنەوەی پەیامە هەڵبژێردراوەکان؟ ئیتر بۆ تۆ دەرناکەون.',
+    messagesHidden: 'پەیامەکان بە سەرکەوتوویی شاردرانەوە',
+    hideError: 'شاردنەوەی پەیامەکان سەرکەوتوو نەبوو',
+    messagesCopied: 'پەیامەکان لەبەردرانەوە',
     // Message status
     messageSent: 'نێردرا',
     messageDelivered: 'گەیشت',
     messageRead: 'خوێندرایەوە',
+    // Smart message previews
+    sentImage: 'وێنەیەکی نارد',
+    sharedLocation: 'شوێنێکی هاوبەشکرد',
+    sharedAPost: 'بابەتێکی هاوبەشکرد',
+    // Location preview
+    locationPreview: 'پێشبینینی شوێن',
+    sendLocationConfirm: 'ئەم شوێنە بنێرە؟',
+    sendLocationButton: 'ناردنی شوێن',
+    // Image save
+    imageSaved: 'وێنەکە بە سەرکەوتوویی پاشەکەوتکرا',
+    imageSaveError: 'شکستی هێنا لە پاشەکەوتکردنی وێنە',
   },
   
   // Lecture Screen
@@ -1392,6 +1421,8 @@ export default {
     editingReply: 'دەستکاریکردنی وەڵام',
     linkOpenError: 'کردنەوەی لینک سەرکەوتوو نەبوو',
     send: 'ناردن',
+    sendToChat: 'ناردن بۆ گفتوگۆ',
+    sharedPost: 'پۆستی هاوبەشکراو',
   },
   
   // Search
@@ -1539,5 +1570,8 @@ export default {
     galleryPermissionDenied: 'ڕێپێدان بۆ گەیشتن بە گالەری ڕەتکرایەوە',
     cameraPermissionDenied: 'ڕێپێدان بۆ گەیشتن بە کامێرا ڕەتکرایەوە',
     maxImagesExceeded: 'زۆرترین {{max}} وێنە ڕێپێدراوە',
+    locationFailed: 'شکستی هێنا لە بەدەستهێنانی شوێنەکەت. تکایە دڵنیابەوە خزمەتگوزارییەکانی شوێن چالاکە و دووبارە هەوڵ بدەوە.',
+    imageUploadFailed: 'شکستی هێنا لە بارکردنی وێنە. تکایە دووبارە هەوڵ بدەوە.',
+    serverError: 'هەڵەیەکی سێرڤەر ڕوویدا. تکایە دووبارە هەوڵ بدەوە.',
   },
 };

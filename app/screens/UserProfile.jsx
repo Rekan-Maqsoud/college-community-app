@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar, ActivityIndicator, Platform, Alert, Share, Modal, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar, ActivityIndicator, Platform, Share, Modal, Linking } from 'react-native';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,6 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { GlassContainer } from '../components/GlassComponents';
 import AnimatedBackground from '../components/AnimatedBackground';
 import PostCard from '../components/PostCard';
+import CustomAlert from '../components/CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 import { getPostsByUser, togglePostLike } from '../../database/posts';
 import { getUserById, followUser, unfollowUser, isFollowing as checkIsFollowing, blockUser } from '../../database/users';
 import { notifyFollow } from '../../database/notifications';
@@ -19,6 +21,7 @@ const UserProfile = ({ route, navigation }) => {
   const { userId, userData: initialUserData } = route.params;
   const { t, theme, isDarkMode } = useAppSettings();
   const { user: currentUser } = useUser();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const [userPosts, setUserPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [postsError, setPostsError] = useState(null);
@@ -228,7 +231,7 @@ const UserProfile = ({ route, navigation }) => {
           ? (prev?.followersCount || 0) + 1
           : Math.max(0, (prev?.followersCount || 0) - 1)
       }));
-      Alert.alert(t('common.error'), t('profile.followError') || 'Failed to update follow status');
+      showAlert({ type: 'error', title: t('common.error'), message: t('profile.followError') || 'Failed to update follow status' });
     } finally {
       setFollowLoading(false);
     }
@@ -237,10 +240,11 @@ const UserProfile = ({ route, navigation }) => {
   const handleBlockUser = async () => {
     if (blockLoading || !currentUser?.$id || !userId || currentUser.$id === userId) return;
     
-    Alert.alert(
-      t('profile.blockUser') || 'Block User',
-      (t('profile.blockConfirm') || 'Are you sure you want to block {name}?').replace('{name}', userData?.fullName || 'this user'),
-      [
+    showAlert({
+      type: 'warning',
+      title: t('profile.blockUser') || 'Block User',
+      message: (t('profile.blockConfirm') || 'Are you sure you want to block {name}?').replace('{name}', userData?.fullName || 'this user'),
+      buttons: [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('common.block') || 'Block',
@@ -251,20 +255,21 @@ const UserProfile = ({ route, navigation }) => {
               await blockUser(currentUser.$id, userId);
               setIsBlocked(true);
               setIsFollowing(false);
-              Alert.alert(
-                t('common.success'),
-                t('profile.userBlocked') || 'User has been blocked'
-              );
+              showAlert({
+                type: 'success',
+                title: t('common.success'),
+                message: t('profile.userBlocked') || 'User has been blocked',
+              });
               navigation.goBack();
             } catch (error) {
-              Alert.alert(t('common.error'), t('profile.blockError') || 'Failed to block user');
+              showAlert({ type: 'error', title: t('common.error'), message: t('profile.blockError') || 'Failed to block user' });
             } finally {
               setBlockLoading(false);
             }
           }
         }
-      ]
-    );
+      ],
+    });
   };
 
   const handleDirectMessage = async () => {
@@ -290,7 +295,7 @@ const UserProfile = ({ route, navigation }) => {
         });
       }
     } catch (error) {
-      Alert.alert(t('common.error'), t('chats.errorCreatingChat') || 'Failed to start conversation');
+      showAlert({ type: 'error', title: t('common.error'), message: t('chats.errorCreatingChat') || 'Failed to start conversation' });
     } finally {
       setMessageLoading(false);
     }
@@ -765,6 +770,14 @@ const UserProfile = ({ route, navigation }) => {
           </View>
         </TouchableOpacity>
       </Modal>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };

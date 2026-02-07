@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar, ActivityIndicator, Platform, FlatList, RefreshControl, Alert, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar, ActivityIndicator, Platform, FlatList, RefreshControl, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
@@ -7,6 +7,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AnimatedBackground from '../components/AnimatedBackground';
 import PostCard from '../components/PostCard';
+import CustomAlert from '../components/CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 import { getPostsByUser, togglePostLike, markQuestionAsResolved, deletePost } from '../../database/posts';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
@@ -14,6 +16,7 @@ import { borderRadius } from '../theme/designTokens';
 const Profile = ({ navigation, route }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user, isLoading, refreshUser } = useUser();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
   const [imageKey, setImageKey] = useState(Date.now());
   const [userPosts, setUserPosts] = useState([]);
@@ -136,10 +139,11 @@ const Profile = ({ navigation, route }) => {
   };
 
   const handleDeletePost = async (post) => {
-    Alert.alert(
-      t('common.delete'),
-      t('post.deleteConfirm'),
-      [
+    showAlert({
+      type: 'warning',
+      title: t('common.delete'),
+      message: t('post.deleteConfirm'),
+      buttons: [
         {
           text: t('common.cancel'),
           style: 'cancel',
@@ -151,14 +155,14 @@ const Profile = ({ navigation, route }) => {
             try {
               await deletePost(post.$id, post.imageDeleteUrls);
               setUserPosts(prevPosts => prevPosts.filter(p => p.$id !== post.$id));
-              Alert.alert(t('common.success'), t('post.postDeleted'));
+              showAlert({ type: 'success', title: t('common.success'), message: t('post.postDeleted') });
             } catch (error) {
-              Alert.alert(t('common.error'), t('post.deleteError'));
+              showAlert({ type: 'error', title: t('common.error'), message: t('post.deleteError') });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   if (isLoading) {
@@ -583,6 +587,14 @@ const Profile = ({ navigation, route }) => {
           </View>
         </ScrollView>
       </LinearGradient>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };

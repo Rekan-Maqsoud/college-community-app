@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
-import client, { config, account, safeSubscribe } from '../../database/config';
+import { config, safeSubscribe } from '../../database/config';
+import { isCreateEvent, isDeleteEvent } from '../utils/realtimeHelpers';
 
 /**
  * Custom hook for real-time subscription to Appwrite collections
@@ -22,10 +23,6 @@ export const useRealtimeSubscription = (
   const onUpdateRef = useRef(onUpdate);
   const onDeleteRef = useRef(onDelete);
   const isConnectedRef = useRef(false);
-  const retryCountRef = useRef(0);
-  const maxRetries = 3;
-  const hasSubscribedRef = useRef(false);
-  const retryTimeoutRef = useRef(null);
 
   // Keep refs updated to avoid stale closures
   useEffect(() => {
@@ -47,80 +44,24 @@ export const useRealtimeSubscription = (
       ? `databases.${config.databaseId}.collections.${collectionId}.documents.${documentId}`
       : `databases.${config.databaseId}.collections.${collectionId}.documents`;
 
-    const scheduleRetry = () => {
-      if (retryCountRef.current >= maxRetries) {
+    unsubscribeRef.current = safeSubscribe(channel, (response) => {
+      const { events, payload } = response || {};
+      if (!events || !payload) {
         return;
       }
 
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
+      isConnectedRef.current = true;
+
+      if (isCreateEvent(events)) {
+        onUpdateRef.current?.(payload, events);
       }
 
-      retryTimeoutRef.current = setTimeout(() => {
-        subscribe();
-      }, 2000);
-    };
-
-    const subscribe = async () => {
-      // Prevent duplicate subscriptions
-      if (hasSubscribedRef.current) {
-        return;
+      if (isDeleteEvent(events) && onDeleteRef.current) {
+        onDeleteRef.current?.(payload, events);
       }
-
-      // Don't retry too many times
-      if (retryCountRef.current >= maxRetries) {
-        return;
-      }
-
-      // Check if user is authenticated before subscribing
-      try {
-        await account.getSession('current');
-      } catch (authError) {
-        retryCountRef.current++;
-        scheduleRetry();
-        return;
-      }
-
-      try {
-        hasSubscribedRef.current = true;
-        
-        unsubscribeRef.current = safeSubscribe(channel, (response) => {
-          isConnectedRef.current = true;
-          retryCountRef.current = 0;
-          const { events, payload } = response;
-          
-          // Check for create/update events
-          if (
-            events.some(e => 
-              e.includes('.create') || 
-              e.includes('.update')
-            )
-          ) {
-            onUpdateRef.current?.(payload, events);
-          }
-          
-          // Check for delete events
-          if (events.some(e => e.includes('.delete'))) {
-            onDeleteRef.current?.(payload, events);
-          }
-        });
-      } catch (error) {
-        // Realtime not available - fail silently
-        isConnectedRef.current = false;
-        hasSubscribedRef.current = false;
-        retryCountRef.current++;
-        scheduleRetry();
-      }
-    };
-
-    subscribe();
+    });
 
     return () => {
-      hasSubscribedRef.current = false;
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-        retryTimeoutRef.current = null;
-      }
       if (unsubscribeRef.current) {
         try {
           unsubscribeRef.current();
@@ -142,23 +83,30 @@ export const useRealtimeSubscription = (
  * Passes events array to callback for distinguishing create vs update
  */
 export const useChatMessages = (chatId, onNewMessage, onMessageDeleted, enabled = true) => {
-  const handleUpdate = useCallback((payload, events) => {
-    if (payload.chatId === chatId) {
-      // Pass events to callback so it can distinguish between create and update
-      onNewMessage?.(payload, events);
+  const onNewMessageRef = useRef(onNewMessage);
+  const onMessageDeletedRef = useRef(onMessageDeleted);
+
+  useEffect(() => {
+    onNewMessageRef.current = onNewMessage;
+    onMessageDeletedRef.current = onMessageDeleted;
+  }, [onNewMessage, onMessageDeleted]);
+
+  const handleCreate = useCallback((payload, events) => {
+    if (payload?.chatId === chatId) {
+      onNewMessageRef.current?.(payload, events);
     }
-  }, [chatId, onNewMessage]);
+  }, [chatId]);
 
   const handleDelete = useCallback((payload, events) => {
-    if (payload.chatId === chatId) {
-      onMessageDeleted?.(payload, events);
+    if (payload?.chatId === chatId) {
+      onMessageDeletedRef.current?.(payload, events);
     }
-  }, [chatId, onMessageDeleted]);
+  }, [chatId]);
 
   useRealtimeSubscription(
     config.messagesCollectionId,
-    handleUpdate,
-    handleDelete,
+    handleCreate,
+    onMessageDeleted ? handleDelete : null,
     { enabled: enabled && !!chatId }
   );
 };

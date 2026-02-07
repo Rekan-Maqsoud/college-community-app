@@ -88,6 +88,28 @@ const ChatListItem = ({ chat, onPress, currentUserId, unreadCount = 0 }) => {
     return date.toLocaleDateString();
   };
 
+  const getLastMessagePreview = () => {
+    const lastMsg = chat.lastMessage;
+    if (!lastMsg) {
+      return chatSubtitle ? chatSubtitle : t('chats.noMessages');
+    }
+    // Smart previews for special message types
+    if (lastMsg === '\uD83D\uDCF7 Image' || lastMsg.startsWith('\uD83D\uDCF7')) {
+      return t('chats.sentImage');
+    }
+    if (lastMsg === '\uD83D\uDCCD Location' || lastMsg.startsWith('\uD83D\uDCCD')) {
+      return t('chats.sharedLocation');
+    }
+    if (lastMsg === '\uD83D\uDCDD Shared Post' || lastMsg.startsWith('\uD83D\uDCDD')) {
+      return t('chats.sharedAPost');
+    }
+    // If it looks like raw JSON for a shared post, show friendly text
+    if (lastMsg.startsWith('{') && lastMsg.includes('postId')) {
+      return t('chats.sharedAPost');
+    }
+    return lastMsg;
+  };
+
   const isPrivateChat = chat.type === CHAT_TYPES.PRIVATE;
   const chatName = getChatName();
   const chatSubtitle = getChatSubtitle();
@@ -169,7 +191,7 @@ const ChatListItem = ({ chat, onPress, currentUserId, unreadCount = 0 }) => {
         <Text 
           style={[styles.lastMessage, { fontSize: fontSize(13), color: theme.textSecondary }]}
           numberOfLines={1}>
-          {chat.lastMessage || (chatSubtitle ? chatSubtitle : t('chats.noMessages'))}
+          {getLastMessagePreview()}
         </Text>
 
         {chat.requiresRepresentative && (

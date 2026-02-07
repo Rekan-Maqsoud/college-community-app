@@ -6,9 +6,10 @@ import {
   Modal,
   ScrollView,
   Platform,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useCustomAlert } from '../../hooks/useCustomAlert';
+import CustomAlert from '../../components/CustomAlert';
 import { 
   fontSize, 
   spacing, 
@@ -212,6 +213,8 @@ export const ChatOptionsModal = ({
   isDarkMode,
   t 
 }) => {
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+
   return (
     <Modal
       visible={visible}
@@ -275,7 +278,7 @@ export const ChatOptionsModal = ({
             style={[styles.muteOption, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
             onPress={() => {
               onClose();
-              Alert.alert(t('common.info'), t('chats.searchComingSoon'));
+              showAlert({ type: 'info', title: t('common.info'), message: t('chats.searchComingSoon') });
             }}>
             <Ionicons name="search-outline" size={moderateScale(22)} color={theme.primary} />
             <Text style={[styles.muteOptionText, { color: theme.text, fontSize: fontSize(15) }]}>
@@ -288,18 +291,19 @@ export const ChatOptionsModal = ({
             onPress={() => {
               onClose();
               if (onClearChat) {
-                Alert.alert(
-                  t('chats.clearChat'),
-                  t('chats.clearChatConfirm') || 'Are you sure you want to clear all messages in this chat? This action cannot be undone.',
-                  [
+                showAlert({
+                  type: 'warning',
+                  title: t('chats.clearChat'),
+                  message: t('chats.clearChatConfirm') || 'Are you sure you want to clear all messages in this chat? This action cannot be undone.',
+                  buttons: [
                     { text: t('common.cancel'), style: 'cancel' },
                     { 
                       text: t('common.clear') || 'Clear', 
                       style: 'destructive',
                       onPress: onClearChat
                     },
-                  ]
-                );
+                  ],
+                });
               }
             }}>
             <Ionicons name="trash-outline" size={moderateScale(22)} color="#EF4444" />
@@ -328,6 +332,14 @@ export const ChatOptionsModal = ({
           </TouchableOpacity>
         </View>
       </View>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </Modal>
   );
 };

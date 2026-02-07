@@ -8,7 +8,6 @@ import {
   RefreshControl,
   ActivityIndicator,
   Platform,
-  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +15,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import ProfilePicture from '../components/ProfilePicture';
+import CustomAlert from '../components/CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification, deleteAllNotifications } from '../../database/notifications';
@@ -390,6 +391,7 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t }) => {
 const Notifications = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user } = useUser();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
   
   const [notifications, setNotifications] = useState([]);
@@ -598,10 +600,11 @@ const Notifications = ({ navigation }) => {
   const handleClearAll = () => {
     if (notifications.length === 0) return;
     
-    Alert.alert(
-      t('notifications.clearAll') || 'Clear All',
-      t('notifications.clearAllConfirm') || 'Are you sure you want to clear all notifications?',
-      [
+    showAlert({
+      type: 'warning',
+      title: t('notifications.clearAll') || 'Clear All',
+      message: t('notifications.clearAllConfirm') || 'Are you sure you want to clear all notifications?',
+      buttons: [
         { text: t('common.cancel') || 'Cancel', style: 'cancel' },
         {
           text: t('common.clear') || 'Clear',
@@ -615,8 +618,8 @@ const Notifications = ({ navigation }) => {
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -786,6 +789,14 @@ const Notifications = ({ navigation }) => {
           />
         )}
       </LinearGradient>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };

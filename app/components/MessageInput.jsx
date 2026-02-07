@@ -7,7 +7,6 @@ import {
   Platform,
   Image,
   ActivityIndicator,
-  Alert,
   Text,
   FlatList,
   Modal,
@@ -22,7 +21,8 @@ import {
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { pickAndCompressImages, takePictureAndCompress } from '../utils/imageCompression';
-import { uploadToImgbb } from '../../services/imgbbService';
+import { uploadChatImage } from '../../database/chats';
+import * as Location from 'expo-location';
 
 const MessageInput = ({ 
   onSend, 
@@ -34,6 +34,7 @@ const MessageInput = ({
   canMentionEveryone = false,
   groupMembers = [],
   friends = [],
+  showAlert,
 }) => {
   const { theme, isDarkMode, t } = useAppSettings();
   const [message, setMessage] = useState('');
@@ -43,6 +44,9 @@ const MessageInput = ({
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionStartIndex, setMentionStartIndex] = useState(-1);
   const [showAttachmentsMenu, setShowAttachmentsMenu] = useState(false);
+  const [pendingLocation, setPendingLocation] = useState(null);
+  const [showLocationPreview, setShowLocationPreview] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
   const inputRef = useRef(null);
 
   // Get mention suggestions based on context
@@ -125,6 +129,12 @@ const MessageInput = ({
     setShowMentionSuggestions(false);
   };
 
+  const triggerAlert = (title, message, type = 'error', buttons = []) => {
+    if (showAlert) {
+      showAlert({ type, title, message, buttons });
+    }
+  };
+
   const handlePickImage = async () => {
     if (disabled || uploading) return;
     setShowAttachmentsMenu(false);
@@ -140,7 +150,7 @@ const MessageInput = ({
         setSelectedImage(result[0]);
       }
     } catch (error) {
-      Alert.alert(t('common.error'), error.message || t('chats.imagePickError'));
+      triggerAlert(t('common.error'), error.message || t('chats.imagePickError'));
     }
   };
 
@@ -157,55 +167,79 @@ const MessageInput = ({
         setSelectedImage(result);
       }
     } catch (error) {
-      Alert.alert(t('common.error'), error.message || t('chats.cameraError'));
+      triggerAlert(t('common.error'), error.message || t('chats.cameraError'));
     }
   };
 
-  const handleSendLocation = () => {
+  const handleSendLocation = async () => {
     setShowAttachmentsMenu(false);
-    Alert.alert(
-      t('chats.sendLocation') || 'Send Location',
-      t('chats.comingSoon') || 'This feature is coming soon!'
-    );
+    setLocationLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        triggerAlert(
+          t('common.error'),
+          t('chats.locationPermissionDenied')
+        );
+        return;
+      }
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      const { latitude, longitude } = location.coords;
+      setPendingLocation({ lat: latitude, long: longitude });
+      setShowLocationPreview(true);
+    } catch (error) {
+      triggerAlert(
+        t('common.error'),
+        t('errors.locationFailed')
+      );
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  const handleConfirmLocation = async () => {
+    if (pendingLocation && onSend) {
+      await onSend(`${pendingLocation.lat},${pendingLocation.long}`, null, 'location');
+    }
+    setShowLocationPreview(false);
+    setPendingLocation(null);
+  };
+
+  const handleCancelLocation = () => {
+    setShowLocationPreview(false);
+    setPendingLocation(null);
   };
 
   const handleSendFile = () => {
     setShowAttachmentsMenu(false);
-    Alert.alert(
-      t('chats.sendFile') || 'Send File',
-      t('chats.comingSoon') || 'This feature is coming soon!'
-    );
-  };
-
-  const showImageOptions = () => {
-    if (Platform.OS === 'web') {
-      handlePickImage();
-      return;
-    }
-
-    Alert.alert(
-      t('chats.addImage'),
-      t('chats.selectImageSource'),
-      [
-        {
-          text: t('chats.camera'),
-          onPress: handleTakePicture,
-        },
-        {
-          text: t('chats.gallery'),
-          onPress: handlePickImage,
-        },
-        {
-          text: t('common.cancel'),
-          style: 'cancel',
-        },
-      ],
-      { cancelable: true }
+    triggerAlert(
+      t('chats.sendFile'),
+      t('chats.comingSoon'),
+      'info'
     );
   };
 
   const handleRemoveImage = () => {
     setSelectedImage(null);
+  };
+
+  const uploadImage = async (imageAsset) => {
+    try {
+      if (!imageAsset?.uri) {
+        throw new Error(t('errors.imageUploadFailed'));
+      }
+
+      const result = await uploadChatImage({
+        uri: imageAsset.uri,
+        name: imageAsset.fileName || `chat_image_${Date.now()}.jpg`,
+        type: imageAsset.mimeType || 'image/jpeg',
+      });
+      return result?.viewUrl || null;
+    } catch (error) {
+      throw new Error(t('errors.imageUploadFailed'));
+    }
   };
 
   const handleSend = async () => {
@@ -214,14 +248,11 @@ const MessageInput = ({
     if (!trimmedMessage && !selectedImage) return;
     if (!onSend) return;
 
-    // Store the message before clearing for immediate UI feedback
     const messageToSend = trimmedMessage;
     const imageToSend = selectedImage;
     
-    // Clear message immediately for better UX
     setMessage('');
     
-    // Keep focus on input to prevent keyboard from closing
     if (inputRef.current) {
       inputRef.current.focus();
     }
@@ -232,15 +263,13 @@ const MessageInput = ({
       if (imageToSend) {
         setUploading(true);
         setSelectedImage(null);
-        const uploadResult = await uploadToImgbb(imageToSend.base64);
-        imageUrl = uploadResult.url;
+        imageUrl = await uploadImage(imageToSend);
       }
 
       await onSend(messageToSend, imageUrl);
     } catch (error) {
-      // Restore message on error
       setMessage(messageToSend);
-      Alert.alert(t('common.error'), error.message || t('chats.sendError'));
+      triggerAlert(t('common.error'), error.message || t('chats.sendError'));
     } finally {
       setUploading(false);
     }
@@ -477,13 +506,18 @@ const MessageInput = ({
                   </Text>
                 </TouchableOpacity>
                 
-                {/* Location (Coming Soon) */}
+                {/* Location */}
                 <TouchableOpacity 
                   style={styles.attachmentItem}
                   onPress={handleSendLocation}
+                  disabled={locationLoading}
                   activeOpacity={0.7}>
                   <View style={[styles.attachmentIconContainer, { backgroundColor: '#F59E0B' }]}>
-                    <Ionicons name="location" size={moderateScale(24)} color="#FFFFFF" />
+                    {locationLoading ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Ionicons name="location" size={moderateScale(24)} color="#FFFFFF" />
+                    )}
                   </View>
                   <Text style={[styles.attachmentLabel, { color: theme.text, fontSize: fontSize(12) }]}>
                     {t('chats.location') || 'Location'}
@@ -500,6 +534,73 @@ const MessageInput = ({
                   </View>
                   <Text style={[styles.attachmentLabel, { color: theme.text, fontSize: fontSize(12) }]}>
                     {t('chats.file') || 'File'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+
+        {/* Location Preview Modal */}
+        <Modal
+          visible={showLocationPreview}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={handleCancelLocation}>
+          <Pressable 
+            style={styles.locationModalOverlay}
+            onPress={handleCancelLocation}>
+            <View style={[
+              styles.locationModalContent,
+              { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' }
+            ]}>
+              <Text style={[styles.locationModalTitle, { color: theme.text, fontSize: fontSize(18) }]}>
+                {t('chats.locationPreview') || 'Send Location'}
+              </Text>
+              
+              {pendingLocation && (
+                <>
+                  <View style={styles.locationMapContainer}>
+                    <Image
+                      source={{ uri: `https://maps.googleapis.com/maps/api/staticmap?center=${pendingLocation.lat},${pendingLocation.long}&zoom=15&size=600x300&markers=color:red%7C${pendingLocation.lat},${pendingLocation.long}&key=` }}
+                      style={styles.locationMapImage}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.locationMapPin}>
+                      <Ionicons name="location" size={moderateScale(32)} color="#EF4444" />
+                    </View>
+                  </View>
+                  
+                  <View style={styles.locationCoords}>
+                    <Ionicons name="location-outline" size={moderateScale(16)} color={theme.primary} />
+                    <Text style={[styles.locationCoordsText, { color: theme.textSecondary, fontSize: fontSize(13) }]}>
+                      {`${pendingLocation.lat.toFixed(6)}, ${pendingLocation.long.toFixed(6)}`}
+                    </Text>
+                  </View>
+                  
+                  <Text style={[styles.locationConfirmText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
+                    {t('chats.sendLocationConfirm') || 'Send this location to the chat?'}
+                  </Text>
+                </>
+              )}
+              
+              <View style={styles.locationButtons}>
+                <TouchableOpacity
+                  style={[styles.locationCancelBtn, { borderColor: isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)' }]}
+                  onPress={handleCancelLocation}
+                  activeOpacity={0.7}>
+                  <Text style={[styles.locationCancelText, { color: theme.textSecondary, fontSize: fontSize(15) }]}>
+                    {t('common.cancel')}
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.locationSendBtn, { backgroundColor: theme.primary }]}
+                  onPress={handleConfirmLocation}
+                  activeOpacity={0.7}>
+                  <Ionicons name="send" size={moderateScale(16)} color="#FFFFFF" />
+                  <Text style={[styles.locationSendText, { fontSize: fontSize(15) }]}>
+                    {t('chats.sendLocationButton') || 'Send'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -674,6 +775,90 @@ const styles = StyleSheet.create({
   attachmentLabel: {
     fontWeight: '500',
     textAlign: 'center',
+  },
+  // Location Preview Modal Styles
+  locationModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  locationModalContent: {
+    width: '100%',
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  locationModalTitle: {
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  locationMapContainer: {
+    width: '100%',
+    height: moderateScale(180),
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    marginBottom: spacing.md,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  locationMapImage: {
+    width: '100%',
+    height: '100%',
+  },
+  locationMapPin: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  locationCoords: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  locationCoordsText: {
+    fontWeight: '500',
+  },
+  locationConfirmText: {
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  locationButtons: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  locationCancelBtn: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locationCancelText: {
+    fontWeight: '600',
+  },
+  locationSendBtn: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  locationSendText: {
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
 

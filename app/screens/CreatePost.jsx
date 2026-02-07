@@ -9,13 +9,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '../hooks/useTranslation';
 import { useCustomAlert } from '../hooks/useCustomAlert';
+import CustomAlert from '../components/CustomAlert';
 import { useUser } from '../context/UserContext';
 import ImagePickerComponent from '../components/ImagePicker';
 import SearchableDropdownNew from '../components/SearchableDropdownNew';
@@ -36,7 +36,7 @@ const DRAFT_STORAGE_KEY = 'post_draft';
 
 const CreatePost = ({ navigation, route }) => {
   const { t } = useTranslation();
-  const { showAlert } = useCustomAlert();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { user } = useUser();
 
   const [postType, setPostType] = useState(POST_TYPES.DISCUSSION);
@@ -167,10 +167,11 @@ const CreatePost = ({ navigation, route }) => {
 
       e.preventDefault();
 
-      Alert.alert(
-        t('post.discardPost') || 'Discard Post?',
-        t('post.discardPostMessage') || 'You have unsaved changes. Are you sure you want to discard this post?',
-        [
+      showAlert({
+        type: 'warning',
+        title: t('post.discardPost') || 'Discard Post?',
+        message: t('post.discardPostMessage') || 'You have unsaved changes. Are you sure you want to discard this post?',
+        buttons: [
           { text: t('common.cancel'), style: 'cancel' },
           {
             text: t('post.discard') || 'Discard',
@@ -180,8 +181,8 @@ const CreatePost = ({ navigation, route }) => {
               navigation.dispatch(e.data.action);
             },
           },
-        ]
-      );
+        ],
+      });
     });
 
     return unsubscribe;
@@ -678,6 +679,14 @@ const CreatePost = ({ navigation, route }) => {
           <View style={styles.bottomSpace} />
         </ScrollView>
       </KeyboardAvoidingView>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </SafeAreaView>
   );
 };

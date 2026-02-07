@@ -1,11 +1,14 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useLanguage } from '../context/LanguageContext';
 import { useTranslation } from '../hooks/useTranslation';
+import { useCustomAlert } from '../hooks/useCustomAlert';
+import CustomAlert from './CustomAlert';
 
 const LanguageSelector = () => {
   const { currentLanguage, changeLanguage } = useLanguage();
   const { t } = useTranslation();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   const languages = [
     { code: 'en', name: 'English', nativeName: 'English' },
@@ -15,10 +18,11 @@ const LanguageSelector = () => {
 
   const handleLanguageChange = (languageCode) => {
     if (languageCode === 'ar') {
-      Alert.alert(
-        t('settings.rtlSupportTitle'),
-        t('settings.rtlSupportMessage'),
-        [
+      showAlert({
+        type: 'info',
+        title: t('settings.rtlSupportTitle'),
+        message: t('settings.rtlSupportMessage'),
+        buttons: [
           {
             text: t('common.ok'),
             onPress: () => changeLanguage(languageCode),
@@ -27,8 +31,8 @@ const LanguageSelector = () => {
             text: t('common.cancel'),
             style: 'cancel',
           },
-        ]
-      );
+        ],
+      });
     } else {
       changeLanguage(languageCode);
     }
@@ -56,6 +60,14 @@ const LanguageSelector = () => {
           </TouchableOpacity>
         ))}
       </View>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };

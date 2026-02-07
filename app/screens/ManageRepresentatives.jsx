@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
   StatusBar,
   Platform,
@@ -17,6 +16,8 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { GlassContainer } from '../components/GlassComponents';
 import AnimatedBackground from '../components/AnimatedBackground';
+import CustomAlert from '../components/CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 import { 
   getUserGroupChats, 
   addRepresentative, 
@@ -36,6 +37,7 @@ import { borderRadius } from '../theme/designTokens';
 const ManageRepresentatives = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user } = useUser();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +82,7 @@ const ManageRepresentatives = ({ navigation }) => {
       const fetchedChats = await getUserGroupChats(user.department, stageValue, user.$id);
       setChats(fetchedChats);
     } catch (error) {
-      Alert.alert(t('common.error'), t('chats.errorLoadingChats'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('chats.errorLoadingChats') });
     } finally {
       setLoading(false);
     }
@@ -114,19 +116,20 @@ const ManageRepresentatives = ({ navigation }) => {
       
       setSearchQuery('');
       setSearchResults([]);
-      Alert.alert(t('common.success'), t('chats.representativeAdded'));
+      showAlert({ type: 'success', title: t('common.success'), message: t('chats.representativeAdded') });
     } catch (error) {
-      Alert.alert(t('common.error'), t('chats.representativeAddError'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('chats.representativeAddError') });
     }
   };
 
   const handleRemoveRepresentative = async (userId) => {
     if (!selectedChat) return;
 
-    Alert.alert(
-      t('chats.removeRepresentative'),
-      t('chats.removeRepresentativeConfirm'),
-      [
+    showAlert({
+      type: 'warning',
+      title: t('chats.removeRepresentative'),
+      message: t('chats.removeRepresentativeConfirm'),
+      buttons: [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('common.delete'),
@@ -143,14 +146,14 @@ const ManageRepresentatives = ({ navigation }) => {
               );
               setChats(updatedChats);
               
-              Alert.alert(t('common.success'), t('chats.representativeRemoved'));
+              showAlert({ type: 'success', title: t('common.success'), message: t('chats.representativeRemoved') });
             } catch (error) {
-              Alert.alert(t('common.error'), t('chats.representativeRemoveError'));
+              showAlert({ type: 'error', title: t('common.error'), message: t('chats.representativeRemoveError') });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const renderChatItem = ({ item }) => (
@@ -347,6 +350,14 @@ const ManageRepresentatives = ({ navigation }) => {
           )}
         </View>
       </LinearGradient>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };

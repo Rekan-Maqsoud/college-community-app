@@ -9,7 +9,6 @@ import {
   TextInput,
   FlatList,
   ActivityIndicator,
-  Alert,
   ScrollView,
   Switch,
   Image,
@@ -22,6 +21,8 @@ import { useUser } from '../../context/UserContext';
 import { GlassInput } from '../../components/GlassComponents';
 import AnimatedBackground from '../../components/AnimatedBackground';
 import ProfilePicture from '../../components/ProfilePicture';
+import CustomAlert from '../../components/CustomAlert';
+import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { getUsersByDepartment, getFriends, searchUsers } from '../../../database/users';
 import { createCustomGroup } from '../../../database/chatHelpers';
 import { 
@@ -38,6 +39,7 @@ import { uploadToImgbb } from '../../../services/imgbbService';
 const CreateGroup = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user: currentUser } = useUser();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
   const [friends, setFriends] = useState([]);
@@ -160,7 +162,7 @@ const CreateGroup = ({ navigation }) => {
       setGroupPhoto(uploadResult.url);
     } catch (error) {
       const errorMessage = error?.message || t('chats.groupPhotoError');
-      Alert.alert(t('common.error'), errorMessage);
+      showAlert({ type: 'error', title: t('common.error'), message: errorMessage });
     } finally {
       setUploadingPhoto(false);
     }
@@ -176,12 +178,12 @@ const CreateGroup = ({ navigation }) => {
 
   const handleCreateGroup = async () => {
     if (!groupName.trim()) {
-      Alert.alert(t('common.error'), t('chats.groupName'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('chats.groupName') });
       return;
     }
 
     if (selectedUsers.length === 0) {
-      Alert.alert(t('common.error'), t('chats.selectMembers'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('chats.selectMembers') });
       return;
     }
 
@@ -201,14 +203,14 @@ const CreateGroup = ({ navigation }) => {
       if (chat) {
         navigation.replace('ChatRoom', { chat });
       } else {
-        Alert.alert(t('common.error'), t('chats.groupCreateError'));
+        showAlert({ type: 'error', title: t('common.error'), message: t('chats.groupCreateError') });
       }
     } catch (error) {
       let errorMessage = t('chats.groupCreateError');
       if (error?.message) {
         errorMessage = `${errorMessage}: ${error.message}`;
       }
-      Alert.alert(t('common.error'), errorMessage);
+      showAlert({ type: 'error', title: t('common.error'), message: errorMessage });
     } finally {
       setCreating(false);
     }
@@ -608,6 +610,14 @@ const CreateGroup = ({ navigation }) => {
           </View>
         </SafeAreaView>
       </LinearGradient>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };

@@ -598,6 +598,7 @@ export const sendChatPushNotification = async ({
         senderId,
         senderName,
         chatType,
+        url: `/chat/${chatId}`,
       },
       channelId: 'chat',
     }));

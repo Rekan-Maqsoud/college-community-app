@@ -8,7 +8,6 @@ import {
   Share,
   Dimensions,
   Platform,
-  Alert,
   ActivityIndicator,
   FlatList,
 } from 'react-native';
@@ -24,6 +23,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { useCustomAlert } from '../hooks/useCustomAlert';
+import CustomAlert from './CustomAlert';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -136,6 +137,7 @@ const ZoomableImageModal = ({
   showShare = true,
 }) => {
   const { t } = useAppSettings();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -163,10 +165,11 @@ const ZoomableImageModal = ({
       const imageUrl = images[currentIndex];
       
       if (!imageUrl) {
-        Alert.alert(
-          t('common.error'),
-          t('post.downloadFailed')
-        );
+        showAlert({
+          type: 'error',
+          title: t('common.error'),
+          message: t('post.downloadFailed'),
+        });
         return;
       }
 
@@ -175,10 +178,11 @@ const ZoomableImageModal = ({
       const { status } = permissionResult;
       
       if (status !== 'granted') {
-        Alert.alert(
-          t('common.error'),
-          t('post.galleryPermissionRequired')
-        );
+        showAlert({
+          type: 'error',
+          title: t('common.error'),
+          message: t('post.galleryPermissionRequired'),
+        });
         return;
       }
 
@@ -207,10 +211,11 @@ const ZoomableImageModal = ({
         const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
         
         if (asset) {
-          Alert.alert(
-            t('common.success'),
-            t('post.imageSaved')
-          );
+          showAlert({
+            type: 'success',
+            title: t('common.success'),
+            message: t('post.imageSaved'),
+          });
         } else {
           throw new Error(t('post.downloadErrorAssetCreate'));
         }
@@ -236,10 +241,11 @@ const ZoomableImageModal = ({
         `${t('post.downloadErrorFileLabel')}: ${fileUri || t('post.downloadErrorUnknown')}`,
       ].join('\n');
 
-      Alert.alert(
-        t('common.error'),
-        `${t('post.downloadFailed')}\n\n${details}`
-      );
+      showAlert({
+        type: 'error',
+        title: t('common.error'),
+        message: `${t('post.downloadFailed')}\n\n${details}`,
+      });
     } finally {
       setIsDownloading(false);
     }
@@ -248,10 +254,11 @@ const ZoomableImageModal = ({
   const handleShare = async () => {
     try {
       const imageUrl = images[currentIndex];
-      await Share.share({
-        url: imageUrl,
-        message: imageUrl,
-      });
+      if (Platform.OS === 'ios') {
+        await Share.share({ url: imageUrl, message: imageUrl });
+      } else {
+        await Share.share({ message: imageUrl });
+      }
     } catch (error) {
       // Share cancelled or failed
     }
@@ -338,6 +345,15 @@ const ZoomableImageModal = ({
             {t('post.pinchToZoomRotate')}
           </Text>
         </View>
+
+        <CustomAlert
+          visible={alertConfig.visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          buttons={alertConfig.buttons}
+          onDismiss={hideAlert}
+        />
       </GestureHandlerRootView>
     </Modal>
   );

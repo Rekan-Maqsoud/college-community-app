@@ -10,7 +10,6 @@ import {
   Platform,
   ActivityIndicator,
   StatusBar,
-  Alert,
   Image,
   Modal,
 } from 'react-native';
@@ -19,6 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
+import CustomAlert from '../components/CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 import { uploadImage } from '../../services/imgbbService';
 import { createPost } from '../../database/posts';
 import { compressImage } from '../utils/imageCompression';
@@ -31,6 +32,7 @@ import {
 
 const Post = () => {
   const appSettings = useAppSettings();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   
   if (!appSettings) {
     return (
@@ -76,13 +78,13 @@ const Post = () => {
   const handlePickImages = async () => {
     try {
       if (images.length >= MAX_IMAGES_PER_POST) {
-        Alert.alert(t('post.imageLimit'), t('post.maxImagesReached', { max: MAX_IMAGES_PER_POST }));
+        showAlert({ type: 'warning', title: t('post.imageLimit'), message: t('post.maxImagesReached', { max: MAX_IMAGES_PER_POST }) });
         return;
       }
 
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(t('common.error'), t('settings.cameraPermissionRequired'));
+        showAlert({ type: 'error', title: t('common.error'), message: t('settings.cameraPermissionRequired') });
         return;
       }
 
@@ -107,7 +109,7 @@ const Post = () => {
         setImages([...images, ...compressedImages]);
       }
     } catch (error) {
-      Alert.alert(t('common.error'), t('post.imagePickError'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('post.imagePickError') });
     }
   };
 
@@ -122,11 +124,11 @@ const Post = () => {
     const hasImages = images.length > 0;
     
     if (!hasTopic && !hasText && !hasImages) {
-      Alert.alert(t('common.error'), t('post.contentRequired') || 'Please add a topic, description, or at least one image');
+      showAlert({ type: 'error', title: t('common.error'), message: t('post.contentRequired') || 'Please add a topic, description, or at least one image' });
       return false;
     }
     if (!stage) {
-      Alert.alert(t('common.error'), t('post.stageRequired'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('post.stageRequired') });
       return false;
     }
     return true;
@@ -170,7 +172,7 @@ const Post = () => {
         links: linksArray,
       });
 
-      Alert.alert(t('common.success'), t('post.postCreated'));
+      showAlert({ type: 'success', title: t('common.success'), message: t('post.postCreated') });
       
       setTopic('');
       setText('');
@@ -181,7 +183,7 @@ const Post = () => {
       setImages([]);
       setPostType(POST_TYPES.DISCUSSION);
     } catch (error) {
-      Alert.alert(t('common.error'), t('post.createError'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('post.createError') });
     } finally {
       setLoading(false);
     }
@@ -578,6 +580,14 @@ const Post = () => {
           </TouchableOpacity>
         </View>
       </Modal>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </SafeAreaView>
   );
 };

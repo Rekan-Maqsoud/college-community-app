@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Animated,
   StatusBar,
-  Alert,
   Platform,
   ActivityIndicator,
   ScrollView,
@@ -18,6 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
+import { useCustomAlert } from '../hooks/useCustomAlert';
+import CustomAlert from '../components/CustomAlert';
 import { GlassContainer } from '../components/GlassComponents';
 import { 
   verifyOTPCode,
@@ -47,6 +48,7 @@ const VerifyEmail = ({ route, navigation }) => {
   
   const { t, theme, isDarkMode } = useAppSettings();
   const { setUserData } = useUser();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
@@ -139,16 +141,17 @@ const VerifyEmail = ({ route, navigation }) => {
 
   const handleExpired = async () => {
     await cancelPendingVerification();
-    Alert.alert(
-      t('auth.verificationExpired'),
-      t('auth.verificationExpiredMessage'),
-      [
+    showAlert({
+      type: 'error',
+      title: t('auth.verificationExpired'),
+      message: t('auth.verificationExpiredMessage'),
+      buttons: [
         {
           text: t('common.ok'),
           onPress: () => navigation.replace('SignUp'),
         },
-      ]
-    );
+      ],
+    });
   };
 
   const formatTime = (seconds) => {
@@ -255,15 +258,17 @@ const VerifyEmail = ({ route, navigation }) => {
         });
       }, 1000);
 
-      Alert.alert(
-        t('common.success'),
-        t('auth.codeSent')
-      );
+      showAlert({
+        type: 'success',
+        title: t('common.success'),
+        message: t('auth.codeSent'),
+      });
     } catch (error) {
-      Alert.alert(
-        t('common.error'),
-        t('auth.resendError')
-      );
+      showAlert({
+        type: 'error',
+        title: t('common.error'),
+        message: t('auth.resendError'),
+      });
     }
   };
 
@@ -275,21 +280,23 @@ const VerifyEmail = ({ route, navigation }) => {
         await Linking.openURL('mailto:');
       }
     } catch (error) {
-      Alert.alert(
-        t('common.info'),
-        t('auth.openEmailManually')
-      );
+      showAlert({
+        type: 'info',
+        title: t('common.info'),
+        message: t('auth.openEmailManually'),
+      });
     }
   };
 
   const handleGoBack = async () => {
-    Alert.alert(
-      t('auth.changeEmail'),
-      t('auth.changeEmailMessage'),
-      [
+    showAlert({
+      type: 'info',
+      title: t('auth.changeEmail'),
+      message: t('auth.changeEmailMessage'),
+      buttons: [
         {
           text: t('common.cancel'),
-          style: 'cancel'
+          style: 'cancel',
         },
         {
           text: t('common.ok'),
@@ -301,10 +308,10 @@ const VerifyEmail = ({ route, navigation }) => {
               navigation.replace('SignUp');
             }
           },
-          style: 'destructive'
-        }
-      ]
-    );
+          style: 'destructive',
+        },
+      ],
+    });
   };
 
   return (
@@ -507,6 +514,14 @@ const VerifyEmail = ({ route, navigation }) => {
           </ScrollView>
         </KeyboardAvoidingView>
       </LinearGradient>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };

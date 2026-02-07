@@ -10,7 +10,6 @@ import {
   Platform,
   ScrollView,
   StatusBar,
-  Alert,
   ActivityIndicator,
   Image,
 } from 'react-native';
@@ -19,6 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import LanguageDropdown from '../components/LanguageDropdown';
+import { useCustomAlert } from '../hooks/useCustomAlert';
+import CustomAlert from '../components/CustomAlert';
 import AnimatedBackground from '../components/AnimatedBackground';
 import { GlassContainer, GlassInput } from '../components/GlassComponents';
 import { signIn, getCurrentUser, signOut, getCompleteUserData, signInWithGoogle, checkOAuthUserExists, storePendingOAuthSignup } from '../../database/auth';
@@ -45,6 +46,7 @@ const SignIn = ({ navigation }) => {
   
   const { t, theme, isDarkMode } = useAppSettings();
   const { setUserData } = useUser();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -97,12 +99,12 @@ const SignIn = ({ navigation }) => {
 
   const handleSignIn = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert(t('common.error'), t('auth.fillAllFields'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.fillAllFields') });
       return;
     }
 
     if (!email.includes('@')) {
-      Alert.alert(t('common.error'), t('auth.validEmailRequired'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.validEmailRequired') });
       return;
     }
 
@@ -184,7 +186,7 @@ const SignIn = ({ navigation }) => {
         }
       }
       
-      Alert.alert(t('common.error'), errorMessage);
+      showAlert({ type: 'error', title: t('common.error'), message: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -250,7 +252,7 @@ const SignIn = ({ navigation }) => {
         errorMessage = t('common.networkError');
       }
       
-      Alert.alert(t('common.error'), errorMessage);
+      showAlert({ type: 'error', title: t('common.error'), message: errorMessage });
     } finally {
       setIsGoogleLoading(false);
     }
@@ -489,6 +491,14 @@ const SignIn = ({ navigation }) => {
         </ScrollView>
       </KeyboardAvoidingView>
       </LinearGradient>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };

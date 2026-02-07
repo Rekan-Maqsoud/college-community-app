@@ -9,7 +9,6 @@ import {
   TextInput,
   FlatList,
   ActivityIndicator,
-  Alert,
   ScrollView,
   Switch,
   Image,
@@ -21,6 +20,8 @@ import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
 import AnimatedBackground from '../../components/AnimatedBackground';
 import ProfilePicture from '../../components/ProfilePicture';
+import CustomAlert from '../../components/CustomAlert';
+import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { getUserById } from '../../../database/users';
 import { pickAndCompressImages } from '../../utils/imageCompression';
 import { uploadToImgbb } from '../../../services/imgbbService';
@@ -47,6 +48,7 @@ const GroupSettings = ({ navigation, route }) => {
   const { chat } = route.params || {};
   const { t, theme, isDarkMode } = useAppSettings();
   const { user: currentUser } = useUser();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   
   const [groupName, setGroupName] = useState(chat?.name || '');
   const [description, setDescription] = useState(chat?.description || '');
@@ -187,7 +189,7 @@ const GroupSettings = ({ navigation, route }) => {
     } catch (error) {
       // Revert on error
       setUserMuted(!value);
-      Alert.alert(t('common.error'), t('chats.muteError') || 'Failed to update mute settings');
+      showAlert({ type: 'error', title: t('common.error'), message: t('chats.muteError') || 'Failed to update mute settings' });
     }
   };
 
@@ -233,10 +235,10 @@ const GroupSettings = ({ navigation, route }) => {
         }
       });
       
-      Alert.alert(t('common.success'), t('chats.groupPhotoUpdated') || 'Group photo updated');
+      showAlert({ type: 'success', title: t('common.success'), message: t('chats.groupPhotoUpdated') || 'Group photo updated' });
     } catch (error) {
       const errorMessage = error?.message || t('chats.groupPhotoError') || 'Failed to update group photo';
-      Alert.alert(t('common.error'), errorMessage);
+      showAlert({ type: 'error', title: t('common.error'), message: errorMessage });
     } finally {
       setUploadingPhoto(false);
     }
@@ -272,9 +274,9 @@ const GroupSettings = ({ navigation, route }) => {
         settings: JSON.stringify(settings),
         requiresRepresentative: settings.onlyAdminsCanPost,
       });
-      Alert.alert(t('common.success'), t('chats.settingsSaved'));
+      showAlert({ type: 'success', title: t('common.success'), message: t('chats.settingsSaved') });
     } catch (error) {
-      Alert.alert(t('common.error'), t('chats.settingsSaveError'));
+      showAlert({ type: 'error', title: t('common.error'), message: t('chats.settingsSaveError') });
     } finally {
       setSaving(false);
     }
@@ -288,14 +290,15 @@ const GroupSettings = ({ navigation, route }) => {
     const memberName = member?.name || member?.fullName || t('common.user');
     
     // Show confirmation dialog
-    Alert.alert(
-      isUserAdmin 
+    showAlert({
+      type: 'warning',
+      title: isUserAdmin 
         ? (t('chats.removeAdminTitle') || 'Remove Admin') 
         : (t('chats.makeAdminTitle') || 'Make Admin'),
-      isUserAdmin
+      message: isUserAdmin
         ? (t('chats.removeAdminConfirm') || `Are you sure you want to remove ${memberName} as admin?`).replace('{name}', memberName)
         : (t('chats.makeAdminConfirm') || `Are you sure you want to make ${memberName} an admin?`).replace('{name}', memberName),
-      [
+      buttons: [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('common.confirm') || 'Confirm',
@@ -316,28 +319,30 @@ const GroupSettings = ({ navigation, route }) => {
                 } 
               });
               
-              Alert.alert(
-                t('common.success'),
-                isUserAdmin
+              showAlert({
+                type: 'success',
+                title: t('common.success'),
+                message: isUserAdmin
                   ? (t('chats.adminRemoved') || `${memberName} is no longer an admin`).replace('{name}', memberName)
-                  : (t('chats.adminAdded') || `${memberName} is now an admin`).replace('{name}', memberName)
-              );
+                  : (t('chats.adminAdded') || `${memberName} is now an admin`).replace('{name}', memberName),
+              });
             } catch (error) {
-              Alert.alert(t('common.error'), t('chats.adminUpdateError'));
+              showAlert({ type: 'error', title: t('common.error'), message: t('chats.adminUpdateError') });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleRemoveMember = async (userId) => {
     if (!isAdmin || userId === currentUser?.$id) return;
 
-    Alert.alert(
-      t('chats.removeMember'),
-      t('chats.removeMemberConfirm'),
-      [
+    showAlert({
+      type: 'warning',
+      title: t('chats.removeMember'),
+      message: t('chats.removeMemberConfirm'),
+      buttons: [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('common.remove'),
@@ -358,19 +363,20 @@ const GroupSettings = ({ navigation, route }) => {
                 }
               });
             } catch (error) {
-              Alert.alert(t('common.error'), t('chats.removeMemberError'));
+              showAlert({ type: 'error', title: t('common.error'), message: t('chats.removeMemberError') });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleLeaveGroup = () => {
-    Alert.alert(
-      t('chats.leaveGroup'),
-      t('chats.leaveGroupConfirm'),
-      [
+    showAlert({
+      type: 'warning',
+      title: t('chats.leaveGroup'),
+      message: t('chats.leaveGroupConfirm'),
+      buttons: [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('chats.leave'),
@@ -380,21 +386,22 @@ const GroupSettings = ({ navigation, route }) => {
               await leaveGroup(chat.$id, currentUser.$id);
               navigation.popToTop();
             } catch (error) {
-              Alert.alert(t('common.error'), t('chats.leaveGroupError'));
+              showAlert({ type: 'error', title: t('common.error'), message: t('chats.leaveGroupError') });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleDeleteGroup = () => {
     if (!isCreator) return;
 
-    Alert.alert(
-      t('chats.deleteGroup'),
-      t('chats.deleteGroupConfirm'),
-      [
+    showAlert({
+      type: 'error',
+      title: t('chats.deleteGroup'),
+      message: t('chats.deleteGroupConfirm'),
+      buttons: [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('common.delete'),
@@ -404,12 +411,12 @@ const GroupSettings = ({ navigation, route }) => {
               await deleteGroup(chat.$id);
               navigation.popToTop();
             } catch (error) {
-              Alert.alert(t('common.error'), t('chats.deleteGroupError'));
+              showAlert({ type: 'error', title: t('common.error'), message: t('chats.deleteGroupError') });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const renderMemberItem = ({ item }) => {
@@ -807,6 +814,14 @@ const GroupSettings = ({ navigation, route }) => {
           </ScrollView>
         </SafeAreaView>
       </LinearGradient>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };

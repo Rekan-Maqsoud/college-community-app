@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,6 +24,8 @@ import {
   moderateScale,
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { useCustomAlert } from '../hooks/useCustomAlert';
+import CustomAlert from '../components/CustomAlert';
 
 const ChangePassword = ({ navigation }) => {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -39,6 +40,7 @@ const ChangePassword = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(false);
   
   const { t, theme, isDarkMode } = useAppSettings();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   const getPasswordStrength = (pwd) => {
     if (!pwd || pwd.length < 8) return 'weak';
@@ -86,7 +88,7 @@ const ChangePassword = ({ navigation }) => {
 
   const handleChangePassword = async () => {
     if (!isFormValid()) {
-      Alert.alert(t('common.error'), t('settings.fillAllPasswordFields') || 'Please fill all fields correctly');
+      showAlert({ type: 'error', title: t('common.error'), message: t('settings.fillAllPasswordFields') || 'Please fill all fields correctly' });
       return;
     }
 
@@ -95,16 +97,17 @@ const ChangePassword = ({ navigation }) => {
     try {
       await updateUserPassword(newPassword, currentPassword);
       
-      Alert.alert(
-        t('common.success'),
-        t('settings.passwordChanged') || 'Password changed successfully!',
-        [
+      showAlert({
+        type: 'success',
+        title: t('common.success'),
+        message: t('settings.passwordChanged') || 'Password changed successfully!',
+        buttons: [
           {
             text: t('common.ok') || 'OK',
             onPress: () => navigation.goBack(),
           }
         ]
-      );
+      });
     } catch (error) {
       let errorMessage = t('settings.changePasswordError') || 'Failed to change password. Please try again.';
       
@@ -112,7 +115,7 @@ const ChangePassword = ({ navigation }) => {
         errorMessage = t('settings.currentPasswordIncorrect') || 'Current password is incorrect.';
       }
       
-      Alert.alert(t('common.error'), errorMessage);
+      showAlert({ type: 'error', title: t('common.error'), message: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -360,6 +363,14 @@ const ChangePassword = ({ navigation }) => {
           </ScrollView>
         </KeyboardAvoidingView>
       </LinearGradient>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };

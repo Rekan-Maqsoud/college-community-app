@@ -7,7 +7,6 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -104,10 +103,11 @@ const ImagePickerComponent = ({
       return;
     }
 
-    Alert.alert(
-      t('post.addImage'),
-      t('post.selectImageSource'),
-      [
+    showAlert({
+      type: 'info',
+      title: t('post.addImage'),
+      message: t('post.selectImageSource'),
+      buttons: [
         {
           text: t('post.camera'),
           onPress: handleTakePicture,
@@ -121,8 +121,7 @@ const ImagePickerComponent = ({
           style: 'cancel',
         },
       ],
-      { cancelable: true }
-    );
+    });
   };
 
   return (

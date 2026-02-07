@@ -181,4 +181,29 @@ export const chatRoomStyles = StyleSheet.create({
   searchCloseText: {
     fontWeight: '600',
   },
+  // Selection mode toolbar styles
+  selectionToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+  },
+  selectionToolbarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  selectionToolbarText: {
+    fontWeight: '500',
+  },
+  selectionToolbarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
 });

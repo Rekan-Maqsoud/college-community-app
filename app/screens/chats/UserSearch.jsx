@@ -9,7 +9,6 @@ import {
   TextInput,
   FlatList,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +17,8 @@ import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
 import AnimatedBackground from '../../components/AnimatedBackground';
 import ProfilePicture from '../../components/ProfilePicture';
+import CustomAlert from '../../components/CustomAlert';
+import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { searchUsers, getFriends } from '../../../database/users';
 import { createPrivateChat } from '../../../database/chatHelpers';
 import { 
@@ -32,6 +33,7 @@ import { borderRadius } from '../../theme/designTokens';
 const UserSearch = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user: currentUser } = useUser();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState([]);
   const [friends, setFriends] = useState([]);
@@ -115,11 +117,11 @@ const UserSearch = ({ navigation }) => {
           }
         });
       } else {
-        Alert.alert(t('common.error'), t('chats.errorCreatingChat'));
+        showAlert({ type: 'error', title: t('common.error'), message: t('chats.errorCreatingChat') });
         setStartingChat(null);
       }
     } catch (error) {
-      Alert.alert(t('common.error'), error.message || t('chats.errorCreatingChat'));
+      showAlert({ type: 'error', title: t('common.error'), message: error.message || t('chats.errorCreatingChat') });
       setStartingChat(null);
     }
   };
@@ -311,6 +313,14 @@ const UserSearch = ({ navigation }) => {
           )}
         </SafeAreaView>
       </LinearGradient>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };

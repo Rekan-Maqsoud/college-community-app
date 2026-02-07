@@ -9,7 +9,6 @@ import {
   RefreshControl,
   TouchableOpacity,
   Animated,
-  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +20,7 @@ import SearchBar from '../components/SearchBar';
 import FeedSelector from '../components/FeedSelector';
 import FilterSortModal, { SORT_OPTIONS } from '../components/FilterSortModal';
 import PostCard from '../components/PostCard';
+import CustomAlert from '../components/CustomAlert';
 import GreetingBanner from '../components/GreetingBanner';
 import { PostCardSkeleton } from '../components/SkeletonLoader';
 import {
@@ -46,7 +46,7 @@ const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 const Home = ({ navigation, route }) => {
   const { t, theme, isDarkMode, compactMode } = useAppSettings();
   const { user } = useUser();
-  const { showAlert } = useCustomAlert();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
   const [selectedFeed, setSelectedFeed] = useState(FEED_TYPES.DEPARTMENT);
   const [selectedStage, setSelectedStage] = useState('all');
@@ -500,10 +500,11 @@ const Home = ({ navigation, route }) => {
   };
 
   const handleDeletePost = async (post) => {
-    Alert.alert(
-      t('common.delete'),
-      t('post.deleteConfirm'),
-      [
+    showAlert({
+      type: 'warning',
+      title: t('common.delete'),
+      message: t('post.deleteConfirm'),
+      buttons: [
         {
           text: t('common.cancel'),
           style: 'cancel',
@@ -515,19 +516,19 @@ const Home = ({ navigation, route }) => {
             try {
               await deletePost(post.$id, post.imageDeleteUrls);
               setPosts(prevPosts => prevPosts.filter(p => p.$id !== post.$id));
-              showAlert(t('common.success'), t('post.postDeleted'), 'success');
+              showAlert({ type: 'success', title: t('common.success'), message: t('post.postDeleted') });
             } catch (error) {
               const errorInfo = handleNetworkError(error);
-              showAlert(
-                errorInfo.isNetworkError ? t('error.noInternet') : t('error.title'),
-                t(errorInfo.messageKey) || errorInfo.fallbackMessage,
-                'error'
-              );
+              showAlert({
+                type: 'error',
+                title: errorInfo.isNetworkError ? t('error.noInternet') : t('error.title'),
+                message: t(errorInfo.messageKey) || errorInfo.fallbackMessage,
+              });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleReportPost = async (post, reason = null) => {
@@ -543,17 +544,18 @@ const Home = ({ navigation, route }) => {
         { key: 'other', label: t('report.other') || 'Other' },
       ];
 
-      Alert.alert(
-        t('post.reportPost'),
-        t('report.selectReason') || 'Why are you reporting this post?',
-        [
+      showAlert({
+        type: 'info',
+        title: t('post.reportPost'),
+        message: t('report.selectReason') || 'Why are you reporting this post?',
+        buttons: [
           ...reasons.map(r => ({
             text: r.label,
             onPress: () => handleReportPost(post, r.key),
           })),
           { text: t('common.cancel'), style: 'cancel' },
-        ]
-      );
+        ],
+      });
       return;
     }
 
@@ -858,6 +860,14 @@ const Home = ({ navigation, route }) => {
           <Ionicons name="arrow-up" size={moderateScale(22)} color="#FFFFFF" />
         </TouchableOpacity>
       </Animated.View>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };

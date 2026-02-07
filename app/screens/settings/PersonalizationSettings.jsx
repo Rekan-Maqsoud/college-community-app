@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
-  Alert,
   Modal,
   TextInput,
 } from 'react-native';
@@ -14,6 +13,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../../context/AppSettingsContext';
+import CustomAlert from '../../components/CustomAlert';
+import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing } from '../../utils/responsive';
 
@@ -43,6 +44,8 @@ const PersonalizationSettings = ({ navigation }) => {
     darkModeSchedule,
     updateDarkModeSchedule,
   } = useAppSettings();
+
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [timePickerType, setTimePickerType] = useState('start'); // 'start' or 'end'
@@ -87,17 +90,18 @@ const PersonalizationSettings = ({ navigation }) => {
 
   const handleLanguageChange = (languageCode) => {
     if (languageCode === 'ar' && currentLanguage !== 'ar') {
-      Alert.alert(
-        t('settings.language'),
-        'Arabic requires app restart for full RTL support. Please restart the app.',
-        [
+      showAlert({
+        type: 'info',
+        title: t('settings.language'),
+        message: 'Arabic requires app restart for full RTL support. Please restart the app.',
+        buttons: [
           { text: t('common.cancel'), style: 'cancel' },
           {
             text: t('common.yes'),
             onPress: () => changeLanguage(languageCode),
           },
-        ]
-      );
+        ],
+      });
     } else {
       changeLanguage(languageCode);
     }
@@ -634,6 +638,14 @@ const PersonalizationSettings = ({ navigation }) => {
           </View>
         </TouchableOpacity>
       </Modal>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 };
