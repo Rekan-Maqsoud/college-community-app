@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { AppState } from 'react-native';
 import { config, safeSubscribe } from '../../database/config';
 import { isCreateEvent, isDeleteEvent } from '../utils/realtimeHelpers';
 
@@ -72,6 +73,58 @@ export const useRealtimeSubscription = (
       }
       isConnectedRef.current = false;
     };
+  }, [collectionId, documentId, enabled]);
+
+  // Handle app resume from background - safely reconnect subscription
+  useEffect(() => {
+    if (!enabled || !collectionId) return;
+
+    const appStateRef = { current: AppState.currentState };
+
+    const buildChannel = () => (documentId
+      ? `databases.${config.databaseId}.collections.${collectionId}.documents.${documentId}`
+      : `databases.${config.databaseId}.collections.${collectionId}.documents`
+    );
+
+    const subscribe = () => {
+      const channel = buildChannel();
+      unsubscribeRef.current = safeSubscribe(channel, (response) => {
+        const { events, payload } = response || {};
+        if (!events || !payload) return;
+
+        isConnectedRef.current = true;
+
+        if (isCreateEvent(events)) {
+          onUpdateRef.current?.(payload, events);
+        }
+        if (isDeleteEvent(events) && onDeleteRef.current) {
+          onDeleteRef.current?.(payload, events);
+        }
+      });
+    };
+
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState?.match(/inactive|background/)) {
+        if (unsubscribeRef.current) {
+          try {
+            unsubscribeRef.current();
+          } catch (e) {
+            // Ignore cleanup errors on stale subscription
+          }
+          unsubscribeRef.current = null;
+        }
+        isConnectedRef.current = false;
+      }
+
+      if (appStateRef.current?.match(/inactive|background/) && nextAppState === 'active') {
+        if (!unsubscribeRef.current) {
+          subscribe();
+        }
+      }
+      appStateRef.current = nextAppState;
+    });
+
+    return () => subscription.remove();
   }, [collectionId, documentId, enabled]);
 
   return { isConnected: isConnectedRef.current };

@@ -1003,6 +1003,7 @@ export default {
     tapToView: 'کلیک بکە بۆ بینین',
     // Location sharing
     tapToOpenMap: 'کلیک بکە بۆ کردنەوەی نەخشە',
+    viewLocation: 'بینینی شوێن',
     locationPermissionDenied: 'مۆڵەتی دەستگەیشتن بە شوێن ڕەتکرایەوە',
     locationError: 'دۆزینەوەی شوێن سەرکەوتوو نەبوو',
     // Batch message management
@@ -1547,6 +1548,11 @@ export default {
     newNotification: 'ئاگادارییەکی نوێ',
     newMessage: 'نامەیەکی نوێ',
     pushDisabled: 'ئاگاداری ڕاستەوخۆ ناچالاکە',
+    channels: {
+      defaultName: 'گشتی',
+      chatName: 'نامەکانی گفتوگۆ',
+      chatDescription: 'ئاگادارییەکانی نامەی گفتوگۆ',
+    },
     pushDisabledDesc: 'ئاگاداریەکان لە ڕێکخستنەکانی ئامێرەکەتدا چالاک بکە بۆ وەرگرتنی نوێکردنەوەکان',
     openSettings: 'کردنەوەی ڕێکخستنەکان',
   },

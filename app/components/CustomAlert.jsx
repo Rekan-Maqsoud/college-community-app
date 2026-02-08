@@ -176,9 +176,7 @@ const CustomAlert = ({
                       key={index}
                       onPress={() => {
                         button.onPress?.();
-                        if (button.style !== 'cancel') {
-                          onDismiss?.();
-                        }
+                        onDismiss?.();
                       }}
                       style={[
                         styles.button,
@@ -230,6 +228,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 9999,
+    elevation: 9999,
   },
   overlayTouchable: {
     flex: 1,

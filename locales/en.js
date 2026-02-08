@@ -1008,6 +1008,7 @@ export default {
     tapToView: 'Tap to view',
     // Location sharing
     tapToOpenMap: 'Tap to open map',
+    viewLocation: 'View Location',
     locationPermissionDenied: 'Location permission was denied',
     locationError: 'Failed to get location',
     // Batch message management
@@ -1552,6 +1553,11 @@ export default {
     newNotification: 'New Notification',
     newMessage: 'New Message',
     pushDisabled: 'Push notifications are disabled',
+    channels: {
+      defaultName: 'General',
+      chatName: 'Chat Messages',
+      chatDescription: 'Notifications for chat messages',
+    },
     pushDisabledDesc: 'Enable notifications in your device settings to receive updates',
     openSettings: 'Open Settings',
   },

@@ -635,23 +635,26 @@ const MessageBubble = ({
             Linking.openURL(url);
           }}
           style={styles.locationCard}>
-          <Image
-            source={{ uri: `https://maps.googleapis.com/maps/api/staticmap?center=${locationData.lat},${locationData.long}&zoom=15&size=300x150&markers=color:red%7C${locationData.lat},${locationData.long}&key=` }}
-            style={styles.locationMapPreview}
-            resizeMode="cover"
-          />
-          <View style={styles.locationOverlay}>
-            <Ionicons name="location" size={moderateScale(24)} color="#EF4444" />
-          </View>
+          <LinearGradient
+            colors={isCurrentUser ? ['#6366F1', '#8B5CF6'] : ['#3B82F6', '#06B6D4']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.locationGradient}
+          >
+            <Ionicons name="location" size={moderateScale(28)} color="#FFFFFF" />
+            <Text style={styles.locationButtonText}>
+              {t('chats.viewLocation') || '\uD83D\uDCCD View Location'}
+            </Text>
+            <Text style={styles.locationCoords}>
+              {`${locationData.lat.toFixed(4)}, ${locationData.long.toFixed(4)}`}
+            </Text>
+          </LinearGradient>
           <View style={styles.locationInfo}>
-            <Ionicons name="location-outline" size={moderateScale(14)} color={isCurrentUser ? 'rgba(255,255,255,0.8)' : theme.primary} />
+            <Ionicons name="navigate-outline" size={moderateScale(14)} color={isCurrentUser ? 'rgba(255,255,255,0.8)' : theme.primary} />
             <Text style={[styles.locationText, { color: isCurrentUser ? '#FFFFFF' : theme.text, fontSize: fontSize(12) }]}>
-              {`${locationData.lat.toFixed(6)}, ${locationData.long.toFixed(6)}`}
+              {t('chats.tapToOpenMap')}
             </Text>
           </View>
-          <Text style={[styles.locationHint, { color: isCurrentUser ? 'rgba(255,255,255,0.5)' : theme.textSecondary, fontSize: fontSize(10) }]}>
-            {t('chats.tapToOpenMap')}
-          </Text>
         </TouchableOpacity>
       )}
 
@@ -1304,17 +1307,25 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     width: moderateScale(220),
   },
-  locationMapPreview: {
+  locationGradient: {
     width: '100%',
-    height: moderateScale(100),
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
     borderRadius: borderRadius.md,
-    backgroundColor: 'rgba(0,0,0,0.1)',
   },
-  locationOverlay: {
-    position: 'absolute',
-    top: moderateScale(35),
-    left: '50%',
-    marginLeft: -moderateScale(12),
+  locationButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: fontSize(14),
+    marginTop: spacing.xs,
+  },
+  locationCoords: {
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '400',
+    fontSize: fontSize(10),
   },
   locationInfo: {
     flexDirection: 'row',

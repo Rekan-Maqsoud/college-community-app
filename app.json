@@ -33,7 +33,9 @@
       }
     },
     "android": {
-      "package": "com.college.community",
+      "package": "com.collegecommunity",
+      "googleServicesFile": "./college-community-d2d05-firebase-adminsdk-fbsvc-4884b6ed7c.json",
+      "useNextNotificationsApi": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a1a2e"

@@ -24,7 +24,7 @@ import {
   getAllUserChats,
 } from '../../database/chatHelpers';
 import { getUserById } from '../../database/users';
-import { getUnreadCount } from '../../database/chats';
+import { getUnreadCount, decryptChatPreview } from '../../database/chats';
 import { chatsCacheManager } from '../utils/cacheManager';
 import { 
   wp, 
@@ -68,18 +68,23 @@ const Chats = ({ navigation }) => {
     if (user?.$id) {
       await chatsCacheManager.invalidateChatsCache(user.$id);
     }
+
+    const resolvedPayload = user?.$id
+      ? await decryptChatPreview(payload, user.$id)
+      : payload;
     
     // Update the chat in the appropriate list
     const updateChatInList = (list, setList) => {
-      const index = list.findIndex(c => c.$id === payload.$id);
+      const index = list.findIndex(c => c.$id === resolvedPayload.$id);
       if (index >= 0) {
         setList(prev => {
           const updated = [...prev];
-          updated[index] = { ...updated[index], ...payload };
-          // Re-sort by lastMessageAt
-          return updated.sort((a, b) => 
-            new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0)
-          );
+          updated[index] = { ...updated[index], ...resolvedPayload };
+          return updated.sort((a, b) => {
+            const dateA = new Date(a.lastMessageAt || a.$createdAt || 0);
+            const dateB = new Date(b.lastMessageAt || b.$createdAt || 0);
+            return dateB - dateA;
+          });
         });
         return true;
       }
@@ -87,45 +92,51 @@ const Chats = ({ navigation }) => {
     };
 
     const addChatToList = async () => {
-      if (!payload?.$id) return false;
+      if (!resolvedPayload?.$id) return false;
 
-      if (payload.type === 'private') {
-        let chatToAdd = payload;
-        const otherUserId = payload.participants?.find(id => id !== user?.$id);
+      if (resolvedPayload.type === 'private') {
+        let chatToAdd = resolvedPayload;
+        const otherUserId = resolvedPayload.participants?.find(id => id !== user?.$id);
         if (otherUserId) {
           try {
             const otherUser = await getUserById(otherUserId);
-            chatToAdd = { ...payload, otherUser };
+            chatToAdd = { ...resolvedPayload, otherUser };
           } catch (error) {
-            chatToAdd = payload;
+            chatToAdd = resolvedPayload;
           }
         }
 
         setPrivateChats(prev => {
-          if (prev.some(c => c.$id === payload.$id)) return prev;
-          return [...prev, chatToAdd].sort((a, b) => 
-            new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0)
-          );
+          if (prev.some(c => c.$id === resolvedPayload.$id)) return prev;
+          return [...prev, chatToAdd].sort((a, b) => {
+            const dateA = new Date(a.lastMessageAt || a.$createdAt || 0);
+            const dateB = new Date(b.lastMessageAt || b.$createdAt || 0);
+            return dateB - dateA;
+          });
         });
         return true;
       }
 
-      if (payload.type === 'custom_group') {
+      if (resolvedPayload.type === 'custom_group') {
         setCustomGroups(prev => {
-          if (prev.some(c => c.$id === payload.$id)) return prev;
-          return [...prev, payload].sort((a, b) => 
-            new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0)
-          );
+          if (prev.some(c => c.$id === resolvedPayload.$id)) return prev;
+          return [...prev, resolvedPayload].sort((a, b) => {
+            const dateA = new Date(a.lastMessageAt || a.$createdAt || 0);
+            const dateB = new Date(b.lastMessageAt || b.$createdAt || 0);
+            return dateB - dateA;
+          });
         });
         return true;
       }
 
-      if (payload.type === 'stage_group' || payload.type === 'department_group') {
+      if (resolvedPayload.type === 'stage_group' || resolvedPayload.type === 'department_group') {
         setDefaultGroups(prev => {
-          if (prev.some(c => c.$id === payload.$id)) return prev;
-          return [...prev, payload].sort((a, b) => 
-            new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0)
-          );
+          if (prev.some(c => c.$id === resolvedPayload.$id)) return prev;
+          return [...prev, resolvedPayload].sort((a, b) => {
+            const dateA = new Date(a.lastMessageAt || a.$createdAt || 0);
+            const dateB = new Date(b.lastMessageAt || b.$createdAt || 0);
+            return dateB - dateA;
+          });
         });
         return true;
       }
@@ -147,8 +158,8 @@ const Chats = ({ navigation }) => {
 
     // Refresh unread count for this chat
     if (user?.$id) {
-      const count = await getUnreadCount(payload.$id, user.$id);
-      setUnreadCounts(prev => ({ ...prev, [payload.$id]: count }));
+      const count = await getUnreadCount(resolvedPayload.$id, user.$id);
+      setUnreadCounts(prev => ({ ...prev, [resolvedPayload.$id]: count }));
     }
   }, [defaultGroups, customGroups, privateChats, user?.$id]);
 
@@ -172,7 +183,7 @@ const Chats = ({ navigation }) => {
       await initializeUserGroups(user.department, stageValue, user.$id);
       
       setInitializing(false);
-      await loadChats();
+      await loadChats(false);
     } catch (error) {
       setInitializing(false);
       setLoading(false);
@@ -192,7 +203,7 @@ const Chats = ({ navigation }) => {
     setUnreadCounts(counts);
   };
 
-  const loadChats = async () => {
+  const loadChats = async (useCache = true) => {
     if (!user?.department) {
       setLoading(false);
       return;
@@ -202,7 +213,7 @@ const Chats = ({ navigation }) => {
       setLoading(true);
       const stageValue = stageToValue(user.stage);
       
-      const chats = await getAllUserChats(user.$id, user.department, stageValue);
+      const chats = await getAllUserChats(user.$id, user.department, stageValue, useCache);
       
       setDefaultGroups(chats.defaultGroups || []);
       setCustomGroups(chats.customGroups || []);
@@ -226,7 +237,7 @@ const Chats = ({ navigation }) => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadChats();
+    await loadChats(false);
     setRefreshing(false);
   };
 
@@ -234,7 +245,7 @@ const Chats = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       if (user?.department && !initializing) {
-        loadChats();
+        loadChats(false);
       }
     }, [user?.department, initializing])
   );

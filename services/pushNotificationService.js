@@ -230,9 +230,9 @@ const setupAndroidNotificationChannels = async () => {
   // Default channel for general notifications
   await Notifications.setNotificationChannelAsync('default', {
     name: 'Default',
-    importance: Notifications.AndroidImportance.HIGH,
+    importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#007AFF',
+    lightColor: '#FF231F7C',
     sound: 'default',
   });
 
@@ -240,7 +240,7 @@ const setupAndroidNotificationChannels = async () => {
   await Notifications.setNotificationChannelAsync('chat', {
     name: 'Chat Messages',
     description: 'Notifications for new chat messages',
-    importance: Notifications.AndroidImportance.HIGH,
+    importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#007AFF',
     sound: 'default',
@@ -602,7 +602,7 @@ export const sendChatPushNotification = async ({
       },
       channelId: 'chat',
     }));
-    
+
     // Use Expo Push API to send notifications
     const expoPushUrl = 'https://exp.host/--/api/v2/push/send';
     
@@ -631,7 +631,6 @@ export const sendChatPushNotification = async ({
     
     return result;
   } catch (error) {
-    // Silent fail - push notification is not critical
     return null;
   }
 };

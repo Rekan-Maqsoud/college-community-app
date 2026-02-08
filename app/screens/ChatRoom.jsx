@@ -501,7 +501,10 @@ const ChatRoom = ({ route, navigation }) => {
         ListEmptyComponent={renderEmpty}
         onContentSizeChange={() => {
           if (!searchActive) {
-            flatListRef.current?.scrollToEnd({ animated: true });
+            // Use a small delay to ensure content is fully laid out before scrolling
+            setTimeout(() => {
+              flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
           }
         }}
         onLayout={() => {
@@ -646,6 +649,7 @@ const ChatRoom = ({ route, navigation }) => {
         }}
         onBlockUser={handleBlockUser}
         onClearChat={handleClearChat}
+        showAlert={showAlert}
         theme={theme}
         isDarkMode={isDarkMode}
         t={t}

@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, ActivityIndicator, View, Animated, Image, StyleSheet, AppState, Modal, TouchableOpacity, Text } from 'react-native';
+import * as ExpoNotifications from 'expo-notifications';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
@@ -12,6 +13,8 @@ import { AppSettingsProvider, useAppSettings } from './context/AppSettingsContex
 import { UserProvider, useUser } from './context/UserContext';
 import { LanguageProvider } from './context/LanguageContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import CustomAlert from './components/CustomAlert';
+import { GlobalAlertProvider, useGlobalAlert } from './context/GlobalAlertContext';
 import { wp, normalize, spacing } from './utils/responsive';
 import { borderRadius, shadows } from './theme/designTokens';
 import { getCurrentUser, getUserDocument, signOut } from '../database/auth';
@@ -608,9 +611,34 @@ const UpdatePrompt = () => {
 // Component to handle notification setup and listeners
 const NotificationSetup = ({ navigationRef }) => {
   const { user } = useUser();
-  const { notificationsEnabled } = useAppSettings();
+  const { notificationsEnabled, t } = useAppSettings();
   const notificationListenerRef = useRef();
   const responseListenerRef = useRef();
+
+  // Create Android notification channel at app startup (independent of permission)
+  useEffect(() => {
+    const setupNotificationChannel = async () => {
+      if (Platform.OS === 'android') {
+        await ExpoNotifications.setNotificationChannelAsync('default', {
+          name: t('notifications.channels.defaultName'),
+          importance: ExpoNotifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+          sound: 'default',
+        });
+
+        await ExpoNotifications.setNotificationChannelAsync('chat', {
+          name: t('notifications.channels.chatName'),
+          description: t('notifications.channels.chatDescription'),
+          importance: ExpoNotifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+          sound: 'default',
+        });
+      }
+    };
+    setupNotificationChannel();
+  }, []);
 
   useEffect(() => {
     const setupNotifications = async () => {
@@ -735,6 +763,26 @@ const DeepLinkHandler = ({ navigationRef }) => {
   return null;
 };
 
+// Global CustomAlert rendered as a sibling to NavigationContainer
+// This ensures the alert survives screen unmounts (e.g., Settings closing)
+const GlobalCustomAlert = () => {
+  const globalAlert = useGlobalAlert();
+  if (!globalAlert) return null;
+
+  const { alertConfig, hideAlert } = globalAlert;
+
+  return (
+    <CustomAlert
+      visible={alertConfig.visible}
+      type={alertConfig.type}
+      title={alertConfig.title}
+      message={alertConfig.message}
+      buttons={alertConfig.buttons}
+      onDismiss={hideAlert}
+    />
+  );
+};
+
 export default function App() {
   const navigationRef = useNavigationContainerRef();
   
@@ -746,12 +794,15 @@ export default function App() {
             <LanguageProvider>
               <AppSettingsProvider>
                 <UserProvider>
-                  <NavigationContainer ref={navigationRef}>
-                    <NotificationSetup navigationRef={navigationRef} />
-                    <DeepLinkHandler navigationRef={navigationRef} />
-                    <UpdatePrompt />
-                    <MainStack />
-                  </NavigationContainer>
+                  <GlobalAlertProvider>
+                    <NavigationContainer ref={navigationRef}>
+                      <NotificationSetup navigationRef={navigationRef} />
+                      <DeepLinkHandler navigationRef={navigationRef} />
+                      <UpdatePrompt />
+                      <MainStack />
+                    </NavigationContainer>
+                    <GlobalCustomAlert />
+                  </GlobalAlertProvider>
                 </UserProvider>
               </AppSettingsProvider>
             </LanguageProvider>

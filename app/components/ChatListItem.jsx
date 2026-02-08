@@ -93,21 +93,26 @@ const ChatListItem = ({ chat, onPress, currentUserId, unreadCount = 0 }) => {
     if (!lastMsg) {
       return chatSubtitle ? chatSubtitle : t('chats.noMessages');
     }
+
+    let preview = lastMsg;
+
     // Smart previews for special message types
     if (lastMsg === '\uD83D\uDCF7 Image' || lastMsg.startsWith('\uD83D\uDCF7')) {
-      return t('chats.sentImage');
+      preview = t('chats.sentImage');
+    } else if (lastMsg === '\uD83D\uDCCD Location' || lastMsg.startsWith('\uD83D\uDCCD')) {
+      preview = t('chats.sharedLocation');
+    } else if (lastMsg === '\uD83D\uDCDD Shared Post' || lastMsg.startsWith('\uD83D\uDCDD')) {
+      preview = t('chats.sharedAPost');
+    } else if (lastMsg.startsWith('{') && lastMsg.includes('postId')) {
+      preview = t('chats.sharedAPost');
     }
-    if (lastMsg === '\uD83D\uDCCD Location' || lastMsg.startsWith('\uD83D\uDCCD')) {
-      return t('chats.sharedLocation');
+
+    // Prepend "You: " if the current user sent the last message
+    if (chat.lastMessageSenderId && chat.lastMessageSenderId === currentUserId) {
+      return `${t('chats.you')}: ${preview}`;
     }
-    if (lastMsg === '\uD83D\uDCDD Shared Post' || lastMsg.startsWith('\uD83D\uDCDD')) {
-      return t('chats.sharedAPost');
-    }
-    // If it looks like raw JSON for a shared post, show friendly text
-    if (lastMsg.startsWith('{') && lastMsg.includes('postId')) {
-      return t('chats.sharedAPost');
-    }
-    return lastMsg;
+
+    return preview;
   };
 
   const isPrivateChat = chat.type === CHAT_TYPES.PRIVATE;

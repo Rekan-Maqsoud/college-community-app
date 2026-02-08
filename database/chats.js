@@ -1,4 +1,4 @@
-import { databases, storage, config } from './config';
+import { databases, config } from './config';
 import { ID, Query } from 'appwrite';
 import * as SecureStore from 'expo-secure-store';
 import * as Random from 'expo-random';
@@ -7,6 +7,8 @@ import { encodeBase64, decodeBase64, encodeUTF8, decodeUTF8 } from 'tweetnacl-ut
 import { messagesCacheManager } from '../app/utils/cacheManager';
 import { sendChatPushNotification } from '../services/pushNotificationService';
 import { getUserById, updateUserPublicKey } from './users';
+import { uploadImage } from '../services/imgbbService';
+import PT from '../app/utils/pushTraceLogger';
 
 export const CHAT_TYPES = {
     STAGE_GROUP: 'stage_group',
@@ -14,47 +16,29 @@ export const CHAT_TYPES = {
 };
 
 /**
- * Upload an image to Appwrite Storage for chat messages
+ * Upload an image to ImgBB for chat messages
  * @param {Object} file - File object with uri, name, type
- * @returns {Promise<Object>} Upload result with $id and viewUrl
+ * @returns {Promise<Object>} Upload result with viewUrl and deleteUrl
  */
 export const uploadChatImage = async (file) => {
     try {
         if (!file || !file.uri) {
             throw new Error('Invalid file object');
         }
+        const result = await uploadImage(file.uri);
 
-        const fileData = {
-            uri: file.uri,
-            name: file.name || `chat_image_${Date.now()}.jpg`,
-            type: file.type || 'image/jpeg',
-        };
-
-        const uploadedFile = await storage.createFile(
-            config.bucketId,
-            ID.unique(),
-            fileData
-        );
-
-        const viewUrl = getChatImageUrl(uploadedFile.$id);
+        if (!result?.success || !result.url) {
+            throw new Error(result?.error || 'Upload failed');
+        }
 
         return {
-            fileId: uploadedFile.$id,
-            viewUrl,
+            fileId: null,
+            viewUrl: result.url,
+            deleteUrl: result.deleteUrl || null,
         };
     } catch (error) {
         throw error;
     }
-};
-
-/**
- * Get the view URL for a chat image stored in Appwrite Storage
- * @param {string} fileId - The Appwrite Storage file ID
- * @returns {string} The file view URL
- */
-export const getChatImageUrl = (fileId) => {
-    if (!fileId) return '';
-    return `${config.endpoint}/storage/buckets/${config.bucketId}/files/${fileId}/view?project=${config.projectId}`;
 };
 
 const E2EE_PREFIX = 'enc:v1:';
@@ -651,8 +635,8 @@ export const getUserGroupChats = async (department, stage, userId = null) => {
         }
         
         const sorted = allChats.sort((a, b) => {
-            const dateA = new Date(a.lastMessageAt || a.createdAt);
-            const dateB = new Date(b.lastMessageAt || b.createdAt);
+            const dateA = new Date(a.lastMessageAt || a.$createdAt || 0);
+            const dateB = new Date(b.lastMessageAt || b.$createdAt || 0);
             return dateB - dateA;
         });
         
@@ -677,7 +661,7 @@ export const getChats = async (userId) => {
             config.chatsCollectionId,
             [
                 Query.equal('participants', userId),
-                Query.orderDesc('$updatedAt')
+                Query.orderDesc('lastMessageAt')
             ]
         );
         return await decryptChatPreviews(chats.documents, userId);
@@ -858,12 +842,28 @@ export const sendMessage = async (chatId, messageData) => {
             documentData.replyToSender = messageData.replyToSender || '';
         }
         
+        PT.origin('sendMessage', 'Creating message document in Appwrite', {
+            chatId,
+            senderId: messageData?.senderId || 'MISSING',
+            senderName: messageData?.senderName || 'MISSING',
+            hasContent: !!documentData?.content,
+            hasImage: !!documentData?.imageUrl,
+            type: documentData?.type || 'text',
+            collectionId: config.messagesCollectionId || 'MISSING',
+        });
+
         const message = await databases.createDocument(
             config.databaseId,
             config.messagesCollectionId,
             ID.unique(),
             documentData
         );
+
+        PT.origin('sendMessage', 'Message document created successfully', {
+            messageId: message?.$id || 'MISSING',
+            chatId,
+            createdAt: message?.$createdAt || 'unknown',
+        });
         
         const currentCount = chat.messageCount || 0;
         
@@ -881,6 +881,8 @@ export const sendMessage = async (chatId, messageData) => {
         const notificationPreview = typeof messageData.notificationPreview === 'string'
             ? messageData.notificationPreview
             : '';
+
+        const lastMessageAtTimestamp = new Date().toISOString();
         
         await databases.updateDocument(
             config.databaseId,
@@ -888,7 +890,8 @@ export const sendMessage = async (chatId, messageData) => {
             chatId,
             {
                 lastMessage: lastMessagePreview,
-                lastMessageAt: new Date().toISOString(),
+                lastMessageAt: lastMessageAtTimestamp,
+                lastMessageSenderId: messageData.senderId,
                 messageCount: currentCount + 1,
             }
         );
@@ -898,6 +901,16 @@ export const sendMessage = async (chatId, messageData) => {
         
         // Send push notifications to other participants
         try {
+            PT.origin('sendMessage', 'Dispatching push notification to sendChatPushNotification()', {
+                chatId,
+                messageId: message?.$id || 'MISSING',
+                senderId: messageData?.senderId || 'MISSING',
+                senderName: messageData?.senderName || 'MISSING',
+                chatName: chat?.name || 'MISSING',
+                chatType: chat?.type || 'MISSING',
+                participantCount: (chat?.participants || []).length,
+                contentPreviewLength: (notificationPreview || '').length,
+            });
             await sendChatPushNotification({
                 chatId,
                 messageId: message.$id,
@@ -907,8 +920,12 @@ export const sendMessage = async (chatId, messageData) => {
                 chatName: chat.name,
                 chatType: chat.type,
             });
+            PT.origin('sendMessage', 'sendChatPushNotification() completed without error');
         } catch (pushError) {
-            // Push notification failed but message was sent successfully
+            PT.originError('sendMessage', 'sendChatPushNotification() THREW', pushError, {
+                chatId,
+                messageId: message?.$id,
+            });
         }
         
         return decryptMessageFields(message, chatKey);

@@ -1003,6 +1003,7 @@ export default {
     tapToView: 'انقر للعرض',
     // Location sharing
     tapToOpenMap: 'انقر لفتح الخريطة',
+    viewLocation: 'عرض الموقع',
     locationPermissionDenied: 'تم رفض إذن الموقع',
     locationError: 'فشل الحصول على الموقع',
     // Batch message management
@@ -1547,6 +1548,11 @@ export default {
     newNotification: 'إشعار جديد',
     newMessage: 'رسالة جديدة',
     pushDisabled: 'الإشعارات الفورية معطلة',
+    channels: {
+      defaultName: 'عام',
+      chatName: 'رسائل الدردشة',
+      chatDescription: 'إشعارات رسائل الدردشة',
+    },
     pushDisabledDesc: 'فعّل الإشعارات في إعدادات جهازك لتلقي التحديثات',
     openSettings: 'فتح الإعدادات',
   },

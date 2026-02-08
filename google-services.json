@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "657066247433",
+    "project_id": "college-community-d2d05",
+    "storage_bucket": "college-community-d2d05.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:657066247433:android:ed8f0cbeedbc88b4507fd8",
+        "android_client_info": {
+          "package_name": "com.college.community"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCgjbdpEYt_2h_qsxIuI67XxZ2U70Y9bi4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
