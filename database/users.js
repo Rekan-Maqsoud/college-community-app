@@ -1,7 +1,6 @@
 import { databases, config } from './config';
 import { ID, Query } from 'appwrite';
 import { userCacheManager } from '../app/utils/cacheManager';
-import PT from '../app/utils/pushTraceLogger';
 
 const sanitizeSearchQuery = (query) => {
     if (typeof query !== 'string') return '';
@@ -497,17 +496,8 @@ export const isUserBlocked = async (userId, targetUserId) => {
 export const updateUserPushToken = async (userId, token, platform = 'unknown') => {
     try {
         if (!userId || !token) {
-            PT.bootWarn('updateUserPushToken', 'Called with missing params', { userId: userId || 'MISSING', token: token ? `${token.substring(0, 20)}...` : 'MISSING' });
             return null;
         }
-
-        PT.boot('updateUserPushToken', 'Storing push token in Appwrite', {
-            userId,
-            tokenPreview: `${token.substring(0, 30)}...${token.substring(token.length - 10)}`,
-            tokenLength: token.length,
-            platform,
-            collectionId: config.pushTokensCollectionId || 'MISSING',
-        });
 
         // Check if user already has a token document
         const existing = await databases.listDocuments(
@@ -517,14 +507,8 @@ export const updateUserPushToken = async (userId, token, platform = 'unknown') =
         );
 
         if (existing.documents.length > 0) {
-            // Update existing token
             const doc = existing.documents[0];
             if (doc.token !== token) {
-                PT.boot('updateUserPushToken', 'Token changed - updating existing document', {
-                    docId: doc.$id,
-                    oldTokenPreview: `${(doc.token || '').substring(0, 20)}...`,
-                    newTokenPreview: `${token.substring(0, 20)}...`,
-                });
                 return await databases.updateDocument(
                     config.databaseId,
                     config.pushTokensCollectionId,
@@ -532,11 +516,8 @@ export const updateUserPushToken = async (userId, token, platform = 'unknown') =
                     { token, platform }
                 );
             }
-            PT.boot('updateUserPushToken', 'Token unchanged - no update needed', { docId: doc.$id });
             return doc;
         } else {
-            PT.boot('updateUserPushToken', 'No existing token doc - creating new one', { userId, platform });
-            // Create new token document
             return await databases.createDocument(
                 config.databaseId,
                 config.pushTokensCollectionId,
@@ -545,7 +526,6 @@ export const updateUserPushToken = async (userId, token, platform = 'unknown') =
             );
         }
     } catch (error) {
-        PT.bootError('updateUserPushToken', 'FAILED to store push token', error, { userId });
         throw error;
     }
 };

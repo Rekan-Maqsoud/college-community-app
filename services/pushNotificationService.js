@@ -96,7 +96,7 @@ const shouldShowNotification = async (notificationType) => {
 // Configure how notifications should be displayed when app is in foreground
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
-    const data = notification.request.content.data || {};
+    const data = notification?.request?.content?.data || {};
     const notificationType = data.type || 'default';
     
     // Check if we should show this notification based on user settings
@@ -176,23 +176,17 @@ export const registerForPushNotifications = async () => {
       return null;
     }
 
-    // Check/request permissions
     const hasPermission = await requestNotificationPermissions();
     if (!hasPermission) {
       return null;
     }
 
-    // Get the Expo push token
     const projectId = getExpoProjectId();
-    
     if (!projectId) {
       return null;
     }
 
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId,
-    });
-
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
     const token = tokenData.data;
 
     // Store token locally
@@ -460,7 +454,6 @@ export const sendGeneralPushNotification = async ({
       return null;
     }
 
-    // Get push token for recipient
     const pushTokens = await databases.listDocuments(
       config.databaseId,
       config.pushTokensCollectionId,
@@ -495,7 +488,6 @@ export const sendGeneralPushNotification = async ({
       channelId: type === 'follow' ? 'social' : 'posts',
     };
 
-    // Use Expo Push API to send notification
     const expoPushUrl = 'https://exp.host/--/api/v2/push/send';
 
     const response = await fetch(expoPushUrl, {
@@ -509,9 +501,10 @@ export const sendGeneralPushNotification = async ({
     });
 
     const result = await response.json();
+
+    // Check for InvalidCredentials - means FCM key not uploaded to Expo
     return result;
   } catch (error) {
-    // Silent fail - push notification is not critical
     return null;
   }
 };
@@ -551,16 +544,14 @@ export const sendChatPushNotification = async ({
     
     const participants = chat.participants || [];
     const recipientIds = participants.filter(id => id !== senderId);
-    
+
     if (recipientIds.length === 0) {
       return;
     }
     
-    // Get push tokens for recipients - fetch tokens one by one for reliability
-    // Appwrite Query.equal with array may not work consistently across versions
+    // Get push tokens for recipients
     let allTokenDocs = [];
     
-    // Batch fetch tokens (max 25 at a time to stay within limits)
     const batchSize = 25;
     for (let i = 0; i < recipientIds.length; i += batchSize) {
       const batch = recipientIds.slice(i, i + batchSize);
@@ -576,14 +567,14 @@ export const sendChatPushNotification = async ({
         allTokenDocs.push(...pushTokens.documents);
       }
     }
-    
+
     if (allTokenDocs.length === 0) {
       return;
     }
     
     // Prepare notification content
     const title = chatType === 'private' ? senderName : `${senderName} in ${chatName}`;
-    const body = content || '📷 Image';
+    const body = content || '\uD83D\uDCF7 Image';
     
     // Send notifications using Expo Push API
     const messages = allTokenDocs.map(tokenDoc => ({
@@ -603,7 +594,6 @@ export const sendChatPushNotification = async ({
       channelId: 'chat',
     }));
 
-    // Use Expo Push API to send notifications
     const expoPushUrl = 'https://exp.host/--/api/v2/push/send';
     
     const response = await fetch(expoPushUrl, {
@@ -617,7 +607,8 @@ export const sendChatPushNotification = async ({
     });
     
     const result = await response.json();
-    
+
+    // Check for InvalidCredentials - means FCM key not uploaded to Expo
     // Mark message as delivered for recipients who received notification
     if (result.data) {
       const { markMessageAsDelivered } = require('../database/chats');
@@ -630,6 +621,84 @@ export const sendChatPushNotification = async ({
     }
     
     return result;
+  } catch (error) {
+    return null;
+  }
+};
+
+/**
+ * Register the device as an Appwrite Messaging Target using the native FCM token.
+ * This is required for Appwrite to send push notifications via its Messaging service.
+ * Must be called AFTER the user is authenticated (account session exists).
+ * Handles token rotation: if a target already exists, updates its token.
+ * @returns {Promise<Object|null>} The created/updated target document or null
+ */
+export const registerAppwriteTarget = async () => {
+  const APPWRITE_TARGET_ID_KEY = 'appwriteTargetId';
+  try {
+    if (!Device.isDevice) {
+      return null;
+    }
+
+    // Get the NATIVE FCM token (NOT the Expo push token)
+    const nativeTokenData = await Notifications.getDevicePushTokenAsync();
+    const nativeFcmToken = nativeTokenData?.data;
+
+    if (!nativeFcmToken) {
+      return null;
+    }
+
+    const { account } = require('../database/config');
+    const { ID } = require('appwrite');
+
+    const providerId = '69875a4c000d98d87272';
+
+    // Check if we have a previously stored target ID
+    const storedTargetId = await AsyncStorage.getItem(APPWRITE_TARGET_ID_KEY);
+
+    if (storedTargetId) {
+      // Try to update existing target with current token
+      try {
+        const updated = await account.updatePushTarget(storedTargetId, nativeFcmToken);
+        return updated;
+      } catch (updateErr) {
+        await AsyncStorage.removeItem(APPWRITE_TARGET_ID_KEY);
+      }
+    }
+
+    // Create a new target
+    const targetId = ID.unique();
+    try {
+      const target = await account.createPushTarget(targetId, nativeFcmToken, providerId);
+      await AsyncStorage.setItem(APPWRITE_TARGET_ID_KEY, target?.$id || targetId);
+      return target;
+    } catch (createErr) {
+      const errorCode = createErr?.code || createErr?.type || '';
+      const errorMessage = createErr?.message || '';
+
+      if (
+        errorCode === 409 ||
+        errorMessage.includes('already') ||
+        errorMessage.includes('duplicate') ||
+        errorMessage.includes('Target')
+      ) {
+        // Target exists but we don't have the ID stored — list targets to find it
+        try {
+          const me = await account.get();
+          const targets = me?.targets || [];
+          const pushTarget = targets.find(t => t.providerType === 'push');
+
+          if (pushTarget) {
+            await AsyncStorage.setItem(APPWRITE_TARGET_ID_KEY, pushTarget.$id);
+            const updated = await account.updatePushTarget(pushTarget.$id, nativeFcmToken);
+            return updated;
+          }
+        } catch (listErr) {
+        }
+        return null;
+      }
+      return null;
+    }
   } catch (error) {
     return null;
   }
@@ -653,4 +722,5 @@ export default {
   sendChatPushNotification,
   sendGeneralPushNotification,
   shouldShowNotification,
+  registerAppwriteTarget,
 };

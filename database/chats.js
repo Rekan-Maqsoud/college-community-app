@@ -8,7 +8,6 @@ import { messagesCacheManager } from '../app/utils/cacheManager';
 import { sendChatPushNotification } from '../services/pushNotificationService';
 import { getUserById, updateUserPublicKey } from './users';
 import { uploadImage } from '../services/imgbbService';
-import PT from '../app/utils/pushTraceLogger';
 
 export const CHAT_TYPES = {
     STAGE_GROUP: 'stage_group',
@@ -842,16 +841,6 @@ export const sendMessage = async (chatId, messageData) => {
             documentData.replyToSender = messageData.replyToSender || '';
         }
         
-        PT.origin('sendMessage', 'Creating message document in Appwrite', {
-            chatId,
-            senderId: messageData?.senderId || 'MISSING',
-            senderName: messageData?.senderName || 'MISSING',
-            hasContent: !!documentData?.content,
-            hasImage: !!documentData?.imageUrl,
-            type: documentData?.type || 'text',
-            collectionId: config.messagesCollectionId || 'MISSING',
-        });
-
         const message = await databases.createDocument(
             config.databaseId,
             config.messagesCollectionId,
@@ -859,12 +848,6 @@ export const sendMessage = async (chatId, messageData) => {
             documentData
         );
 
-        PT.origin('sendMessage', 'Message document created successfully', {
-            messageId: message?.$id || 'MISSING',
-            chatId,
-            createdAt: message?.$createdAt || 'unknown',
-        });
-        
         const currentCount = chat.messageCount || 0;
         
         // Build smart lastMessage preview based on message type
@@ -901,16 +884,6 @@ export const sendMessage = async (chatId, messageData) => {
         
         // Send push notifications to other participants
         try {
-            PT.origin('sendMessage', 'Dispatching push notification to sendChatPushNotification()', {
-                chatId,
-                messageId: message?.$id || 'MISSING',
-                senderId: messageData?.senderId || 'MISSING',
-                senderName: messageData?.senderName || 'MISSING',
-                chatName: chat?.name || 'MISSING',
-                chatType: chat?.type || 'MISSING',
-                participantCount: (chat?.participants || []).length,
-                contentPreviewLength: (notificationPreview || '').length,
-            });
             await sendChatPushNotification({
                 chatId,
                 messageId: message.$id,
@@ -920,12 +893,7 @@ export const sendMessage = async (chatId, messageData) => {
                 chatName: chat.name,
                 chatType: chat.type,
             });
-            PT.origin('sendMessage', 'sendChatPushNotification() completed without error');
-        } catch (pushError) {
-            PT.originError('sendMessage', 'sendChatPushNotification() THREW', pushError, {
-                chatId,
-                messageId: message?.$id,
-            });
+        } catch {
         }
         
         return decryptMessageFields(message, chatKey);

@@ -1,28 +1,9 @@
 import { Client, Account, Databases, Storage } from 'appwrite';
 
-// Suppress Appwrite SDK realtime connection errors from console
-const originalConsoleError = console.error;
-console.error = (...args) => {
-    const message = args[0];
-    // Filter out Appwrite realtime reconnection messages
-    if (typeof message === 'string' && message.includes('Realtime got disconnected')) {
-        return;
-    }
-    // Filter out WebSocket error objects from Appwrite
-    if (typeof message === 'object' && message?.code === 1008) {
-        return;
-    }
-    originalConsoleError.apply(console, args);
-};
-
 const client = new Client();
 
 const endpoint = process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT;
 const projectId = process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID;
-
-if (!endpoint || !projectId) {
-    originalConsoleError('Missing Appwrite endpoint or project ID in environment variables');
-}
 
 client
     .setEndpoint(endpoint)

@@ -23,6 +23,7 @@ import { getTotalUnreadCount } from '../database/chats';
 import { updateUserPushToken } from '../database/users';
 import {
   registerForPushNotifications,
+  registerAppwriteTarget,
   addNotificationReceivedListener,
   addNotificationResponseListener,
   checkInitialNotification,
@@ -642,18 +643,18 @@ const NotificationSetup = ({ navigationRef }) => {
 
   useEffect(() => {
     const setupNotifications = async () => {
-      if (!user?.$id || !notificationsEnabled) return;
+      if (!user?.$id || !notificationsEnabled) {
+        return;
+      }
 
       try {
-        // Register for push notifications
         const token = await registerForPushNotifications();
-        
+
         if (token) {
-          // Save the token to the pushTokens collection
           await updateUserPushToken(user.$id, token, Platform.OS);
+          await registerAppwriteTarget();
         }
       } catch (error) {
-        // Silent fail for notification setup
       }
     };
 
@@ -662,14 +663,12 @@ const NotificationSetup = ({ navigationRef }) => {
 
   useEffect(() => {
     // Listen for notifications received while app is foregrounded
-    notificationListenerRef.current = addNotificationReceivedListener(notification => {
-      // Notification received while app is in foreground
-      // The notification will be displayed automatically based on our handler config
+    notificationListenerRef.current = addNotificationReceivedListener(() => {
     });
 
     // Listen for user tapping on notifications
     responseListenerRef.current = addNotificationResponseListener(response => {
-      const data = response.notification.request.content.data;
+      const data = response?.notification?.request?.content?.data || {};
       
       // Navigate based on notification type
       if (navigationRef.current) {
@@ -680,7 +679,6 @@ const NotificationSetup = ({ navigationRef }) => {
         } else if (data.userId && data.type === 'follow') {
           navigationRef.current.navigate('UserProfile', { userId: data.userId });
         } else if (data.type) {
-          // General notification - go to notifications screen
           navigationRef.current.navigate('Notifications');
         }
       }
@@ -690,7 +688,6 @@ const NotificationSetup = ({ navigationRef }) => {
     const checkInitialNotificationHandler = async () => {
       const data = await checkInitialNotification();
       if (data && navigationRef.current) {
-        // Small delay to ensure navigation is ready
         setTimeout(() => {
           if (data.postId) {
             navigationRef.current.navigate('PostDetails', { postId: data.postId });
