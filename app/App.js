@@ -58,6 +58,34 @@ import ManageRepresentatives from './screens/ManageRepresentatives';
 import Notifications from './screens/Notifications';
 import { NewChat, UserSearch, CreateGroup, GroupSettings, ForwardMessage, AddMembers } from './screens/chats';
 
+const shouldIgnoreAppwriteServerError = (args) => {
+  if (!Array.isArray(args)) {
+    return false;
+  }
+
+  return args.some((arg) => {
+    if (!arg || typeof arg !== 'object') {
+      return false;
+    }
+
+    const message = typeof arg.message === 'string' ? arg.message.toLowerCase() : '';
+    return arg.code === 1008 && message.includes('server error');
+  });
+};
+
+if (__DEV__ && !global.__APPWRITE_SERVER_ERROR_FILTER__) {
+  global.__APPWRITE_SERVER_ERROR_FILTER__ = true;
+  const originalConsoleError = console.error;
+
+  console.error = (...args) => {
+    if (shouldIgnoreAppwriteServerError(args)) {
+      return;
+    }
+
+    originalConsoleError(...args);
+  };
+}
+
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 

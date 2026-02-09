@@ -26,7 +26,8 @@ import { compressImage } from '../utils/imageCompression';
 import {
   POST_TYPES,
   DEPARTMENTS,
-  STAGES,
+  getStageOptionsForDepartment,
+  isExtendedStageDepartment,
   MAX_IMAGES_PER_POST,
 } from '../constants/postConstants';
 
@@ -74,6 +75,16 @@ const Post = () => {
       setStage(user.stage);
     }
   }, [user]);
+
+  useEffect(() => {
+    const departmentKey = department || user?.department || '';
+    const allowExtendedStages = isExtendedStageDepartment(departmentKey);
+    if (!allowExtendedStages && (stage === 'stage_5' || stage === 'stage_6')) {
+      setStage('');
+    }
+  }, [department, user, stage]);
+
+  const stageOptions = getStageOptionsForDepartment(department || user?.department || '');
 
   const handlePickImages = async () => {
     try {
@@ -302,7 +313,7 @@ const Post = () => {
                 </Text>
                 <View style={[styles.stageDropdown, { backgroundColor: theme.card, borderColor: theme.border }]}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {STAGES.map((stg) => (
+                    {stageOptions.map((stg) => (
                       <TouchableOpacity
                         key={stg.value}
                         style={[

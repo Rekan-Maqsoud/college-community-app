@@ -49,6 +49,24 @@ export const STAGES = [
   { value: 'all', labelKey: 'stages.all' },
 ];
 
+const EXTENDED_STAGE_KEYWORDS = ['medical', 'dental', 'law'];
+
+export const isExtendedStageDepartment = (departmentKey) => {
+  if (!departmentKey) return false;
+  const normalized = departmentKey.toLowerCase();
+  return EXTENDED_STAGE_KEYWORDS.some((keyword) => normalized.includes(keyword));
+};
+
+export const getStageOptionsForDepartment = (departmentKey) => {
+  const allowExtendedStages = isExtendedStageDepartment(departmentKey);
+  return STAGES.filter((stage) => {
+    if (stage.value === 'stage_5' || stage.value === 'stage_6') {
+      return allowExtendedStages;
+    }
+    return true;
+  });
+};
+
 export const MAX_IMAGES_PER_POST = 10;
 export const MAX_IMAGES_PER_REPLY = 5;
 

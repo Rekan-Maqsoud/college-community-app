@@ -23,7 +23,8 @@ import {
   POST_TYPES,
   POST_TYPE_OPTIONS,
   DEPARTMENTS,
-  STAGES,
+  getStageOptionsForDepartment,
+  isExtendedStageDepartment,
   VALIDATION_RULES,
   MAX_IMAGES_PER_POST,
   POST_COLORS,
@@ -85,6 +86,15 @@ const CreatePost = ({ navigation, route }) => {
       }
     }
   }, [user]);
+
+  useEffect(() => {
+    const allowExtendedStages = isExtendedStageDepartment(department);
+    if (!allowExtendedStages && (stage === 'stage_5' || stage === 'stage_6')) {
+      setStage('');
+    }
+  }, [department, stage]);
+
+  const stageOptions = getStageOptionsForDepartment(department);
 
   // Load draft on mount
   useEffect(() => {
@@ -449,7 +459,7 @@ const CreatePost = ({ navigation, route }) => {
               {t('post.stage')} *
             </Text>
             <SearchableDropdownNew
-              items={STAGES}
+              items={stageOptions}
               value={stage}
               onSelect={setStage}
               placeholder={t('post.selectStage')}

@@ -9,22 +9,79 @@ client
     .setEndpoint(endpoint)
     .setProject(projectId);
 
-// Create a wrapper for realtime subscription with error handling
+// Create a wrapper for realtime subscription with retry/backoff on disconnects
 export const safeSubscribe = (channel, callback) => {
-    try {
-        const unsubscribe = client.subscribe(channel, (response) => {
-            // Silently ignore error responses from WebSocket
-            if (response.code && response.message) {
-                return;
+    let unsubscribe = null;
+    let retryTimer = null;
+    let retryCount = 0;
+    let isActive = true;
+
+    const clearRetryTimer = () => {
+        if (retryTimer) {
+            clearTimeout(retryTimer);
+            retryTimer = null;
+        }
+    };
+
+    const cleanupSubscription = () => {
+        if (unsubscribe) {
+            try {
+                unsubscribe();
+            } catch (e) {
+                // Ignore cleanup errors
             }
-            callback(response);
-        });
-        
-        return unsubscribe;
-    } catch (error) {
-        // Return no-op unsubscribe function on error
-        return () => {};
-    }
+            unsubscribe = null;
+        }
+    };
+
+    const scheduleRetry = () => {
+        if (!isActive) {
+            return;
+        }
+
+        cleanupSubscription();
+
+        const cappedRetry = Math.min(retryCount, 5);
+        const delay = Math.min(30000, 1000 * Math.pow(2, cappedRetry));
+        retryCount += 1;
+
+        clearRetryTimer();
+        retryTimer = setTimeout(() => {
+            subscribe();
+        }, delay);
+    };
+
+    const subscribe = () => {
+        if (!isActive) {
+            return;
+        }
+
+        try {
+            unsubscribe = client.subscribe(channel, (response) => {
+                if (!isActive) {
+                    return;
+                }
+
+                if (response?.code && response?.message) {
+                    scheduleRetry();
+                    return;
+                }
+
+                retryCount = 0;
+                callback(response);
+            });
+        } catch (error) {
+            scheduleRetry();
+        }
+    };
+
+    subscribe();
+
+    return () => {
+        isActive = false;
+        clearRetryTimer();
+        cleanupSubscription();
+    };
 };
 
 export const account = new Account(client);

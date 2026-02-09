@@ -25,6 +25,7 @@ import AnimatedBackground from '../components/AnimatedBackground';
 import { GlassContainer, GlassInput } from '../components/GlassComponents';
 import { getUniversityKeys, getCollegesForUniversity, getDepartmentsForCollege } from '../data/universitiesData';
 import { initiateSignup, getCompleteUserData, isEducationalEmail, completeOAuthSignup, getPendingOAuthSignup, clearPendingOAuthSignup } from '../../database/auth';
+import { isExtendedStageDepartment } from '../constants/postConstants';
 import { 
   wp, 
   hp, 
@@ -139,6 +140,13 @@ const SignUp = ({ navigation, route }) => {
       setDepartment('');
     }
   }, [college]);
+
+  useEffect(() => {
+    const allowExtendedStages = isExtendedStageDepartment(department);
+    if (!allowExtendedStages && (stage === 'fifthYear' || stage === 'sixthYear')) {
+      setStage('');
+    }
+  }, [department, stage]);
 
   const getPasswordStrength = (pwd) => {
     if (!pwd || pwd.length < 8) return 'weak';
@@ -265,13 +273,26 @@ const SignUp = ({ navigation, route }) => {
     setIsLoading(true);
     
     try {
-      const stageNumber = stage.replace(/\D/g, '');
+      const stageYearMap = {
+        firstYear: 1,
+        secondYear: 2,
+        thirdYear: 3,
+        fourthYear: 4,
+        fifthYear: 5,
+        sixthYear: 6,
+      };
+      const stageYear = stageYearMap[stage] || parseInt(stage, 10);
+      if (!stageYear) {
+        setIsLoading(false);
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.stageRequired') });
+        return;
+      }
       
       const additionalData = {
         university,
         college,
         department,
-        stage: parseInt(stageNumber) || 1,
+        stage: stageYear,
       };
 
       if (oauthMode && oauthUserId) {
@@ -369,14 +390,22 @@ const SignUp = ({ navigation, route }) => {
 
   const departments = getAvailableDepartments();
 
-  const stages = [
-    { key: 'firstYear', label: t('stages.firstYear') },
-    { key: 'secondYear', label: t('stages.secondYear') },
-    { key: 'thirdYear', label: t('stages.thirdYear') },
-    { key: 'fourthYear', label: t('stages.fourthYear') },
-    { key: 'fifthYear', label: t('stages.fifthYear') },
-    { key: 'sixthYear', label: t('stages.sixthYear') },
-  ];
+  const allowExtendedStages = isExtendedStageDepartment(department);
+  const stages = allowExtendedStages
+    ? [
+        { key: 'firstYear', label: t('stages.firstYear') },
+        { key: 'secondYear', label: t('stages.secondYear') },
+        { key: 'thirdYear', label: t('stages.thirdYear') },
+        { key: 'fourthYear', label: t('stages.fourthYear') },
+        { key: 'fifthYear', label: t('stages.fifthYear') },
+        { key: 'sixthYear', label: t('stages.sixthYear') },
+      ]
+    : [
+        { key: 'firstYear', label: t('stages.firstYear') },
+        { key: 'secondYear', label: t('stages.secondYear') },
+        { key: 'thirdYear', label: t('stages.thirdYear') },
+        { key: 'fourthYear', label: t('stages.fourthYear') },
+      ];
 
   const ageOptions = Array.from({ length: 28 }, (_, i) => ({
     key: String(17 + i),
