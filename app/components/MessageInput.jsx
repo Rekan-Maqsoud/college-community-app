@@ -13,7 +13,7 @@ import {
   Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker } from 'react-native-maps';
+import LeafletMap from './LeafletMap';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { 
   fontSize, 
@@ -562,25 +562,20 @@ const MessageInput = ({
               {pendingLocation && (
                 <>
                   <View style={styles.locationMapContainer}>
-                    <MapView
-                      liteMode={true}
-                      scrollEnabled={false}
-                      zoomEnabled={false}
-                      rotateEnabled={false}
-                      pitchEnabled={false}
-                      toolbarEnabled={false}
-                      style={styles.locationMapImage}
+                    <LeafletMap
+                      containerStyle={styles.locationMapImage}
+                      interactive={false}
+                      zoom={16}
+                      markers={[{
+                        latitude: pendingLocation.lat,
+                        longitude: pendingLocation.long,
+                        title: t('chats.location'),
+                      }]}
                       initialRegion={{
                         latitude: pendingLocation.lat,
                         longitude: pendingLocation.long,
-                        latitudeDelta: 0.01,
-                        longitudeDelta: 0.01,
                       }}
-                    >
-                      <Marker
-                        coordinate={{ latitude: pendingLocation.lat, longitude: pendingLocation.long }}
-                      />
-                    </MapView>
+                    />
                   </View>
                   
                   <View style={styles.locationCoords}>

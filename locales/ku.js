@@ -1025,6 +1025,8 @@ export default {
     locationPreview: 'پێشبینینی شوێن',
     sendLocationConfirm: 'ئەم شوێنە بنێرە؟',
     sendLocationButton: 'ناردنی شوێن',
+    mapUnavailableTitle: 'پێشبینینی نەخشە بەردەست نییە',
+    mapUnavailableMessage: 'ئەم ئامێرە لە ئێستادا پێشبینینی نەخشە پشتیوانی ناکات.',
     // Image save
     imageSaved: 'وێنەکە بە سەرکەوتوویی پاشەکەوتکرا',
     imageSaveError: 'شکستی هێنا لە پاشەکەوتکردنی وێنە',

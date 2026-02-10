@@ -1030,6 +1030,8 @@ export default {
     locationPreview: 'Location Preview',
     sendLocationConfirm: 'Send this location?',
     sendLocationButton: 'Send Location',
+    mapUnavailableTitle: 'Map preview unavailable',
+    mapUnavailableMessage: 'This device does not support the map preview right now.',
     // Image save
     imageSaved: 'Image saved successfully',
     imageSaveError: 'Failed to save image',

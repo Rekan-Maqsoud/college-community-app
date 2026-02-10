@@ -1025,6 +1025,8 @@ export default {
     locationPreview: 'معاينة الموقع',
     sendLocationConfirm: 'إرسال هذا الموقع؟',
     sendLocationButton: 'إرسال الموقع',
+    mapUnavailableTitle: 'معاينة الخريطة غير متاحة',
+    mapUnavailableMessage: 'هذا الجهاز لا يدعم معاينة الخريطة حالياً.',
     // Image save
     imageSaved: 'تم حفظ الصورة بنجاح',
     imageSaveError: 'فشل في حفظ الصورة',

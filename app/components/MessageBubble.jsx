@@ -25,7 +25,7 @@ import ReanimatedModule, {
   withTiming,
   withDelay,
 } from 'react-native-reanimated';
-import MapView, { Marker } from 'react-native-maps';
+import LeafletMap from './LeafletMap';
 import { useAppSettings } from '../context/AppSettingsContext';
 import ProfilePicture from './ProfilePicture';
 import ZoomableImageModal from './ZoomableImageModal';
@@ -671,30 +671,25 @@ const MessageBubble = ({
         <Pressable
           disabled={selectionMode}
           onPress={() => {
-            const url = `https://www.google.com/maps?q=${locationData.lat},${locationData.long}`;
+            const url = `https://www.openstreetmap.org/?mlat=${locationData.lat}&mlon=${locationData.long}#map=16/${locationData.lat}/${locationData.long}`;
             Linking.openURL(url);
           }}
           style={styles.locationCard}>
           <View style={styles.locationMapPreviewContainer}>
-            <MapView
-              liteMode={true}
-              scrollEnabled={false}
-              zoomEnabled={false}
-              rotateEnabled={false}
-              pitchEnabled={false}
-              toolbarEnabled={false}
-              style={styles.locationMapPreview}
+            <LeafletMap
+              containerStyle={styles.locationMapPreview}
+              interactive={false}
+              zoom={16}
+              markers={[{
+                latitude: locationData.lat,
+                longitude: locationData.long,
+                title: t('chats.location'),
+              }]}
               initialRegion={{
                 latitude: locationData.lat,
                 longitude: locationData.long,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
               }}
-            >
-              <Marker
-                coordinate={{ latitude: locationData.lat, longitude: locationData.long }}
-              />
-            </MapView>
+            />
           </View>
           <View style={styles.locationInfo}>
             <Ionicons name="navigate-outline" size={moderateScale(14)} color={isCurrentUser ? 'rgba(255,255,255,0.8)' : theme.primary} />

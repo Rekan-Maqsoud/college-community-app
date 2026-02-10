@@ -52,7 +52,6 @@ export const hp = (percentage) => {
 let _globalFontScale = 1;
 
 export const setGlobalFontScale = (scale) => {
-  console.log('[DEBUG-FIX] setGlobalFontScale called', { oldScale: _globalFontScale, newScale: scale });
   _globalFontScale = scale;
 };
 
@@ -60,9 +59,6 @@ export const getGlobalFontScale = () => _globalFontScale;
 
 export const fontSize = (size) => {
   const scaledSize = size * _globalFontScale;
-  if (_globalFontScale !== 1) {
-    console.log('[DEBUG-FIX] fontSize()', { input: size, globalScale: _globalFontScale, scaledSize });
-  }
   if (isTablet()) {
     return moderateScale(scaledSize * 1.2);
   }
