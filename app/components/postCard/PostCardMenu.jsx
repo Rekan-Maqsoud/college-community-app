@@ -20,7 +20,6 @@ const PostCardMenu = ({
   onMarkResolved,
   onCopy,
   onBookmark,
-  onShareToChat,
   isBookmarked,
   theme,
   t,
@@ -44,9 +43,6 @@ const PostCardMenu = ({
     }
     if (action === 'bookmark' && onBookmark) {
       onBookmark();
-    }
-    if (action === 'shareToChat' && onShareToChat) {
-      onShareToChat();
     }
   };
 
@@ -118,16 +114,6 @@ const PostCardMenu = ({
             <Ionicons name="copy-outline" size={22} color={theme.primary || '#007AFF'} />
             <Text style={[styles.menuText, { color: theme.primary || '#007AFF' }]}>
               {t('post.copyText') || 'Copy Text'}
-            </Text>
-          </TouchableOpacity>
-          <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
-          <TouchableOpacity 
-            style={styles.menuItem} 
-            onPress={() => handleAction('shareToChat')}
-          >
-            <Ionicons name="chatbubble-ellipses-outline" size={22} color={theme.primary || '#007AFF'} />
-            <Text style={[styles.menuText, { color: theme.primary || '#007AFF' }]}>
-              {t('post.sendToChat')}
             </Text>
           </TouchableOpacity>
           <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />

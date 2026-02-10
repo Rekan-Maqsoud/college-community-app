@@ -436,6 +436,14 @@ const PostCard = ({
           >
             <Ionicons name="share-outline" size={20} color={theme.textSecondary} />
           </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => setShowShareToChat(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="send-outline" size={18} color={theme.textSecondary} />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.footerRight}>
@@ -489,7 +497,6 @@ const PostCard = ({
         }}
         onCopy={handleCopy}
         onBookmark={handleBookmark}
-        onShareToChat={() => setShowShareToChat(true)}
         isBookmarked={isBookmarked}
         theme={theme}
         t={t}

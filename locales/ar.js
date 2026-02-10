@@ -1436,6 +1436,9 @@ export default {
     send: 'إرسال',
     sendToChat: 'إرسال إلى المحادثة',
     sharedPost: 'منشور مشترك',
+    viewPost: 'المنشور',
+    viewReplies: 'عرض الردود',
+    liked: 'أعجبني',
   },
   
   // Search

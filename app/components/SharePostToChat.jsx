@@ -76,15 +76,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
       };
 
       await sendMessage(chat.$id, messageData);
-
-      if (showAlert) {
-        showAlert({
-          type: 'success',
-          title: t('common.success'),
-          message: t('chats.postShared'),
-          buttons: [{ text: t('common.ok'), onPress: onClose, style: 'primary' }],
-        });
-      }
+      onClose();
     } catch (error) {
       if (showAlert) {
         showAlert({

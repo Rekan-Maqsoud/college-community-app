@@ -1436,6 +1436,9 @@ export default {
     send: 'ناردن',
     sendToChat: 'ناردن بۆ گفتوگۆ',
     sharedPost: 'پۆستی هاوبەشکراو',
+    viewPost: 'پۆست',
+    viewReplies: 'بینینی وەڵامەکان',
+    liked: 'حەزکرا',
   },
   
   // Search

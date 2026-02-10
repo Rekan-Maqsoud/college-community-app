@@ -298,7 +298,6 @@ const PostDetails = ({ navigation, route }) => {
         };
 
         await updateReply(editingReply.$id, updateData);
-        showAlert(t('common.success'), t('post.replyUpdated'), 'success');
         setEditingReply(null);
       } else {
         const replyData = {
@@ -319,7 +318,6 @@ const PostDetails = ({ navigation, route }) => {
         };
 
         const createdReply = await createReply(replyData);
-        showAlert(t('common.success'), t('post.replyAdded'), 'success');
 
         // Send notification to post owner if it's not their own reply
         if (post.userId !== user.$id) {

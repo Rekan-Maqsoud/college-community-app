@@ -1441,6 +1441,9 @@ export default {
     send: 'Send',
     sendToChat: 'Send to Chat',
     sharedPost: 'Shared Post',
+    viewPost: 'Post',
+    viewReplies: 'View Replies',
+    liked: 'Liked',
   },
   
   // Search

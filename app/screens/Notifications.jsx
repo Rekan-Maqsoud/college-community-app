@@ -22,6 +22,7 @@ import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification, deleteAllNotifications } from '../../database/notifications';
 import { useNotifications } from '../hooks/useRealtimeSubscription';
+import PostViewModal from '../components/PostViewModal';
 
 const NOTIFICATION_TYPES = {
   POST_LIKE: 'post_like',
@@ -449,6 +450,8 @@ const Notifications = ({ navigation }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
+  const [postModalVisible, setPostModalVisible] = useState(false);
+  const [postModalPostId, setPostModalPostId] = useState(null);
 
   const sanitizeNotification = useCallback((notification) => {
     if (!notification || !notification.$id || !notification.type) {
@@ -604,23 +607,24 @@ const Notifications = ({ navigation }) => {
 
     // Navigate based on notification type
     if (notificationData.postId) {
-      const navParams = {
-        postId: notificationData.postId,
-        source: `notification_${notificationData.type}`,
-      };
-
-      // Extract replyId for post_reply notifications and auto-focus input
+      // For reply notifications, go directly to PostDetails with reply focus
       if (notificationData.type === NOTIFICATION_TYPES.POST_REPLY) {
-        navParams.autoFocusReply = true;
-        // Try to extract replyId from encoded postPreview: "[rid:REPLY_ID]preview text"
+        const navParams = {
+          postId: notificationData.postId,
+          source: `notification_${notificationData.type}`,
+          autoFocusReply: true,
+        };
         const preview = notificationData.postPreview || '';
         const ridMatch = preview.match(/^\[rid:([^\]]+)\]/);
         if (ridMatch && ridMatch[1]) {
           navParams.targetReplyId = ridMatch[1];
         }
+        navigation.navigate('PostDetails', navParams);
+      } else {
+        // For like, mention, friend_post, department_post - show post view modal
+        setPostModalPostId(notificationData.postId);
+        setPostModalVisible(true);
       }
-
-      navigation.navigate('PostDetails', navParams);
     } else if (notificationData.senderId) {
       navigation.navigate('UserProfile', { userId: notificationData.senderId });
     }
@@ -766,8 +770,9 @@ const Notifications = ({ navigation }) => {
       }
     }
 
-    // Navigate to post (view-only for grouped like notifications)
-    navigation.navigate('PostDetails', { postId: group.postId, source: 'post_like' });
+    // Show post view modal for grouped like notifications
+    setPostModalPostId(group.postId);
+    setPostModalVisible(true);
   };
 
   const renderEmptyState = () => (
@@ -893,6 +898,16 @@ const Notifications = ({ navigation }) => {
           />
         )}
       </LinearGradient>
+      <PostViewModal
+        visible={postModalVisible}
+        onClose={() => {
+          setPostModalVisible(false);
+          setPostModalPostId(null);
+        }}
+        postId={postModalPostId}
+        navigation={navigation}
+      />
+
       <CustomAlert
         visible={alertConfig.visible}
         type={alertConfig.type}

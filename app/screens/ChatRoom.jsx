@@ -30,6 +30,7 @@ import { borderRadius } from '../theme/designTokens';
 import { MuteModal, PinnedMessagesModal, ChatOptionsModal } from './chatRoom/ChatRoomModals';
 import { chatRoomStyles as styles } from './chatRoom/styles';
 import { useChatRoom } from './chatRoom/useChatRoom';
+import PostViewModal from '../components/PostViewModal';
 
 const ChatRoom = ({ route, navigation }) => {
   const { chat } = route.params;
@@ -111,6 +112,10 @@ const ChatRoom = ({ route, navigation }) => {
   // Highlighted message state (used by pinned message scroll-to)
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const highlightTimerRef = useRef(null);
+
+  // Post view modal state (for shared posts)
+  const [postModalVisible, setPostModalVisible] = useState(false);
+  const [postModalPostId, setPostModalPostId] = useState(null);
 
   const handlePinnedMessagePress = useCallback((messageId) => {
     setShowPinnedModal(false);
@@ -363,7 +368,10 @@ const ChatRoom = ({ route, navigation }) => {
         searchQuery={searchActive ? searchQuery : ''}
         isCurrentSearchResult={isCurrentSearchResult}
         isHighlighted={isHighlighted}
-        onPostPress={(postId) => navigation.push('PostDetails', { postId })}
+        onPostPress={(postId) => {
+          setPostModalPostId(postId);
+          setPostModalVisible(true);
+        }}
         showAlert={showAlert}
         selectionMode={selectionMode}
         isSelected={selectedMessageIds.includes(item.$id)}
@@ -720,6 +728,16 @@ const ChatRoom = ({ route, navigation }) => {
         message={alertConfig.message}
         buttons={alertConfig.buttons}
         onDismiss={hideAlert}
+      />
+
+      <PostViewModal
+        visible={postModalVisible}
+        onClose={() => {
+          setPostModalVisible(false);
+          setPostModalPostId(null);
+        }}
+        postId={postModalPostId}
+        navigation={navigation}
       />
     </View>
   );
