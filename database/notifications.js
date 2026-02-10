@@ -377,7 +377,11 @@ export const notifyPostLike = async (postOwnerId, likerId, likerName, likerPhoto
  * @param {string} postId - Post ID
  * @param {string} replyPreview - Preview of reply content
  */
-export const notifyPostReply = async (postOwnerId, replierId, replierName, replierPhoto, postId, replyPreview) => {
+export const notifyPostReply = async (postOwnerId, replierId, replierName, replierPhoto, postId, replyPreview, replyId) => {
+    // Encode replyId into postPreview so it survives the in-app notification round-trip
+    const previewText = replyPreview?.substring(0, 50) || null;
+    const encodedPreview = replyId ? `[rid:${replyId}]${previewText || ''}` : previewText;
+
     // Create in-app notification first (this is the primary notification)
     const notification = await createNotification({
         userId: postOwnerId,
@@ -386,7 +390,7 @@ export const notifyPostReply = async (postOwnerId, replierId, replierName, repli
         senderProfilePicture: replierPhoto || null,
         type: NOTIFICATION_TYPES.POST_REPLY,
         postId: postId || null,
-        postPreview: replyPreview?.substring(0, 50) || null,
+        postPreview: encodedPreview,
     });
 
     // Send push notification in background (non-blocking)
@@ -398,6 +402,7 @@ export const notifyPostReply = async (postOwnerId, replierId, replierName, repli
         title: replierName,
         body: `💬 replied: ${replyPreview?.substring(0, 50) || 'replied to your post'}`,
         postId,
+        replyId: replyId || null,
     }).catch(() => {
         // Silent fail for push notification
     });

@@ -31,7 +31,10 @@ const PostDetails = ({ navigation, route }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
-  const { post: initialPost, postId: routePostId, replyId: routeReplyId, onPostUpdate } = route.params || {};
+  const { post: initialPost, postId: routePostId, replyId: routeReplyId, targetReplyId, onPostUpdate, source, autoFocusReply } = route.params || {};
+
+  // Resolve effective target reply - from either replyId or targetReplyId
+  const effectiveReplyId = routeReplyId || targetReplyId || null;
 
   // State to hold the post - either from params or fetched
   const [post, setPost] = useState(initialPost || null);
@@ -49,10 +52,16 @@ const PostDetails = ({ navigation, route }) => {
   const [galleryImages, setGalleryImages] = useState([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [currentReplyCount, setCurrentReplyCount] = useState(post?.replyCount || 0);
-  const [replySortOrder, setReplySortOrder] = useState(routeReplyId ? 'newest' : 'top');
+  const [replySortOrder, setReplySortOrder] = useState(effectiveReplyId ? 'newest' : 'top');
+  const [highlightedReplyId, setHighlightedReplyId] = useState(effectiveReplyId);
 
   const scrollViewRef = useRef(null);
   const replyLayoutsRef = useRef({});
+  const replyInputRef = useRef(null);
+  const hasScrolledToReply = useRef(false);
+
+  // Determine if this is a "view only" navigation (no auto-focus on input)
+  const isViewOnlyMode = source === 'shared_post' || source === 'post_like' || source === 'notification_post_like';
 
   // Handle going back and updating the parent screen with new reply count
   const handleGoBack = useCallback(() => {
@@ -184,37 +193,65 @@ const PostDetails = ({ navigation, route }) => {
     }
   };
 
-  // Sort replies based on selected order
+  // Sort replies based on selected order, and pin target reply to top if navigating from notification
   const sortedReplies = React.useMemo(() => {
+    let sorted;
     if (replySortOrder === 'newest') {
-      return [...replies].sort((a, b) => {
+      sorted = [...replies].sort((a, b) => {
         const dateA = new Date(a.$createdAt || 0).getTime();
         const dateB = new Date(b.$createdAt || 0).getTime();
         return dateB - dateA;
       });
+    } else {
+      sorted = [...replies];
     }
-    // 'top' = default order from API (by upCount desc)
-    return replies;
-  }, [replies, replySortOrder]);
 
-  // Scroll to a specific reply when navigated with replyId
-  useEffect(() => {
-    if (routeReplyId && sortedReplies.length > 0 && !isLoadingReplies) {
-      // Use a retry mechanism to wait for layout measurement
-      let attempts = 0;
-      const maxAttempts = 10;
-      const tryScroll = () => {
-        const targetY = replyLayoutsRef.current[routeReplyId];
-        if (targetY != null && scrollViewRef.current) {
-          scrollViewRef.current.scrollTo({ y: targetY - 80, animated: true });
-        } else if (attempts < maxAttempts) {
-          attempts += 1;
-          setTimeout(tryScroll, 200);
-        }
-      };
-      setTimeout(tryScroll, 400);
+    // If navigating for a specific reply, move it to index 0 for guaranteed visibility
+    if (effectiveReplyId) {
+      const targetIndex = sorted.findIndex(r => r.$id === effectiveReplyId);
+      if (targetIndex > 0) {
+        const [target] = sorted.splice(targetIndex, 1);
+        sorted.unshift(target);
+      }
     }
-  }, [routeReplyId, sortedReplies, isLoadingReplies]);
+
+    return sorted;
+  }, [replies, replySortOrder, effectiveReplyId]);
+
+  // Scroll to the target reply once replies are loaded and layouts are measured
+  useEffect(() => {
+    if (effectiveReplyId && sortedReplies.length > 0 && !isLoadingReplies && !hasScrolledToReply.current) {
+      // Small delay to allow onLayout callbacks to fire
+      const scrollTimer = setTimeout(() => {
+        const yOffset = replyLayoutsRef.current[effectiveReplyId];
+        if (yOffset !== undefined && scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ y: yOffset, animated: true });
+          hasScrolledToReply.current = true;
+        }
+      }, 500);
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [effectiveReplyId, sortedReplies, isLoadingReplies]);
+
+  // Auto-focus reply input only when explicitly requested (reply notifications)
+  useEffect(() => {
+    if (autoFocusReply && !isViewOnlyMode && !isLoadingReplies && !isLoadingPost) {
+      const focusTimer = setTimeout(() => {
+        replyInputRef.current?.focus?.();
+      }, 600);
+      return () => clearTimeout(focusTimer);
+    }
+  }, [autoFocusReply, isViewOnlyMode, isLoadingReplies, isLoadingPost]);
+
+  // Fade out highlight after 3 seconds
+  useEffect(() => {
+    if (highlightedReplyId && sortedReplies.length > 0 && !isLoadingReplies) {
+      const timer = setTimeout(() => {
+        setHighlightedReplyId(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedReplyId, sortedReplies, isLoadingReplies]);
 
   const handleAddReply = async () => {
     if (!replyText.trim()) {
@@ -281,7 +318,7 @@ const PostDetails = ({ navigation, route }) => {
           downvotedBy: [],
         };
 
-        await createReply(replyData);
+        const createdReply = await createReply(replyData);
         showAlert(t('common.success'), t('post.replyAdded'), 'success');
 
         // Send notification to post owner if it's not their own reply
@@ -293,7 +330,8 @@ const PostDetails = ({ navigation, route }) => {
               user.fullName || user.name,
               user.profilePicture,
               post.$id,
-              replyText.trim()
+              replyText.trim(),
+              createdReply?.$id
             );
           } catch (notifyError) {
             // Silent fail for notification
@@ -641,9 +679,11 @@ const PostDetails = ({ navigation, route }) => {
                     onLayout={(e) => {
                       replyLayoutsRef.current[reply.$id] = e.nativeEvent.layout.y;
                     }}
-                    style={routeReplyId === reply.$id ? {
-                      backgroundColor: isDarkMode ? 'rgba(100,130,255,0.08)' : 'rgba(100,130,255,0.06)',
+                    style={highlightedReplyId === reply.$id ? {
+                      backgroundColor: isDarkMode ? 'rgba(100,130,255,0.15)' : 'rgba(100,130,255,0.10)',
                       borderRadius: 8,
+                      borderLeftWidth: 3,
+                      borderLeftColor: isDarkMode ? '#667eea' : '#4F46E5',
                     } : undefined}
                   >
                     <ReplyItem

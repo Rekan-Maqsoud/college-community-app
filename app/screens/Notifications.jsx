@@ -146,17 +146,21 @@ const formatNotificationTime = (dateString, t) => {
   return date.toLocaleDateString();
 };
 
-const NotificationItem = ({ notification, onPress, onLongPress, onDelete, theme, isDarkMode, t, index }) => {
+const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurnOff, theme, isDarkMode, t, index }) => {
   if (!notification || !notification.$id || !notification.type) {
     return null;
   }
+
+  const [menuVisible, setMenuVisible] = useState(false);
   
   const icon = getNotificationIcon(notification.type);
   const isUnread = !notification.isRead;
   
   const senderName = notification.senderName || t('common.user') || 'User';
   const createdAt = notification.$createdAt;
-  const postPreview = notification.postPreview || '';
+  const rawPreview = notification.postPreview || '';
+  // Strip encoded replyId prefix "[rid:xxx]" if present
+  const postPreview = rawPreview.replace(/^\[rid:[^\]]+\]/, '');
   
   const getNotificationMessage = () => {
     switch (notification.type) {
@@ -252,13 +256,55 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, theme,
             )}
             <TouchableOpacity
               style={styles.deleteButton}
-              onPress={() => onDelete && onDelete(notification)}
+              onPress={() => setMenuVisible(true)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close-circle-outline" size={18} color={theme.textSecondary} />
+              <Ionicons name="ellipsis-vertical" size={18} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Three-dot menu dropdown */}
+        {menuVisible && (
+          <View style={[
+            styles.notifMenuContainer,
+            { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF', borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }
+          ]}>
+            <TouchableOpacity
+              style={styles.notifMenuItem}
+              onPress={() => {
+                setMenuVisible(false);
+                onDelete && onDelete(notification);
+              }}
+            >
+              <Ionicons name="trash-outline" size={16} color="#EF4444" />
+              <Text style={[styles.notifMenuText, { color: '#EF4444' }]}>
+                {t('notifications.removeNotification') || 'Remove this notification'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.notifMenuItem}
+              onPress={() => {
+                setMenuVisible(false);
+                onTurnOff && onTurnOff(notification);
+              }}
+            >
+              <Ionicons name="notifications-off-outline" size={16} color={theme.textSecondary} />
+              <Text style={[styles.notifMenuText, { color: theme.text }]}>
+                {t('notifications.turnOffLikeThis') || 'Turn off notifications like this'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.notifMenuItem}
+              onPress={() => setMenuVisible(false)}
+            >
+              <Ionicons name="close-outline" size={16} color={theme.textSecondary} />
+              <Text style={[styles.notifMenuText, { color: theme.textSecondary }]}>
+                {t('common.cancel') || 'Cancel'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </TouchableOpacity>
     </ReanimatedAnimated.View>
   );
@@ -558,10 +604,24 @@ const Notifications = ({ navigation }) => {
 
     // Navigate based on notification type
     if (notificationData.postId) {
-      console.log('[DEBUG-FIX] Notification nav → PostDetails', { postId: notificationData.postId, type: notificationData.type });
-      navigation.navigate('PostDetails', { postId: notificationData.postId });
+      const navParams = {
+        postId: notificationData.postId,
+        source: `notification_${notificationData.type}`,
+      };
+
+      // Extract replyId for post_reply notifications and auto-focus input
+      if (notificationData.type === NOTIFICATION_TYPES.POST_REPLY) {
+        navParams.autoFocusReply = true;
+        // Try to extract replyId from encoded postPreview: "[rid:REPLY_ID]preview text"
+        const preview = notificationData.postPreview || '';
+        const ridMatch = preview.match(/^\[rid:([^\]]+)\]/);
+        if (ridMatch && ridMatch[1]) {
+          navParams.targetReplyId = ridMatch[1];
+        }
+      }
+
+      navigation.navigate('PostDetails', navParams);
     } else if (notificationData.senderId) {
-      console.log('[DEBUG-FIX] Notification nav → UserProfile', { userId: notificationData.senderId });
       navigation.navigate('UserProfile', { userId: notificationData.senderId });
     }
   };
@@ -602,6 +662,41 @@ const Notifications = ({ navigation }) => {
       // Handle error silently
     }
   };
+
+  const handleTurnOffNotificationType = useCallback(async (notification) => {
+    if (!notification?.type) return;
+
+    try {
+      // Update local notification settings to turn off this type
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const raw = await AsyncStorage.getItem('notificationSettings');
+      let settings = {};
+      try { settings = raw ? JSON.parse(raw) : {}; } catch (e) { settings = {}; }
+
+      // Map notification type to setting key
+      const typeToKey = {
+        [NOTIFICATION_TYPES.POST_LIKE]: 'postLikes',
+        [NOTIFICATION_TYPES.POST_REPLY]: 'postReplies',
+        [NOTIFICATION_TYPES.MENTION]: 'mentions',
+        [NOTIFICATION_TYPES.FRIEND_POST]: 'friendPosts',
+        [NOTIFICATION_TYPES.FOLLOW]: 'newFollowers',
+        [NOTIFICATION_TYPES.DEPARTMENT_POST]: 'departmentPosts',
+      };
+
+      const settingKey = typeToKey[notification.type];
+      if (settingKey) {
+        settings[settingKey] = false;
+        await AsyncStorage.setItem('notificationSettings', JSON.stringify(settings));
+        showAlert({
+          type: 'success',
+          title: t('common.success'),
+          message: t('notifications.turnedOff') || 'Notifications of this type have been turned off',
+        });
+      }
+    } catch (error) {
+      // Silent fail
+    }
+  }, [t, showAlert]);
 
   const handleClearAll = () => {
     if (notifications.length === 0) return;
@@ -671,8 +766,8 @@ const Notifications = ({ navigation }) => {
       }
     }
 
-    // Navigate to post
-    navigation.navigate('PostDetails', { postId: group.postId });
+    // Navigate to post (view-only for grouped like notifications)
+    navigation.navigate('PostDetails', { postId: group.postId, source: 'post_like' });
   };
 
   const renderEmptyState = () => (
@@ -772,6 +867,7 @@ const Notifications = ({ navigation }) => {
                   onPress={handleNotificationPress}
                   onLongPress={handleMarkSingleAsRead}
                   onDelete={handleDeleteNotification}
+                  onTurnOff={handleTurnOffNotificationType}
                   theme={theme}
                   isDarkMode={isDarkMode}
                   t={t}
@@ -990,6 +1086,24 @@ const styles = StyleSheet.create({
   emptyHint: {
     fontSize: fontSize(11),
     flex: 1,
+  },
+  notifMenuContainer: {
+    marginTop: spacing.xs,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: spacing.xs,
+    overflow: 'hidden',
+  },
+  notifMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+  },
+  notifMenuText: {
+    fontSize: fontSize(13),
+    fontWeight: '500',
   },
 });
 

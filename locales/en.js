@@ -973,6 +973,8 @@ export default {
     chatClearedLocal: 'Chat cleared for you successfully.',
     clearChatError: 'Failed to clear chat',
     blockUser: 'Block User',
+    blockedUserBanner: 'You have blocked this user. You cannot send messages.',
+    blockedByUserBanner: 'You cannot send messages to this user.',
     searchComingSoon: 'Search feature coming soon!',
     blockConfirm: 'Are you sure you want to block {name}?',
     userBlocked: 'User has been blocked',
@@ -1571,6 +1573,9 @@ export default {
     },
     pushDisabledDesc: 'Enable notifications in your device settings to receive updates',
     openSettings: 'Open Settings',
+    removeNotification: 'Remove this notification',
+    turnOffLikeThis: 'Turn off notifications like this',
+    turnedOff: 'Notifications of this type have been turned off',
   },
 
   report: {

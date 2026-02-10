@@ -304,11 +304,23 @@ const Home = ({ navigation, route }) => {
       // Enrich posts with user data for those missing userName
       const enrichedPosts = await enrichPostsWithUserData(fetchedPosts);
 
+      // Filter out posts from blocked users
+      const blockedUsers = user?.blockedUsers || [];
+      console.log('[HOME] blockedUsers:', blockedUsers, 'enrichedPosts count:', enrichedPosts.length);
+      const filteredPosts = Array.isArray(blockedUsers) && blockedUsers.length > 0
+        ? enrichedPosts.filter(p => {
+            const isBlocked = blockedUsers.includes(p.userId);
+            if (isBlocked) console.log('[HOME] Filtering out post by blocked user:', p.userId);
+            return !isBlocked;
+          })
+        : enrichedPosts;
+      console.log('[HOME] filteredPosts count:', filteredPosts.length);
+
       if (reset) {
-        setPosts(enrichedPosts);
+        setPosts(filteredPosts);
         setPage(1);
       } else {
-        setPosts(prev => [...prev, ...enrichedPosts]);
+        setPosts(prev => [...prev, ...filteredPosts]);
         setPage(prev => prev + 1);
       }
 
@@ -438,9 +450,9 @@ const Home = ({ navigation, route }) => {
           post.$id === postId
             ? {
               ...post,
-              likedBy: result.isLiked
+              likedBy: result.likedBy || (result.isLiked
                 ? [...(post.likedBy || []), user.$id]
-                : (post.likedBy || []).filter(id => id !== user.$id),
+                : (post.likedBy || []).filter(id => id !== user.$id)),
               likeCount: result.likeCount
             }
             : post
@@ -669,10 +681,16 @@ const Home = ({ navigation, route }) => {
       );
     }
 
+    // Defensive: filter blocked users at render time too (catches stale state)
+    const blockedSet = new Set(user?.blockedUsers || []);
+    const visiblePosts = blockedSet.size > 0
+      ? posts.filter(p => !blockedSet.has(p.userId))
+      : posts;
+
     return (
       <AnimatedFlatList
         ref={flatListRef}
-        data={posts}
+        data={visiblePosts}
         keyExtractor={(item) => item.$id}
         renderItem={({ item, index }) => (
           <ReanimatedAnimated.View

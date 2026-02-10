@@ -234,7 +234,21 @@ const Chats = ({ navigation }) => {
       
       setDefaultGroups(chats.defaultGroups || []);
       setCustomGroups(chats.customGroups || []);
-      setPrivateChats(chats.privateChats || []);
+
+      // Filter out private chats where the partner is blocked
+      const blockedUsers = user?.blockedUsers || [];
+      const allPrivateChats = chats.privateChats || [];
+      console.log('[CHATS] blockedUsers:', blockedUsers, 'privateChats count:', allPrivateChats.length);
+      const filteredPrivateChats = Array.isArray(blockedUsers) && blockedUsers.length > 0
+        ? allPrivateChats.filter(c => {
+            const otherUserId = c.otherUser?.$id || c.otherUser?.id || c.participants?.find(id => id !== user?.$id);
+            const isBlocked = blockedUsers.includes(otherUserId);
+            if (isBlocked) console.log('[CHATS] Filtering out private chat with blocked user:', otherUserId);
+            return !isBlocked;
+          })
+        : allPrivateChats;
+      console.log('[CHATS] filteredPrivateChats count:', filteredPrivateChats.length);
+      setPrivateChats(filteredPrivateChats);
       
       // Load unread counts for all chats
       const allChats = [
@@ -294,12 +308,22 @@ const Chats = ({ navigation }) => {
     }
 
     if ((activeFilter === 'all' || activeFilter === 'direct') && privateChats.length > 0) {
-      sections.push({
-        title: t('chats.directLabel'),
-        data: privateChats,
-        icon: 'chatbubble',
-        color: '#10B981',
-      });
+      const blockedSet = new Set(user?.blockedUsers || []);
+      const visiblePrivateChats = blockedSet.size > 0
+        ? privateChats.filter(c => {
+            const otherUserId = c.participants?.find(id => id !== user?.$id);
+            return !blockedSet.has(otherUserId);
+          })
+        : privateChats;
+
+      if (visiblePrivateChats.length > 0) {
+        sections.push({
+          title: t('chats.directLabel'),
+          data: visiblePrivateChats,
+          icon: 'chatbubble',
+          color: '#10B981',
+        });
+      }
     }
 
     return sections;

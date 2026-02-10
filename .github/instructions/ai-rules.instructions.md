@@ -12,12 +12,12 @@ applyTo: "**"
 
 1. **NEVER use TypeScript syntax** - This is a JavaScript-only project
 2. **NEVER hardcode text** - Always use translation keys
-
-4. **NEVER leave TODO/FIXME incomplete** - Complete them or remove
-5. **NEVER leave commented-out code**
-6. **NEVER delete multiple files at once** - Make minimal changes
-7. **NEVER use `var`** - Use `const` or `let`
-8. **NEVER use class components** - Use functional components with hooks
+3-**NEVER BRAG TOO MUCH** - Show Minimum of you thinking and processing Thoughts
+3. **NEVER leave TODO/FIXME incomplete** - Complete them or remove
+4. **NEVER leave commented-out code**
+5. **NEVER delete multiple files at once** - Make minimal changes
+6. **NEVER use `var`** - Use `const` or `let`
+7. **NEVER use class components** - Use functional components with hooks
 
 ---
 

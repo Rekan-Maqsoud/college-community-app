@@ -966,6 +966,8 @@ export default {
     chatClearedLocal: 'گفتوگۆ بۆ تۆ بە سەرکەوتوویی سڕایەوە.',
     clearChatError: 'شکستی هێنا لە سڕینەوەی گفتوگۆ',
     blockUser: 'بلۆککردنی بەکارهێنەر',
+    blockedUserBanner: 'تۆ ئەم بەکارهێنەرەت بلۆک کردووە. ناتوانیت نامە بنێریت.',
+    blockedByUserBanner: 'ناتوانیت نامە بنێریت بۆ ئەم بەکارهێنەرە.',
     searchComingSoon: 'تایبەتمەندی گەڕان بەم زووانە دێت!',
     blockConfirm: 'ئایا دڵنیایت لە بلۆککردنی {name}؟',
     userBlocked: 'بەکارهێنەر بلۆک کرا',
@@ -1566,6 +1568,9 @@ export default {
     },
     pushDisabledDesc: 'ئاگاداریەکان لە ڕێکخستنەکانی ئامێرەکەتدا چالاک بکە بۆ وەرگرتنی نوێکردنەوەکان',
     openSettings: 'کردنەوەی ڕێکخستنەکان',
+    removeNotification: 'سڕینەوەی ئەم ئاگادارییە',
+    turnOffLikeThis: 'وەستاندنی ئاگاداری وەک ئەمە',
+    turnedOff: 'ئەم جۆرە ئاگادارییە وەستێنرا',
   },
 
   report: {

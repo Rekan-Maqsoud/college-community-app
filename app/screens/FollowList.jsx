@@ -214,7 +214,7 @@ const FollowList = ({ route, navigation }) => {
         </View>
 
         {/* Tabs */}
-        <View style={[styles.tabsContainer, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.7)' : 'rgba(255, 255, 255, 0.7)' }]}>
+        <View style={[styles.tabsContainer, { backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.7)' }]}>
           <TouchableOpacity
             style={styles.tab}
             onPress={() => setActiveTab('followers')}

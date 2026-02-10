@@ -22,7 +22,7 @@ import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '
 
 const BlockList = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
-  const { user } = useUser();
+  const { user, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +63,9 @@ const BlockList = ({ navigation }) => {
               setUnblocking(blockedUserId);
               await unblockUser(user.$id, blockedUserId);
               setBlockedUsers(prev => prev.filter(u => u.$id !== blockedUserId));
+              // Refresh user context so blockedUsers is updated for filtering
+              if (refreshUser) await refreshUser();
+              console.log('[UNBLOCK] User unblocked, refreshed context');
             } catch (error) {
               showAlert({
                 type: 'error',

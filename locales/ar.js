@@ -966,6 +966,8 @@ export default {
     chatClearedLocal: 'تم مسح المحادثة لك بنجاح.',
     clearChatError: 'فشل في مسح المحادثة',
     blockUser: 'حظر المستخدم',
+    blockedUserBanner: 'لقد قمت بحظر هذا المستخدم. لا يمكنك إرسال رسائل.',
+    blockedByUserBanner: 'لا يمكنك إرسال رسائل إلى هذا المستخدم.',
     searchComingSoon: 'ميزة البحث قادمة قريباً!',
     blockConfirm: 'هل أنت متأكد من حظر {name}؟',
     userBlocked: 'تم حظر المستخدم',
@@ -1566,6 +1568,9 @@ export default {
     },
     pushDisabledDesc: 'فعّل الإشعارات في إعدادات جهازك لتلقي التحديثات',
     openSettings: 'فتح الإعدادات',
+    removeNotification: 'إزالة هذا الإشعار',
+    turnOffLikeThis: 'إيقاف الإشعارات المشابهة',
+    turnedOff: 'تم إيقاف هذا النوع من الإشعارات',
   },
 
   report: {

@@ -275,9 +275,18 @@ const VerifyEmail = ({ route, navigation }) => {
   const handleOpenEmailApp = async () => {
     try {
       if (Platform.OS === 'ios') {
+        // Opens the default Mail app inbox on iOS
         await Linking.openURL('message://');
       } else {
-        await Linking.openURL('mailto:');
+        // On Android, try Gmail inbox first, then generic email intent
+        const gmailUrl = 'googlegmail://';
+        const canOpenGmail = await Linking.canOpenURL(gmailUrl);
+        if (canOpenGmail) {
+          await Linking.openURL(gmailUrl);
+        } else {
+          // Fallback: open device email chooser via intent
+          await Linking.openURL('mailto:');
+        }
       }
     } catch (error) {
       showAlert({

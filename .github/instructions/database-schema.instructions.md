@@ -3,6 +3,7 @@ applyTo: "**"
 ---
 
 # 📊 COLLEGE COMMUNITY - DATABASE SCHEMA
+NOTE This file is generated a month ago and the current database may have many changes . 
 
 > **CRITICAL**: This is the complete Appwrite database schema. Always reference this when working with database operations.
 

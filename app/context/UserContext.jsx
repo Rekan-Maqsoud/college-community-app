@@ -55,6 +55,7 @@ export const UserProvider = ({ children }) => {
             lastAcademicUpdate: completeUserData.lastAcademicUpdate || null,
             socialLinks: socialLinksData.links || null,
             socialLinksVisibility: socialLinksData.visibility || 'everyone',
+            blockedUsers: completeUserData.blockedUsers || [],
           };
           
           await AsyncStorage.setItem('userData', JSON.stringify(userData));
@@ -125,6 +126,7 @@ export const UserProvider = ({ children }) => {
             lastAcademicUpdate: completeUserData.lastAcademicUpdate || null,
             socialLinks: socialLinksData.links || null,
             socialLinksVisibility: socialLinksData.visibility || 'everyone',
+            blockedUsers: completeUserData.blockedUsers || [],
           };
           
           await AsyncStorage.setItem('userData', JSON.stringify(userData));

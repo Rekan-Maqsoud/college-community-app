@@ -781,7 +781,25 @@ export const canUserSendMessage = async (chatId, userId) => {
         );
         
         if (chat.type === 'private') {
-            return chat.participants?.includes(userId) || false;
+            if (!chat.participants?.includes(userId)) return false;
+            // Check if either user has blocked the other
+            const otherUserId = chat.participants.find(id => id !== userId);
+            if (otherUserId) {
+                try {
+                    const [currentUserDoc, otherUserDoc] = await Promise.all([
+                        databases.getDocument(config.databaseId, config.usersCollectionId, userId),
+                        databases.getDocument(config.databaseId, config.usersCollectionId, otherUserId),
+                    ]);
+                    const myBlocked = currentUserDoc?.blockedUsers || [];
+                    const theirBlocked = otherUserDoc?.blockedUsers || [];
+                    if (myBlocked.includes(otherUserId) || theirBlocked.includes(userId)) {
+                        return false;
+                    }
+                } catch (e) {
+                    // If user doc fetch fails, allow sending (fail open for non-block errors)
+                }
+            }
+            return true;
         }
         
         if (chat.type === 'custom_group') {

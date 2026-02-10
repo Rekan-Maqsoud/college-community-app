@@ -20,7 +20,7 @@ import { useUserProfile } from '../hooks/useRealtimeSubscription';
 const UserProfile = ({ route, navigation }) => {
   const { userId, userData: initialUserData } = route.params;
   const { t, theme, isDarkMode } = useAppSettings();
-  const { user: currentUser } = useUser();
+  const { user: currentUser, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const [userPosts, setUserPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
@@ -255,6 +255,9 @@ const UserProfile = ({ route, navigation }) => {
               await blockUser(currentUser.$id, userId);
               setIsBlocked(true);
               setIsFollowing(false);
+              // Refresh user context so blockedUsers list is updated for filtering
+              await refreshUser();
+              console.log('[BLOCK] User blocked, refreshed context');
               showAlert({
                 type: 'success',
                 title: t('common.success'),

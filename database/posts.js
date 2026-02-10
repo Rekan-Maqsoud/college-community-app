@@ -76,7 +76,7 @@ export const getPost = async (postId) => {
     }
 };
 
-export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = true, sortBy = 'newest') => {
+export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = true, sortBy = 'newest', blockedUserIds = []) => {
     const cacheKey = postsCacheManager.generateCacheKey(filters, limit, offset) + `_sort_${sortBy}`;
     
     try {
@@ -84,6 +84,10 @@ export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = 
         if (useCache && offset === 0) {
             const cached = await postsCacheManager.getCachedPosts(cacheKey);
             if (cached?.value && !cached.isStale) {
+                // Filter blocked users from cached results
+                if (blockedUserIds.length > 0) {
+                    return cached.value.filter(post => !blockedUserIds.includes(post.userId));
+                }
                 return cached.value;
             }
         }
@@ -125,8 +129,14 @@ export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = 
         if (offset === 0) {
             await postsCacheManager.cachePosts(cacheKey, posts.documents);
         }
+
+        // Filter out posts from blocked users
+        let results = posts.documents;
+        if (Array.isArray(blockedUserIds) && blockedUserIds.length > 0) {
+            results = results.filter(post => !blockedUserIds.includes(post.userId));
+        }
         
-        return posts.documents;
+        return results;
     } catch (error) {
         // On network error, try to return stale cache
         if (offset === 0) {
@@ -140,7 +150,7 @@ export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = 
     }
 };
 
-export const getPostsByDepartments = async (departments = [], stage = 'all', limit = 20, offset = 0, useCache = true, sortBy = 'newest', postType = 'all') => {
+export const getPostsByDepartments = async (departments = [], stage = 'all', limit = 20, offset = 0, useCache = true, sortBy = 'newest', postType = 'all', blockedUserIds = []) => {
     const cacheKey = `posts_multi_depts_${departments.sort().join('-')}_stage_${stage}_type_${postType}_sort_${sortBy}_l${limit}_o${offset}`;
     
     try {
@@ -189,8 +199,14 @@ export const getPostsByDepartments = async (departments = [], stage = 'all', lim
         if (offset === 0) {
             await postsCacheManager.cachePosts(cacheKey, posts.documents);
         }
+
+        // Filter out posts from blocked users
+        let deptResults = posts.documents;
+        if (Array.isArray(blockedUserIds) && blockedUserIds.length > 0) {
+            deptResults = deptResults.filter(post => !blockedUserIds.includes(post.userId));
+        }
         
-        return posts.documents;
+        return deptResults;
     } catch (error) {
         // On network error, try to return stale cache
         if (offset === 0) {
@@ -204,7 +220,7 @@ export const getPostsByDepartments = async (departments = [], stage = 'all', lim
     }
 };
 
-export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, useCache = true, sortBy = 'newest', postType = 'all') => {
+export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, useCache = true, sortBy = 'newest', postType = 'all', blockedUserIds = []) => {
     const cacheKey = `posts_public_stage_${stage}_type_${postType}_sort_${sortBy}_l${limit}_o${offset}`;
     
     try {
@@ -248,8 +264,14 @@ export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, u
         if (offset === 0) {
             await postsCacheManager.cachePosts(cacheKey, posts.documents);
         }
+
+        // Filter out posts from blocked users
+        let publicResults = posts.documents;
+        if (Array.isArray(blockedUserIds) && blockedUserIds.length > 0) {
+            publicResults = publicResults.filter(post => !blockedUserIds.includes(post.userId));
+        }
         
-        return posts.documents;
+        return publicResults;
     } catch (error) {
         // On network error, try to return stale cache
         if (offset === 0) {
@@ -513,7 +535,7 @@ export const togglePostLike = async (postId, userId) => {
             updatedLikedBy = [...likedBy, userId];
         }
         
-        await databases.updateDocument(
+        const updatedPost = await databases.updateDocument(
             config.databaseId,
             config.postsCollectionId,
             postId,
@@ -522,8 +544,15 @@ export const togglePostLike = async (postId, userId) => {
                 likeCount: updatedLikedBy.length 
             }
         );
+
+        // Invalidate posts cache so refreshes show the updated like state
+        await postsCacheManager.invalidatePostsCache();
         
-        return { isLiked: !isLiked, likeCount: updatedLikedBy.length };
+        return { 
+            isLiked: !isLiked, 
+            likeCount: updatedPost.likeCount ?? updatedLikedBy.length,
+            likedBy: updatedPost.likedBy ?? updatedLikedBy,
+        };
     } catch (error) {
         throw error;
     }

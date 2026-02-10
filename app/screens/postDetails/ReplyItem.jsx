@@ -193,20 +193,31 @@ const ReplyItem = ({
                 </TouchableOpacity>
               </>
             )}
-            {isPostOwner && !isOwner && showAcceptButton && (
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => { setShowMenu(false); onAccept(reply); }}
-              >
-                <Ionicons 
-                  name={reply.isAccepted ? 'close-circle-outline' : 'checkmark-circle-outline'} 
-                  size={22} 
-                  color="#10B981" 
-                />
-                <Text style={[styles.menuItemText, { color: '#10B981' }]}>
-                  {reply.isAccepted ? t('post.unmarkAsAccepted') : t('post.markAsAccepted')}
-                </Text>
-              </TouchableOpacity>
+            {isPostOwner && !isOwner && (
+              <>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => { setShowMenu(false); onDelete(reply); }}
+                >
+                  <Ionicons name="trash-outline" size={22} color="#EF4444" />
+                  <Text style={[styles.menuItemText, { color: '#EF4444' }]}>{t('post.deleteReply')}</Text>
+                </TouchableOpacity>
+                {showAcceptButton && (
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => { setShowMenu(false); onAccept(reply); }}
+                  >
+                    <Ionicons 
+                      name={reply.isAccepted ? 'close-circle-outline' : 'checkmark-circle-outline'} 
+                      size={22} 
+                      color="#10B981" 
+                    />
+                    <Text style={[styles.menuItemText, { color: '#10B981' }]}>
+                      {reply.isAccepted ? t('post.unmarkAsAccepted') : t('post.markAsAccepted')}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </View>
         </TouchableOpacity>

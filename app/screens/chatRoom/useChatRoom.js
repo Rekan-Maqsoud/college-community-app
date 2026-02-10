@@ -32,13 +32,21 @@ import {
 } from '../../../database/userChatSettings';
 import { useChatMessages } from '../../hooks/useRealtimeSubscription';
 import { messagesCacheManager } from '../../utils/cacheManager';
-import { normalizeRealtimeMessage, applyRealtimeMessageUpdate } from '../../utils/realtimeHelpers';
+import { normalizeRealtimeMessage } from '../../utils/realtimeHelpers';
 
 const SMART_POLL_INTERVAL = 10000;
 
-export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert }) => {
+export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, refreshUser }) => {
   // Deep-clone chat once to avoid mutating the frozen route.params object
-  const chat = useMemo(() => JSON.parse(JSON.stringify(frozenChat)), [frozenChat]);
+  // Safety check: guard against undefined/null frozenChat to prevent JSON.parse crash
+  const chat = useMemo(() => {
+    if (!frozenChat) return {};
+    try {
+      return JSON.parse(JSON.stringify(frozenChat));
+    } catch (e) {
+      return { ...frozenChat };
+    }
+  }, [frozenChat]);
   const triggerAlert = (title, message, type = 'info', buttons = []) => {
     if (showAlert) {
       showAlert({ type, title, message, buttons });
@@ -64,6 +72,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert }
   const [hiddenMessageIds, setHiddenMessageIds] = useState([]);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState([]);
+  const [isBlockedByOtherUser, setIsBlockedByOtherUser] = useState(false);
   
   const flatListRef = useRef(null);
   const pollingInterval = useRef(null);
@@ -101,7 +110,14 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert }
 
     await messagesCacheManager.addMessageToCache(chat.$id, decryptedPayload, 100);
 
-    setMessages(prev => applyRealtimeMessageUpdate(prev, decryptedPayload, user?.$id));
+    // Insert at beginning for inverted FlatList (newest first)
+    setMessages(prev => {
+      // Check if message already exists
+      if (prev.some(m => m.$id === decryptedPayload.$id)) {
+        return prev.map(m => m.$id === decryptedPayload.$id ? decryptedPayload : m);
+      }
+      return [decryptedPayload, ...prev];
+    });
 
     if (decryptedPayload.senderId && !userCacheRef.current[decryptedPayload.senderId]) {
       try {
@@ -112,10 +128,6 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert }
         userCacheRef.current[decryptedPayload.senderId] = { name: decryptedPayload.senderName || 'Unknown' };
       }
     }
-
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
   }, [chat.$id, getNormalizedRealtimeMessage, user?.$id]);
 
   const handleRealtimeMessageDeleted = useCallback(async (payload) => {
@@ -137,17 +149,17 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert }
   const pollMessages = useCallback(async () => {
     try {
       const fetchedMessages = await getMessages(chat.$id, user?.$id, 100, 0, false);
-      let reversedMessages = fetchedMessages.reverse();
+      let chronological = fetchedMessages.reverse(); // oldest first
 
       // Filter out messages deleted via realtime to prevent ghost re-appearance
       if (deletedMessageIds.current.size > 0) {
-        reversedMessages = reversedMessages.filter(m => !deletedMessageIds.current.has(m.$id));
+        chronological = chronological.filter(m => !deletedMessageIds.current.has(m.$id));
       }
 
       // Filter by clearedAt if set (non-destructive clear)
       if (clearedAt) {
         const clearedDate = new Date(clearedAt);
-        reversedMessages = reversedMessages.filter(m => {
+        chronological = chronological.filter(m => {
           const msgDate = new Date(m.$createdAt || m.createdAt);
           return msgDate > clearedDate;
         });
@@ -155,24 +167,22 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert }
 
       // Filter by hidden message IDs
       if (hiddenMessageIds.length > 0) {
-        reversedMessages = reversedMessages.filter(m => !hiddenMessageIds.includes(m.$id));
+        chronological = chronological.filter(m => !hiddenMessageIds.includes(m.$id));
       }
       
-      const newLastId = reversedMessages.length > 0 ? reversedMessages[reversedMessages.length - 1].$id : null;
+      const newLastId = chronological.length > 0 ? chronological[chronological.length - 1].$id : null;
+
+      // Reverse for inverted FlatList (newest first)
+      const inverted = chronological.slice().reverse();
       
       setMessages(prev => {
         // Keep ALL optimistic messages (both sending and recently sent)
-        // This prevents messages from disappearing during the race condition
         const optimisticMessages = prev.filter(m => m._isOptimistic);
         
-        // Create a map of server messages by ID for quick lookup
-        const serverMessageMap = new Map(reversedMessages.map(m => [m.$id, m]));
-        
         // Merge: use server messages but update with any local status
-        const mergedMessages = reversedMessages.map(serverMsg => {
+        const mergedMessages = inverted.map(serverMsg => {
           const localMsg = prev.find(m => m.$id === serverMsg.$id);
           if (localMsg && localMsg._status === 'sent') {
-            // Keep local status updates that haven't synced yet
             return { ...serverMsg, _status: localMsg._status, _isOptimistic: false };
           }
           return serverMsg;
@@ -180,16 +190,15 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert }
         
         // Filter out optimistic messages that now exist on server (by content match)
         const remainingOptimistic = optimisticMessages.filter(opt => 
-          !reversedMessages.some(m => 
+          !inverted.some(m => 
             m.senderId === opt.senderId && 
             m.content === opt.content &&
-            // Also check if created within the last 30 seconds (to avoid false matches)
             Math.abs(new Date(m.$createdAt) - new Date(opt.$createdAt)) < 30000
           )
         );
         
         // Only update if there are actual changes
-        const newMessages = [...mergedMessages, ...remainingOptimistic];
+        const newMessages = [...remainingOptimistic, ...mergedMessages];
         const prevIds = prev.map(m => m.$id).join(',');
         const newIds = newMessages.map(m => m.$id).join(',');
         
@@ -209,7 +218,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert }
         return newMessages;
       });
       
-      const uniqueSenderIds = [...new Set(reversedMessages.map(m => m.senderId))];
+      const uniqueSenderIds = [...new Set(inverted.map(m => m.senderId))];
       const newUsers = uniqueSenderIds.filter(id => !userCacheRef.current[id]);
       
       if (newUsers.length > 0) {
@@ -262,19 +271,48 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert }
 
   const loadMessages = async () => {
     try {
-      setLoading(true);
+      // Stale-While-Revalidate: show cached messages immediately
+      const cached = await messagesCacheManager.getCachedMessages(chat.$id, 100);
+      let hasCachedData = false;
+      if (cached?.value && cached.value.length > 0) {
+        let cachedMessages = cached.value;
+        if (deletedMessageIds.current.size > 0) {
+          cachedMessages = cachedMessages.filter(m => !deletedMessageIds.current.has(m.$id));
+        }
+        if (clearedAt) {
+          const clearedDate = new Date(clearedAt);
+          cachedMessages = cachedMessages.filter(m => {
+            const msgDate = new Date(m.$createdAt || m.createdAt);
+            return msgDate > clearedDate;
+          });
+        }
+        if (hiddenMessageIds.length > 0) {
+          cachedMessages = cachedMessages.filter(m => !hiddenMessageIds.includes(m.$id));
+        }
+        // Reverse for inverted FlatList (newest first)
+        setMessages(cachedMessages.slice().reverse());
+        hasCachedData = true;
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+
+      // Fetch fresh data from server
       const fetchedMessages = await getMessages(chat.$id, user?.$id, 100, 0, false);
-      let reversedMessages = fetchedMessages.reverse();
+      let freshMessages = fetchedMessages.reverse(); // chronological (oldest first)
+
+      // Cache the freshly fetched messages (in chronological order)
+      await messagesCacheManager.cacheMessages(chat.$id, freshMessages, 100);
 
       // Filter out messages deleted via realtime to prevent ghost re-appearance
       if (deletedMessageIds.current.size > 0) {
-        reversedMessages = reversedMessages.filter(m => !deletedMessageIds.current.has(m.$id));
+        freshMessages = freshMessages.filter(m => !deletedMessageIds.current.has(m.$id));
       }
 
       // Filter by clearedAt if set (non-destructive clear)
       if (clearedAt) {
         const clearedDate = new Date(clearedAt);
-        reversedMessages = reversedMessages.filter(m => {
+        freshMessages = freshMessages.filter(m => {
           const msgDate = new Date(m.$createdAt || m.createdAt);
           return msgDate > clearedDate;
         });
@@ -282,17 +320,47 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert }
 
       // Filter by hidden message IDs
       if (hiddenMessageIds.length > 0) {
-        reversedMessages = reversedMessages.filter(m => !hiddenMessageIds.includes(m.$id));
+        freshMessages = freshMessages.filter(m => !hiddenMessageIds.includes(m.$id));
       }
 
-      lastMessageId.current = reversedMessages.length > 0 ? reversedMessages[reversedMessages.length - 1].$id : null;
-      setMessages(reversedMessages);
+      lastMessageId.current = freshMessages.length > 0 ? freshMessages[freshMessages.length - 1].$id : null;
+
+      // Reverse for inverted FlatList (newest first)
+      const invertedFresh = freshMessages.slice().reverse();
+
+      // Merge silently: only update if there are meaningful changes
+      setMessages(prev => {
+        const prevIds = prev.map(m => m.$id).join(',');
+        const newIds = invertedFresh.map(m => m.$id).join(',');
+        if (prevIds === newIds && prev.length === invertedFresh.length) {
+          // Check for content updates (like readBy, status)
+          const hasUpdates = invertedFresh.some((newMsg, idx) => {
+            const oldMsg = prev[idx];
+            return oldMsg && (
+              (newMsg.readBy?.length || 0) !== (oldMsg.readBy?.length || 0) ||
+              newMsg.status !== oldMsg.status ||
+              newMsg.isPinned !== oldMsg.isPinned
+            );
+          });
+          if (!hasUpdates) return prev;
+        }
+        // Keep any optimistic messages that haven't appeared on server yet
+        const optimistic = prev.filter(m => m._isOptimistic);
+        const remaining = optimistic.filter(opt =>
+          !invertedFresh.some(m =>
+            m.senderId === opt.senderId &&
+            m.content === opt.content &&
+            Math.abs(new Date(m.$createdAt) - new Date(opt.$createdAt)) < 30000
+          )
+        );
+        return [...remaining, ...invertedFresh];
+      });
       
       if (user?.$id) {
         markChatAsRead(chat.$id, user.$id);
       }
       
-      const uniqueSenderIds = [...new Set(reversedMessages.map(m => m.senderId))];
+      const uniqueSenderIds = [...new Set(invertedFresh.map(m => m.senderId))];
       const newUserCache = { ...userCacheRef.current };
       
       for (const senderId of uniqueSenderIds) {
@@ -351,9 +419,26 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert }
     }
   };
 
+  const checkIfBlockedByOther = async () => {
+    if (chat.type !== 'private') return;
+    const otherUserId = chat.otherUser?.$id || chat.otherUser?.id ||
+      chat.participants?.find(id => id !== user?.$id);
+    if (!otherUserId) return;
+    try {
+      const otherUserDoc = await getUserById(otherUserId, true);
+      const theirBlockedList = otherUserDoc?.blockedUsers || [];
+      const blocked = Array.isArray(theirBlockedList) && theirBlockedList.includes(user?.$id);
+      setIsBlockedByOtherUser(blocked);
+      if (blocked) setCanSend(false);
+    } catch (e) {
+      // Silent fail
+    }
+  };
+
   useEffect(() => {
     loadMessages();
     checkPermissions();
+    checkIfBlockedByOther();
     loadMembersAndFriends();
     
     pollingInterval.current = setInterval(pollMessages, SMART_POLL_INTERVAL);
@@ -597,14 +682,9 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert }
       optimisticMessage.replyToSender = replyingTo.senderName || '';
     }
 
-    // Add optimistic message immediately
-    setMessages(prev => [...prev, optimisticMessage]);
+    // Add optimistic message immediately (at beginning for inverted FlatList)
+    setMessages(prev => [optimisticMessage, ...prev]);
     setReplyingTo(null);
-    
-    // Scroll to bottom
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
 
     try {
       setSending(true);
@@ -706,7 +786,10 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert }
           onPress: async () => {
             try {
               await blockUser(user.$id, otherUserId);
-              triggerAlert(t('common.success'), t('chats.userBlocked'), 'success');
+              // Refresh user context so blockedUsers is updated for filtering
+              if (refreshUser) await refreshUser();
+              console.log('[BLOCK] User blocked from chat, refreshed context');
+              // Navigate back after block to avoid state updates on unmounted component
               navigation.goBack();
             } catch (error) {
               triggerAlert(t('common.error'), t('chats.blockError'));
@@ -780,6 +863,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert }
     selectedMessageIds,
     clearedAt,
     hiddenMessageIds,
+    isBlockedByOtherUser,
     
     // Setters
     setShowMuteModal,

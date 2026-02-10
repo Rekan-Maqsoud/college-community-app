@@ -62,7 +62,13 @@ const shouldShowNotification = async (notificationType) => {
     // Check category-specific settings
     const notificationSettingsStr = await AsyncStorage.getItem('notificationSettings');
     if (notificationSettingsStr) {
-      const settings = JSON.parse(notificationSettingsStr);
+      let settings = {};
+      try {
+        settings = JSON.parse(notificationSettingsStr);
+      } catch (e) {
+        settings = {};
+      }
+      if (!settings) settings = {};
       
       // Map notification types to setting keys
       switch (notificationType) {
@@ -398,7 +404,7 @@ export const checkInitialNotification = async () => {
   try {
     const response = await getLastNotificationResponse();
     if (response) {
-      return response.notification.request.content.data;
+      return response?.notification?.request?.content?.data || null;
     }
     return null;
   } catch (error) {
@@ -426,6 +432,7 @@ export const sendGeneralPushNotification = async ({
   title,
   body,
   postId = null,
+  replyId = null,
 }) => {
   try {
     // Validate required parameters
@@ -473,18 +480,23 @@ export const sendGeneralPushNotification = async ({
     }
 
     // Prepare notification message
+    const notifData = {
+      type,
+      senderId,
+      senderName,
+      postId,
+      userId: senderId,
+    };
+    if (replyId) {
+      notifData.replyId = replyId;
+    }
+
     const message = {
       to: token,
       sound: 'default',
       title,
       body,
-      data: {
-        type,
-        senderId,
-        senderName,
-        postId,
-        userId: senderId,
-      },
+      data: notifData,
       channelId: type === 'follow' ? 'social' : 'posts',
     };
 

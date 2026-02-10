@@ -34,7 +34,7 @@ import { useChatRoom } from './chatRoom/useChatRoom';
 const ChatRoom = ({ route, navigation }) => {
   const { chat } = route.params;
   const { t, theme, isDarkMode, chatSettings } = useAppSettings();
-  const { user } = useUser();
+  const { user, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   const {
@@ -86,7 +86,20 @@ const ChatRoom = ({ route, navigation }) => {
     toggleMessageSelection,
     handleBatchCopy,
     handleBatchDeleteForMe,
-  } = useChatRoom({ chat, user, t, navigation, showAlert });
+    isBlockedByOtherUser,
+  } = useChatRoom({ chat, user, t, navigation, showAlert, refreshUser });
+
+  // Blocking check for private chats - did I block them?
+  const iBlockedThem = useMemo(() => {
+    if (chat?.type !== 'private') return false;
+    const otherUserId = chat?.otherUser?.$id || chat?.otherUser?.id;
+    if (!otherUserId || !user) return false;
+    const blockedUsers = user.blockedUsers || [];
+    return Array.isArray(blockedUsers) && blockedUsers.includes(otherUserId);
+  }, [chat, user]);
+
+  // Either direction blocks the chat
+  const isBlockedChat = iBlockedThem || isBlockedByOtherUser;
 
   // Search in chat state
   const [searchActive, setSearchActive] = useState(false);
@@ -101,7 +114,7 @@ const ChatRoom = ({ route, navigation }) => {
 
   const handlePinnedMessagePress = useCallback((messageId) => {
     setShowPinnedModal(false);
-    const index = messages.findIndex(m => m.$id === messageId);
+    const index = memoizedMessages.findIndex(m => m.$id === messageId);
     if (index !== -1 && flatListRef.current) {
       setTimeout(() => {
         flatListRef.current.scrollToIndex({
@@ -116,22 +129,22 @@ const ChatRoom = ({ route, navigation }) => {
         }, 1500);
       }, 350);
     }
-  }, [messages, setShowPinnedModal]);
+  }, [memoizedMessages, setShowPinnedModal]);
 
   // Compute search results when query changes
   useEffect(() => {
     if (searchQuery.trim().length > 0) {
       const query = searchQuery.toLowerCase();
-      const results = messages
+      const results = memoizedMessages
         .map((msg, index) => ({ ...msg, originalIndex: index }))
         .filter(msg => msg.content && msg.content.toLowerCase().includes(query));
       setSearchResults(results);
-      setCurrentSearchIndex(results.length > 0 ? results.length - 1 : 0); // Start from newest (bottom)
+      setCurrentSearchIndex(0); // Start from newest (index 0 in inverted list)
     } else {
       setSearchResults([]);
       setCurrentSearchIndex(0);
     }
-  }, [searchQuery, messages]);
+  }, [searchQuery, memoizedMessages]);
 
   // Scroll to current search result
   useEffect(() => {
@@ -261,10 +274,9 @@ const ChatRoom = ({ route, navigation }) => {
     const otherUserId = chat.otherUser?.$id;
     if (!otherUserId) return null;
 
-    // Messages are in chronological order (oldest first, newest last)
-    // Find the most recent (newest) message sent by current user that was read by other user
-    // Loop backwards to find the newest read message
-    for (let i = messages.length - 1; i >= 0; i--) {
+    // Messages are in inverted order (newest first / index 0 = newest)
+    // Find the newest message sent by current user that was read by other user
+    for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];
       if (msg.senderId === user.$id && msg.readBy?.includes(otherUserId)) {
         return msg.$id;
@@ -279,14 +291,16 @@ const ChatRoom = ({ route, navigation }) => {
     const senderName = senderData?.name || item.senderName || 'Unknown';
     const senderPhoto = senderData?.profilePicture || item.senderPhoto;
     
+    // With inverted FlatList: index 0 = newest (visually at bottom)
+    // Visual "above" = index + 1, visual "below" = index - 1
     const showSenderName = !isCurrentUser && (
-      index === 0 || 
-      messages[index - 1].senderId !== item.senderId
+      index === memoizedMessages.length - 1 || 
+      memoizedMessages[index + 1]?.senderId !== item.senderId
     );
     
     const showAvatar = !isCurrentUser && (
-      index === messages.length - 1 ||
-      messages[index + 1]?.senderId !== item.senderId
+      index === 0 ||
+      memoizedMessages[index - 1]?.senderId !== item.senderId
     );
 
     const isBookmarked = bookmarkedMsgIds.includes(item.$id);
@@ -541,26 +555,12 @@ const ChatRoom = ({ route, navigation }) => {
         keyExtractor={(item, index) => item.$id || `message-${index}`}
         contentContainerStyle={styles.messagesList}
         ListEmptyComponent={renderEmpty}
-        onContentSizeChange={() => {
-          if (!searchActive) {
-            // Use a small delay to ensure content is fully laid out before scrolling
-            setTimeout(() => {
-              flatListRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-          }
-        }}
-        onLayout={() => {
-          if (!searchActive) {
-            flatListRef.current?.scrollToEnd({ animated: false });
-          }
-        }}
         onScrollToIndexFailed={handleScrollToIndexFailed}
         removeClippedSubviews={Platform.OS === 'android'}
         maxToRenderPerBatch={15}
         windowSize={10}
         initialNumToRender={20}
-        inverted={false}
-        maintainVisibleContentPosition={searchActive ? { minIndexForVisible: 0 } : undefined}
+        inverted={true}
       />
 
       {/* Selection Mode Toolbar */}
@@ -600,7 +600,22 @@ const ChatRoom = ({ route, navigation }) => {
         </View>
       )}
 
-      {!selectionMode && (
+      {/* Blocked user banner */}
+      {isBlockedChat && (
+        <View style={[
+          styles.warningBanner,
+          { backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.1)' }
+        ]}>
+          <Ionicons name="ban-outline" size={moderateScale(18)} color="#EF4444" />
+          <Text style={[styles.warningText, { fontSize: fontSize(12), color: '#EF4444' }]}>
+            {iBlockedThem
+              ? (t('chats.blockedUserBanner') || 'You have blocked this user. You cannot send messages.')
+              : (t('chats.blockedByUserBanner') || 'You cannot send messages to this user.')}
+          </Text>
+        </View>
+      )}
+
+      {!selectionMode && !isBlockedChat && (
       <MessageInput 
         onSend={handleSendMessage}
         disabled={sending || !canSend}

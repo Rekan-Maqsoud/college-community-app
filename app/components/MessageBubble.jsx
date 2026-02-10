@@ -671,8 +671,15 @@ const MessageBubble = ({
         <Pressable
           disabled={selectionMode}
           onPress={() => {
-            const url = `https://www.openstreetmap.org/?mlat=${locationData.lat}&mlon=${locationData.long}#map=16/${locationData.lat}/${locationData.long}`;
-            Linking.openURL(url);
+            const { lat, long } = locationData;
+            const url = RNPlatform.select({
+              ios: `http://maps.apple.com/?ll=${lat},${long}&q=${lat},${long}`,
+              android: `geo:${lat},${long}?q=${lat},${long}`,
+            });
+            Linking.openURL(url).catch(() => {
+              // Fallback to web if native map app is not available
+              Linking.openURL(`https://www.google.com/maps?q=${lat},${long}`);
+            });
           }}
           style={styles.locationCard}>
           <View style={styles.locationMapPreviewContainer}>

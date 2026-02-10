@@ -729,16 +729,21 @@ const NotificationSetup = ({ navigationRef }) => {
     // Listen for user tapping on notifications
     responseListenerRef.current = addNotificationResponseListener(response => {
       const data = response?.notification?.request?.content?.data || {};
+      const type = data?.type || '';
       
       // Navigate based on notification type
       if (navigationRef.current) {
         if (data.postId) {
-          navigationRef.current.navigate('PostDetails', { postId: data.postId });
+          const navParams = { postId: data.postId };
+          if (data.replyId && (type === 'post_reply')) {
+            navParams.targetReplyId = data.replyId;
+          }
+          navigationRef.current.navigate('PostDetails', navParams);
         } else if (data.chatId) {
           navigationRef.current.navigate('ChatRoom', { chatId: data.chatId });
-        } else if (data.userId && data.type === 'follow') {
+        } else if (data.userId && type === 'follow') {
           navigationRef.current.navigate('UserProfile', { userId: data.userId });
-        } else if (data.type) {
+        } else if (type) {
           navigationRef.current.navigate('Notifications');
         }
       }
@@ -748,12 +753,17 @@ const NotificationSetup = ({ navigationRef }) => {
     const checkInitialNotificationHandler = async () => {
       const data = await checkInitialNotification();
       if (data && navigationRef.current) {
+        const type = data?.type || '';
         setTimeout(() => {
           if (data.postId) {
-            navigationRef.current.navigate('PostDetails', { postId: data.postId });
+            const navParams = { postId: data.postId };
+            if (data.replyId && type === 'post_reply') {
+              navParams.targetReplyId = data.replyId;
+            }
+            navigationRef.current.navigate('PostDetails', navParams);
           } else if (data.chatId) {
             navigationRef.current.navigate('ChatRoom', { chatId: data.chatId });
-          } else if (data.userId && data.type === 'follow') {
+          } else if (data.userId && type === 'follow') {
             navigationRef.current.navigate('UserProfile', { userId: data.userId });
           }
         }, 1000);
