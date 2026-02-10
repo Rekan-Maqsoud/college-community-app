@@ -8,8 +8,8 @@ import {
   Linking,
   Pressable,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
+import { isPostBookmarked, togglePostBookmark } from '../utils/bookmarkService';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
@@ -28,7 +28,7 @@ import {
   getDefaultAvatar 
 } from './postCard/styles';
 
-const BOOKMARKS_KEY = '@bookmarked_posts';
+
 
 const PostCard = ({ 
   post, 
@@ -81,35 +81,13 @@ const PostCard = ({
 
   // Check if post is bookmarked on mount
   useEffect(() => {
-    const checkBookmark = async () => {
-      try {
-        const bookmarks = await AsyncStorage.getItem(BOOKMARKS_KEY);
-        if (bookmarks) {
-          const bookmarkList = JSON.parse(bookmarks);
-          setIsBookmarked(bookmarkList.includes(post.$id));
-        }
-      } catch (error) {
-        // Ignore bookmark check errors
-      }
-    };
-    checkBookmark();
+    isPostBookmarked(post.$id).then(setIsBookmarked).catch(() => {});
   }, [post.$id]);
 
   const handleBookmark = async () => {
     try {
-      const bookmarks = await AsyncStorage.getItem(BOOKMARKS_KEY);
-      let bookmarkList = bookmarks ? JSON.parse(bookmarks) : [];
-      
-      if (isBookmarked) {
-        // Remove from bookmarks
-        bookmarkList = bookmarkList.filter(id => id !== post.$id);
-      } else {
-        // Add to bookmarks
-        bookmarkList.push(post.$id);
-      }
-      
-      await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarkList));
-      setIsBookmarked(!isBookmarked);
+      const newState = await togglePostBookmark(post.$id, user?.$id);
+      setIsBookmarked(newState);
     } catch (error) {
       // Ignore bookmark errors
     }

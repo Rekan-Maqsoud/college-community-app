@@ -18,6 +18,14 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import ReanimatedModule, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+  withDelay,
+} from 'react-native-reanimated';
+import MapView, { Marker } from 'react-native-maps';
 import { useAppSettings } from '../context/AppSettingsContext';
 import ProfilePicture from './ProfilePicture';
 import ZoomableImageModal from './ZoomableImageModal';
@@ -27,6 +35,8 @@ import {
   moderateScale,
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+
+const ReanimatedView = ReanimatedModule?.View || View;
 
 // Enable LayoutAnimation for Android (skip in New Architecture where it's a no-op)
 if (
@@ -250,6 +260,7 @@ const MessageBubble = ({
   onNavigateToProfile,
   searchQuery = '',
   isCurrentSearchResult = false,
+  isHighlighted = false,
   onPostPress,
   showAlert,
   selectionMode = false,
@@ -307,6 +318,26 @@ const MessageBubble = ({
   const mentionsAll = message.mentionsAll;
   const isPostShare = message.type === 'post_share';
   const isLocation = message.type === 'location';
+
+  // Pinned message highlight glow animation (react-native-reanimated)
+  const highlightOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (isHighlighted) {
+      highlightOpacity.value = withSequence(
+        withTiming(1, { duration: 300 }),
+        withDelay(500, withTiming(0, { duration: 600 }))
+      );
+    } else {
+      highlightOpacity.value = 0;
+    }
+  }, [isHighlighted]);
+
+  const highlightAnimatedStyle = useAnimatedStyle(() => ({
+    backgroundColor: isDarkMode
+      ? `rgba(180, 190, 255, ${highlightOpacity.value * 0.10})`
+      : `rgba(100, 130, 255, ${highlightOpacity.value * 0.08})`,
+  }));
 
   // Parse post share metadata
   const postShareData = React.useMemo(() => {
@@ -582,13 +613,17 @@ const MessageBubble = ({
         </View>
       )}
 
-      {/* Post Share Card */}
+      {/* Shared Post Card */}
       {isPostShare && postShareData && (
         <TouchableOpacity
           activeOpacity={0.8}
           disabled={selectionMode}
           onPress={() => onPostPress && onPostPress(postShareData.postId)}
-          style={styles.postShareCard}>
+          style={[styles.postShareCard, { 
+            backgroundColor: isCurrentUser ? 'rgba(255,255,255,0.12)' : (isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+            borderWidth: 1,
+            borderColor: isCurrentUser ? 'rgba(255,255,255,0.15)' : (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+          }]}>
           {postShareData.thumbnailUrl ? (
             <Image
               source={{ uri: postShareData.thumbnailUrl }}
@@ -597,6 +632,12 @@ const MessageBubble = ({
             />
           ) : null}
           <View style={styles.postShareInfo}>
+            <View style={styles.postShareHeaderRow}>
+              <Ionicons name="newspaper-outline" size={moderateScale(14)} color={isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.primary} />
+              <Text style={[styles.postShareLabel, { color: isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.primary, fontSize: fontSize(10), fontWeight: '600' }]}>
+                {t('post.sharedPost') || 'Shared Post'}
+              </Text>
+            </View>
             <Text
               style={[
                 styles.postShareTitle,
@@ -617,45 +658,54 @@ const MessageBubble = ({
             ) : null}
           </View>
           <View style={styles.postShareFooter}>
-            <Ionicons name="newspaper-outline" size={moderateScale(12)} color={isCurrentUser ? 'rgba(255,255,255,0.6)' : theme.textSecondary} />
-            <Text style={[styles.postShareLabel, { color: isCurrentUser ? 'rgba(255,255,255,0.6)' : theme.textSecondary, fontSize: fontSize(10) }]}>
+            <Text style={[styles.postShareLabel, { color: isCurrentUser ? 'rgba(255,255,255,0.5)' : theme.textSecondary, fontSize: fontSize(10) }]}>
               {t('chats.tapToView')}
             </Text>
+            <Ionicons name="chevron-forward" size={moderateScale(12)} color={isCurrentUser ? 'rgba(255,255,255,0.5)' : theme.textSecondary} />
           </View>
         </TouchableOpacity>
       )}
 
-      {/* Location Bubble */}
+      {/* Location Bubble with Map Preview */}
       {isLocation && locationData && (
-        <TouchableOpacity
-          activeOpacity={0.8}
+        <Pressable
           disabled={selectionMode}
           onPress={() => {
             const url = `https://www.google.com/maps?q=${locationData.lat},${locationData.long}`;
             Linking.openURL(url);
           }}
           style={styles.locationCard}>
-          <LinearGradient
-            colors={isCurrentUser ? ['#6366F1', '#8B5CF6'] : ['#3B82F6', '#06B6D4']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.locationGradient}
-          >
-            <Ionicons name="location" size={moderateScale(28)} color="#FFFFFF" />
-            <Text style={styles.locationButtonText}>
-              {t('chats.viewLocation') || '\uD83D\uDCCD View Location'}
-            </Text>
-            <Text style={styles.locationCoords}>
-              {`${locationData.lat.toFixed(4)}, ${locationData.long.toFixed(4)}`}
-            </Text>
-          </LinearGradient>
+          <View style={styles.locationMapPreviewContainer}>
+            <MapView
+              liteMode={true}
+              scrollEnabled={false}
+              zoomEnabled={false}
+              rotateEnabled={false}
+              pitchEnabled={false}
+              toolbarEnabled={false}
+              style={styles.locationMapPreview}
+              initialRegion={{
+                latitude: locationData.lat,
+                longitude: locationData.long,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }}
+            >
+              <Marker
+                coordinate={{ latitude: locationData.lat, longitude: locationData.long }}
+              />
+            </MapView>
+          </View>
           <View style={styles.locationInfo}>
             <Ionicons name="navigate-outline" size={moderateScale(14)} color={isCurrentUser ? 'rgba(255,255,255,0.8)' : theme.primary} />
             <Text style={[styles.locationText, { color: isCurrentUser ? '#FFFFFF' : theme.text, fontSize: fontSize(12) }]}>
-              {t('chats.tapToOpenMap')}
+              {`${locationData.lat.toFixed(4)}, ${locationData.long.toFixed(4)}`}
             </Text>
           </View>
-        </TouchableOpacity>
+          <Text style={[styles.locationHint, { color: isCurrentUser ? 'rgba(255,255,255,0.5)' : theme.textSecondary, fontSize: fontSize(10) }]}>
+            {t('chats.tapToOpenMap')}
+          </Text>
+        </Pressable>
       )}
 
       {!isPostShare && !isLocation && hasImage && (
@@ -720,10 +770,11 @@ const MessageBubble = ({
   );
 
   return (
-    <View style={[
+    <ReanimatedView style={[
       styles.container,
       isCurrentUser ? styles.currentUserContainer : styles.otherUserContainer,
       isCurrentSearchResult && styles.currentSearchResultContainer,
+      highlightAnimatedStyle,
     ]}>
       {/* Selection Mode Checkbox */}
       {selectionMode && (
@@ -944,7 +995,7 @@ const MessageBubble = ({
           </View>
         </Pressable>
       </Modal>
-    </View>
+    </ReanimatedView>
   );
 };
 
@@ -1283,6 +1334,12 @@ const styles = StyleSheet.create({
   postShareInfo: {
     paddingHorizontal: spacing.xs,
   },
+  postShareHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs / 2,
+    marginBottom: spacing.xs / 2,
+  },
   postShareTitle: {
     fontWeight: '700',
     marginBottom: spacing.xs / 2,
@@ -1306,6 +1363,25 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     overflow: 'hidden',
     width: moderateScale(220),
+  },
+  locationMapPreviewContainer: {
+    width: '100%',
+    height: moderateScale(140),
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  locationMapPreview: {
+    width: '100%',
+    height: moderateScale(140),
+    minHeight: 140,
+  },
+  locationMapOverlay: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   locationGradient: {
     width: '100%',

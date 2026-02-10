@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCurrentUser, getCompleteUserData } from '../../database/auth';
+import { restoreBookmarksFromServer } from '../utils/bookmarkService';
 
 const UserContext = createContext();
 
@@ -58,6 +59,9 @@ export const UserProvider = ({ children }) => {
           
           await AsyncStorage.setItem('userData', JSON.stringify(userData));
           setUser(userData);
+          
+          // Restore bookmarks from server in background (for fresh installs)
+          restoreBookmarksFromServer(userData.$id).catch(() => {});
         }
       } else {
         if (cached) {

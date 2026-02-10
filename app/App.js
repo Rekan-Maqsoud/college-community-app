@@ -17,6 +17,7 @@ import CustomAlert from './components/CustomAlert';
 import { GlobalAlertProvider, useGlobalAlert } from './context/GlobalAlertContext';
 import { wp, normalize, spacing } from './utils/responsive';
 import { borderRadius, shadows } from './theme/designTokens';
+import realtimeDebugLogger from './utils/realtimeDebugLogger';
 import { getCurrentUser, getUserDocument, signOut } from '../database/auth';
 import { getAllUserChats } from '../database/chatHelpers';
 import { getTotalUnreadCount } from '../database/chats';
@@ -49,6 +50,7 @@ import NotificationSettings from './screens/settings/NotificationSettings';
 import AccountSettings from './screens/settings/AccountSettings';
 import ChatSettings from './screens/settings/ChatSettings';
 import BlockList from './screens/settings/BlockList';
+import SavedPosts from './screens/settings/SavedPosts';
 import PostDetails from './screens/PostDetails';
 import EditPost from './screens/EditPost';
 import ChatRoom from './screens/ChatRoom';
@@ -73,12 +75,37 @@ const shouldIgnoreAppwriteServerError = (args) => {
   });
 };
 
+const shouldSilenceRealtimeDisconnect = (args) => {
+  if (!Array.isArray(args)) {
+    return false;
+  }
+
+  return args.some((arg) => {
+    if (typeof arg === 'string') {
+      return arg.includes('Realtime got disconnected. Reconnect will be attempted in');
+    }
+
+    if (arg && typeof arg.message === 'string') {
+      return arg.message.includes('Realtime got disconnected. Reconnect will be attempted in');
+    }
+
+    return false;
+  });
+};
+
 if (__DEV__ && !global.__APPWRITE_SERVER_ERROR_FILTER__) {
   global.__APPWRITE_SERVER_ERROR_FILTER__ = true;
   const originalConsoleError = console.error;
 
   console.error = (...args) => {
     if (shouldIgnoreAppwriteServerError(args)) {
+      return;
+    }
+
+    if (shouldSilenceRealtimeDisconnect(args)) {
+      realtimeDebugLogger.warn('realtime_disconnect_notice', {
+        args,
+      });
       return;
     }
 
@@ -341,6 +368,11 @@ const MainStack = () => {
       <Stack.Screen 
         name="BlockList" 
         component={BlockList}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="SavedPosts" 
+        component={SavedPosts}
         options={{ headerShown: false }}
       />
       <Stack.Screen 

@@ -17,7 +17,7 @@ const CHAT_TYPES = {
   CUSTOM_GROUP: 'custom_group',
 };
 
-const ChatListItem = ({ chat, onPress, currentUserId, unreadCount = 0 }) => {
+const ChatListItem = ({ chat, onPress, currentUserId, unreadCount = 0, clearedAt = null }) => {
   const { theme, isDarkMode, t } = useAppSettings();
 
   const getChatIcon = () => {
@@ -92,6 +92,15 @@ const ChatListItem = ({ chat, onPress, currentUserId, unreadCount = 0 }) => {
     const lastMsg = chat.lastMessage;
     if (!lastMsg) {
       return chatSubtitle ? chatSubtitle : t('chats.noMessages');
+    }
+
+    // Check if chat was cleared after the last message
+    if (clearedAt && chat.lastMessageAt) {
+      const clearedDate = new Date(clearedAt);
+      const lastMsgDate = new Date(chat.lastMessageAt);
+      if (lastMsgDate <= clearedDate) {
+        return chatSubtitle ? chatSubtitle : t('chats.noMessages');
+      }
     }
 
     let preview = lastMsg;

@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { AppState } from 'react-native';
 import { config, safeSubscribe } from '../../database/config';
 import { isCreateEvent, isDeleteEvent } from '../utils/realtimeHelpers';
+import realtimeDebugLogger from '../utils/realtimeDebugLogger';
 
 /**
  * Custom hook for real-time subscription to Appwrite collections
@@ -33,11 +34,17 @@ export const useRealtimeSubscription = (
 
   useEffect(() => {
     if (!enabled || !collectionId || !config.databaseId) {
+      realtimeDebugLogger.trace('realtime_subscription_skipped', {
+        enabled,
+        collectionId,
+        databaseId: config.databaseId,
+      });
       return;
     }
 
     // Validate collection ID format
     if (collectionId.includes('your_') || collectionId === 'undefined' || collectionId === 'null') {
+      realtimeDebugLogger.warn('realtime_invalid_collection', { collectionId });
       return;
     }
 
@@ -48,6 +55,11 @@ export const useRealtimeSubscription = (
     unsubscribeRef.current = safeSubscribe(channel, (response) => {
       const { events, payload } = response || {};
       if (!events || !payload) {
+        realtimeDebugLogger.warn('realtime_missing_payload', {
+          channel,
+          hasEvents: !!events,
+          hasPayload: !!payload,
+        });
         return;
       }
 
@@ -88,6 +100,7 @@ export const useRealtimeSubscription = (
 
     const subscribe = () => {
       const channel = buildChannel();
+      realtimeDebugLogger.trace('realtime_resubscribe_start', { channel });
       unsubscribeRef.current = safeSubscribe(channel, (response) => {
         const { events, payload } = response || {};
         if (!events || !payload) return;
@@ -114,6 +127,7 @@ export const useRealtimeSubscription = (
           unsubscribeRef.current = null;
         }
         isConnectedRef.current = false;
+        realtimeDebugLogger.trace('realtime_app_background', { collectionId, documentId });
       }
 
       if (appStateRef.current?.match(/inactive|background/) && nextAppState === 'active') {

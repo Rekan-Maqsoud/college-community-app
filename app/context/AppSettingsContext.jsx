@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocales } from 'expo-localization';
 import i18n from '../../locales/i18n';
 import { I18nManager, Appearance, View, ActivityIndicator, StyleSheet } from 'react-native';
+import { setGlobalFontScale } from '../utils/responsive';
 
 const AppSettingsContext = createContext();
 
@@ -312,7 +313,9 @@ export const AppSettingsProvider = ({ children }) => {
       if (savedFontScale) {
         const scale = parseFloat(savedFontScale);
         if (!isNaN(scale) && scale >= 0.85 && scale <= 1.3) {
+          console.log('[DEBUG-FIX] loadSettings fontScale', { saved: savedFontScale, parsed: scale });
           setFontScale(scale);
+          setGlobalFontScale(scale);
         }
       }
       
@@ -512,10 +515,12 @@ export const AppSettingsProvider = ({ children }) => {
 
   const updateFontScale = async (scale) => {
     try {
+      console.log('[DEBUG-FIX] updateFontScale', { from: fontScale, to: scale });
       setFontScale(scale);
+      setGlobalFontScale(scale);
       await AsyncStorage.setItem('fontScale', scale.toString());
     } catch (error) {
-      // Failed to save font scale
+      console.log('[DEBUG-FIX] updateFontScale error', error.message);
     }
   };
 
@@ -642,6 +647,7 @@ export const AppSettingsProvider = ({ children }) => {
         backgroundImage: null,
       });
       setFontScale(1.0);
+      setGlobalFontScale(1.0);
       setReduceMotion(false);
       setHapticEnabled(true);
       setShowActivityStatus(true);

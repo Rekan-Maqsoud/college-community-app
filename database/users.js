@@ -490,6 +490,47 @@ export const isUserBlocked = async (userId, targetUserId) => {
 };
 
 /**
+ * Sync updated user name across recent chat messages and invalidate caches.
+ * Call this after a user updates their display name so existing chat threads
+ * and the chat search index reflect the new name immediately.
+ */
+export const syncUserNameInChats = async (userId, newName) => {
+    try {
+        if (!userId || !newName) return;
+
+        // Invalidate the user cache so chat list / search picks up the new name
+        await userCacheManager.invalidateUser(userId);
+
+        // Update senderName on the user's recent messages (last 200)
+        const { config: dbConfig } = require('./config');
+        const recentMessages = await databases.listDocuments(
+            dbConfig.databaseId,
+            dbConfig.messagesCollectionId,
+            [
+                Query.equal('senderId', userId),
+                Query.orderDesc('$createdAt'),
+                Query.limit(200),
+            ]
+        );
+
+        const updatePromises = recentMessages.documents
+            .filter(msg => msg.senderName !== newName)
+            .map(msg =>
+                databases.updateDocument(
+                    dbConfig.databaseId,
+                    dbConfig.messagesCollectionId,
+                    msg.$id,
+                    { senderName: newName }
+                ).catch(() => null)
+            );
+
+        await Promise.all(updatePromises);
+    } catch (error) {
+        // Non-critical — silently fail
+    }
+};
+
+/**
  * Save or update user's push notification token
  * Uses separate pushTokens collection to avoid column limit on users collection
  */

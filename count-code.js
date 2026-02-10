@@ -56,5 +56,11 @@ const getCodeStats = (projectRoot = __dirname) => {
 module.exports = { getCodeStats };
 
 if (require.main === module) {
-  getCodeStats();
+  const stats = getCodeStats();
+  console.log('Code Statistics:');
+  console.log(`Total files: ${stats.totalFiles}`);
+  console.log(`Total lines: ${stats.totalLines}`);
+  Object.entries(stats.fileTypes).forEach(([type, info]) => {
+    console.log(`${type.toUpperCase()} files: ${info.count}, lines: ${info.lines}`);
+  });
 }

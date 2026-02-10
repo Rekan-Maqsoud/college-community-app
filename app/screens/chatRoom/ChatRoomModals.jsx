@@ -128,6 +128,7 @@ export const PinnedMessagesModal = ({
   pinnedMessages, 
   canPin,
   onUnpinMessage,
+  onPinnedMessagePress,
   theme,
   isDarkMode,
   t 
@@ -162,8 +163,14 @@ export const PinnedMessagesModal = ({
               </View>
             ) : (
               pinnedMessages.map((msg) => (
-                <View 
-                  key={msg.$id} 
+                <TouchableOpacity
+                  key={msg.$id}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (onPinnedMessagePress) {
+                      onPinnedMessagePress(msg.$id);
+                    }
+                  }}
                   style={[
                     styles.pinnedMessageItem,
                     { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }
@@ -185,7 +192,7 @@ export const PinnedMessagesModal = ({
                       <Ionicons name="close-circle" size={moderateScale(20)} color={theme.textSecondary} />
                     </TouchableOpacity>
                   )}
-                </View>
+                </TouchableOpacity>
               ))
             )}
           </ScrollView>

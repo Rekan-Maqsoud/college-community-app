@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -31,7 +31,7 @@ const PostDetails = ({ navigation, route }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
-  const { post: initialPost, postId: routePostId, onPostUpdate } = route.params || {};
+  const { post: initialPost, postId: routePostId, replyId: routeReplyId, onPostUpdate } = route.params || {};
 
   // State to hold the post - either from params or fetched
   const [post, setPost] = useState(initialPost || null);
@@ -49,6 +49,10 @@ const PostDetails = ({ navigation, route }) => {
   const [galleryImages, setGalleryImages] = useState([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [currentReplyCount, setCurrentReplyCount] = useState(post?.replyCount || 0);
+  const [replySortOrder, setReplySortOrder] = useState(routeReplyId ? 'newest' : 'top');
+
+  const scrollViewRef = useRef(null);
+  const replyLayoutsRef = useRef({});
 
   // Handle going back and updating the parent screen with new reply count
   const handleGoBack = useCallback(() => {
@@ -179,6 +183,38 @@ const PostDetails = ({ navigation, route }) => {
       setIsLoadingReplies(false);
     }
   };
+
+  // Sort replies based on selected order
+  const sortedReplies = React.useMemo(() => {
+    if (replySortOrder === 'newest') {
+      return [...replies].sort((a, b) => {
+        const dateA = new Date(a.$createdAt || 0).getTime();
+        const dateB = new Date(b.$createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+    }
+    // 'top' = default order from API (by upCount desc)
+    return replies;
+  }, [replies, replySortOrder]);
+
+  // Scroll to a specific reply when navigated with replyId
+  useEffect(() => {
+    if (routeReplyId && sortedReplies.length > 0 && !isLoadingReplies) {
+      // Use a retry mechanism to wait for layout measurement
+      let attempts = 0;
+      const maxAttempts = 10;
+      const tryScroll = () => {
+        const targetY = replyLayoutsRef.current[routeReplyId];
+        if (targetY != null && scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ y: targetY - 80, animated: true });
+        } else if (attempts < maxAttempts) {
+          attempts += 1;
+          setTimeout(tryScroll, 200);
+        }
+      };
+      setTimeout(tryScroll, 400);
+    }
+  }, [routeReplyId, sortedReplies, isLoadingReplies]);
 
   const handleAddReply = async () => {
     if (!replyText.trim()) {
@@ -556,6 +592,7 @@ const PostDetails = ({ navigation, route }) => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <ScrollView 
+          ref={scrollViewRef}
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -567,6 +604,22 @@ const PostDetails = ({ navigation, route }) => {
               <Text style={[styles.repliesSectionTitle, { color: theme.text }]}>
                 {t('post.repliesCount').replace('{count}', replies.length.toString())}
               </Text>
+              {replies.length > 1 && (
+                <TouchableOpacity
+                  onPress={() => setReplySortOrder(prev => prev === 'top' ? 'newest' : 'top')}
+                  style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={replySortOrder === 'newest' ? 'time-outline' : 'arrow-up-outline'}
+                    size={16}
+                    color={theme.primary}
+                  />
+                  <Text style={{ color: theme.primary, fontSize: 13 }}>
+                    {replySortOrder === 'newest' ? (t('post.sortNewest') || 'Newest') : (t('post.sortTop') || 'Top')}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {isLoadingReplies ? (
@@ -582,23 +635,33 @@ const PostDetails = ({ navigation, route }) => {
               </View>
             ) : (
               <View style={styles.repliesList}>
-                {replies.map((reply) => (
-                  <ReplyItem
+                {sortedReplies.map((reply) => (
+                  <View
                     key={reply.$id}
-                    reply={reply}
-                    isOwner={reply.userId === user?.$id}
-                    isPostOwner={isPostOwner}
-                    showAcceptButton={post?.postType === 'question'}
-                    onEdit={handleEditReply}
-                    onDelete={handleDeleteReply}
-                    onAccept={handleAcceptReply}
-                    onUpvote={handleUpvote}
-                    onDownvote={handleDownvote}
-                    onImagePress={openImageGallery}
-                    t={t}
-                    theme={theme}
-                    isDarkMode={isDarkMode}
-                  />
+                    onLayout={(e) => {
+                      replyLayoutsRef.current[reply.$id] = e.nativeEvent.layout.y;
+                    }}
+                    style={routeReplyId === reply.$id ? {
+                      backgroundColor: isDarkMode ? 'rgba(100,130,255,0.08)' : 'rgba(100,130,255,0.06)',
+                      borderRadius: 8,
+                    } : undefined}
+                  >
+                    <ReplyItem
+                      reply={reply}
+                      isOwner={reply.userId === user?.$id}
+                      isPostOwner={isPostOwner}
+                      showAcceptButton={post?.postType === 'question'}
+                      onEdit={handleEditReply}
+                      onDelete={handleDeleteReply}
+                      onAccept={handleAcceptReply}
+                      onUpvote={handleUpvote}
+                      onDownvote={handleDownvote}
+                      onImagePress={openImageGallery}
+                      t={t}
+                      theme={theme}
+                      isDarkMode={isDarkMode}
+                    />
+                  </View>
                 ))}
               </View>
             )}

@@ -12,7 +12,7 @@ applyTo: "**"
 
 1. **NEVER use TypeScript syntax** - This is a JavaScript-only project
 2. **NEVER hardcode text** - Always use translation keys
-3. **NEVER leave console.log** - Remove all debug logs
+
 4. **NEVER leave TODO/FIXME incomplete** - Complete them or remove
 5. **NEVER leave commented-out code**
 6. **NEVER delete multiple files at once** - Make minimal changes

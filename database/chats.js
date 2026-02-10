@@ -44,6 +44,42 @@ const E2EE_PREFIX = 'enc:v1:';
 const CHAT_KEY_PREFIX = 'e2ee_chat_key_';
 const PUBLIC_KEY_PREFIX = 'e2ee_public_key_';
 const PRIVATE_KEY_PREFIX = 'e2ee_private_key_';
+
+// In-memory cache for resolved chat keys to avoid repeated SecureStore reads
+const chatKeyMemCache = new Map();
+const CHAT_KEY_MEM_TTL = 5 * 60 * 1000; // 5 minutes
+
+const getCachedChatKey = (chatId) => {
+    const entry = chatKeyMemCache.get(chatId);
+    if (!entry) return null;
+    if (Date.now() - entry.ts > CHAT_KEY_MEM_TTL) {
+        chatKeyMemCache.delete(chatId);
+        return null;
+    }
+    return entry.key;
+};
+
+const setCachedChatKey = (chatId, key) => {
+    chatKeyMemCache.set(chatId, { key, ts: Date.now() });
+};
+
+// In-memory cache for chat documents during sendMessage pipeline
+const chatDocCache = new Map();
+const CHAT_DOC_TTL = 10 * 1000; // 10 seconds
+
+const getCachedChat = (chatId) => {
+    const entry = chatDocCache.get(chatId);
+    if (!entry) return null;
+    if (Date.now() - entry.ts > CHAT_DOC_TTL) {
+        chatDocCache.delete(chatId);
+        return null;
+    }
+    return entry.doc;
+};
+
+const setCachedChatDoc = (chatId, doc) => {
+    chatDocCache.set(chatId, { doc, ts: Date.now() });
+};
 const getSecureRandomBytes = (size) => {
     if (Random && typeof Random.getRandomBytes === 'function') {
         return Random.getRandomBytes(size);
@@ -298,15 +334,23 @@ const buildE2eeSettings = async (chat, creatorId) => {
 const resolveChatKey = async (chat, userId) => {
     if (!chat || !userId) return null;
 
+    // Check in-memory cache first (fastest)
+    const memCached = getCachedChatKey(chat.$id);
+    if (memCached) return memCached;
+
     const publicKeyResult = await ensureChatPublicKeyStored(chat, userId);
-    if (publicKeyResult?.settings) {
-        chat.settings = JSON.stringify(publicKeyResult.settings);
-    }
+    // Use updated settings string without mutating the (possibly frozen) chat object
+    const settingsStr = publicKeyResult?.settings
+        ? JSON.stringify(publicKeyResult.settings)
+        : chat.settings;
 
     const cached = await getStoredChatKey(chat.$id);
-    if (cached) return cached;
+    if (cached) {
+        setCachedChatKey(chat.$id, cached);
+        return cached;
+    }
 
-    const settings = parseChatSettings(chat.settings);
+    const settings = parseChatSettings(settingsStr);
     const e2ee = settings.e2ee;
     if (!e2ee?.keys || !e2ee?.creatorPublicKey) return null;
 
@@ -331,6 +375,7 @@ const resolveChatKey = async (chat, userId) => {
     if (!decrypted) return null;
 
     await storeChatKey(chat.$id, decrypted);
+    setCachedChatKey(chat.$id, decrypted);
     return decrypted;
 };
 
@@ -450,17 +495,21 @@ const ensureChatEncryption = async (chat, userId) => {
     if (!chat || !userId) return null;
 
     const publicKeyResult = await ensureChatPublicKeyStored(chat, userId);
-    if (publicKeyResult?.settings) {
-        chat.settings = JSON.stringify(publicKeyResult.settings);
-    }
+    // Use updated settings string without mutating the (possibly frozen) chat object
+    const settingsStr = publicKeyResult?.settings
+        ? JSON.stringify(publicKeyResult.settings)
+        : chat.settings;
 
     const existingKey = await resolveChatKey(chat, userId);
     if (existingKey) {
         await addMissingE2eeKeys(chat, existingKey, userId);
+        // Refresh the doc cache after potential settings write
+        const refreshed = await getChat(chat.$id, true);
+        setCachedChatDoc(chat.$id, refreshed);
         return existingKey;
     }
 
-    const settings = parseChatSettings(chat.settings);
+    const settings = parseChatSettings(settingsStr);
     if (settings.e2ee?.version) {
         return null;
     }
@@ -473,14 +522,16 @@ const ensureChatEncryption = async (chat, userId) => {
         e2ee: built.e2ee,
     };
 
-    await databases.updateDocument(
+    const updatedChat = await databases.updateDocument(
         config.databaseId,
         config.chatsCollectionId,
         chat.$id,
         { settings: JSON.stringify(nextSettings) }
     );
+    setCachedChatDoc(chat.$id, updatedChat);
 
     await storeChatKey(chat.$id, built.chatKey);
+    setCachedChatKey(chat.$id, built.chatKey);
     return built.chatKey;
 };
 
@@ -669,10 +720,15 @@ export const getChats = async (userId) => {
     }
 };
 
-export const getChat = async (chatId) => {
+export const getChat = async (chatId, skipCache = false) => {
     try {
         if (!chatId || typeof chatId !== 'string') {
             throw new Error('Invalid chat ID');
+        }
+
+        if (!skipCache) {
+            const cached = getCachedChat(chatId);
+            if (cached) return cached;
         }
         
         const chat = await databases.getDocument(
@@ -680,6 +736,7 @@ export const getChat = async (chatId) => {
             config.chatsCollectionId,
             chatId
         );
+        setCachedChatDoc(chatId, chat);
         return chat;
     } catch (error) {
         throw error;
@@ -703,6 +760,8 @@ export const deleteChat = async (chatId) => {
             chatId
         );
 
+        chatKeyMemCache.delete(chatId);
+        chatDocCache.delete(chatId);
         await SecureStore.deleteItemAsync(getSecureStoreKey(CHAT_KEY_PREFIX, chatId));
     } catch (error) {
         throw error;
@@ -787,10 +846,20 @@ export const sendMessage = async (chatId, messageData) => {
         }
 
         const chat = await ensureChatParticipant(chatId, messageData.senderId) || await getChat(chatId);
+        // Cache the chat document to prevent redundant fetches during encryption pipeline
+        setCachedChatDoc(chatId, chat);
         const chatKey = await ensureChatEncryption(chat, messageData.senderId);
-        const shouldEncrypt = chatKey
-            ? await ensureChatKeyCoverage(chat, chatKey, messageData.senderId)
-            : false;
+
+        // ensureChatEncryption already calls addMissingE2eeKeys, so we only
+        // need to verify coverage without re-adding keys.
+        let shouldEncrypt = false;
+        if (chatKey) {
+            const refreshed = getCachedChat(chatId) || await getChat(chatId);
+            const covSettings = parseChatSettings(refreshed.settings);
+            const covKeys = covSettings?.e2ee?.keys || {};
+            const participants = Array.isArray(chat.participants) ? chat.participants : [];
+            shouldEncrypt = participants.every((pid) => !!covKeys[pid]);
+        }
 
         // Check for @everyone mention
         const mentionsAll = checkForEveryoneMention(messageData.content);

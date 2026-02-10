@@ -12,6 +12,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ReanimatedAnimated, { FadeInRight } from 'react-native-reanimated';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import ProfilePicture from '../components/ProfilePicture';
@@ -28,6 +29,7 @@ const NOTIFICATION_TYPES = {
   MENTION: 'mention',
   FRIEND_POST: 'friend_post',
   FOLLOW: 'follow',
+  DEPARTMENT_POST: 'department_post',
 };
 
 // Group notifications by post and type
@@ -119,6 +121,8 @@ const getNotificationIcon = (type) => {
       return { name: 'document-text', color: '#34C759' };
     case NOTIFICATION_TYPES.FOLLOW:
       return { name: 'person-add', color: '#FF9500' };
+    case NOTIFICATION_TYPES.DEPARTMENT_POST:
+      return { name: 'school', color: '#8B5CF6' };
     default:
       return { name: 'notifications', color: '#8E8E93' };
   }
@@ -142,8 +146,7 @@ const formatNotificationTime = (dateString, t) => {
   return date.toLocaleDateString();
 };
 
-const NotificationItem = ({ notification, onPress, onLongPress, onDelete, theme, isDarkMode, t }) => {
-  // Skip rendering early if notification is invalid
+const NotificationItem = ({ notification, onPress, onLongPress, onDelete, theme, isDarkMode, t, index }) => {
   if (!notification || !notification.$id || !notification.type) {
     return null;
   }
@@ -151,7 +154,6 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, theme,
   const icon = getNotificationIcon(notification.type);
   const isUnread = !notification.isRead;
   
-  // Add safeguards for missing data with fallbacks
   const senderName = notification.senderName || t('common.user') || 'User';
   const createdAt = notification.$createdAt;
   const postPreview = notification.postPreview || '';
@@ -168,6 +170,8 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, theme,
         return t('notifications.newPost') || 'shared a new post';
       case NOTIFICATION_TYPES.FOLLOW:
         return t('notifications.startedFollowing') || 'started following you';
+      case NOTIFICATION_TYPES.DEPARTMENT_POST:
+        return t('notifications.departmentPost') || 'posted in your department';
       default:
         return '';
     }
@@ -175,24 +179,22 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, theme,
   
   const message = getNotificationMessage();
   
-  // Additional validation - don't show if no meaningful content
   if (!senderName && !message) {
     return null;
   }
 
   return (
-    <View
-      style={[
-        styles.notificationCard,
-        { 
-          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
-          borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
-        },
-        isUnread && { borderLeftWidth: 3, borderLeftColor: theme.primary },
-      ]}
-    >
+    <ReanimatedAnimated.View entering={FadeInRight.delay(index * 50).duration(350).springify()}>
       <TouchableOpacity
-        style={styles.notificationItem}
+        style={[
+          styles.notificationCard,
+          { 
+            backgroundColor: isUnread
+              ? (isDarkMode ? 'rgba(0, 122, 255, 0.08)' : 'rgba(0, 122, 255, 0.04)')
+              : (isDarkMode ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.85)'),
+            borderColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+          },
+        ]}
         onPress={() => onPress(notification)}
         onLongPress={() => onLongPress && onLongPress(notification)}
         delayLongPress={500}
@@ -203,7 +205,7 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, theme,
             <ProfilePicture
               uri={notification.senderProfilePicture}
               name={notification.senderName}
-              size={moderateScale(40)}
+              size={moderateScale(44)}
             />
             <View
               style={[
@@ -211,60 +213,59 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, theme,
                 { backgroundColor: icon.color },
               ]}
             >
-              <Ionicons name={icon.name} size={10} color="#fff" />
+              <Ionicons name={icon.name} size={11} color="#fff" />
             </View>
           </View>
 
           <View style={styles.textContainer}>
-            <View style={styles.topRow}>
-              <Text
-                style={[
-                  styles.notificationText,
-                  { color: theme.text },
-                ]}
-                numberOfLines={1}
-              >
-                <Text style={[styles.senderName, { color: theme.text }]}>{senderName}</Text>
-                {' '}
-                <Text style={{ color: theme.textSecondary }}>{message}</Text>
-              </Text>
-              <View style={styles.timeRow}>
-                <Ionicons name="time-outline" size={10} color={theme.textSecondary} />
-                <Text style={[styles.timeText, { color: theme.textSecondary }]}>
-                  {createdAt ? formatNotificationTime(createdAt, t) : ''}
-                </Text>
-              </View>
-            </View>
+            <Text
+              style={[
+                styles.notificationText,
+                { color: theme.text },
+                isUnread && { fontWeight: '500' },
+              ]}
+              numberOfLines={2}
+            >
+              <Text style={[styles.senderName, { color: theme.text }]}>{senderName}</Text>
+              {' '}
+              <Text style={{ color: theme.textSecondary }}>{message}</Text>
+            </Text>
             {postPreview ? (
               <Text
                 style={[styles.previewText, { color: theme.textSecondary }]}
                 numberOfLines={1}
               >
-                {postPreview}
+                &ldquo;{postPreview}&rdquo;
               </Text>
             ) : null}
+            <View style={styles.timeRow}>
+              <Ionicons name="time-outline" size={10} color={theme.textSecondary} />
+              <Text style={[styles.timeText, { color: theme.textSecondary }]}>
+                {createdAt ? formatNotificationTime(createdAt, t) : ''}
+              </Text>
+            </View>
           </View>
 
           <View style={styles.rightSection}>
             {isUnread && (
-              <View style={[styles.unreadDot, { backgroundColor: theme.primary }]} />
+              <View style={[styles.unreadDot, { backgroundColor: icon.color }]} />
             )}
             <TouchableOpacity
               style={styles.deleteButton}
               onPress={() => onDelete && onDelete(notification)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close" size={16} color={theme.textSecondary} />
+              <Ionicons name="close-circle-outline" size={18} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
-    </View>
+    </ReanimatedAnimated.View>
   );
 };
 
 // Grouped notification item for multiple likes/replies on same post
-const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t }) => {
+const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }) => {
   const icon = getNotificationIcon(group.type);
   const count = group.notifications.length;
   // Get unique users (avoid showing same user twice)
@@ -307,16 +308,18 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t }) => {
   const message = getGroupMessage();
 
   return (
-    <View
-      style={[
-        styles.notificationCard,
-        { 
-          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
-          borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
-        },
-        group.hasUnread && { borderLeftWidth: 3, borderLeftColor: theme.primary },
-      ]}
-    >
+    <ReanimatedAnimated.View entering={FadeInRight.delay(index * 50).duration(350).springify()}>
+      <View
+        style={[
+          styles.notificationCard,
+          { 
+            backgroundColor: group.hasUnread
+              ? (isDarkMode ? 'rgba(0, 122, 255, 0.08)' : 'rgba(0, 122, 255, 0.04)')
+              : (isDarkMode ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.85)'),
+            borderColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+          },
+        ]}
+      >
       <TouchableOpacity
         style={styles.notificationItem}
         onPress={() => onPress(group)}
@@ -324,12 +327,12 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t }) => {
       >
         <View style={styles.notificationContent}>
           <View style={styles.groupedAvatarContainer}>
-            {uniqueUsers.slice(0, 3).map((notif, index) => (
+            {uniqueUsers.slice(0, 3).map((notif, avatarIdx) => (
               <View 
                 key={notif.$id} 
                 style={[
                   styles.stackedAvatar,
-                  { left: index * 12, zIndex: 3 - index }
+                  { left: avatarIdx * 12, zIndex: 3 - avatarIdx }
                 ]}
               >
                 <ProfilePicture
@@ -384,7 +387,8 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t }) => {
           )}
         </View>
       </TouchableOpacity>
-    </View>
+      </View>
+    </ReanimatedAnimated.View>
   );
 };
 
@@ -554,8 +558,10 @@ const Notifications = ({ navigation }) => {
 
     // Navigate based on notification type
     if (notificationData.postId) {
+      console.log('[DEBUG-FIX] Notification nav → PostDetails', { postId: notificationData.postId, type: notificationData.type });
       navigation.navigate('PostDetails', { postId: notificationData.postId });
     } else if (notificationData.senderId) {
+      console.log('[DEBUG-FIX] Notification nav → UserProfile', { userId: notificationData.senderId });
       navigation.navigate('UserProfile', { userId: notificationData.senderId });
     }
   };
@@ -747,7 +753,7 @@ const Notifications = ({ navigation }) => {
           <FlatList
             data={groupedNotifications}
             keyExtractor={(item) => item.isGroup ? item.id : item.notification.$id}
-            renderItem={({ item }) => {
+            renderItem={({ item, index }) => {
               if (item.isGroup) {
                 return (
                   <GroupedNotificationItem
@@ -756,6 +762,7 @@ const Notifications = ({ navigation }) => {
                     theme={theme}
                     isDarkMode={isDarkMode}
                     t={t}
+                    index={index}
                   />
                 );
               }
@@ -768,6 +775,7 @@ const Notifications = ({ navigation }) => {
                   theme={theme}
                   isDarkMode={isDarkMode}
                   t={t}
+                  index={index}
                 />
               );
             }}
@@ -851,13 +859,13 @@ const styles = StyleSheet.create({
   },
   notificationCard: {
     marginVertical: spacing.xs / 2,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.sm,
   },
   notificationItem: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
   },
   notificationContent: {
     flexDirection: 'row',

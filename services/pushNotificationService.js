@@ -572,9 +572,22 @@ export const sendChatPushNotification = async ({
       return;
     }
     
-    // Prepare notification content
+    // Prepare notification content with rich message preview
     const title = chatType === 'private' ? senderName : `${senderName} in ${chatName}`;
-    const body = content || '\uD83D\uDCF7 Image';
+    
+    // Generate rich body based on message type/content
+    let body;
+    if (content && content.startsWith('{') && content.includes('postId')) {
+      body = '\uD83D\uDD17 Shared a post';
+    } else if (content === '\uD83D\uDCF7 Image' || content?.startsWith('\uD83D\uDCF7')) {
+      body = '\uD83D\uDCF7 Sent an image';
+    } else if (content === '\uD83D\uDCCD Location' || content?.startsWith('\uD83D\uDCCD')) {
+      body = '\uD83D\uDCCD Shared a location';
+    } else if (content && content.trim().length > 0) {
+      body = content.length > 50 ? content.substring(0, 50) + '...' : content;
+    } else {
+      body = '\uD83D\uDCF7 Sent an image';
+    }
     
     // Send notifications using Expo Push API
     const messages = allTokenDocs.map(tokenDoc => ({

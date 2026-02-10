@@ -13,6 +13,7 @@ import {
   Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import MapView, { Marker } from 'react-native-maps';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { 
   fontSize, 
@@ -561,14 +562,25 @@ const MessageInput = ({
               {pendingLocation && (
                 <>
                   <View style={styles.locationMapContainer}>
-                    <Image
-                      source={{ uri: `https://maps.googleapis.com/maps/api/staticmap?center=${pendingLocation.lat},${pendingLocation.long}&zoom=15&size=600x300&markers=color:red%7C${pendingLocation.lat},${pendingLocation.long}&key=` }}
+                    <MapView
+                      liteMode={true}
+                      scrollEnabled={false}
+                      zoomEnabled={false}
+                      rotateEnabled={false}
+                      pitchEnabled={false}
+                      toolbarEnabled={false}
                       style={styles.locationMapImage}
-                      resizeMode="cover"
-                    />
-                    <View style={styles.locationMapPin}>
-                      <Ionicons name="location" size={moderateScale(32)} color="#EF4444" />
-                    </View>
+                      initialRegion={{
+                        latitude: pendingLocation.lat,
+                        longitude: pendingLocation.long,
+                        latitudeDelta: 0.01,
+                        longitudeDelta: 0.01,
+                      }}
+                    >
+                      <Marker
+                        coordinate={{ latitude: pendingLocation.lat, longitude: pendingLocation.long }}
+                      />
+                    </MapView>
                   </View>
                   
                   <View style={styles.locationCoords}>

@@ -3,6 +3,7 @@ import { ID, Query } from 'appwrite';
 import { handleNetworkError } from '../app/utils/networkErrorHandler';
 import { postsCacheManager } from '../app/utils/cacheManager';
 import { getUserById } from './users';
+import { notifyDepartmentPost } from './notifications';
 
 export const createPost = async (postData) => {
     try {
@@ -23,15 +24,34 @@ export const createPost = async (postData) => {
             throw new Error('Post must have topic, text, or images');
         }
         
+        // Extract notification-only fields before creating document
+        const { userName, fullName, profilePicture: posterPhoto, ...documentData } = postData;
+
         const post = await databases.createDocument(
             config.databaseId,
             config.postsCollectionId,
             ID.unique(),
-            postData
+            documentData
         );
         
         // Invalidate posts cache for the department
         await postsCacheManager.invalidatePostsCache(postData.department);
+        
+        // Send department match notifications in background (non-blocking)
+        if (postData.userId && postData.department) {
+            notifyDepartmentPost(
+                postData.userId,
+                userName || fullName || 'Someone',
+                posterPhoto || null,
+                post.$id,
+                postData.postType || 'post',
+                postData.topic || postData.text || '',
+                postData.department,
+                postData.stage || 'all'
+            ).catch(() => {
+                // Silent fail - should not break post creation
+            });
+        }
         
         return post;
     } catch (error) {

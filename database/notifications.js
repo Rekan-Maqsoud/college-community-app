@@ -17,6 +17,7 @@ export const NOTIFICATION_TYPES = {
     MENTION: 'mention',
     FRIEND_POST: 'friend_post',
     FOLLOW: 'follow',
+    DEPARTMENT_POST: 'department_post',
 };
 
 /**
@@ -511,4 +512,88 @@ export const notifyFollow = async (followedUserId, followerId, followerName, fol
     });
 
     return notification;
+};
+
+/**
+ * Notify users in the same department and stage about a new post
+ * @param {string} posterId - The user who created the post
+ * @param {string} posterName - Name of the poster
+ * @param {string} posterPhoto - Profile picture of the poster
+ * @param {string} postId - The new post ID
+ * @param {string} postType - Type of the post (question, note, etc.)
+ * @param {string} postPreview - Preview of the post content
+ * @param {string} department - The poster's department
+ * @param {string} stage - The poster's stage
+ */
+export const notifyDepartmentPost = async (posterId, posterName, posterPhoto, postId, postType, postPreview, department, stage) => {
+    try {
+        if (!posterId || !department) return;
+
+        const { Query: Q } = require('appwrite');
+        const { databases: db, config: cfg } = require('./config');
+
+        // Build queries for same department AND same stage
+        const queries = [
+            Q.equal('department', department),
+            Q.limit(100),
+        ];
+        if (stage && stage !== 'all') {
+            const stageNum = parseInt(stage, 10);
+            if (!isNaN(stageNum)) {
+                queries.push(Q.equal('year', stageNum));
+            }
+        }
+
+        const usersResult = await db.listDocuments(
+            cfg.databaseId,
+            cfg.usersCollectionId,
+            queries
+        );
+
+        const recipients = (usersResult.documents || []).filter(u => u.$id !== posterId && u.userID !== posterId);
+
+        if (recipients.length === 0) return;
+
+        // Format post type label
+        const typeLabels = {
+            question: 'Question',
+            note: 'Note',
+            resource: 'Resource',
+            discussion: 'Discussion',
+            announcement: 'Announcement',
+        };
+        const typeLabel = typeLabels[postType] || 'Post';
+
+        // Create in-app notifications and push for each recipient (batch, non-blocking)
+        const notificationPromises = recipients.map(async (recipient) => {
+            const recipientId = recipient.$id || recipient.userID;
+            try {
+                await createNotification({
+                    userId: recipientId,
+                    senderId: posterId,
+                    senderName: posterName,
+                    senderProfilePicture: posterPhoto || null,
+                    type: NOTIFICATION_TYPES.DEPARTMENT_POST,
+                    postId,
+                    postPreview: postPreview?.substring(0, 50) || null,
+                });
+
+                sendGeneralPushNotification({
+                    recipientUserId: recipientId,
+                    senderId: posterId,
+                    senderName: posterName,
+                    type: NOTIFICATION_TYPES.DEPARTMENT_POST,
+                    title: `New ${typeLabel} in your department`,
+                    body: `${posterName} posted a ${typeLabel.toLowerCase()}${postPreview ? ': ' + postPreview.substring(0, 50) : ''}`,
+                    postId,
+                }).catch(() => {});
+            } catch (e) {
+                // Silent fail per recipient
+            }
+        });
+
+        await Promise.all(notificationPromises);
+    } catch (error) {
+        // Silent fail - department notifications should not break post creation
+    }
 };

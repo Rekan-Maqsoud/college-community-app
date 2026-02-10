@@ -348,6 +348,9 @@ const PersonalizationSettings = ({ navigation }) => {
           <Text style={[styles.sectionNote, { color: theme.textSecondary }]}>
             {t('settings.fontSizeNote') || 'Adjusts text size throughout the app'}
           </Text>
+          <Text style={[styles.sectionNote, { color: '#FF3B30', marginTop: spacing.xs }]}>
+            {t('settings.fontSizeRestartNote') || 'Note: Font size changes may require restarting the app to take full effect.'}
+          </Text>
         </View>
 
         <View style={styles.section}>

@@ -58,6 +58,8 @@ const ChatRoom = ({ route, navigation }) => {
     userFriends,
     selectionMode,
     selectedMessageIds,
+    clearedAt,
+    hiddenMessageIds,
     setShowMuteModal,
     setShowPinnedModal,
     setShowChatOptionsModal,
@@ -92,6 +94,29 @@ const ChatRoom = ({ route, navigation }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
   const searchInputRef = useRef(null);
+
+  // Highlighted message state (used by pinned message scroll-to)
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+  const highlightTimerRef = useRef(null);
+
+  const handlePinnedMessagePress = useCallback((messageId) => {
+    setShowPinnedModal(false);
+    const index = messages.findIndex(m => m.$id === messageId);
+    if (index !== -1 && flatListRef.current) {
+      setTimeout(() => {
+        flatListRef.current.scrollToIndex({
+          index,
+          animated: true,
+          viewPosition: 0.5,
+        });
+        setHighlightedMessageId(messageId);
+        if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+        highlightTimerRef.current = setTimeout(() => {
+          setHighlightedMessageId(null);
+        }, 1500);
+      }, 350);
+    }
+  }, [messages, setShowPinnedModal]);
 
   // Compute search results when query changes
   useEffect(() => {
@@ -214,7 +239,20 @@ const ChatRoom = ({ route, navigation }) => {
     });
   }, [chat, isDarkMode, theme, muteStatus, chatSettings, openSearch, getChatDisplayName, handleChatHeaderPress, navigation, t]);
 
-  const memoizedMessages = useMemo(() => messages, [messages]);
+  const memoizedMessages = useMemo(() => {
+    let filtered = messages;
+    if (clearedAt) {
+      const clearedDate = new Date(clearedAt);
+      filtered = filtered.filter(m => {
+        const msgDate = new Date(m.$createdAt || m.createdAt);
+        return msgDate > clearedDate;
+      });
+    }
+    if (hiddenMessageIds && hiddenMessageIds.length > 0) {
+      filtered = filtered.filter(m => !hiddenMessageIds.includes(m.$id));
+    }
+    return filtered;
+  }, [messages, clearedAt, hiddenMessageIds]);
 
   // For private chats, find the last message sent by current user that was read by the other user
   const lastSeenMessageId = useMemo(() => {
@@ -278,6 +316,9 @@ const ChatRoom = ({ route, navigation }) => {
     
     // Check if this message is the current search result
     const isCurrentSearchResult = item.$id === currentSearchMessageId;
+    
+    // Check if this message is highlighted (from pinned message scroll)
+    const isHighlighted = item.$id === highlightedMessageId;
 
     return (
       <MessageBubble
@@ -307,6 +348,7 @@ const ChatRoom = ({ route, navigation }) => {
         onNavigateToProfile={handleNavigateToProfile}
         searchQuery={searchActive ? searchQuery : ''}
         isCurrentSearchResult={isCurrentSearchResult}
+        isHighlighted={isHighlighted}
         onPostPress={(postId) => navigation.push('PostDetails', { postId })}
         showAlert={showAlert}
         selectionMode={selectionMode}
@@ -623,6 +665,7 @@ const ChatRoom = ({ route, navigation }) => {
         pinnedMessages={pinnedMessages}
         canPin={canPin}
         onUnpinMessage={handleUnpinMessage}
+        onPinnedMessagePress={handlePinnedMessagePress}
         theme={theme}
         isDarkMode={isDarkMode}
         t={t}

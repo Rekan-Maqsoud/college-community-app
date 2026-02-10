@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AppState } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { 
@@ -36,7 +36,9 @@ import { normalizeRealtimeMessage, applyRealtimeMessageUpdate } from '../../util
 
 const SMART_POLL_INTERVAL = 10000;
 
-export const useChatRoom = ({ chat, user, t, navigation, showAlert }) => {
+export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert }) => {
+  // Deep-clone chat once to avoid mutating the frozen route.params object
+  const chat = useMemo(() => JSON.parse(JSON.stringify(frozenChat)), [frozenChat]);
   const triggerAlert = (title, message, type = 'info', buttons = []) => {
     if (showAlert) {
       showAlert({ type, title, message, buttons });
@@ -611,8 +613,20 @@ export const useChatRoom = ({ chat, user, t, navigation, showAlert }) => {
         senderId: user.$id,
         senderName: user.fullName,
         senderPhoto: user.profilePicture || null,
-        notificationPreview: t('chats.newMessage'),
       };
+
+      // Build rich notification preview based on message type
+      let notifyBody = t('chats.newMessage');
+      if (messageType === 'image' || (imageUrl && !content)) {
+        notifyBody = '\uD83D\uDCF7 ' + (t('chats.sentImage') || 'Sent an image');
+      } else if (messageType === 'location') {
+        notifyBody = '\uD83D\uDCCD ' + (t('chats.sharedLocation') || 'Shared a location');
+      } else if (messageType === 'post_share') {
+        notifyBody = '\uD83D\uDD17 ' + (t('chats.sharedPost') || 'Shared a post');
+      } else if (content && content.trim().length > 0) {
+        notifyBody = content.length > 50 ? content.substring(0, 50) + '...' : content;
+      }
+      messageData.notificationPreview = notifyBody;
 
       // Add message type for special messages (location, post_share)
       if (messageType) {
@@ -715,8 +729,18 @@ export const useChatRoom = ({ chat, user, t, navigation, showAlert }) => {
           style: 'destructive',
           onPress: async () => {
             try {
+              // Store clearedAt timestamp AND hide all current message IDs
+              const allCurrentIds = messages.map(m => m.$id).filter(Boolean);
               const timestamp = await setChatClearedAt(user.$id, chat.$id);
               setClearedAtState(timestamp);
+
+              if (allCurrentIds.length > 0) {
+                const merged = await hideMessagesForUser(user.$id, chat.$id, allCurrentIds);
+                setHiddenMessageIds(merged);
+              }
+
+              // Invalidate local cache so stale messages don't reappear
+              await messagesCacheManager.invalidateChatMessages(chat.$id);
               setMessages([]);
               triggerAlert(t('common.success'), t('chats.chatClearedLocal'), 'success');
             } catch (error) {
@@ -728,10 +752,9 @@ export const useChatRoom = ({ chat, user, t, navigation, showAlert }) => {
     );
   };
 
-  const handleChatHeaderPress = () => {
-    // Open chat options modal for all chat types
+  const handleChatHeaderPress = useCallback(() => {
     setShowChatOptionsModal(true);
-  };
+  }, []);
 
   return {
     // State
@@ -755,6 +778,8 @@ export const useChatRoom = ({ chat, user, t, navigation, showAlert }) => {
     userFriends,
     selectionMode,
     selectedMessageIds,
+    clearedAt,
+    hiddenMessageIds,
     
     // Setters
     setShowMuteModal,

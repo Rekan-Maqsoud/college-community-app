@@ -20,6 +20,7 @@ import { useUser } from '../../context/UserContext';
 import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing } from '../../utils/responsive';
 import { uploadProfilePicture } from '../../../services/imgbbService';
+import { syncUserNameInChats } from '../../../database/users';
 import SearchableDropdownNew from '../../components/SearchableDropdownNew';
 import CustomAlert from '../../components/CustomAlert';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
@@ -192,6 +193,12 @@ const ProfileSettings = ({ navigation }) => {
       
       if (success) {
         await refreshUser();
+
+        // If the display name changed, sync it across chat messages
+        if (updatedData.name && updatedData.name !== user.name) {
+          syncUserNameInChats(user.$id, updatedData.name).catch(() => {});
+        }
+
         setProfileData({
           ...updatedData,
           lastAcademicUpdate: hasAcademicChanges ? updatedData.lastAcademicUpdate : profileData.lastAcademicUpdate

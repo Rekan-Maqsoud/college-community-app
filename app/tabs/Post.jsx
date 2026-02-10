@@ -22,6 +22,7 @@ import CustomAlert from '../components/CustomAlert';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { uploadImage } from '../../services/imgbbService';
 import { createPost } from '../../database/posts';
+import { notifyFriendPost } from '../../database/notifications';
 import { compressImage } from '../utils/imageCompression';
 import {
   POST_TYPES,
@@ -170,8 +171,10 @@ const Post = () => {
       
       const postDepartment = isPublic ? 'public' : (user?.department || '');
 
-      await createPost({
+      const newPost = await createPost({
         userId: user.$id,
+        userName: user.fullName || user.name,
+        profilePicture: user.profilePicture || null,
         text,
         topic,
         department: postDepartment,
@@ -182,6 +185,23 @@ const Post = () => {
         tags: tagsArray,
         links: linksArray,
       });
+
+      // Notify followers about the new post (non-blocking)
+      if (user.followers && user.followers.length > 0 && newPost?.$id) {
+        const preview = topic || text || '';
+        Promise.all(
+          user.followers.map(followerId =>
+            notifyFriendPost(
+              followerId,
+              user.$id,
+              user.fullName || user.name,
+              user.profilePicture,
+              newPost.$id,
+              preview,
+            ).catch(() => {})
+          )
+        ).catch(() => {});
+      }
 
       showAlert({ type: 'success', title: t('common.success'), message: t('post.postCreated') });
       

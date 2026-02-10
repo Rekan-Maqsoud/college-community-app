@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ReanimatedAnimated, { FadeInDown } from 'react-native-reanimated';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import AnimatedBackground from '../components/AnimatedBackground';
@@ -52,7 +53,7 @@ const Home = ({ navigation, route }) => {
   const [selectedStage, setSelectedStage] = useState('all');
   const [sortBy, setSortBy] = useState(SORT_OPTIONS.NEWEST);
   const [filterType, setFilterType] = useState('all');
-  const [isLoadingPosts, setIsLoadingPosts] = useState(false);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [posts, setPosts] = useState([]);
@@ -183,6 +184,8 @@ const Home = ({ navigation, route }) => {
           return `${senderName} ${t('notifications.startedFollowing') || 'started following you'}`;
         case 'mention':
           return `${senderName} ${t('notifications.mentionedYou') || 'mentioned you'}`;
+        case 'department_post':
+          return `${senderName} ${t('notifications.departmentPost') || 'posted in your department'}`;
         default:
           return t('notifications.title') || 'New notification';
       }
@@ -590,7 +593,7 @@ const Home = ({ navigation, route }) => {
   const renderFeedContent = () => {
     if (isLoadingPosts) {
       return (
-        <View style={styles.feedContent}>
+        <View style={[styles.feedContent, { paddingTop: 56 + 80 }]}>
           <View style={styles.postContainer}>
             <PostCardSkeleton />
           </View>
@@ -671,9 +674,12 @@ const Home = ({ navigation, route }) => {
         ref={flatListRef}
         data={posts}
         keyExtractor={(item) => item.$id}
-        renderItem={({ item }) => (
-          <View style={styles.postContainer}>
-            <PostCard
+        renderItem={({ item, index }) => (
+          <ReanimatedAnimated.View
+            entering={FadeInDown.delay(index * 60).duration(400).springify()}
+          >
+            <View style={styles.postContainer}>
+              <PostCard
               post={item}
               onUserPress={() => handleUserPress({ $id: item.userId })}
               onLike={() => handleLike(item.$id)}
@@ -687,7 +693,8 @@ const Home = ({ navigation, route }) => {
               isOwner={item.userId === user?.$id}
               compact={compactMode}
             />
-          </View>
+            </View>
+          </ReanimatedAnimated.View>
         )}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.postsListContent}

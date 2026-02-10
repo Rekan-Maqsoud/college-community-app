@@ -25,6 +25,7 @@ import {
 } from '../../database/chatHelpers';
 import { getUserById } from '../../database/users';
 import { getUnreadCount, decryptChatPreview } from '../../database/chats';
+import { getChatClearedAt } from '../../database/userChatSettings';
 import { chatsCacheManager } from '../utils/cacheManager';
 import { 
   wp, 
@@ -48,6 +49,7 @@ const Chats = ({ navigation }) => {
   const [privateChats, setPrivateChats] = useState([]);
   const [activeFilter, setActiveFilter] = useState('all');
   const [unreadCounts, setUnreadCounts] = useState({});
+  const [clearedAtMap, setClearedAtMap] = useState({});
 
   const stageToValue = (stage) => {
     if (!stage) return null;
@@ -203,6 +205,21 @@ const Chats = ({ navigation }) => {
     setUnreadCounts(counts);
   };
 
+  const loadClearedAtTimestamps = async (allChats) => {
+    if (!user?.$id || allChats.length === 0) return;
+    
+    const timestamps = {};
+    await Promise.all(
+      allChats.map(async (chat) => {
+        const clearedAt = await getChatClearedAt(user.$id, chat.$id);
+        if (clearedAt) {
+          timestamps[chat.$id] = clearedAt;
+        }
+      })
+    );
+    setClearedAtMap(timestamps);
+  };
+
   const loadChats = async (useCache = true) => {
     if (!user?.department) {
       setLoading(false);
@@ -226,6 +243,7 @@ const Chats = ({ navigation }) => {
         ...(chats.privateChats || []),
       ];
       loadUnreadCounts(allChats);
+      loadClearedAtTimestamps(allChats);
     } catch (error) {
       setDefaultGroups([]);
       setCustomGroups([]);
@@ -305,6 +323,7 @@ const Chats = ({ navigation }) => {
       onPress={() => handleChatPress(item)}
       currentUserId={user?.$id}
       unreadCount={unreadCounts[item.$id] || 0}
+      clearedAt={clearedAtMap[item.$id] || null}
     />
   );
 

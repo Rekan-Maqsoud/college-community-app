@@ -45,6 +45,22 @@ const CustomAlert = ({
           useNativeDriver: true,
         }),
       ]).start();
+
+      // Auto-dismiss success alerts after 1.5 seconds
+      if (type === 'success') {
+        const autoDismissTimer = setTimeout(() => {
+          onDismiss?.();
+        }, 1500);
+        return () => clearTimeout(autoDismissTimer);
+      }
+
+      // Safety auto-dismiss for alerts with no custom buttons after 5 seconds
+      if (buttons.length === 0) {
+        const safetyTimer = setTimeout(() => {
+          onDismiss?.();
+        }, 5000);
+        return () => clearTimeout(safetyTimer);
+      }
     } else {
       Animated.parallel([
         Animated.timing(scaleAnim, {
@@ -59,7 +75,7 @@ const CustomAlert = ({
         }),
       ]).start();
     }
-  }, [visible]);
+  }, [visible, type]);
 
   const getIconConfig = () => {
     switch (type) {

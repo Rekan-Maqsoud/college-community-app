@@ -1,4 +1,5 @@
 import { Client, Account, Databases, Storage } from 'appwrite';
+import realtimeDebugLogger from '../app/utils/realtimeDebugLogger';
 
 const client = new Client();
 
@@ -45,6 +46,12 @@ export const safeSubscribe = (channel, callback) => {
         const delay = Math.min(30000, 1000 * Math.pow(2, cappedRetry));
         retryCount += 1;
 
+        realtimeDebugLogger.warn('realtime_retry_scheduled', {
+            channel,
+            retryCount,
+            delay,
+        });
+
         clearRetryTimer();
         retryTimer = setTimeout(() => {
             subscribe();
@@ -57,12 +64,18 @@ export const safeSubscribe = (channel, callback) => {
         }
 
         try {
+            realtimeDebugLogger.trace('realtime_subscribe_start', { channel });
             unsubscribe = client.subscribe(channel, (response) => {
                 if (!isActive) {
                     return;
                 }
 
                 if (response?.code && response?.message) {
+                    realtimeDebugLogger.warn('realtime_response_error', {
+                        channel,
+                        code: response.code,
+                        message: response.message,
+                    });
                     scheduleRetry();
                     return;
                 }
@@ -71,6 +84,10 @@ export const safeSubscribe = (channel, callback) => {
                 callback(response);
             });
         } catch (error) {
+            realtimeDebugLogger.error('realtime_subscribe_error', {
+                channel,
+                message: error?.message,
+            });
             scheduleRetry();
         }
     };

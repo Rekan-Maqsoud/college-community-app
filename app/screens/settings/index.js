@@ -58,6 +58,14 @@ const Settings = ({ navigation }) => {
       screen: 'BlockList',
     },
     {
+      id: 'saved',
+      title: t('settings.savedPosts'),
+      description: t('settings.savedPostsDesc'),
+      icon: 'bookmark-outline',
+      color: '#5856D6',
+      screen: 'SavedPosts',
+    },
+    {
       id: 'account',
       title: t('settings.accountSettings'),
       description: t('settings.accountDesc') || 'Password, security, and account actions',
