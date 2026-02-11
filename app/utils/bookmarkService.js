@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import safeStorage from './safeStorage';
 import { databases, config } from '../../database/config';
 
 const BOOKMARKS_KEY = '@bookmarked_posts';
@@ -9,7 +9,7 @@ const BOOKMARKS_KEY = '@bookmarked_posts';
  */
 export const getBookmarkedPostIds = async () => {
   try {
-    const raw = await AsyncStorage.getItem(BOOKMARKS_KEY);
+    const raw = await safeStorage.getItem(BOOKMARKS_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -40,7 +40,7 @@ export const togglePostBookmark = async (postId, userId) => {
   }
 
   // Write to local storage immediately
-  await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(updatedIds));
+  await safeStorage.setItem(BOOKMARKS_KEY, JSON.stringify(updatedIds));
 
   // Sync to Appwrite in background (non-blocking)
   if (userId) {
@@ -88,7 +88,7 @@ export const restoreBookmarksFromServer = async (userId) => {
     const mergedSet = new Set([...localIds, ...serverIds]);
     const merged = [...mergedSet];
 
-    await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(merged));
+    await safeStorage.setItem(BOOKMARKS_KEY, JSON.stringify(merged));
   } catch {
     // Attribute may not exist yet — silent fail
   }

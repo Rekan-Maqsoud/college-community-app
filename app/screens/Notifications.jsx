@@ -20,6 +20,7 @@ import CustomAlert from '../components/CustomAlert';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import safeStorage from '../utils/safeStorage';
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification, deleteAllNotifications } from '../../database/notifications';
 import { useNotifications } from '../hooks/useRealtimeSubscription';
 import PostViewModal from '../components/PostViewModal';
@@ -218,7 +219,7 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
                 { backgroundColor: icon.color },
               ]}
             >
-              <Ionicons name={icon.name} size={11} color="#fff" />
+              <Ionicons name={icon.name} size={moderateScale(11)} color="#fff" />
             </View>
           </View>
 
@@ -244,7 +245,7 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
               </Text>
             ) : null}
             <View style={styles.timeRow}>
-              <Ionicons name="time-outline" size={10} color={theme.textSecondary} />
+              <Ionicons name="time-outline" size={moderateScale(10)} color={theme.textSecondary} />
               <Text style={[styles.timeText, { color: theme.textSecondary }]}>
                 {createdAt ? formatNotificationTime(createdAt, t) : ''}
               </Text>
@@ -257,10 +258,10 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
             )}
             <TouchableOpacity
               style={styles.deleteButton}
-              onPress={() => setMenuVisible(true)}
+              onPress={() => setMenuVisible(!menuVisible)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="ellipsis-vertical" size={18} color={theme.textSecondary} />
+              <Ionicons name="ellipsis-vertical" size={moderateScale(16)} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -278,11 +279,12 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
                 onDelete && onDelete(notification);
               }}
             >
-              <Ionicons name="trash-outline" size={16} color="#EF4444" />
+              <Ionicons name="trash-outline" size={moderateScale(15)} color="#EF4444" />
               <Text style={[styles.notifMenuText, { color: '#EF4444' }]}>
                 {t('notifications.removeNotification') || 'Remove this notification'}
               </Text>
             </TouchableOpacity>
+            <View style={[styles.notifMenuDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]} />
             <TouchableOpacity
               style={styles.notifMenuItem}
               onPress={() => {
@@ -290,18 +292,9 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
                 onTurnOff && onTurnOff(notification);
               }}
             >
-              <Ionicons name="notifications-off-outline" size={16} color={theme.textSecondary} />
+              <Ionicons name="notifications-off-outline" size={moderateScale(15)} color={theme.textSecondary} />
               <Text style={[styles.notifMenuText, { color: theme.text }]}>
                 {t('notifications.turnOffLikeThis') || 'Turn off notifications like this'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.notifMenuItem}
-              onPress={() => setMenuVisible(false)}
-            >
-              <Ionicons name="close-outline" size={16} color={theme.textSecondary} />
-              <Text style={[styles.notifMenuText, { color: theme.textSecondary }]}>
-                {t('common.cancel') || 'Cancel'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -395,7 +388,7 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
                 { backgroundColor: icon.color },
               ]}
             >
-              <Ionicons name={icon.name} size={8} color="#fff" />
+              <Ionicons name={icon.name} size={moderateScale(8)} color="#fff" />
             </View>
           </View>
 
@@ -413,7 +406,7 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
                 <Text style={{ color: theme.textSecondary }}>{message.action}</Text>
               </Text>
               <View style={styles.timeRow}>
-                <Ionicons name="time-outline" size={10} color={theme.textSecondary} />
+                <Ionicons name="time-outline" size={moderateScale(10)} color={theme.textSecondary} />
                 <Text style={[styles.timeText, { color: theme.textSecondary }]}>
                   {formatNotificationTime(group.latestTimestamp, t)}
                 </Text>
@@ -672,8 +665,7 @@ const Notifications = ({ navigation }) => {
 
     try {
       // Update local notification settings to turn off this type
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      const raw = await AsyncStorage.getItem('notificationSettings');
+      const raw = await safeStorage.getItem('notificationSettings');
       let settings = {};
       try { settings = raw ? JSON.parse(raw) : {}; } catch (e) { settings = {}; }
 
@@ -690,7 +682,7 @@ const Notifications = ({ navigation }) => {
       const settingKey = typeToKey[notification.type];
       if (settingKey) {
         settings[settingKey] = false;
-        await AsyncStorage.setItem('notificationSettings', JSON.stringify(settings));
+        await safeStorage.setItem('notificationSettings', JSON.stringify(settings));
         showAlert({
           type: 'success',
           title: t('common.success'),
@@ -935,8 +927,8 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: moderateScale(40),
+    height: moderateScale(40),
     justifyContent: 'center',
     alignItems: 'flex-start',
   },
@@ -953,7 +945,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   placeholder: {
-    width: 70,
+    width: moderateScale(70),
   },
   loadingContainer: {
     flex: 1,
@@ -970,7 +962,7 @@ const styles = StyleSheet.create({
   },
   notificationCard: {
     marginVertical: spacing.xs / 2,
-    borderRadius: 16,
+    borderRadius: borderRadius.lg,
     overflow: 'hidden',
     borderWidth: 1,
     paddingVertical: spacing.sm + 2,
@@ -999,10 +991,10 @@ const styles = StyleSheet.create({
   groupIconBadge: {
     position: 'absolute',
     bottom: -2,
-    left: 32,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    left: moderateScale(30),
+    width: moderateScale(16),
+    height: moderateScale(16),
+    borderRadius: moderateScale(8),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
@@ -1012,9 +1004,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -2,
     right: -2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: moderateScale(18),
+    height: moderateScale(18),
+    borderRadius: moderateScale(9),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
@@ -1057,9 +1049,9 @@ const styles = StyleSheet.create({
     marginLeft: spacing.xs,
   },
   unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: moderateScale(8),
+    height: moderateScale(8),
+    borderRadius: moderateScale(4),
   },
   deleteButton: {
     padding: spacing.xs,
@@ -1104,7 +1096,7 @@ const styles = StyleSheet.create({
   },
   notifMenuContainer: {
     marginTop: spacing.xs,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     borderWidth: 1,
     paddingVertical: spacing.xs,
     overflow: 'hidden',
@@ -1115,6 +1107,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     gap: spacing.sm,
+  },
+  notifMenuDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: spacing.md,
+    opacity: 0.3,
   },
   notifMenuText: {
     fontSize: fontSize(13),

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,18 @@ import {
   TouchableOpacity,
   Platform,
   Image,
+  TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAppSettings } from '../../context/AppSettingsContext';
+import { useUser } from '../../context/UserContext';
 import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getReactionDefaults, updateReactionDefaults, DEFAULT_REACTION_SET } from '../../../database/userChatSettings';
 
 const BUBBLE_STYLES = [
   { key: 'modern', labelKey: 'settings.bubbleStyleModern', icon: 'chatbubble', descKey: 'settings.bubbleStyleModernDesc' },
@@ -65,7 +69,7 @@ const BACKGROUND_PRESETS = [
   { key: 'pattern_waves', labelKey: 'settings.backgroundWaves', pattern: 'waves', baseColor: '#16213e' },
 ];
 
-const ChatSettings = ({ navigation }) => {
+const ChatSettings = ({ navigation, route }) => {
   const {
     t,
     theme,
@@ -73,8 +77,49 @@ const ChatSettings = ({ navigation }) => {
     chatSettings,
     updateChatSetting,
   } = useAppSettings();
+  const { user } = useUser();
+  const insets = useSafeAreaInsets();
+  const scrollRef = useRef(null);
+  const { chatId, focusSection } = route?.params || {};
+  const [reactionDraft, setReactionDraft] = useState('');
+  const [reactionDraftList, setReactionDraftList] = useState(DEFAULT_REACTION_SET);
+  const [reactionSectionY, setReactionSectionY] = useState(null);
 
   const [selectedBackground, setSelectedBackground] = useState(chatSettings.backgroundImage);
+
+  useEffect(() => {
+    if (!chatId || !user?.$id) return;
+    let isActive = true;
+
+    const loadReactionDefaults = async () => {
+      try {
+        const defaults = await getReactionDefaults(user.$id, chatId);
+        if (isActive) {
+          setReactionDraftList(defaults || DEFAULT_REACTION_SET);
+        }
+      } catch (error) {
+        if (isActive) {
+          setReactionDraftList(DEFAULT_REACTION_SET);
+        }
+      }
+    };
+
+    loadReactionDefaults();
+    return () => {
+      isActive = false;
+    };
+  }, [chatId, user?.$id]);
+
+  useEffect(() => {
+    if (focusSection !== 'reactions' || reactionSectionY === null) return;
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollTo({
+        y: Math.max(reactionSectionY - spacing.md, 0),
+        animated: true,
+      });
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [focusSection, reactionSectionY]);
 
   const GlassCard = ({ children, style }) => (
     <BlurView
@@ -103,6 +148,29 @@ const ChatSettings = ({ navigation }) => {
   const handleBackgroundChange = (bg) => {
     setSelectedBackground(bg);
     updateChatSetting('backgroundImage', bg);
+  };
+
+  const handleAddReactionDefault = () => {
+    if (!chatId || !user?.$id) return;
+    const value = reactionDraft.trim();
+    if (!value) return;
+    setReactionDraftList(prev => (prev.includes(value) ? prev : [...prev, value]));
+    setReactionDraft('');
+  };
+
+  const handleRemoveReactionDefault = (emoji) => {
+    if (!chatId || !user?.$id) return;
+    setReactionDraftList(prev => prev.filter(item => item !== emoji));
+  };
+
+  const handleSaveReactionDefaults = async () => {
+    if (!chatId || !user?.$id) return;
+    try {
+      const updated = await updateReactionDefaults(user.$id, chatId, reactionDraftList);
+      setReactionDraftList(updated || reactionDraftList);
+    } catch (error) {
+      // Silent fail
+    }
   };
 
   const getBubbleRadius = () => {
@@ -203,11 +271,11 @@ const ChatSettings = ({ navigation }) => {
         style={styles.headerGradient}
       />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+          <Ionicons name="arrow-back" size={moderateScale(22)} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>
@@ -218,6 +286,7 @@ const ChatSettings = ({ navigation }) => {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}>
@@ -460,6 +529,72 @@ const ChatSettings = ({ navigation }) => {
           </GlassCard>
         </View>
 
+        {chatId && user?.$id && (
+          <View
+            style={styles.section}
+            onLayout={(event) => setReactionSectionY(event.nativeEvent.layout.y)}
+          >
+            <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+              {t('chats.reactionDefaultsTitle')}
+            </Text>
+            <GlassCard>
+              <View style={styles.reactionDefaultsRow}>
+                {reactionDraftList.map((emoji) => (
+                  <TouchableOpacity
+                    key={emoji}
+                    style={[
+                      styles.reactionDefaultChip,
+                      { borderColor: isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)' }
+                    ]}
+                    onPress={() => handleRemoveReactionDefault(emoji)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.reactionEmoji}>{emoji}</Text>
+                    <Ionicons name="close" size={moderateScale(14)} color={theme.textSecondary} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.reactionInputRow}>
+                <TextInput
+                  value={reactionDraft}
+                  onChangeText={setReactionDraft}
+                  placeholder={t('chats.customReactionPlaceholder')}
+                  placeholderTextColor={theme.textSecondary}
+                  style={[
+                    styles.reactionInput,
+                    {
+                      color: theme.text,
+                      borderColor: isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'
+                    }
+                  ]}
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity
+                  style={[styles.reactionAddButton, { backgroundColor: theme.primary }]}
+                  onPress={handleAddReactionDefault}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="add" size={moderateScale(18)} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.reactionFooterRow}>
+                <TouchableOpacity
+                  style={[styles.reactionSaveButton, { backgroundColor: theme.primary }]}
+                  onPress={handleSaveReactionDefaults}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.reactionSaveText, { color: '#FFFFFF' }]}>
+                    {t('common.save')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </GlassCard>
+          </View>
+        )}
+
         <View style={styles.bottomPadding} />
       </ScrollView>
     </View>
@@ -480,13 +615,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: Platform.OS === 'ios' ? hp(6) : hp(2),
     paddingHorizontal: wp(5),
     paddingBottom: spacing.md,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: moderateScale(40),
+    height: moderateScale(40),
     justifyContent: 'center',
   },
   headerTitleContainer: {
@@ -498,7 +632,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   placeholder: {
-    width: 40,
+    width: moderateScale(40),
   },
   scrollView: {
     flex: 1,
@@ -515,6 +649,57 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: spacing.md,
+  },
+  reactionDefaultsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+    justifyContent: 'center',
+  },
+  reactionDefaultChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.lg,
+  },
+  reactionEmoji: {
+    fontSize: responsiveFontSize(16),
+  },
+  reactionInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  reactionInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: Platform.OS === 'ios' ? spacing.sm : spacing.xs,
+  },
+  reactionAddButton: {
+    width: moderateScale(42),
+    height: moderateScale(42),
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reactionFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: spacing.md,
+  },
+  reactionSaveButton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+  },
+  reactionSaveText: {
+    fontWeight: '600',
   },
   glassCard: {
     borderRadius: borderRadius.lg,

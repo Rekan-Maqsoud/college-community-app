@@ -20,6 +20,7 @@ const ReplyItem = ({
   onAccept, 
   onUpvote, 
   onDownvote, 
+  onReply,
   onImagePress,
   isOwner, 
   isPostOwner, 
@@ -172,6 +173,21 @@ const ReplyItem = ({
         </TouchableOpacity>
       </View>
 
+      <View style={styles.replyActions}>
+        <TouchableOpacity
+          style={[
+            styles.replyActionButton,
+            { backgroundColor: isDarkMode ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.1)' }
+          ]}
+          onPress={() => onReply && onReply(reply)}
+        >
+          <Ionicons name="return-up-back-outline" size={14} color={theme.primary} />
+          <Text style={[styles.replyActionText, { color: theme.primary }]}>
+            {t('post.reply')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <Modal visible={showMenu} transparent animationType="fade" onRequestClose={() => setShowMenu(false)}>
         <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={() => setShowMenu(false)}>
           <View style={[styles.menuContent, { backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF' }]}>
@@ -184,6 +200,7 @@ const ReplyItem = ({
                   <Ionicons name="create-outline" size={22} color="#3B82F6" />
                   <Text style={[styles.menuItemText, { color: '#3B82F6' }]}>{t('post.editReply')}</Text>
                 </TouchableOpacity>
+                <View style={[styles.menuDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]} />
                 <TouchableOpacity
                   style={styles.menuItem}
                   onPress={() => { setShowMenu(false); onDelete(reply); }}
@@ -203,19 +220,22 @@ const ReplyItem = ({
                   <Text style={[styles.menuItemText, { color: '#EF4444' }]}>{t('post.deleteReply')}</Text>
                 </TouchableOpacity>
                 {showAcceptButton && (
-                  <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => { setShowMenu(false); onAccept(reply); }}
-                  >
-                    <Ionicons 
-                      name={reply.isAccepted ? 'close-circle-outline' : 'checkmark-circle-outline'} 
-                      size={22} 
-                      color="#10B981" 
-                    />
-                    <Text style={[styles.menuItemText, { color: '#10B981' }]}>
-                      {reply.isAccepted ? t('post.unmarkAsAccepted') : t('post.markAsAccepted')}
-                    </Text>
-                  </TouchableOpacity>
+                  <>
+                    <View style={[styles.menuDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]} />
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={() => { setShowMenu(false); onAccept(reply); }}
+                    >
+                      <Ionicons 
+                        name={reply.isAccepted ? 'close-circle-outline' : 'checkmark-circle-outline'} 
+                        size={22} 
+                        color="#10B981" 
+                      />
+                      <Text style={[styles.menuItemText, { color: '#10B981' }]}>
+                        {reply.isAccepted ? t('post.unmarkAsAccepted') : t('post.markAsAccepted')}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
                 )}
               </>
             )}
@@ -344,6 +364,22 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 4,
   },
+  replyActions: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  replyActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+  },
+  replyActionText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   voteButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -388,8 +424,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  menuDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: 16,
+    opacity: 0.3,
   },
   menuItemText: {
     fontSize: 16,

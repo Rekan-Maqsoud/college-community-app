@@ -10,12 +10,13 @@ import {
   ActivityIndicator,
   BackHandler,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ExpoImagePicker from 'expo-image-picker';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
+import { moderateScale, fontSize } from '../utils/responsive';
 import CustomAlert from '../components/CustomAlert';
 import { uploadImage } from '../../services/imgbbService';
 import { createReply, getRepliesByPost, updateReply, deleteReply, markReplyAsAccepted, unmarkReplyAsAccepted } from '../../database/replies';
@@ -31,6 +32,7 @@ const PostDetails = ({ navigation, route }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const insets = useSafeAreaInsets();
   const { post: initialPost, postId: routePostId, replyId: routeReplyId, targetReplyId, onPostUpdate, source, autoFocusReply } = route.params || {};
 
   // Resolve effective target reply - from either replyId or targetReplyId
@@ -47,6 +49,8 @@ const PostDetails = ({ navigation, route }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingReplies, setIsLoadingReplies] = useState(false);
   const [editingReply, setEditingReply] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [expandedReplies, setExpandedReplies] = useState({});
   const [showLinksSection, setShowLinksSection] = useState(false);
   const [galleryVisible, setGalleryVisible] = useState(false);
   const [galleryImages, setGalleryImages] = useState([]);
@@ -218,6 +222,30 @@ const PostDetails = ({ navigation, route }) => {
     return sorted;
   }, [replies, replySortOrder, effectiveReplyId]);
 
+  const ROOT_REPLY_ID = 'root';
+
+  const repliesByParent = React.useMemo(() => {
+    const map = {};
+    sortedReplies.forEach((reply) => {
+      const parentId = reply.parentReplyId || ROOT_REPLY_ID;
+      if (!map[parentId]) {
+        map[parentId] = [];
+      }
+      map[parentId].push(reply);
+    });
+    return map;
+  }, [sortedReplies]);
+
+  const replyParentMap = React.useMemo(() => {
+    const map = {};
+    sortedReplies.forEach((reply) => {
+      if (reply.parentReplyId) {
+        map[reply.$id] = reply.parentReplyId;
+      }
+    });
+    return map;
+  }, [sortedReplies]);
+
   // Scroll to the target reply once replies are loaded and layouts are measured
   useEffect(() => {
     if (effectiveReplyId && sortedReplies.length > 0 && !isLoadingReplies && !hasScrolledToReply.current) {
@@ -252,6 +280,26 @@ const PostDetails = ({ navigation, route }) => {
       return () => clearTimeout(timer);
     }
   }, [highlightedReplyId, sortedReplies, isLoadingReplies]);
+
+  useEffect(() => {
+    if (!effectiveReplyId) return;
+
+    const parentsToExpand = {};
+    let currentId = effectiveReplyId;
+
+    while (replyParentMap[currentId]) {
+      const parentId = replyParentMap[currentId];
+      parentsToExpand[parentId] = true;
+      currentId = parentId;
+    }
+
+    if (Object.keys(parentsToExpand).length > 0) {
+      setExpandedReplies((prev) => ({
+        ...prev,
+        ...parentsToExpand,
+      }));
+    }
+  }, [effectiveReplyId, replyParentMap]);
 
   const handleAddReply = async () => {
     if (!replyText.trim()) {
@@ -310,7 +358,7 @@ const PostDetails = ({ navigation, route }) => {
           links: finalLinks,
           likeCount: 0,
           isEdited: false,
-          parentReplyId: null,
+          parentReplyId: replyingTo?.$id || null,
           upCount: 0,
           downCount: 0,
           upvotedBy: [],
@@ -353,10 +401,31 @@ const PostDetails = ({ navigation, route }) => {
     setLinkInput('');
     setShowLinksSection(false);
     setEditingReply(null);
+    setReplyingTo(null);
+  };
+
+  const handleStartReply = (reply) => {
+    setEditingReply(null);
+    setReplyingTo(reply);
+    setTimeout(() => {
+      replyInputRef.current?.focus?.();
+    }, 250);
+  };
+
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  const toggleReplyThread = (replyId) => {
+    setExpandedReplies((prev) => ({
+      ...prev,
+      [replyId]: !prev[replyId],
+    }));
   };
 
   const handleEditReply = (reply) => {
     setEditingReply(reply);
+    setReplyingTo(null);
     setReplyText(reply.text);
     setReplyImages(reply.images || []);
     setReplyLinks(reply.links || []);
@@ -570,6 +639,77 @@ const PostDetails = ({ navigation, route }) => {
 
   const isPostOwner = user?.$id === post?.userId;
 
+  const renderReplyThread = (reply, depth = 0) => {
+    const safeDepth = Math.min(depth, 4);
+    const childReplies = repliesByParent[reply.$id] || [];
+    const isExpanded = !!expandedReplies[reply.$id];
+    const isHighlighted = highlightedReplyId === reply.$id;
+    const childBorderColor = isDarkMode ? 'rgba(100,130,255,0.25)' : 'rgba(79,70,229,0.2)';
+
+    return (
+      <View
+        key={reply.$id}
+        onLayout={(e) => {
+          replyLayoutsRef.current[reply.$id] = e.nativeEvent.layout.y;
+        }}
+        style={[
+          styles.replyThreadItem,
+          safeDepth > 0 && styles.replyThreadChild,
+          safeDepth > 0 && { marginLeft: safeDepth * 12, borderLeftColor: childBorderColor },
+          isHighlighted && {
+            backgroundColor: isDarkMode ? 'rgba(100,130,255,0.15)' : 'rgba(100,130,255,0.10)',
+            borderRadius: 8,
+            borderLeftWidth: 3,
+            borderLeftColor: isDarkMode ? '#667eea' : '#4F46E5',
+          },
+        ]}
+      >
+        <ReplyItem
+          reply={reply}
+          isOwner={reply.userId === user?.$id}
+          isPostOwner={isPostOwner}
+          showAcceptButton={post?.postType === 'question'}
+          onEdit={handleEditReply}
+          onDelete={handleDeleteReply}
+          onAccept={handleAcceptReply}
+          onUpvote={handleUpvote}
+          onDownvote={handleDownvote}
+          onImagePress={openImageGallery}
+          onReply={handleStartReply}
+          t={t}
+          theme={theme}
+          isDarkMode={isDarkMode}
+        />
+
+        {childReplies.length > 0 && (
+          <TouchableOpacity
+            style={[
+              styles.threadToggleButton,
+              { backgroundColor: isDarkMode ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.1)' }
+            ]}
+            onPress={() => toggleReplyThread(reply.$id)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={isExpanded ? 'chevron-up' : 'chevron-down'}
+              size={moderateScale(16)}
+              color={theme.primary}
+            />
+            <Text style={[styles.threadToggleText, { color: theme.primary }]}>
+              {isExpanded ? t('post.hideReplies') : t('post.viewReplies')} ({childReplies.length})
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {childReplies.length > 0 && isExpanded && (
+          <View style={styles.replyChildren}>
+            {childReplies.map((childReply) => renderReplyThread(childReply, depth + 1))}
+          </View>
+        )}
+      </View>
+    );
+  };
+
   // Show loading state while fetching post
   if (isLoadingPost) {
     return (
@@ -577,7 +717,7 @@ const PostDetails = ({ navigation, route }) => {
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
         <View style={[styles.header, { backgroundColor: theme.background, borderBottomColor: theme.border }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={theme.text} />
+            <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.replies')}</Text>
           <View style={styles.headerSpacer} />
@@ -597,13 +737,13 @@ const PostDetails = ({ navigation, route }) => {
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
         <View style={[styles.header, { backgroundColor: theme.background, borderBottomColor: theme.border }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={theme.text} />
+            <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.replies')}</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.emptyContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color={theme.textSecondary} />
+          <Ionicons name="alert-circle-outline" size={moderateScale(48)} color={theme.textSecondary} />
           <Text style={[styles.emptyTitle, { color: theme.textSecondary }]}>{t('post.postNotFound') || 'Post not found'}</Text>
         </View>
       </SafeAreaView>
@@ -625,7 +765,7 @@ const PostDetails = ({ navigation, route }) => {
       <KeyboardAvoidingView 
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? moderateScale(90) + insets.top : 0}
       >
         <ScrollView 
           ref={scrollViewRef}
@@ -636,22 +776,22 @@ const PostDetails = ({ navigation, route }) => {
         >
           <View style={[styles.repliesSection, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : '#F9FAFB' }]}>
             <View style={styles.repliesSectionHeader}>
-              <Ionicons name="chatbubbles-outline" size={22} color={theme.text} />
+              <Ionicons name="chatbubbles-outline" size={moderateScale(22)} color={theme.text} />
               <Text style={[styles.repliesSectionTitle, { color: theme.text }]}>
                 {t('post.repliesCount').replace('{count}', replies.length.toString())}
               </Text>
               {replies.length > 1 && (
                 <TouchableOpacity
                   onPress={() => setReplySortOrder(prev => prev === 'top' ? 'newest' : 'top')}
-                  style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                  style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: moderateScale(4) }}
                   activeOpacity={0.7}
                 >
                   <Ionicons
                     name={replySortOrder === 'newest' ? 'time-outline' : 'arrow-up-outline'}
-                    size={16}
+                    size={moderateScale(16)}
                     color={theme.primary}
                   />
-                  <Text style={{ color: theme.primary, fontSize: 13 }}>
+                  <Text style={{ color: theme.primary, fontSize: fontSize(13) }}>
                     {replySortOrder === 'newest' ? (t('post.sortNewest') || 'Newest') : (t('post.sortTop') || 'Top')}
                   </Text>
                 </TouchableOpacity>
@@ -665,42 +805,13 @@ const PostDetails = ({ navigation, route }) => {
               </View>
             ) : replies.length === 0 ? (
               <View style={styles.emptyContainer}>
-                <Ionicons name="chatbubble-outline" size={48} color={theme.textSecondary} />
+                <Ionicons name="chatbubble-outline" size={moderateScale(48)} color={theme.textSecondary} />
                 <Text style={[styles.emptyTitle, { color: theme.textSecondary }]}>{t('post.noReplies')}</Text>
                 <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>{t('post.beFirstToReply')}</Text>
               </View>
             ) : (
               <View style={styles.repliesList}>
-                {sortedReplies.map((reply) => (
-                  <View
-                    key={reply.$id}
-                    onLayout={(e) => {
-                      replyLayoutsRef.current[reply.$id] = e.nativeEvent.layout.y;
-                    }}
-                    style={highlightedReplyId === reply.$id ? {
-                      backgroundColor: isDarkMode ? 'rgba(100,130,255,0.15)' : 'rgba(100,130,255,0.10)',
-                      borderRadius: 8,
-                      borderLeftWidth: 3,
-                      borderLeftColor: isDarkMode ? '#667eea' : '#4F46E5',
-                    } : undefined}
-                  >
-                    <ReplyItem
-                      reply={reply}
-                      isOwner={reply.userId === user?.$id}
-                      isPostOwner={isPostOwner}
-                      showAcceptButton={post?.postType === 'question'}
-                      onEdit={handleEditReply}
-                      onDelete={handleDeleteReply}
-                      onAccept={handleAcceptReply}
-                      onUpvote={handleUpvote}
-                      onDownvote={handleDownvote}
-                      onImagePress={openImageGallery}
-                      t={t}
-                      theme={theme}
-                      isDarkMode={isDarkMode}
-                    />
-                  </View>
-                ))}
+                {(repliesByParent[ROOT_REPLY_ID] || []).map((reply) => renderReplyThread(reply, 0))}
               </View>
             )}
           </View>
@@ -708,6 +819,7 @@ const PostDetails = ({ navigation, route }) => {
 
         <ReplyInputSection
           editingReply={editingReply}
+          replyingTo={replyingTo}
           replyText={replyText}
           setReplyText={setReplyText}
           replyImages={replyImages}
@@ -719,6 +831,7 @@ const PostDetails = ({ navigation, route }) => {
           isDarkMode={isDarkMode}
           t={t}
           onResetForm={resetForm}
+          onCancelReply={handleCancelReply}
           onRemoveImage={handleRemoveImage}
           onRemoveLink={handleRemoveLink}
           onLinkInputChange={handleLinkInputChange}
@@ -727,6 +840,7 @@ const PostDetails = ({ navigation, route }) => {
           onToggleLinksSection={() => setShowLinksSection(!showLinksSection)}
           onSubmit={handleAddReply}
           currentUserId={user?.$id}
+          inputRef={replyInputRef}
         />
       </KeyboardAvoidingView>
 

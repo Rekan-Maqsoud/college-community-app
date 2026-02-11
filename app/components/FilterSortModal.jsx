@@ -38,6 +38,8 @@ const FilterSortModal = ({
   onSortChange,
   filterType,
   onFilterTypeChange,
+  answerStatus = 'all',
+  onAnswerStatusChange,
   selectedStage,
   onStageChange,
 }) => {
@@ -57,6 +59,12 @@ const FilterSortModal = ({
     { key: POST_TYPES.ANNOUNCEMENT, label: t('post.types.announcement'), icon: 'megaphone-outline' },
   ];
 
+  const answerOptions = [
+    { key: 'all', label: t('filter.all'), icon: 'apps-outline' },
+    { key: 'answered', label: t('filter.answered'), icon: 'checkmark-circle-outline' },
+    { key: 'unanswered', label: t('filter.unanswered'), icon: 'help-circle-outline' },
+  ];
+
   const stageOptions = STAGES.map(stage => ({
     key: stage.key,
     label: t(stage.label),
@@ -74,6 +82,12 @@ const FilterSortModal = ({
   const handleStageSelect = (key) => {
     if (onStageChange) {
       onStageChange(key);
+    }
+  };
+
+  const handleAnswerSelect = (key) => {
+    if (onAnswerStatusChange) {
+      onAnswerStatusChange(key);
     }
   };
 
@@ -210,6 +224,19 @@ const FilterSortModal = ({
               {typeOptions.map((option) =>
                 renderOption(option, filterType === option.key, handleTypeSelect)
               )}
+
+              {/* Answer Status Section */}
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { color: theme.textSecondary, fontSize: fontSize(13), marginTop: spacing.lg },
+                ]}
+              >
+                {t('filter.answerStatus')}
+              </Text>
+              {answerOptions.map((option) =>
+                renderOption(option, answerStatus === option.key, handleAnswerSelect)
+              )}
             </ScrollView>
 
             {/* Apply Button */}
@@ -233,14 +260,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: wp(5),
+    paddingVertical: hp(4),
   },
   modalContent: {
-    width: wp(85),
-    maxHeight: hp(80),
+    width: '100%',
+    maxHeight: hp(84),
   },
   modalCard: {
     overflow: 'hidden',
-    maxHeight: hp(75),
+    maxHeight: hp(80),
   },
   modalHeader: {
     flexDirection: 'row',
@@ -261,7 +290,7 @@ const styles = StyleSheet.create({
     flexGrow: 0,
   },
   optionsListContent: {
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.lg,
   },
   sectionTitle: {
     fontWeight: '600',
@@ -290,7 +319,8 @@ const styles = StyleSheet.create({
   },
   applyButton: {
     marginHorizontal: spacing.lg,
-    marginVertical: spacing.lg,
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',

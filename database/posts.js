@@ -115,6 +115,9 @@ export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = 
         if (filters.postType && filters.postType !== 'all') {
             queries.push(Query.equal('postType', filters.postType));
         }
+        if (filters.answerStatus && filters.answerStatus !== 'all') {
+            queries.push(Query.equal('isResolved', filters.answerStatus === 'answered'));
+        }
         if (filters.userId) {
             queries.push(Query.equal('userId', filters.userId));
         }
@@ -150,8 +153,8 @@ export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = 
     }
 };
 
-export const getPostsByDepartments = async (departments = [], stage = 'all', limit = 20, offset = 0, useCache = true, sortBy = 'newest', postType = 'all', blockedUserIds = []) => {
-    const cacheKey = `posts_multi_depts_${departments.sort().join('-')}_stage_${stage}_type_${postType}_sort_${sortBy}_l${limit}_o${offset}`;
+export const getPostsByDepartments = async (departments = [], stage = 'all', limit = 20, offset = 0, useCache = true, sortBy = 'newest', postType = 'all', answerStatus = 'all', blockedUserIds = []) => {
+    const cacheKey = `posts_multi_depts_${departments.sort().join('-')}_stage_${stage}_type_${postType}_answer_${answerStatus}_sort_${sortBy}_l${limit}_o${offset}`;
     
     try {
         if (!departments || departments.length === 0) {
@@ -189,6 +192,10 @@ export const getPostsByDepartments = async (departments = [], stage = 'all', lim
             queries.push(Query.equal('postType', postType));
         }
 
+        if (answerStatus && answerStatus !== 'all') {
+            queries.push(Query.equal('isResolved', answerStatus === 'answered'));
+        }
+
         const posts = await databases.listDocuments(
             config.databaseId,
             config.postsCollectionId,
@@ -220,8 +227,8 @@ export const getPostsByDepartments = async (departments = [], stage = 'all', lim
     }
 };
 
-export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, useCache = true, sortBy = 'newest', postType = 'all', blockedUserIds = []) => {
-    const cacheKey = `posts_public_stage_${stage}_type_${postType}_sort_${sortBy}_l${limit}_o${offset}`;
+export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, useCache = true, sortBy = 'newest', postType = 'all', answerStatus = 'all', blockedUserIds = []) => {
+    const cacheKey = `posts_public_stage_${stage}_type_${postType}_answer_${answerStatus}_sort_${sortBy}_l${limit}_o${offset}`;
     
     try {
         // Try to get cached data first
@@ -252,6 +259,10 @@ export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, u
 
         if (postType && postType !== 'all') {
             queries.push(Query.equal('postType', postType));
+        }
+
+        if (answerStatus && answerStatus !== 'all') {
+            queries.push(Query.equal('isResolved', answerStatus === 'answered'));
         }
 
         const posts = await databases.listDocuments(

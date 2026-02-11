@@ -224,7 +224,7 @@ const ReplyCard = ({
             {isOwner && (
               <>
                 <TouchableOpacity
-                  style={[styles.menuItem, { borderBottomColor: theme.border }]}
+                  style={styles.menuItem}
                   onPress={() => {
                     setShowMenu(false);
                     onEdit && onEdit(reply);
@@ -234,6 +234,7 @@ const ReplyCard = ({
                     {t('post.editReply')}
                   </Text>
                 </TouchableOpacity>
+                <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
                 <TouchableOpacity
                   style={styles.menuItem}
                   onPress={() => {
@@ -436,7 +437,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.lg,
     gap: spacing.md,
-    borderBottomWidth: 1,
+  },
+  menuDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: spacing.lg,
+    opacity: 0.3,
   },
   menuItemText: {
     fontWeight: '500',

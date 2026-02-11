@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo, useRef } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,13 @@ import {
   TouchableOpacity,
   Share,
   Linking,
-  Pressable,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { isPostBookmarked, togglePostBookmark } from '../utils/bookmarkService';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
+import { moderateScale, fontSize, getResponsiveSize } from '../utils/responsive';
 import { POST_COLORS, POST_ICONS } from '../constants/postConstants';
 import PostCardImageGallery from './postCard/PostCardImageGallery';
 import PostCardMenu from './postCard/PostCardMenu';
@@ -59,12 +59,15 @@ const PostCard = ({
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showShareToChat, setShowShareToChat] = useState(false);
 
-  const lastTapTime = useRef(0);
-  const DOUBLE_TAP_DELAY = 300;
 
   const postColor = POST_COLORS[post.postType] || '#6B7280';
   const postIcon = POST_ICONS[post.postType] || 'document-outline';
   const stageColor = STAGE_COLORS[post.stage] || '#6B7280';
+
+  // Responsive footer icon sizes for small devices
+  const footerIconSize = getResponsiveSize(14, 16, 18);
+  const footerSmallIconSize = getResponsiveSize(12, 14, 16);
+  const footerStatsIconSize = getResponsiveSize(11, 12, 13);
 
   const isCurrentUserPost = user && post.userId === user.$id;
   const postOwnerName = isCurrentUserPost 
@@ -135,16 +138,6 @@ const PostCard = ({
     }
   };
 
-  const handleDoubleTap = () => {
-    const now = Date.now();
-    if (now - lastTapTime.current < DOUBLE_TAP_DELAY) {
-      // Double tap detected - like the post if not already liked
-      if (!liked && !isLiking) {
-        handleLike();
-      }
-    }
-    lastTapTime.current = now;
-  };
 
   const openImageGallery = (index) => {
     setSelectedImageIndex(index);
@@ -310,7 +303,7 @@ const PostCard = ({
               </Text>
             </View>
             <View style={[styles.typeBadgeInline, { backgroundColor: isDarkMode ? `${postColor}10` : `${postColor}18` }]}>
-              <Ionicons name={postIcon} size={10} color={postColor} />
+              <Ionicons name={postIcon} size={moderateScale(10)} color={postColor} />
               <Text style={[styles.typeTextInline, { color: postColor }]}>
                 {t(`post.types.${post.postType}`)}
               </Text>
@@ -322,12 +315,12 @@ const PostCard = ({
           onPress={() => setShowMenu(true)}
           activeOpacity={0.6}
         >
-          <Ionicons name="ellipsis-horizontal" size={20} color={theme.textSecondary} />
+          <Ionicons name="ellipsis-horizontal" size={moderateScale(20)} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
 
-      {/* Content - Double tap to like */}
-      <Pressable onPress={handleDoubleTap} style={[styles.content, compact && styles.contentCompact]}>
+      {/* Content */}
+      <View style={[styles.content, compact && styles.contentCompact]}>
         <Text style={[styles.topic, { color: theme.text }, compact && styles.topicCompact]} numberOfLines={compact ? 1 : 2} selectable>
           {post.topic}
         </Text>
@@ -355,7 +348,7 @@ const PostCard = ({
                 >
                   <Ionicons 
                     name={isEmail ? 'mail-outline' : 'link-outline'} 
-                    size={14} 
+                    size={moderateScale(14)} 
                     color="#3B82F6" 
                   />
                   <Text style={styles.linkText} numberOfLines={1}>
@@ -397,7 +390,7 @@ const PostCard = ({
         )}
 
         {showImages && renderCompactOrFullImages()}
-      </Pressable>
+      </View>
 
       {/* Footer */}
       <View style={[styles.footer, { borderTopColor: theme.border }, compact && styles.footerCompact]}>
@@ -410,7 +403,7 @@ const PostCard = ({
           >
             <Ionicons 
               name={liked ? "heart" : "heart-outline"} 
-              size={20} 
+              size={footerIconSize} 
               color={liked ? "#EF4444" : theme.textSecondary} 
             />
             <Text style={[styles.actionText, { color: liked ? "#EF4444" : theme.textSecondary }]}>
@@ -423,7 +416,7 @@ const PostCard = ({
             onPress={onReply}
             activeOpacity={0.7}
           >
-            <Ionicons name="chatbubble-outline" size={20} color={theme.textSecondary} />
+            <Ionicons name="chatbubble-outline" size={footerIconSize} color={theme.textSecondary} />
             <Text style={[styles.actionText, { color: theme.textSecondary }]}>
               {t('post.reply')} ({post.replyCount || 0})
             </Text>
@@ -434,7 +427,7 @@ const PostCard = ({
             onPress={handleShare}
             activeOpacity={0.7}
           >
-            <Ionicons name="share-outline" size={20} color={theme.textSecondary} />
+            <Ionicons name="share-outline" size={footerIconSize} color={theme.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -442,27 +435,27 @@ const PostCard = ({
             onPress={() => setShowShareToChat(true)}
             activeOpacity={0.7}
           >
-            <Ionicons name="send-outline" size={18} color={theme.textSecondary} />
+            <Ionicons name="send-outline" size={footerSmallIconSize} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.footerRight}>
           <View style={styles.statsItem}>
-            <Ionicons name="eye-outline" size={14} color={theme.textTertiary} />
+            <Ionicons name="eye-outline" size={footerStatsIconSize} color={theme.textTertiary} />
             <Text style={[styles.statsText, { color: theme.textTertiary }]}>{post.viewCount || 0}</Text>
           </View>
           {post.postType === 'question' && (
             <View style={styles.statsItem}>
               {resolved ? (
                 <>
-                  <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                  <Ionicons name="checkmark-circle" size={footerStatsIconSize} color="#10B981" />
                   <Text style={[styles.statsText, { color: '#10B981' }]}>
                     {t('post.resolved')}
                   </Text>
                 </>
               ) : (
                 <>
-                  <Ionicons name="help-circle-outline" size={14} color="#F59E0B" />
+                  <Ionicons name="help-circle-outline" size={footerStatsIconSize} color="#F59E0B" />
                   <Text style={[styles.statsText, { color: '#F59E0B' }]}>
                     {t('post.unanswered')}
                   </Text>

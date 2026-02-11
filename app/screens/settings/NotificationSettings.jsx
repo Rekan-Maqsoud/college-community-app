@@ -15,8 +15,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { borderRadius, shadows } from '../../theme/designTokens';
-import { wp, hp, fontSize as responsiveFontSize, spacing } from '../../utils/responsive';
-
+import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const NotificationSettings = ({ navigation }) => {
   const {
     t,
@@ -29,6 +28,7 @@ const NotificationSettings = ({ navigation }) => {
     quietHours,
     updateQuietHours,
   } = useAppSettings();
+  const insets = useSafeAreaInsets();
 
   const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [timePickerType, setTimePickerType] = useState('start');
@@ -77,11 +77,11 @@ const NotificationSettings = ({ navigation }) => {
         style={styles.headerGradient}
       />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+          <Ionicons name="arrow-back" size={moderateScale(22)} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>
@@ -106,7 +106,7 @@ const NotificationSettings = ({ navigation }) => {
                 styles.iconContainer,
                 { backgroundColor: isDarkMode ? 'rgba(52, 199, 89, 0.15)' : 'rgba(52, 199, 89, 0.1)' },
               ]}>
-                <Ionicons name="notifications-outline" size={20} color="#34C759" />
+                <Ionicons name="notifications-outline" size={moderateScale(18)} color="#34C759" />
               </View>
               <View style={styles.settingContent}>
                 <Text style={[styles.settingTitle, { color: theme.text }]}>
@@ -140,7 +140,7 @@ const NotificationSettings = ({ navigation }) => {
                     styles.iconContainer,
                     { backgroundColor: isDarkMode ? 'rgba(175, 82, 222, 0.15)' : 'rgba(175, 82, 222, 0.1)' },
                   ]}>
-                    <Ionicons name="moon-outline" size={20} color="#AF52DE" />
+                    <Ionicons name="moon-outline" size={moderateScale(18)} color="#AF52DE" />
                   </View>
                   <View style={styles.settingContent}>
                     <Text style={[styles.settingTitle, { color: theme.text }]}>
@@ -170,7 +170,7 @@ const NotificationSettings = ({ navigation }) => {
                         <TouchableOpacity
                           style={[styles.timeButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }]}
                           onPress={() => openTimePicker('start')}>
-                          <Ionicons name="time-outline" size={18} color="#AF52DE" />
+                          <Ionicons name="time-outline" size={moderateScale(16)} color="#AF52DE" />
                           <Text style={[styles.timeText, { color: theme.text }]}>
                             {quietHours.startTime}
                           </Text>
@@ -183,7 +183,7 @@ const NotificationSettings = ({ navigation }) => {
                         <TouchableOpacity
                           style={[styles.timeButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }]}
                           onPress={() => openTimePicker('end')}>
-                          <Ionicons name="time-outline" size={18} color="#AF52DE" />
+                          <Ionicons name="time-outline" size={moderateScale(16)} color="#AF52DE" />
                           <Text style={[styles.timeText, { color: theme.text }]}>
                             {quietHours.endTime}
                           </Text>
@@ -205,7 +205,7 @@ const NotificationSettings = ({ navigation }) => {
                   styles.iconContainer,
                   { backgroundColor: isDarkMode ? 'rgba(10, 132, 255, 0.15)' : 'rgba(10, 132, 255, 0.1)' },
                 ]}>
-                  <Ionicons name="chatbubble-outline" size={20} color="#0A84FF" />
+                  <Ionicons name="chatbubble-outline" size={moderateScale(18)} color="#0A84FF" />
                 </View>
                 <View style={styles.settingContent}>
                   <Text style={[styles.settingTitle, { color: theme.text }]}>
@@ -231,7 +231,7 @@ const NotificationSettings = ({ navigation }) => {
                   styles.iconContainer,
                   { backgroundColor: isDarkMode ? 'rgba(255, 159, 10, 0.15)' : 'rgba(255, 159, 10, 0.1)' },
                 ]}>
-                  <Ionicons name="people-outline" size={20} color="#FF9F0A" />
+                  <Ionicons name="people-outline" size={moderateScale(18)} color="#FF9F0A" />
                 </View>
                 <View style={styles.settingContent}>
                   <Text style={[styles.settingTitle, { color: theme.text }]}>
@@ -257,7 +257,7 @@ const NotificationSettings = ({ navigation }) => {
                   styles.iconContainer,
                   { backgroundColor: isDarkMode ? 'rgba(191, 90, 242, 0.15)' : 'rgba(191, 90, 242, 0.1)' },
                 ]}>
-                  <Ionicons name="heart-outline" size={20} color="#BF5AF2" />
+                  <Ionicons name="heart-outline" size={moderateScale(18)} color="#BF5AF2" />
                 </View>
                 <View style={styles.settingContent}>
                   <Text style={[styles.settingTitle, { color: theme.text }]}>
@@ -283,7 +283,7 @@ const NotificationSettings = ({ navigation }) => {
                   styles.iconContainer,
                   { backgroundColor: isDarkMode ? 'rgba(255, 59, 48, 0.15)' : 'rgba(255, 59, 48, 0.1)' },
                 ]}>
-                  <Ionicons name="heart" size={20} color="#FF3B30" />
+                  <Ionicons name="heart" size={moderateScale(18)} color="#FF3B30" />
                 </View>
                 <View style={styles.settingContent}>
                   <Text style={[styles.settingTitle, { color: theme.text }]}>
@@ -309,7 +309,7 @@ const NotificationSettings = ({ navigation }) => {
                   styles.iconContainer,
                   { backgroundColor: isDarkMode ? 'rgba(0, 122, 255, 0.15)' : 'rgba(0, 122, 255, 0.1)' },
                 ]}>
-                  <Ionicons name="chatbubbles-outline" size={20} color="#007AFF" />
+                  <Ionicons name="chatbubbles-outline" size={moderateScale(18)} color="#007AFF" />
                 </View>
                 <View style={styles.settingContent}>
                   <Text style={[styles.settingTitle, { color: theme.text }]}>
@@ -335,7 +335,7 @@ const NotificationSettings = ({ navigation }) => {
                   styles.iconContainer,
                   { backgroundColor: isDarkMode ? 'rgba(88, 86, 214, 0.15)' : 'rgba(88, 86, 214, 0.1)' },
                 ]}>
-                  <Ionicons name="at" size={20} color="#5856D6" />
+                  <Ionicons name="at" size={moderateScale(18)} color="#5856D6" />
                 </View>
                 <View style={styles.settingContent}>
                   <Text style={[styles.settingTitle, { color: theme.text }]}>
@@ -359,7 +359,7 @@ const NotificationSettings = ({ navigation }) => {
         )}
 
         <View style={styles.infoBox}>
-          <Ionicons name="information-circle-outline" size={20} color={theme.textSecondary} />
+          <Ionicons name="information-circle-outline" size={moderateScale(18)} color={theme.textSecondary} />
           <Text style={[styles.infoText, { color: theme.textSecondary }]}>
             {t('settings.notificationInfo') || 'More notification preferences will be available in future updates'}
           </Text>
@@ -439,13 +439,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: Platform.OS === 'ios' ? hp(6) : hp(2),
     paddingHorizontal: wp(5),
     paddingBottom: spacing.md,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: moderateScale(40),
+    height: moderateScale(40),
     justifyContent: 'center',
   },
   headerTitleContainer: {
@@ -457,7 +456,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   placeholder: {
-    width: 40,
+    width: moderateScale(40),
   },
   scrollView: {
     flex: 1,
@@ -487,8 +486,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   iconContainer: {
-    width: 36,
-    height: 36,
+    width: moderateScale(36),
+    height: moderateScale(36),
     borderRadius: borderRadius.sm,
     justifyContent: 'center',
     alignItems: 'center',
@@ -561,7 +560,7 @@ const styles = StyleSheet.create({
   },
   timePickerModal: {
     width: '80%',
-    maxWidth: 300,
+    maxWidth: wp(80),
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     alignItems: 'center',
@@ -595,7 +594,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
     borderRadius: borderRadius.md,
-    minWidth: 80,
+    minWidth: moderateScale(80),
     alignItems: 'center',
   },
   timePickerButtonText: {

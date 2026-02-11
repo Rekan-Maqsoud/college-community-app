@@ -17,6 +17,33 @@ export const MUTE_DURATIONS = {
     FOREVER: null,
 };
 
+export const DEFAULT_REACTION_SET = ['👍', '❤️', '😂', '😡', '😕'];
+
+const parseReactionDefaults = (value) => {
+    if (Array.isArray(value)) {
+        return value.filter(Boolean);
+    }
+
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed)) {
+                return parsed.filter(Boolean);
+            }
+        } catch (error) {
+            return DEFAULT_REACTION_SET;
+        }
+    }
+
+    return DEFAULT_REACTION_SET;
+};
+
+const normalizeReactionDefaults = (value) => {
+    const list = Array.isArray(value) ? value : [];
+    const unique = Array.from(new Set(list.map(item => `${item}`.trim()).filter(Boolean)));
+    return unique.length > 0 ? unique : DEFAULT_REACTION_SET;
+};
+
 /**
  * Get or create user chat settings for a specific chat
  */
@@ -62,7 +89,25 @@ const getDefaultSettings = (userId, chatId) => ({
     bookmarkedMsgs: [],
     notifyOnMention: true,
     notifyOnAll: true,
+    reactionDefaults: DEFAULT_REACTION_SET,
 });
+
+export const getReactionDefaults = async (userId, chatId) => {
+    try {
+        const settings = await getUserChatSettings(userId, chatId);
+        return parseReactionDefaults(settings?.reactionDefaults);
+    } catch (error) {
+        return DEFAULT_REACTION_SET;
+    }
+};
+
+export const updateReactionDefaults = async (userId, chatId, reactions = []) => {
+    const normalized = normalizeReactionDefaults(reactions);
+    await updateUserChatSettings(userId, chatId, {
+        reactionDefaults: JSON.stringify(normalized),
+    });
+    return normalized;
+};
 
 /**
  * Create or update user chat settings

@@ -12,6 +12,7 @@ import {
   Modal,
   Pressable,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import LeafletMap from './LeafletMap';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -38,6 +39,7 @@ const MessageInput = ({
   showAlert,
 }) => {
   const { theme, isDarkMode, t } = useAppSettings();
+  const insets = useSafeAreaInsets();
   const [message, setMessage] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -286,7 +288,7 @@ const MessageInput = ({
         borderTopColor: isDarkMode 
           ? 'rgba(255,255,255,0.1)' 
           : 'rgba(0,0,0,0.05)',
-        paddingBottom: Platform.OS === 'ios' ? spacing.sm : spacing.md,
+        paddingBottom: Math.max(Platform.OS === 'ios' ? spacing.sm : spacing.md, insets.bottom),
       }
     ]}>
         {replyingTo && (
@@ -667,19 +669,19 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   iconButton: {
-    width: moderateScale(40),
-    height: moderateScale(40),
+    width: moderateScale(36),
+    height: moderateScale(36),
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.xs,
   },
   imageIconButton: {
-    width: moderateScale(36),
-    height: moderateScale(36),
-    borderRadius: moderateScale(18),
+    width: moderateScale(34),
+    height: moderateScale(34),
+    borderRadius: moderateScale(17),
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.sm,
+    marginRight: spacing.xs,
   },
   inputContainer: {
     flex: 1,
@@ -694,9 +696,9 @@ const styles = StyleSheet.create({
     minHeight: moderateScale(20),
   },
   sendButton: {
-    width: moderateScale(44),
-    height: moderateScale(44),
-    borderRadius: moderateScale(22),
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
     justifyContent: 'center',
     alignItems: 'center',
   },

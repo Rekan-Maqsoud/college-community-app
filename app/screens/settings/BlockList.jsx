@@ -19,11 +19,13 @@ import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { getBlockedUsers, unblockUser } from '../../../database/users';
 import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const BlockList = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const insets = useSafeAreaInsets();
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unblocking, setUnblocking] = useState(null);
@@ -65,7 +67,6 @@ const BlockList = ({ navigation }) => {
               setBlockedUsers(prev => prev.filter(u => u.$id !== blockedUserId));
               // Refresh user context so blockedUsers is updated for filtering
               if (refreshUser) await refreshUser();
-              console.log('[UNBLOCK] User unblocked, refreshed context');
             } catch (error) {
               showAlert({
                 type: 'error',
@@ -148,11 +149,11 @@ const BlockList = ({ navigation }) => {
         style={styles.headerGradient}
       />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+          <Ionicons name="arrow-back" size={moderateScale(22)} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>
@@ -224,13 +225,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: Platform.OS === 'ios' ? hp(6) : hp(2),
     paddingHorizontal: wp(5),
     paddingBottom: spacing.md,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: moderateScale(40),
+    height: moderateScale(40),
     justifyContent: 'center',
   },
   headerTitleContainer: {
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   placeholder: {
-    width: 40,
+    width: moderateScale(40),
   },
   scrollView: {
     flex: 1,

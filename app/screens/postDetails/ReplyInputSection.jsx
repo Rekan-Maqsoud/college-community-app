@@ -17,6 +17,7 @@ import { getFriends, searchUsers } from '../../../database/users';
 
 const ReplyInputSection = ({
   editingReply,
+  replyingTo,
   replyText,
   setReplyText,
   replyImages,
@@ -28,6 +29,7 @@ const ReplyInputSection = ({
   isDarkMode,
   t,
   onResetForm,
+  onCancelReply,
   onRemoveImage,
   onRemoveLink,
   onLinkInputChange,
@@ -36,6 +38,7 @@ const ReplyInputSection = ({
   onToggleLinksSection,
   onSubmit,
   currentUserId,
+  inputRef,
 }) => {
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
@@ -142,12 +145,25 @@ const ReplyInputSection = ({
     setMentionStartIndex(-1);
     setMentionSuggestions([]);
   };
+
+  const replyingToName = replyingTo?.userData?.fullName || replyingTo?.userData?.name || t('common.user');
   return (
     <View style={[styles.inputSection, { backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF', borderTopColor: theme.border }]}>
       {editingReply && (
         <View style={styles.editingBanner}>
           <Text style={styles.editingBannerText}>{t('post.editingReply')}</Text>
           <TouchableOpacity onPress={onResetForm}>
+            <Ionicons name="close-circle" size={22} color="#EF4444" />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {!editingReply && replyingTo && (
+        <View style={styles.replyingBanner}>
+          <Text style={styles.replyingBannerText}>
+            {t('post.replyingTo').replace('{name}', replyingToName)}
+          </Text>
+          <TouchableOpacity onPress={onCancelReply}>
             <Ionicons name="close-circle" size={22} color="#EF4444" />
           </TouchableOpacity>
         </View>
@@ -187,6 +203,7 @@ const ReplyInputSection = ({
       )}
 
       <TextInput
+        ref={inputRef}
         style={[styles.replyTextInput, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#F3F4F6', color: theme.text }]}
         placeholder={t('post.writeReply')}
         placeholderTextColor={theme.textSecondary}

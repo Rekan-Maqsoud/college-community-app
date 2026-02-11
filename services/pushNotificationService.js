@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import safeStorage from '../app/utils/safeStorage';
 
 const PUSH_TOKEN_KEY = 'expoPushToken';
 const PERMISSION_STATUS_KEY = 'notificationPermissionStatus';
@@ -28,13 +28,13 @@ const getExpoProjectId = () => {
 const shouldShowNotification = async (notificationType) => {
   try {
     // Check if notifications are globally enabled
-    const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled');
+    const notificationsEnabled = await safeStorage.getItem('notificationsEnabled');
     if (notificationsEnabled === 'false') {
       return false;
     }
 
     // Check quiet hours
-    const quietHoursStr = await AsyncStorage.getItem('quietHours');
+    const quietHoursStr = await safeStorage.getItem('quietHours');
     if (quietHoursStr) {
       const quietHours = JSON.parse(quietHoursStr);
       if (quietHours.enabled) {
@@ -60,7 +60,7 @@ const shouldShowNotification = async (notificationType) => {
     }
 
     // Check category-specific settings
-    const notificationSettingsStr = await AsyncStorage.getItem('notificationSettings');
+    const notificationSettingsStr = await safeStorage.getItem('notificationSettings');
     if (notificationSettingsStr) {
       let settings = {};
       try {
@@ -147,7 +147,7 @@ export const requestNotificationPermissions = async () => {
     }
 
     // Store the permission status
-    await AsyncStorage.setItem(PERMISSION_STATUS_KEY, finalStatus);
+    await safeStorage.setItem(PERMISSION_STATUS_KEY, finalStatus);
 
     return finalStatus === 'granted';
   } catch (error) {
@@ -196,7 +196,7 @@ export const registerForPushNotifications = async () => {
     const token = tokenData.data;
 
     // Store token locally
-    await AsyncStorage.setItem(PUSH_TOKEN_KEY, token);
+    await safeStorage.setItem(PUSH_TOKEN_KEY, token);
 
     // Set up Android notification channel
     if (Platform.OS === 'android') {
@@ -215,7 +215,7 @@ export const registerForPushNotifications = async () => {
  */
 export const getStoredPushToken = async () => {
   try {
-    return await AsyncStorage.getItem(PUSH_TOKEN_KEY);
+    return await safeStorage.getItem(PUSH_TOKEN_KEY);
   } catch (error) {
     return null;
   }
@@ -679,7 +679,7 @@ export const registerAppwriteTarget = async () => {
     const providerId = '69875a4c000d98d87272';
 
     // Check if we have a previously stored target ID
-    const storedTargetId = await AsyncStorage.getItem(APPWRITE_TARGET_ID_KEY);
+    const storedTargetId = await safeStorage.getItem(APPWRITE_TARGET_ID_KEY);
 
     if (storedTargetId) {
       // Try to update existing target with current token
@@ -687,7 +687,7 @@ export const registerAppwriteTarget = async () => {
         const updated = await account.updatePushTarget(storedTargetId, nativeFcmToken);
         return updated;
       } catch (updateErr) {
-        await AsyncStorage.removeItem(APPWRITE_TARGET_ID_KEY);
+        await safeStorage.removeItem(APPWRITE_TARGET_ID_KEY);
       }
     }
 
@@ -695,7 +695,7 @@ export const registerAppwriteTarget = async () => {
     const targetId = ID.unique();
     try {
       const target = await account.createPushTarget(targetId, nativeFcmToken, providerId);
-      await AsyncStorage.setItem(APPWRITE_TARGET_ID_KEY, target?.$id || targetId);
+      await safeStorage.setItem(APPWRITE_TARGET_ID_KEY, target?.$id || targetId);
       return target;
     } catch (createErr) {
       const errorCode = createErr?.code || createErr?.type || '';
@@ -714,7 +714,7 @@ export const registerAppwriteTarget = async () => {
           const pushTarget = targets.find(t => t.providerType === 'push');
 
           if (pushTarget) {
-            await AsyncStorage.setItem(APPWRITE_TARGET_ID_KEY, pushTarget.$id);
+            await safeStorage.setItem(APPWRITE_TARGET_ID_KEY, pushTarget.$id);
             const updated = await account.updatePushTarget(pushTarget.$id, nativeFcmToken);
             return updated;
           }

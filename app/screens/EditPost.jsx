@@ -16,38 +16,42 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '../hooks/useTranslation';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { useUser } from '../context/UserContext';
+import { useAppSettings } from '../context/AppSettingsContext';
 import ImagePickerComponent from '../components/ImagePicker';
 import SearchableDropdownNew from '../components/SearchableDropdownNew';
+import CustomAlert from '../components/CustomAlert';
 import {
   POST_TYPES,
   POST_TYPE_OPTIONS,
-  DEPARTMENTS,
   getStageOptionsForDepartment,
   isExtendedStageDepartment,
   VALIDATION_RULES,
   MAX_IMAGES_PER_POST,
-  POST_COLORS,
-  POST_ICONS,
 } from '../constants/postConstants';
 import { uploadImage } from '../../services/imgbbService';
 import { updatePost } from '../../database/posts';
+import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
+import { borderRadius } from '../theme/designTokens';
 
 const EditPost = ({ navigation, route }) => {
   const { t } = useTranslation();
-  const { showAlert } = useCustomAlert();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { user } = useUser();
+  const { theme, isDarkMode } = useAppSettings();
   const { post } = route?.params || {};
 
   const [postType, setPostType] = useState(post?.postType || POST_TYPES.DISCUSSION);
   const [topic, setTopic] = useState(post?.topic || '');
   const [text, setText] = useState(post?.text || '');
-  const [department, setDepartment] = useState(post?.department || '');
+  const [department, setDepartment] = useState(post?.department || user?.department || '');
   const [stage, setStage] = useState(post?.stage || '');
   const [visibility, setVisibility] = useState(post?.visibility || 'department');
   const [images, setImages] = useState([]);
   const [existingImages, setExistingImages] = useState(post?.images || []);
-  const [tags, setTags] = useState('');
-  const [links, setLinks] = useState('');
+  const [tags, setTags] = useState([]);
+  const [tagInput, setTagInput] = useState('');
+  const [links, setLinks] = useState([]);
+  const [linkInput, setLinkInput] = useState('');
   const [loading, setLoading] = useState(false);
 
   const convertUserStageToStageValue = (userStage) => {
@@ -80,12 +84,16 @@ const EditPost = ({ navigation, route }) => {
       return;
     }
 
-    if (post.tags && Array.isArray(post.tags)) {
-      setTags(post.tags.join(', '));
+    if (user?.department && user?.department !== department) {
+      setDepartment(user.department);
     }
 
-    if (post.links && Array.isArray(post.links)) {
-      setLinks(post.links.join('\n'));
+    if (Array.isArray(post.tags)) {
+      setTags(post.tags);
+    }
+
+    if (Array.isArray(post.links)) {
+      setLinks(post.links);
     }
   }, []);
 
@@ -98,21 +106,23 @@ const EditPost = ({ navigation, route }) => {
 
   const stageOptions = getStageOptionsForDepartment(department);
 
+  const inputColors = {
+    backgroundColor: theme.input.background,
+    borderColor: theme.input.border,
+    color: theme.text,
+  };
+
   const validateForm = () => {
-    if (!topic.trim()) {
-      showAlert(t('common.error'), t('post.topicRequired'));
+    const trimmedTopic = topic.trim();
+    const trimmedText = text.trim();
+    const hasContent = trimmedTopic.length > 0 || trimmedText.length > 0 || existingImages.length > 0 || images.length > 0;
+
+    if (!hasContent) {
+      showAlert(t('common.error'), t('post.contentRequired'));
       return false;
     }
 
-    if (topic.length < VALIDATION_RULES.POST.topic.min) {
-      showAlert(
-        t('common.error'),
-        t('post.topicTooShort', { min: VALIDATION_RULES.POST.topic.min })
-      );
-      return false;
-    }
-
-    if (topic.length > VALIDATION_RULES.POST.topic.max) {
+    if (trimmedTopic.length > VALIDATION_RULES.POST.topic.max) {
       showAlert(
         t('common.error'),
         t('post.topicTooLong', { max: VALIDATION_RULES.POST.topic.max })
@@ -120,34 +130,11 @@ const EditPost = ({ navigation, route }) => {
       return false;
     }
 
-    if (!text.trim()) {
-      showAlert(t('common.error'), t('post.textRequired'));
-      return false;
-    }
-
-    if (text.length < VALIDATION_RULES.POST.text.min) {
-      showAlert(
-        t('common.error'),
-        t('post.textTooShort', { min: VALIDATION_RULES.POST.text.min })
-      );
-      return false;
-    }
-
-    if (text.length > VALIDATION_RULES.POST.text.max) {
+    if (trimmedText.length > VALIDATION_RULES.POST.text.max) {
       showAlert(
         t('common.error'),
         t('post.textTooLong', { max: VALIDATION_RULES.POST.text.max })
       );
-      return false;
-    }
-
-    if (!department) {
-      showAlert(t('common.error'), t('post.departmentRequired'));
-      return false;
-    }
-
-    if (!stage) {
-      showAlert(t('common.error'), t('post.stageRequired'));
       return false;
     }
 
@@ -176,35 +163,40 @@ const EditPost = ({ navigation, route }) => {
         }
       }
 
-      const tagArray = tags
-        .split(',')
-        .map(tag => tag.trim())
-        .filter(tag => tag.length > 0);
+      const tagArray = tags.filter(tag => tag.length > 0);
 
-      const linkArray = links
-        .split('\n')
-        .map(link => link.trim())
-        .filter(link => link.length > 0);
+      const linkArray = links.filter(link => link.length > 0);
 
       const updateData = {
         postType,
         topic: topic.trim(),
         text: text.trim(),
-        department,
         stage,
         images: uploadedImages,
         imageDeleteUrls,
       };
 
-      if (tagArray.length > 0) {
-        updateData.tags = tagArray;
-      }
-
-      if (linkArray.length > 0) {
-        updateData.links = linkArray;
-      }
+      updateData.tags = tagArray;
+      updateData.links = linkArray;
 
       const updatedPost = await updatePost(post.$id, updateData);
+
+      const routes = navigation.getState()?.routes || [];
+      const previousRoute = routes.length > 1 ? routes[routes.length - 2] : null;
+      const tabState = previousRoute?.state;
+      const activeTabRoute = tabState?.routes
+        ? tabState.routes[tabState.index || 0]
+        : null;
+
+      if (previousRoute?.name === 'MainTabs' && activeTabRoute?.name) {
+        navigation.navigate('MainTabs', {
+          screen: activeTabRoute.name,
+          params: { updatedPost },
+          merge: true,
+        });
+      } else if (previousRoute?.name) {
+        navigation.navigate(previousRoute.name, { updatedPost, merge: true });
+      }
 
       showAlert(
         t('common.success'),
@@ -229,44 +221,25 @@ const EditPost = ({ navigation, route }) => {
     setExistingImages(newImages);
   };
 
-  const renderPostTypeSelector = () => (
-    <View style={styles.section}>
-      <Text style={styles.sectionLabel}>{t('post.postType')}</Text>
-      <View style={styles.postTypeGrid}>
-        {POST_TYPE_OPTIONS.map((option) => {
-          const isSelected = postType === option.value;
-          return (
-            <TouchableOpacity
-              key={option.value}
-              style={[
-                styles.postTypeButton,
-                isSelected && {
-                  backgroundColor: POST_COLORS[option.value],
-                  borderColor: POST_COLORS[option.value],
-                },
-              ]}
-              onPress={() => setPostType(option.value)}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={POST_ICONS[option.value]}
-                size={24}
-                color={isSelected ? '#fff' : '#6B7280'}
-              />
-              <Text
-                style={[
-                  styles.postTypeText,
-                  isSelected && styles.postTypeTextSelected,
-                ]}
-              >
-                {t(option.labelKey)}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </View>
-  );
+  const visibilityOptions = ['department', 'major', 'public'];
+
+  const cycleVisibility = () => {
+    const currentIndex = visibilityOptions.indexOf(visibility);
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % visibilityOptions.length;
+    setVisibility(visibilityOptions[nextIndex]);
+  };
+
+  const getVisibilityLabel = () => {
+    if (visibility === 'major') return t('post.majorOnly');
+    if (visibility === 'public') return t('post.publicPost');
+    return t('post.departmentOnly');
+  };
+
+  const getVisibilityHelper = () => {
+    if (visibility === 'major') return t('post.majorOnlyHelper');
+    if (visibility === 'public') return t('post.publicPostHelper');
+    return t('post.departmentOnlyHelper');
+  };
 
   if (!post) {
     return (
@@ -276,7 +249,7 @@ const EditPost = ({ navigation, route }) => {
             style={styles.headerButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="close" size={28} color="#111827" />
+            <Ionicons name="close" size={moderateScale(26)} color="#111827" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{t('common.error')}</Text>
           <View style={styles.headerButton} />
@@ -290,17 +263,17 @@ const EditPost = ({ navigation, route }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <View style={[styles.header, { backgroundColor: theme.background, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => navigation.goBack()}
           disabled={loading}
         >
-          <Ionicons name="close" size={28} color="#111827" />
+          <Ionicons name="close" size={moderateScale(26)} color={theme.text} />
         </TouchableOpacity>
         
-        <Text style={styles.headerTitle}>{t('post.editPost')}</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.editPost')}</Text>
         
         <TouchableOpacity
           style={[styles.headerButton, loading && styles.headerButtonDisabled]}
@@ -310,7 +283,7 @@ const EditPost = ({ navigation, route }) => {
           {loading ? (
             <ActivityIndicator size="small" color="#3B82F6" />
           ) : (
-            <Text style={styles.postButtonText}>{t('common.save')}</Text>
+            <Text style={[styles.postButtonText, { color: theme.primary }]}>{t('common.save')}</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -325,197 +298,263 @@ const EditPost = ({ navigation, route }) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {renderPostTypeSelector()}
+          <View style={styles.section}>
+            <View style={styles.topControlsRow}>
+              <View style={styles.compactField}>
+                <Text style={[styles.compactLabel, { color: theme.textSecondary }]}>
+                  {t('post.postType')}
+                </Text>
+                <SearchableDropdownNew
+                  items={POST_TYPE_OPTIONS}
+                  value={postType}
+                  onSelect={setPostType}
+                  placeholder={t('post.postType')}
+                  icon="list-outline"
+                  disabled={loading}
+                  compact
+                />
+              </View>
+
+              <View style={styles.compactField}>
+                <Text style={[styles.compactLabel, { color: theme.textSecondary }]}>
+                  {t('post.stage')}
+                </Text>
+                <SearchableDropdownNew
+                  items={stageOptions}
+                  value={stage}
+                  onSelect={setStage}
+                  placeholder={t('post.selectStage')}
+                  icon="stats-chart-outline"
+                  disabled={loading}
+                  compact
+                />
+              </View>
+
+              <View style={styles.compactField}>
+                <Text style={[styles.compactLabel, { color: theme.textSecondary }]}>
+                  {t('post.visibility')}
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.compactToggle,
+                    { backgroundColor: theme.input.background, borderColor: theme.input.border }
+                  ]}
+                  onPress={cycleVisibility}
+                  disabled={loading}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="eye-outline" size={moderateScale(14)} color={theme.primary} />
+                  <Text
+                    style={[styles.compactToggleText, { color: theme.text }]}
+                    numberOfLines={1}
+                  >
+                    {getVisibilityLabel()}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <Text style={[styles.helperText, styles.compactHelper, { color: theme.textSecondary }]}>
+              {getVisibilityHelper()}
+            </Text>
+          </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
-              {t('post.topic')} *
+            <Text style={[styles.sectionLabel, { color: theme.text }]}>
+              {t('post.topic')}
             </Text>
             <TextInput
-              style={styles.topicInput}
+              style={[styles.topicInput, inputColors]}
               value={topic}
               onChangeText={setTopic}
               placeholder={t('post.topicPlaceholder')}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.input.placeholder}
               editable={!loading}
               maxLength={VALIDATION_RULES.POST.topic.max}
             />
-            <Text style={styles.charCount}>
+            <Text style={[styles.charCount, { color: theme.textSecondary }]}>
               {topic.length}/{VALIDATION_RULES.POST.topic.max}
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
-              {t('post.description')} *
+            <Text style={[styles.sectionLabel, { color: theme.text }]}>
+              {t('post.description')}
             </Text>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, inputColors]}
               value={text}
               onChangeText={setText}
               placeholder={t('post.descriptionPlaceholder')}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.input.placeholder}
               multiline
               numberOfLines={8}
               textAlignVertical="top"
               editable={!loading}
               maxLength={VALIDATION_RULES.POST.text.max}
             />
-            <Text style={styles.charCount}>
+            <Text style={[styles.charCount, { color: theme.textSecondary }]}>
               {text.length}/{VALIDATION_RULES.POST.text.max}
             </Text>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
-              {t('post.department')} *
-            </Text>
-            <SearchableDropdownNew
-              items={DEPARTMENTS}
-              value={department}
-              onSelect={setDepartment}
-              placeholder={t('post.selectDepartment')}
-              disabled={loading}
-            />
-          </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
-              {t('post.stage')} *
-            </Text>
-            <SearchableDropdownNew
-              items={stageOptions}
-              value={stage}
-              onSelect={setStage}
-              placeholder={t('post.selectStage')}
-              disabled={loading}
-            />
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>{t('post.visibility')}</Text>
-            <View style={styles.visibilityContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.visibilityButton,
-                  visibility === 'department' && styles.visibilityButtonSelected,
-                ]}
-                onPress={() => setVisibility('department')}
-                disabled={loading}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="people"
-                  size={20}
-                  color={visibility === 'department' ? '#fff' : '#6B7280'}
-                />
-                <Text
-                  style={[
-                    styles.visibilityText,
-                    visibility === 'department' && styles.visibilityTextSelected,
-                  ]}
-                >
-                  {t('post.departmentOnly')}
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[
-                  styles.visibilityButton,
-                  visibility === 'major' && styles.visibilityButtonSelected,
-                ]}
-                onPress={() => setVisibility('major')}
-                disabled={loading}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="school"
-                  size={20}
-                  color={visibility === 'major' ? '#fff' : '#6B7280'}
-                />
-                <Text
-                  style={[
-                    styles.visibilityText,
-                    visibility === 'major' && styles.visibilityTextSelected,
-                  ]}
-                >
-                  {t('post.majorOnly')}
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[
-                  styles.visibilityButton,
-                  visibility === 'public' && styles.visibilityButtonSelected,
-                ]}
-                onPress={() => setVisibility('public')}
-                disabled={loading}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="globe"
-                  size={20}
-                  color={visibility === 'public' ? '#fff' : '#6B7280'}
-                />
-                <Text
-                  style={[
-                    styles.visibilityText,
-                    visibility === 'public' && styles.visibilityTextSelected,
-                  ]}
-                >
-                  {t('post.publicPost')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.helperText}>
-              {visibility === 'department' && t('post.departmentOnlyHelper')}
-              {visibility === 'major' && t('post.majorOnlyHelper')}
-              {visibility === 'public' && t('post.publicPostHelper')}
-            </Text>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
+            <Text style={[styles.sectionLabel, { color: theme.text }]}>
               {t('post.tags')} {t('common.optional')}
             </Text>
-            <TextInput
-              style={styles.topicInput}
-              value={tags}
-              onChangeText={setTags}
-              placeholder={t('post.tagsPlaceholder')}
-              placeholderTextColor="#9CA3AF"
-              editable={!loading}
-            />
-            <Text style={styles.helperText}>
-              {t('post.tagsHelper')}
+            <View style={styles.hashtagsSection}>
+              <View style={styles.hashtagsChipsWrapper}>
+                {tags.map((tag, index) => (
+                  <View
+                    key={`${tag}-${index}`}
+                    style={[
+                      styles.hashtagChip,
+                      { backgroundColor: isDarkMode ? 'rgba(139,92,246,0.2)' : 'rgba(139,92,246,0.1)' }
+                    ]}
+                  >
+                    <Ionicons name="pricetag-outline" size={moderateScale(12)} color="#8B5CF6" />
+                    <Text style={styles.hashtagChipText}>{tag}</Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        const newTags = [...tags];
+                        newTags.splice(index, 1);
+                        setTags(newTags);
+                      }}
+                      disabled={loading}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons name="close" size={moderateScale(14)} color="#6B7280" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+              <View style={styles.hashtagInputRow}>
+                <TextInput
+                  style={[
+                    styles.hashtagInput,
+                    {
+                      backgroundColor: theme.input.background,
+                      borderColor: theme.input.border,
+                      color: theme.text,
+                    }
+                  ]}
+                  value={tagInput}
+                  onChangeText={setTagInput}
+                  placeholder={t('post.tagsPlaceholder')}
+                  placeholderTextColor={theme.input.placeholder}
+                  editable={!loading && tags.length < 10}
+                  blurOnSubmit={false}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  spellCheck={false}
+                  returnKeyType="done"
+                  onSubmitEditing={() => {
+                    const cleanTag = tagInput.trim().replace(/^#/, '');
+                    if (cleanTag && !tags.includes(cleanTag) && tags.length < 10) {
+                      setTags([...tags, cleanTag]);
+                    }
+                    setTagInput('');
+                  }}
+                />
+                <TouchableOpacity
+                  style={[styles.addLinkButton, { opacity: tagInput.trim() ? 1 : 0.5 }]}
+                  onPress={() => {
+                    const cleanTag = tagInput.trim().replace(/^#/, '');
+                    if (cleanTag && !tags.includes(cleanTag) && tags.length < 10) {
+                      setTags([...tags, cleanTag]);
+                    }
+                    setTagInput('');
+                  }}
+                  disabled={loading || !tagInput.trim() || tags.length >= 10}
+                >
+                  <Ionicons name="add-circle" size={moderateScale(26)} color="#8B5CF6" />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <Text style={[styles.helperText, { color: theme.textSecondary }]}>
+              {t('post.tagsInputHelper')}
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
+            <Text style={[styles.sectionLabel, { color: theme.text }]}>
               {t('post.links')} {t('common.optional')}
             </Text>
-            <TextInput
-              style={[styles.textInput, { minHeight: 100 }]}
-              value={links}
-              onChangeText={setLinks}
-              placeholder={t('post.linksPlaceholder')}
-              placeholderTextColor="#9CA3AF"
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              editable={!loading}
-              autoCapitalize="none"
-              keyboardType="url"
-            />
-            <Text style={styles.helperText}>
+            <View style={styles.linksSection}>
+              {links.map((link, index) => (
+                <View
+                  key={`${link}-${index}`}
+                  style={[
+                    styles.linkChip,
+                    { backgroundColor: isDarkMode ? 'rgba(59,130,246,0.2)' : 'rgba(59,130,246,0.1)' }
+                  ]}
+                >
+                  <Ionicons name="link-outline" size={moderateScale(14)} color="#3B82F6" />
+                  <Text style={styles.linkChipText} numberOfLines={1}>{link}</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const newLinks = [...links];
+                      newLinks.splice(index, 1);
+                      setLinks(newLinks);
+                    }}
+                    disabled={loading}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="close" size={moderateScale(15)} color="#6B7280" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              <View style={styles.linkInputRow}>
+                <TextInput
+                  style={[
+                    styles.linkInput,
+                    {
+                      backgroundColor: theme.input.background,
+                      borderColor: theme.input.border,
+                      color: theme.text,
+                    }
+                  ]}
+                  value={linkInput}
+                  onChangeText={setLinkInput}
+                  placeholder={t('post.linksPlaceholder')}
+                  placeholderTextColor={theme.input.placeholder}
+                  editable={!loading}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                  blurOnSubmit={false}
+                  autoCorrect={false}
+                  spellCheck={false}
+                  onSubmitEditing={() => {
+                    const newLink = linkInput.trim();
+                    if (newLink && !links.includes(newLink)) {
+                      setLinks([...links, newLink]);
+                    }
+                    setLinkInput('');
+                  }}
+                />
+                <TouchableOpacity
+                  style={[styles.addLinkButton, { opacity: linkInput.trim() ? 1 : 0.5 }]}
+                  onPress={() => {
+                    const newLink = linkInput.trim();
+                    if (newLink && !links.includes(newLink)) {
+                      setLinks([...links, newLink]);
+                    }
+                    setLinkInput('');
+                  }}
+                  disabled={loading || !linkInput.trim()}
+                >
+                  <Ionicons name="add-circle" size={moderateScale(26)} color="#3B82F6" />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <Text style={[styles.helperText, { color: theme.textSecondary }]}>
               {t('post.linksHelper')}
             </Text>
           </View>
 
           {existingImages.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>
+              <Text style={[styles.sectionLabel, { color: theme.text }]}>
                 {t('post.existingImages')}
               </Text>
               <View style={styles.existingImagesContainer}>
@@ -526,11 +565,11 @@ const EditPost = ({ navigation, route }) => {
                       style={styles.existingImage}
                     />
                     <TouchableOpacity
-                      style={styles.removeExistingImageButton}
+                      style={[styles.removeExistingImageButton, { backgroundColor: theme.card }]}
                       onPress={() => handleRemoveExistingImage(index)}
                       disabled={loading}
                     >
-                      <Ionicons name="close-circle" size={24} color="#EF4444" />
+                      <Ionicons name="close-circle" size={moderateScale(22)} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -548,6 +587,14 @@ const EditPost = ({ navigation, route }) => {
           <View style={styles.bottomSpace} />
         </ScrollView>
       </KeyboardAvoidingView>
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
+      />
     </SafeAreaView>
   );
 };
@@ -561,25 +608,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   headerButton: {
-    padding: 8,
-    minWidth: 60,
+    padding: spacing.xs,
+    minWidth: moderateScale(60),
   },
   headerButtonDisabled: {
     opacity: 0.5,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: fontSize(17),
     fontWeight: '600',
     color: '#111827',
   },
   postButtonText: {
-    fontSize: 16,
+    fontSize: fontSize(15),
     fontWeight: '600',
     color: '#3B82F6',
   },
@@ -588,35 +635,67 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
   },
   section: {
-    marginTop: 20,
+    marginTop: spacing.lg,
   },
   sectionLabel: {
-    fontSize: 14,
+    fontSize: fontSize(14),
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
+  },
+  topControlsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  compactField: {
+    flex: 1,
+    minWidth: wp(24),
+  },
+  compactLabel: {
+    fontSize: fontSize(11),
+    fontWeight: '600',
+    marginBottom: spacing.xs / 2,
+  },
+  compactToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs / 2,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    minHeight: moderateScale(40),
+  },
+  compactToggleText: {
+    fontSize: fontSize(12),
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  compactHelper: {
+    marginTop: spacing.xs,
   },
   postTypeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: spacing.sm,
   },
   postTypeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
     borderWidth: 2,
     borderColor: '#E5E7EB',
     backgroundColor: '#F9FAFB',
-    gap: 8,
+    gap: spacing.xs,
   },
   postTypeText: {
-    fontSize: 14,
+    fontSize: fontSize(14),
     fontWeight: '500',
     color: '#6B7280',
   },
@@ -627,58 +706,58 @@ const styles = StyleSheet.create({
   topicInput: {
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: fontSize(15),
     color: '#111827',
     backgroundColor: '#F9FAFB',
   },
   textInput: {
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: fontSize(15),
     color: '#111827',
     backgroundColor: '#F9FAFB',
-    minHeight: 150,
+    minHeight: moderateScale(140),
   },
   charCount: {
-    fontSize: 12,
+    fontSize: fontSize(12),
     color: '#6B7280',
     textAlign: 'right',
-    marginTop: 4,
+    marginTop: spacing.xs / 2,
   },
   helperText: {
-    fontSize: 12,
+    fontSize: fontSize(12),
     color: '#6B7280',
-    marginTop: 4,
+    marginTop: spacing.xs / 2,
   },
   visibilityContainer: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.xs,
   },
   visibilityButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.md,
     borderWidth: 2,
     borderColor: '#E5E7EB',
     backgroundColor: '#F9FAFB',
-    gap: 6,
+    gap: moderateScale(6),
   },
   visibilityButtonSelected: {
     backgroundColor: '#3B82F6',
     borderColor: '#3B82F6',
   },
   visibilityText: {
-    fontSize: 13,
+    fontSize: fontSize(13),
     fontWeight: '500',
     color: '#6B7280',
   },
@@ -686,31 +765,119 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
   },
+  visibilityToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+  },
+  visibilityToggleText: {
+    fontSize: fontSize(14),
+    fontWeight: '600',
+  },
+  // Links section styles (matching CreatePost)
+  linksSection: {
+    gap: spacing.xs,
+  },
+  linkChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(59,130,246,0.1)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+    gap: moderateScale(6),
+  },
+  linkChipText: {
+    flex: 1,
+    fontSize: fontSize(13),
+    color: '#3B82F6',
+  },
+  linkInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  linkInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    fontSize: fontSize(14),
+    color: '#111827',
+    backgroundColor: '#F9FAFB',
+  },
+  addLinkButton: {
+    padding: spacing.xs / 2,
+  },
+  // Hashtags section styles
+  hashtagsSection: {
+    gap: spacing.xs,
+  },
+  hashtagsChipsWrapper: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  hashtagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(139,92,246,0.1)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: moderateScale(6),
+    borderRadius: borderRadius.sm,
+    gap: spacing.xs / 2,
+  },
+  hashtagChipText: {
+    fontSize: fontSize(13),
+    color: '#8B5CF6',
+  },
+  hashtagInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  hashtagInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    fontSize: fontSize(14),
+    color: '#111827',
+    backgroundColor: '#F9FAFB',
+  },
   existingImagesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: spacing.sm,
   },
   existingImageWrapper: {
     position: 'relative',
-    width: 100,
-    height: 100,
+    width: moderateScale(100),
+    height: moderateScale(100),
   },
   existingImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     backgroundColor: '#F3F4F6',
   },
   removeExistingImageButton: {
     position: 'absolute',
-    top: -8,
-    right: -8,
+    top: moderateScale(-8),
+    right: moderateScale(-8),
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
   },
   bottomSpace: {
-    height: 40,
+    height: hp(5),
   },
 });
 

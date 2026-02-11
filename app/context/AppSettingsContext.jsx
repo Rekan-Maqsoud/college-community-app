@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import safeStorage from '../utils/safeStorage';
 import { getLocales } from 'expo-localization';
 import i18n from '../../locales/i18n';
 import { I18nManager, Appearance, View, ActivityIndicator, StyleSheet } from 'react-native';
@@ -241,20 +241,20 @@ export const AppSettingsProvider = ({ children }) => {
   const loadSettings = async () => {
     try {
       const [savedLanguage, savedThemePreference, savedNotifications, savedNotificationSettings, savedChatSettings, savedFontScale, savedReduceMotion, savedHapticEnabled, savedShowActivityStatus, savedCompactMode, savedQuietHours, savedDarkModeSchedule, savedAccentColor, savedDataSaverMode] = await Promise.all([
-        AsyncStorage.getItem('appLanguage'),
-        AsyncStorage.getItem('themePreference'),
-        AsyncStorage.getItem('notificationsEnabled'),
-        AsyncStorage.getItem('notificationSettings'),
-        AsyncStorage.getItem('chatSettings'),
-        AsyncStorage.getItem('fontScale'),
-        AsyncStorage.getItem('reduceMotion'),
-        AsyncStorage.getItem('hapticEnabled'),
-        AsyncStorage.getItem('showActivityStatus'),
-        AsyncStorage.getItem('compactMode'),
-        AsyncStorage.getItem('quietHours'),
-        AsyncStorage.getItem('darkModeSchedule'),
-        AsyncStorage.getItem('accentColor'),
-        AsyncStorage.getItem('dataSaverMode'),
+        safeStorage.getItem('appLanguage'),
+        safeStorage.getItem('themePreference'),
+        safeStorage.getItem('notificationsEnabled'),
+        safeStorage.getItem('notificationSettings'),
+        safeStorage.getItem('chatSettings'),
+        safeStorage.getItem('fontScale'),
+        safeStorage.getItem('reduceMotion'),
+        safeStorage.getItem('hapticEnabled'),
+        safeStorage.getItem('showActivityStatus'),
+        safeStorage.getItem('compactMode'),
+        safeStorage.getItem('quietHours'),
+        safeStorage.getItem('darkModeSchedule'),
+        safeStorage.getItem('accentColor'),
+        safeStorage.getItem('dataSaverMode'),
       ]);
 
       if (savedLanguage) {
@@ -313,7 +313,6 @@ export const AppSettingsProvider = ({ children }) => {
       if (savedFontScale) {
         const scale = parseFloat(savedFontScale);
         if (!isNaN(scale) && scale >= 0.85 && scale <= 1.3) {
-          console.log('[DEBUG-FIX] loadSettings fontScale', { saved: savedFontScale, parsed: scale });
           setFontScale(scale);
           setGlobalFontScale(scale);
         }
@@ -389,7 +388,7 @@ export const AppSettingsProvider = ({ children }) => {
     try {
       setCurrentLanguage(languageCode);
       i18n.locale = languageCode;
-      await AsyncStorage.setItem('appLanguage', languageCode);
+      await safeStorage.setItem('appLanguage', languageCode);
 
       // Enable RTL for Arabic
       if (languageCode === 'ar') {
@@ -409,7 +408,7 @@ export const AppSettingsProvider = ({ children }) => {
       const newMode = !isDarkMode;
       setIsDarkMode(newMode);
       setThemePreference(newMode ? 'dark' : 'light');
-      await AsyncStorage.setItem('themePreference', newMode ? 'dark' : 'light');
+      await safeStorage.setItem('themePreference', newMode ? 'dark' : 'light');
     } catch (error) {
       // Failed to save theme preference
     }
@@ -418,7 +417,7 @@ export const AppSettingsProvider = ({ children }) => {
   const setThemeMode = async (mode) => {
     try {
       setThemePreference(mode);
-      await AsyncStorage.setItem('themePreference', mode);
+      await safeStorage.setItem('themePreference', mode);
       
       if (mode === 'system') {
         const systemColorScheme = Appearance.getColorScheme();
@@ -439,7 +438,7 @@ export const AppSettingsProvider = ({ children }) => {
     try {
       const newSchedule = { ...darkModeSchedule, ...schedule };
       setDarkModeSchedule(newSchedule);
-      await AsyncStorage.setItem('darkModeSchedule', JSON.stringify(newSchedule));
+      await safeStorage.setItem('darkModeSchedule', JSON.stringify(newSchedule));
       
       // If we're in scheduled mode, apply the change immediately
       if (themePreference === 'scheduled' && newSchedule.enabled) {
@@ -455,7 +454,7 @@ export const AppSettingsProvider = ({ children }) => {
     try {
       const newValue = !notificationsEnabled;
       setNotificationsEnabled(newValue);
-      await AsyncStorage.setItem('notificationsEnabled', newValue.toString());
+      await safeStorage.setItem('notificationsEnabled', newValue.toString());
     } catch (error) {
       // Failed to save notification preference
     }
@@ -465,7 +464,7 @@ export const AppSettingsProvider = ({ children }) => {
     try {
       const newSettings = { ...notificationSettings, [key]: value };
       setNotificationSettings(newSettings);
-      await AsyncStorage.setItem('notificationSettings', JSON.stringify(newSettings));
+      await safeStorage.setItem('notificationSettings', JSON.stringify(newSettings));
     } catch (error) {
       // Failed to save notification setting
     }
@@ -477,7 +476,7 @@ export const AppSettingsProvider = ({ children }) => {
       setChatSettings(newSettings);
       // Save with user-specific key if userId is provided
       const storageKey = userId ? `chatSettings_${userId}` : (currentUserId ? `chatSettings_${currentUserId}` : 'chatSettings');
-      await AsyncStorage.setItem(storageKey, JSON.stringify(newSettings));
+      await safeStorage.setItem(storageKey, JSON.stringify(newSettings));
     } catch (error) {
       // Failed to save chat setting
     }
@@ -496,7 +495,7 @@ export const AppSettingsProvider = ({ children }) => {
         return;
       }
       
-      const savedChatSettings = await AsyncStorage.getItem(`chatSettings_${userId}`);
+      const savedChatSettings = await safeStorage.getItem(`chatSettings_${userId}`);
       if (savedChatSettings) {
         const parsed = JSON.parse(savedChatSettings);
         setChatSettings(prev => ({ ...prev, ...parsed }));
@@ -515,19 +514,18 @@ export const AppSettingsProvider = ({ children }) => {
 
   const updateFontScale = async (scale) => {
     try {
-      console.log('[DEBUG-FIX] updateFontScale', { from: fontScale, to: scale });
       setFontScale(scale);
       setGlobalFontScale(scale);
-      await AsyncStorage.setItem('fontScale', scale.toString());
+      await safeStorage.setItem('fontScale', scale.toString());
     } catch (error) {
-      console.log('[DEBUG-FIX] updateFontScale error', error.message);
+      // Failed to update font scale
     }
   };
 
   const updateReduceMotion = async (value) => {
     try {
       setReduceMotion(value);
-      await AsyncStorage.setItem('reduceMotion', value.toString());
+      await safeStorage.setItem('reduceMotion', value.toString());
     } catch (error) {
       // Failed to save reduce motion setting
     }
@@ -536,7 +534,7 @@ export const AppSettingsProvider = ({ children }) => {
   const updateHapticEnabled = async (value) => {
     try {
       setHapticEnabled(value);
-      await AsyncStorage.setItem('hapticEnabled', value.toString());
+      await safeStorage.setItem('hapticEnabled', value.toString());
     } catch (error) {
       // Failed to save haptic setting
     }
@@ -545,7 +543,7 @@ export const AppSettingsProvider = ({ children }) => {
   const updateShowActivityStatus = async (value) => {
     try {
       setShowActivityStatus(value);
-      await AsyncStorage.setItem('showActivityStatus', value.toString());
+      await safeStorage.setItem('showActivityStatus', value.toString());
     } catch (error) {
       // Failed to save activity status setting
     }
@@ -554,7 +552,7 @@ export const AppSettingsProvider = ({ children }) => {
   const updateCompactMode = async (value) => {
     try {
       setCompactMode(value);
-      await AsyncStorage.setItem('compactMode', value.toString());
+      await safeStorage.setItem('compactMode', value.toString());
     } catch (error) {
       // Failed to save compact mode setting
     }
@@ -564,9 +562,9 @@ export const AppSettingsProvider = ({ children }) => {
     try {
       setAccentColor(color);
       if (color) {
-        await AsyncStorage.setItem('accentColor', color);
+        await safeStorage.setItem('accentColor', color);
       } else {
-        await AsyncStorage.removeItem('accentColor');
+        await safeStorage.removeItem('accentColor');
       }
     } catch (error) {
       // Failed to save accent color setting
@@ -576,7 +574,7 @@ export const AppSettingsProvider = ({ children }) => {
   const updateDataSaverMode = async (value) => {
     try {
       setDataSaverMode(value);
-      await AsyncStorage.setItem('dataSaverMode', value.toString());
+      await safeStorage.setItem('dataSaverMode', value.toString());
     } catch (error) {
       // Failed to save data saver mode setting
     }
@@ -586,7 +584,7 @@ export const AppSettingsProvider = ({ children }) => {
     try {
       const newQuietHours = { ...quietHours, ...updates };
       setQuietHours(newQuietHours);
-      await AsyncStorage.setItem('quietHours', JSON.stringify(newQuietHours));
+      await safeStorage.setItem('quietHours', JSON.stringify(newQuietHours));
     } catch (error) {
       // Failed to save quiet hours setting
     }
@@ -614,7 +612,7 @@ export const AppSettingsProvider = ({ children }) => {
 
   const resetSettings = async () => {
     try {
-      await AsyncStorage.multiRemove([
+      await safeStorage.multiRemove([
         'appLanguage',
         'themePreference',
         'notificationsEnabled',

@@ -11,10 +11,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { borderRadius } from '../../theme/designTokens';
-import { wp, hp, fontSize as responsiveFontSize, spacing } from '../../utils/responsive';
+import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const Settings = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
+  const insets = useSafeAreaInsets();
 
   const settingsSections = [
     {
@@ -88,7 +90,7 @@ const Settings = ({ navigation }) => {
       ]}>
       <View style={styles.cardContent}>
         <View style={[styles.iconContainer, { backgroundColor: isDarkMode ? `${item.color}15` : `${item.color}15` }]}>
-          <Ionicons name={item.icon} size={24} color={item.color} />
+          <Ionicons name={item.icon} size={moderateScale(22)} color={item.color} />
         </View>
         <View style={styles.textContainer}>
           <Text style={[styles.cardTitle, { color: theme.text }]}>
@@ -98,7 +100,7 @@ const Settings = ({ navigation }) => {
             {item.description}
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+        <Ionicons name="chevron-forward" size={moderateScale(18)} color={theme.textSecondary} />
       </View>
     </TouchableOpacity>
   );
@@ -113,11 +115,11 @@ const Settings = ({ navigation }) => {
         style={styles.headerGradient}
       />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+          <Ionicons name="arrow-back" size={moderateScale(22)} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>
           {t('settings.title')}
@@ -168,13 +170,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: Platform.OS === 'ios' ? hp(7) : hp(3.5),
     paddingHorizontal: wp(5),
     paddingBottom: spacing.md,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: moderateScale(40),
+    height: moderateScale(40),
     justifyContent: 'center',
   },
   headerTitle: {
@@ -184,7 +185,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   placeholder: {
-    width: 40,
+    width: moderateScale(40),
   },
   cardsContainer: {
     gap: spacing.md,
@@ -201,8 +202,8 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
+    width: moderateScale(44),
+    height: moderateScale(44),
     borderRadius: borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',

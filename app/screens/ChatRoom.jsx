@@ -7,6 +7,8 @@ import {
   Platform,
   ActivityIndicator,
   TouchableOpacity,
+  Modal,
+  Pressable,
   KeyboardAvoidingView,
   ImageBackground,
   TextInput,
@@ -15,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AnimatedBackground from '../components/AnimatedBackground';
 import MessageBubble from '../components/MessageBubble';
 import MessageInput from '../components/MessageInput';
@@ -37,6 +40,7 @@ const ChatRoom = ({ route, navigation }) => {
   const { t, theme, isDarkMode, chatSettings } = useAppSettings();
   const { user, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const insets = useSafeAreaInsets();
 
   const {
     messages,
@@ -64,6 +68,7 @@ const ChatRoom = ({ route, navigation }) => {
     setShowMuteModal,
     setShowPinnedModal,
     setShowChatOptionsModal,
+    reactionDefaults,
     getChatDisplayName,
     handleChatHeaderPress,
     handleViewPinnedMessages,
@@ -80,14 +85,17 @@ const ChatRoom = ({ route, navigation }) => {
     cancelReply,
     handleSendMessage,
     handleRetryMessage,
+    handleToggleReaction,
     handleVisitProfile,
     handleBlockUser,
     handleClearChat,
+    handleDeleteConversation,
     toggleSelectionMode,
     toggleMessageSelection,
     handleBatchCopy,
     handleBatchDeleteForMe,
     isBlockedByOtherUser,
+    isChatBlockedByOtherUser,
   } = useChatRoom({ chat, user, t, navigation, showAlert, refreshUser });
 
   // Blocking check for private chats - did I block them?
@@ -99,8 +107,17 @@ const ChatRoom = ({ route, navigation }) => {
     return Array.isArray(blockedUsers) && blockedUsers.includes(otherUserId);
   }, [chat, user]);
 
-  // Either direction blocks the chat
-  const isBlockedChat = iBlockedThem || isBlockedByOtherUser;
+  const iChatBlockedThem = useMemo(() => {
+    if (chat?.type !== 'private') return false;
+    const otherUserId = chat?.otherUser?.$id || chat?.otherUser?.id;
+    if (!otherUserId || !user) return false;
+    const chatBlockedUsers = user.chatBlockedUsers || [];
+    return Array.isArray(chatBlockedUsers) && chatBlockedUsers.includes(otherUserId);
+  }, [chat, user]);
+
+  const isFullyBlockedChat = iBlockedThem || isBlockedByOtherUser;
+  const isChatOnlyBlocked = iChatBlockedThem || isChatBlockedByOtherUser;
+  const isBlockedChat = isFullyBlockedChat || isChatOnlyBlocked;
 
   // Search in chat state
   const [searchActive, setSearchActive] = useState(false);
@@ -116,6 +133,23 @@ const ChatRoom = ({ route, navigation }) => {
   // Post view modal state (for shared posts)
   const [postModalVisible, setPostModalVisible] = useState(false);
   const [postModalPostId, setPostModalPostId] = useState(null);
+  const formattedChatTitle = useMemo(() => {
+    const raw = getChatDisplayName() || '';
+    const parts = raw.split(',').map(part => part.trim()).filter(Boolean);
+    const limitedNames = parts.length > 2 ? `${parts[0]}, ${parts[1]}` : raw;
+    const maxLength = 32;
+    if (limitedNames.length > maxLength) {
+      return `${limitedNames.slice(0, maxLength - 3)}...`;
+    }
+    return limitedNames;
+  }, [getChatDisplayName]);
+
+  const handleOpenReactionSettings = useCallback(() => {
+    navigation.navigate('ChatSettings', {
+      chatId: chat.$id,
+      focusSection: 'reactions',
+    });
+  }, [chat.$id, navigation]);
 
   const handlePinnedMessagePress = useCallback((messageId) => {
     setShowPinnedModal(false);
@@ -217,13 +251,17 @@ const ChatRoom = ({ route, navigation }) => {
     navigation.setOptions({
       headerTitle: () => (
         <TouchableOpacity onPress={handleChatHeaderPress} activeOpacity={0.7}>
-          <Text style={{ 
+          <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={{ 
             color: theme.text, 
-            fontSize: fontSize(17), 
+            fontSize: fontSize(16), 
             fontWeight: '600',
             textAlign: 'center',
+            maxWidth: wp(60),
           }}>
-            {getChatDisplayName()}
+            {formattedChatTitle}
           </Text>
           <Text style={{ 
             color: theme.textSecondary, 
@@ -237,7 +275,6 @@ const ChatRoom = ({ route, navigation }) => {
       headerStyle: {
         backgroundColor: getHeaderBgColor(),
       },
-      headerTintColor: theme.text,
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <TouchableOpacity
@@ -255,7 +292,7 @@ const ChatRoom = ({ route, navigation }) => {
         </View>
       ),
     });
-  }, [chat, isDarkMode, theme, muteStatus, chatSettings, openSearch, getChatDisplayName, handleChatHeaderPress, navigation, t]);
+  }, [chat, isDarkMode, theme, muteStatus, chatSettings, openSearch, formattedChatTitle, handleChatHeaderPress, navigation, t]);
 
   const memoizedMessages = useMemo(() => {
     let filtered = messages;
@@ -376,6 +413,10 @@ const ChatRoom = ({ route, navigation }) => {
         selectionMode={selectionMode}
         isSelected={selectedMessageIds.includes(item.$id)}
         onToggleSelect={toggleMessageSelection}
+        currentUserId={user?.$id}
+        reactionDefaults={reactionDefaults}
+        onToggleReaction={handleToggleReaction}
+        onEditReactions={handleOpenReactionSettings}
       />
     );
   };
@@ -386,7 +427,7 @@ const ChatRoom = ({ route, navigation }) => {
       : 'rgba(255, 255, 255, 0.6)';
     
     return (
-      <View style={styles.emptyContainer}>
+      <View style={[styles.emptyContainer, { transform: [{ scaleY: -1 }] }]}>
         <View 
           style={[
             styles.emptyCard,
@@ -540,7 +581,7 @@ const ChatRoom = ({ route, navigation }) => {
     <KeyboardAvoidingView 
       style={styles.keyboardAvoidingView}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 95 : 85}>
+      keyboardVerticalOffset={Platform.OS === 'ios' ? moderateScale(90) + insets.top : moderateScale(60)}>
       
       {renderSearchBar()}
       
@@ -609,7 +650,7 @@ const ChatRoom = ({ route, navigation }) => {
       )}
 
       {/* Blocked user banner */}
-      {isBlockedChat && (
+      {isFullyBlockedChat && (
         <View style={[
           styles.warningBanner,
           { backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.1)' }
@@ -617,8 +658,22 @@ const ChatRoom = ({ route, navigation }) => {
           <Ionicons name="ban-outline" size={moderateScale(18)} color="#EF4444" />
           <Text style={[styles.warningText, { fontSize: fontSize(12), color: '#EF4444' }]}>
             {iBlockedThem
-              ? (t('chats.blockedUserBanner') || 'You have blocked this user. You cannot send messages.')
-              : (t('chats.blockedByUserBanner') || 'You cannot send messages to this user.')}
+              ? t('chats.blockedUserBanner')
+              : t('chats.blockedByUserBanner')}
+          </Text>
+        </View>
+      )}
+
+      {!isFullyBlockedChat && isChatOnlyBlocked && (
+        <View style={[
+          styles.warningBanner,
+          { backgroundColor: isDarkMode ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)' }
+        ]}>
+          <Ionicons name="chatbubble-ellipses-outline" size={moderateScale(18)} color="#F59E0B" />
+          <Text style={[styles.warningText, { fontSize: fontSize(12), color: '#F59E0B' }]}>
+            {iChatBlockedThem
+              ? t('chats.messagesOnlyBlockedBanner')
+              : t('chats.messagesOnlyBlockedByUserBanner')}
           </Text>
         </View>
       )}
@@ -715,6 +770,7 @@ const ChatRoom = ({ route, navigation }) => {
         }}
         onBlockUser={handleBlockUser}
         onClearChat={handleClearChat}
+        onDeleteConversation={handleDeleteConversation}
         showAlert={showAlert}
         theme={theme}
         isDarkMode={isDarkMode}

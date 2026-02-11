@@ -24,6 +24,7 @@ const SearchableDropdownNew = ({
   icon,
   disabled = false,
   style,
+  compact = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -77,10 +78,10 @@ const SearchableDropdownNew = ({
         disabled={disabled}
       >
         <GlassInput focused={isOpen}>
-          <View style={styles.selector}>
+          <View style={[styles.selector, compact && styles.selectorCompact]}>
             <Ionicons 
               name={icon || 'list-outline'} 
-              size={moderateScale(20)} 
+              size={compact ? moderateScale(16) : moderateScale(20)} 
               color={disabled ? theme.textSecondary : (selectedItem ? theme.primary : theme.textSecondary)} 
               style={styles.icon}
             />
@@ -89,7 +90,7 @@ const SearchableDropdownNew = ({
                 styles.selectedText,
                 {
                   color: selectedItem ? theme.text : theme.input.placeholder,
-                  fontSize: fontSize(14),
+                  fontSize: compact ? fontSize(12) : fontSize(14),
                   opacity: disabled ? 0.5 : 1,
                 }
               ]}
@@ -99,7 +100,7 @@ const SearchableDropdownNew = ({
             </Text>
             <Ionicons 
               name={isOpen ? "chevron-up" : "chevron-down"} 
-              size={moderateScale(20)} 
+              size={compact ? moderateScale(16) : moderateScale(20)} 
               color={theme.textSecondary} 
             />
           </View>
@@ -210,6 +211,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: Platform.OS === 'ios' ? spacing.md + spacing.xs : spacing.sm + spacing.xs,
     minHeight: moderateScale(52),
+  },
+  selectorCompact: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: Platform.OS === 'ios' ? spacing.sm : spacing.xs,
+    minHeight: moderateScale(40),
   },
   icon: {
     marginRight: spacing.sm,

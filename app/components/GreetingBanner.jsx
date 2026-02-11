@@ -6,9 +6,9 @@ import {
   Animated,
   Easing,
 } from 'react-native';
+import safeStorage from '../utils/safeStorage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { wp, hp, normalize, moderateScale, spacing } from '../utils/responsive';
@@ -320,8 +320,8 @@ const GreetingBanner = () => {
     // Get last used greeting index
     let lastIndex = -1;
     try {
-      const stored = await AsyncStorage.getItem(LAST_GREETING_KEY);
-      const storedDate = await AsyncStorage.getItem(LAST_GREETING_DATE_KEY);
+      const stored = await safeStorage.getItem(LAST_GREETING_KEY);
+      const storedDate = await safeStorage.getItem(LAST_GREETING_DATE_KEY);
       const today = new Date().toDateString();
       
       if (stored !== null && storedDate === today) {
@@ -339,8 +339,8 @@ const GreetingBanner = () => {
 
     // Save new index
     try {
-      await AsyncStorage.setItem(LAST_GREETING_KEY, newIndex.toString());
-      await AsyncStorage.setItem(LAST_GREETING_DATE_KEY, new Date().toDateString());
+      await safeStorage.setItem(LAST_GREETING_KEY, newIndex.toString());
+      await safeStorage.setItem(LAST_GREETING_DATE_KEY, new Date().toDateString());
     } catch {
       // Ignore storage errors
     }

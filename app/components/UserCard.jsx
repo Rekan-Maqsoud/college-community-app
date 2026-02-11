@@ -56,7 +56,7 @@ const UserCard = ({
           <Text 
             style={[
               styles.details, 
-              { color: theme.subText, fontSize: compact ? fontSize(11) : fontSize(12) }
+              { color: theme.textSecondary, fontSize: compact ? fontSize(11) : fontSize(12) }
             ]}
             numberOfLines={1}
           >

@@ -15,9 +15,6 @@ export const useFontSize = () => {
    */
   const scaledFontSize = (size) => {
     const result = responsiveFontSize(size * fontScale);
-    if (fontScale !== 1) {
-      console.log('[DEBUG-FIX] scaledFontSize()', { input: size, fontScale, result });
-    }
     return result;
   };
 

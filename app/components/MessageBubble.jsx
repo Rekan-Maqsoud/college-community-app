@@ -33,6 +33,7 @@ import {
   fontSize, 
   spacing, 
   moderateScale,
+  wp,
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 
@@ -40,9 +41,11 @@ const ReanimatedView = ReanimatedModule?.View || View;
 
 // Enable LayoutAnimation for Android (skip in New Architecture where it's a no-op)
 if (
-  RNPlatform.OS === 'android' && 
+  RNPlatform.OS === 'android' &&
   UIManager.setLayoutAnimationEnabledExperimental &&
-  !global.__turboModuleProxy
+  !global.__turboModuleProxy &&
+  !global.nativeFabricUIManager &&
+  !global.RN$Bridgeless
 ) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -266,11 +269,16 @@ const MessageBubble = ({
   selectionMode = false,
   isSelected = false,
   onToggleSelect,
+  currentUserId,
+  reactionDefaults = [],
+  onToggleReaction,
+  onEditReactions,
 }) => {
   const { theme, isDarkMode, t, chatSettings } = useAppSettings();
   const [imageModalVisible, setImageModalVisible] = useState(false);
   const [actionsVisible, setActionsVisible] = useState(false);
   const [mentionPreview, setMentionPreview] = useState(null);
+  const [reactionPickerVisible, setReactionPickerVisible] = useState(false);
   
   const translateX = useRef(new Animated.Value(0)).current;
   const swipeDirection = isCurrentUser ? -1 : 1;
@@ -386,6 +394,41 @@ const MessageBubble = ({
       setTimeout(action, 100);
     }
   };
+
+  const parseMessageReactions = (value) => {
+    if (!value) return {};
+    if (typeof value === 'object' && !Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return typeof parsed === 'object' && parsed ? parsed : {};
+      } catch (error) {
+        return {};
+      }
+    }
+    return {};
+  };
+
+  const reactionsMap = parseMessageReactions(message.reactions);
+  const reactionEntries = Object.entries(reactionsMap)
+    .filter(([, users]) => Array.isArray(users) && users.length > 0);
+  const hasCurrentUserReaction = currentUserId
+    ? Object.values(reactionsMap).some(users => Array.isArray(users) && users.includes(currentUserId))
+    : false;
+  const quickReactions = reactionDefaults.length > 0
+    ? reactionDefaults
+    : ['👍', '❤️', '😂', '😡', '😕'];
+
+  const handleReactionSelect = (emoji, closePicker = false) => {
+    if (!emoji || !onToggleReaction) return;
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    onToggleReaction(message, emoji);
+    if (closePicker) {
+      setReactionPickerVisible(false);
+    }
+  };
+
+  const showCornerReactionAdd = !isCurrentUser && !!onToggleReaction && !selectionMode && !hasCurrentUserReaction;
 
   // Render message content with @everyone highlighting, link detection, and search highlighting
   const renderMessageContent = () => {
@@ -877,8 +920,46 @@ const MessageBubble = ({
               {renderBubbleContent()}
             </Pressable>
           )}
+
+          {showCornerReactionAdd && (
+            <TouchableOpacity
+              style={styles.reactionAddCorner}
+              onPress={() => setReactionPickerVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={moderateScale(14)} color={theme.textSecondary} />
+            </TouchableOpacity>
+          )}
         </Animated.View>
       </View>
+
+      {reactionEntries.length > 0 && (
+        <View style={[
+          styles.reactionsRow,
+          isCurrentUser ? styles.reactionsRowRight : styles.reactionsRowLeft,
+        ]}>
+          {reactionEntries.map(([emoji, users]) => {
+            const count = users.length;
+            const reacted = currentUserId ? users.includes(currentUserId) : false;
+            return (
+              <TouchableOpacity
+                key={`${emoji}-${count}`}
+                style={[
+                  styles.reactionChip,
+                  reacted && { backgroundColor: isDarkMode ? 'rgba(102,126,234,0.25)' : 'rgba(102,126,234,0.18)' },
+                ]}
+                onPress={() => handleReactionSelect(emoji)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.reactionEmojiChipText}>{emoji}</Text>
+                <Text style={[styles.reactionCount, { color: isCurrentUser ? 'rgba(255,255,255,0.85)' : theme.textSecondary }]}>
+                  {count}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
       {/* Swipe indicator */}
       <View style={[
@@ -915,6 +996,35 @@ const MessageBubble = ({
             styles.actionsContainer,
             { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' }
           ]}>
+            {onToggleReaction && (
+              <View style={styles.reactionQuickRow}>
+                {quickReactions.map((emoji) => (
+                  <TouchableOpacity
+                    key={emoji}
+                    style={styles.reactionQuickButton}
+                    onPress={() => {
+                      setActionsVisible(false);
+                      handleReactionSelect(emoji);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.reactionEmojiText}>{emoji}</Text>
+                  </TouchableOpacity>
+                ))}
+                {onEditReactions && (
+                  <TouchableOpacity
+                    style={styles.reactionQuickIcon}
+                    onPress={() => {
+                      setActionsVisible(false);
+                      setTimeout(onEditReactions, 100);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="settings-outline" size={moderateScale(16)} color={theme.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
             {actionButtons.map((btn, index) => (
               <TouchableOpacity
                 key={btn.icon}
@@ -941,6 +1051,43 @@ const MessageBubble = ({
               </TouchableOpacity>
             ))}
           </View>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={reactionPickerVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setReactionPickerVisible(false)}>
+        <Pressable
+          style={styles.reactionPickerOverlay}
+          onPress={() => setReactionPickerVisible(false)}
+        >
+          <Pressable
+            style={[
+              styles.reactionPickerContent,
+              { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' }
+            ]}
+            onPress={() => {}}
+          >
+            <Text style={[styles.reactionPickerTitle, { color: theme.text, fontSize: fontSize(14) }]}>
+              {t('chats.addReaction')}
+            </Text>
+
+            <View style={styles.reactionPickerRow}>
+              {quickReactions.map((emoji) => (
+                <TouchableOpacity
+                  key={`picker-${emoji}`}
+                  style={styles.reactionQuickButton}
+                  onPress={() => handleReactionSelect(emoji, true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.reactionEmojiText}>{emoji}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+          </Pressable>
         </Pressable>
       </Modal>
 
@@ -1046,6 +1193,7 @@ const styles = StyleSheet.create({
   },
   bubbleWrapper: {
     maxWidth: '80%',
+    position: 'relative',
   },
   senderName: {
     fontWeight: '600',
@@ -1069,7 +1217,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   repBadgeText: {
-    fontSize: 9,
+    fontSize: fontSize(9),
     fontWeight: '700',
     color: '#FFFFFF',
   },
@@ -1164,6 +1312,51 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     marginTop: spacing.xs,
   },
+  reactionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  reactionsRowLeft: {
+    alignSelf: 'flex-start',
+    marginLeft: moderateScale(36),
+  },
+  reactionsRowRight: {
+    alignSelf: 'flex-end',
+    marginRight: spacing.sm,
+  },
+  reactionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+  },
+  reactionEmojiText: {
+    fontSize: moderateScale(18),
+  },
+  reactionEmojiChipText: {
+    fontSize: moderateScale(14),
+  },
+  reactionCount: {
+    fontSize: fontSize(12),
+    fontWeight: '600',
+  },
+  reactionAddCorner: {
+    position: 'absolute',
+    top: -moderateScale(6),
+    right: -moderateScale(6),
+    width: moderateScale(26),
+    height: moderateScale(26),
+    borderRadius: moderateScale(13),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.08)',
+  },
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1212,7 +1405,7 @@ const styles = StyleSheet.create({
   },
   actionsContainer: {
     width: '70%',
-    maxWidth: 280,
+    maxWidth: wp(75),
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -1220,6 +1413,31 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  reactionQuickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.08)',
+  },
+  reactionQuickButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+  },
+  reactionQuickIcon: {
+    width: moderateScale(26),
+    height: moderateScale(26),
+    borderRadius: moderateScale(13),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   actionButton: {
     flexDirection: 'row',
@@ -1233,6 +1451,32 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     fontWeight: '500',
+  },
+  reactionPickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  reactionPickerContent: {
+    width: '100%',
+    maxWidth: wp(70),
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  reactionPickerTitle: {
+    fontWeight: '600',
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  reactionPickerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
   },
   // User mention styles
   userMentionText: {
@@ -1378,7 +1622,7 @@ const styles = StyleSheet.create({
   locationMapPreview: {
     width: '100%',
     height: moderateScale(140),
-    minHeight: 140,
+    minHeight: moderateScale(140),
   },
   locationMapOverlay: {
     position: 'absolute',

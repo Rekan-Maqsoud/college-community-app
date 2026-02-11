@@ -21,7 +21,7 @@ applyTo: "**"
 | **JavaScript only**       | NO TypeScript                     |
 | **Functional components** | Use hooks, not classes            |
 | **Follow existing style** | Match patterns in file            |
-| **No console.log**        | Remove all debug logs             |
+
 | **Complete TODOs**        | Don't leave incomplete            |
 | **No commented code**     | Remove unused code                |
 | **Find correct files**    | Use project-map to locate         |

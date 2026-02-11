@@ -214,6 +214,7 @@ export const ChatOptionsModal = ({
   onBlockUser,
   onOpenGroupSettings,
   onClearChat,
+  onDeleteConversation,
   showAlert,
   theme,
   isDarkMode,
@@ -313,6 +314,20 @@ export const ChatOptionsModal = ({
               <Ionicons name="ban-outline" size={moderateScale(22)} color="#EF4444" />
               <Text style={[styles.muteOptionText, { color: '#EF4444', fontSize: fontSize(15) }]}>
                 {t('chats.blockUser')}
+              </Text>
+            </TouchableOpacity>
+          )}
+          
+          {chat.type === 'private' && onDeleteConversation && (
+            <TouchableOpacity
+              style={[styles.muteOption, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
+              onPress={() => {
+                onClose();
+                onDeleteConversation();
+              }}>
+              <Ionicons name="trash-bin-outline" size={moderateScale(22)} color="#EF4444" />
+              <Text style={[styles.muteOptionText, { color: '#EF4444', fontSize: fontSize(15) }]}>
+                {t('chats.deleteConversation') || 'Delete Conversation'}
               </Text>
             </TouchableOpacity>
           )}

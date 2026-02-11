@@ -179,7 +179,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   menuDivider: {
-    height: 1,
+    height: StyleSheet.hairlineWidth,
+    opacity: 0.3,
   },
 });
 

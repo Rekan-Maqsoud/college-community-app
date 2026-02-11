@@ -1,11 +1,11 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   Animated,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -14,10 +14,12 @@ import { wp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { FEED_TYPES } from '../constants/feedCategories';
 
-const FeedSelector = ({ selectedFeed, onFeedChange }) => {
+const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }) => {
   const { t, theme, isDarkMode } = useAppSettings();
-  const scrollViewRef = useRef(null);
   const indicatorAnim = useRef(new Animated.Value(0)).current;
+  const [containerWidth, setContainerWidth] = useState(wp(60));
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < 360;
 
   const feeds = [
     {
@@ -54,7 +56,10 @@ const FeedSelector = ({ selectedFeed, onFeedChange }) => {
     onFeedChange(feedType);
   };
 
-  const buttonWidths = [106, 68, 75];
+  const buttonRatios = [0.426, 0.273, 0.301];
+  const buttonWidths = useMemo(() => (
+    buttonRatios.map(ratio => Math.max(0, containerWidth * ratio))
+  ), [containerWidth]);
   const selectedIndex = feeds.findIndex(feed => feed.type === selectedFeed);
   
   const translateX = indicatorAnim.interpolate({
@@ -73,19 +78,26 @@ const FeedSelector = ({ selectedFeed, onFeedChange }) => {
   };
 
   return (
-    <View 
+    <View
       style={[
         styles.container,
         {
-          backgroundColor: isDarkMode 
-            ? 'rgba(255, 255, 255, 0.1)' 
+          height,
+          backgroundColor: isDarkMode
+            ? 'rgba(255, 255, 255, 0.1)'
             : 'rgba(0, 0, 0, 0.04)',
           borderWidth: 0.5,
-          borderColor: isDarkMode 
-            ? 'rgba(255, 255, 255, 0.15)' 
+          borderColor: isDarkMode
+            ? 'rgba(255, 255, 255, 0.15)'
             : 'rgba(0, 0, 0, 0.08)',
         }
       ]}
+      onLayout={(event) => {
+        const { width: layoutWidth } = event.nativeEvent.layout;
+        if (layoutWidth && layoutWidth !== containerWidth) {
+          setContainerWidth(layoutWidth);
+        }
+      }}
     >
       <View style={styles.feedRow}>
         <Animated.View
@@ -93,7 +105,7 @@ const FeedSelector = ({ selectedFeed, onFeedChange }) => {
             styles.indicator,
             {
               backgroundColor: theme.primary,
-              width: buttonWidths[selectedIndex],
+              width: buttonWidths[selectedIndex] || 0,
               transform: [{ translateX }],
             },
           ]}
@@ -113,7 +125,7 @@ const FeedSelector = ({ selectedFeed, onFeedChange }) => {
             >
               <Ionicons
                 name={feed.icon}
-                size={moderateScale(16)}
+                size={moderateScale(isSmallScreen ? 14 : 16)}
                 color={iconColor(isSelected)}
                 style={[styles.feedIcon, index === 0 && { marginLeft: 2 }]}
               />
@@ -122,7 +134,7 @@ const FeedSelector = ({ selectedFeed, onFeedChange }) => {
                   styles.feedLabel,
                   {
                     color: textColor(isSelected),
-                    fontSize: fontSize(10.5),
+                    fontSize: fontSize(isSmallScreen ? 9.5 : 10.5),
                     fontWeight: isSelected ? '700' : '600',
                     textShadowColor: isSelected ? 'rgba(0, 0, 0, 0.2)' : 'transparent',
                     textShadowOffset: isSelected ? { width: 0, height: 1 } : { width: 0, height: 0 },
@@ -145,8 +157,7 @@ const FeedSelector = ({ selectedFeed, onFeedChange }) => {
 
 const styles = StyleSheet.create({
   container: {
-    height: 44,
-    width: 249,
+    width: '100%',
     borderRadius: borderRadius.lg,
   },
   feedRow: {

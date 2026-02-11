@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import safeStorage from '../utils/safeStorage';
 import { getCurrentUser, getCompleteUserData } from '../../database/auth';
 import { restoreBookmarksFromServer } from '../utils/bookmarkService';
 
@@ -18,7 +18,7 @@ export const UserProvider = ({ children }) => {
     try {
       setIsLoading(true);
       
-      const cachedData = await AsyncStorage.getItem('userData');
+          const cachedData = await safeStorage.getItem('userData');
       const cached = cachedData ? JSON.parse(cachedData) : null;
       
       const appwriteUser = await getCurrentUser();
@@ -58,7 +58,7 @@ export const UserProvider = ({ children }) => {
             blockedUsers: completeUserData.blockedUsers || [],
           };
           
-          await AsyncStorage.setItem('userData', JSON.stringify(userData));
+              await safeStorage.setItem('userData', JSON.stringify(userData));
           setUser(userData);
           
           // Restore bookmarks from server in background (for fresh installs)
@@ -68,13 +68,13 @@ export const UserProvider = ({ children }) => {
         if (cached) {
           setUser(cached);
         } else {
-          await AsyncStorage.removeItem('userData');
+              await safeStorage.removeItem('userData');
           setUser(null);
         }
       }
     } catch (error) {
       try {
-        const cachedData = await AsyncStorage.getItem('userData');
+            const cachedData = await safeStorage.getItem('userData');
         if (cachedData) {
           setUser(JSON.parse(cachedData));
         }
@@ -89,7 +89,7 @@ export const UserProvider = ({ children }) => {
 
   const loadUserData = async () => {
     try {
-      const cachedData = await AsyncStorage.getItem('userData');
+        const cachedData = await safeStorage.getItem('userData');
       const cached = cachedData ? JSON.parse(cachedData) : null;
       
       const appwriteUser = await getCurrentUser();
@@ -129,7 +129,7 @@ export const UserProvider = ({ children }) => {
             blockedUsers: completeUserData.blockedUsers || [],
           };
           
-          await AsyncStorage.setItem('userData', JSON.stringify(userData));
+            await safeStorage.setItem('userData', JSON.stringify(userData));
           setUser(userData);
         }
       } else {
@@ -138,7 +138,7 @@ export const UserProvider = ({ children }) => {
         }
       }
     } catch (error) {
-      const cachedData = await AsyncStorage.getItem('userData');
+        const cachedData = await safeStorage.getItem('userData');
       if (cachedData) {
         setUser(JSON.parse(cachedData));
       }
@@ -177,7 +177,7 @@ export const UserProvider = ({ children }) => {
 
   const updateUser = async (updates) => {
     try {
-      const currentData = await AsyncStorage.getItem('userData');
+          const currentData = await safeStorage.getItem('userData');
       const parsedData = currentData ? JSON.parse(currentData) : {};
       
       const updatedData = {
@@ -185,7 +185,7 @@ export const UserProvider = ({ children }) => {
         ...updates,
       };
       
-      await AsyncStorage.setItem('userData', JSON.stringify(updatedData));
+          await safeStorage.setItem('userData', JSON.stringify(updatedData));
       setUser(updatedData);
       
       const appwriteUser = await getCurrentUser();
@@ -226,7 +226,7 @@ export const UserProvider = ({ children }) => {
   const updateProfilePicture = async (imageUrl, deleteUrl = null) => {
     try {
       // Delete old profile picture if exists
-      const oldDeleteUrl = await AsyncStorage.getItem('profilePictureDeleteUrl');
+          const oldDeleteUrl = await safeStorage.getItem('profilePictureDeleteUrl');
       if (oldDeleteUrl) {
         try {
           const { deleteImageFromImgbb } = require('../../services/imgbbService');
@@ -238,7 +238,7 @@ export const UserProvider = ({ children }) => {
       
       // Store new delete URL if provided
       if (deleteUrl) {
-        await AsyncStorage.setItem('profilePictureDeleteUrl', deleteUrl);
+            await safeStorage.setItem('profilePictureDeleteUrl', deleteUrl);
       }
       
       const appwriteUser = await getCurrentUser();
@@ -254,7 +254,7 @@ export const UserProvider = ({ children }) => {
 
   const clearUser = async () => {
     try {
-      await AsyncStorage.removeItem('userData');
+          await safeStorage.removeItem('userData');
       setUser(null);
     } catch (error) {
       // Failed to clear user data from storage
@@ -263,7 +263,7 @@ export const UserProvider = ({ children }) => {
 
   const setUserData = async (userData) => {
     try {
-      await AsyncStorage.setItem('userData', JSON.stringify(userData));
+          await safeStorage.setItem('userData', JSON.stringify(userData));
       setUser(userData);
     } catch (error) {
       // Failed to store user data

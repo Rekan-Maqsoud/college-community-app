@@ -22,6 +22,7 @@ import { getCurrentUser, getUserDocument, signOut } from '../database/auth';
 import { getAllUserChats } from '../database/chatHelpers';
 import { getTotalUnreadCount } from '../database/chats';
 import { updateUserPushToken } from '../database/users';
+import appwriteClient from '../database/config';
 import {
   registerForPushNotifications,
   registerAppwriteTarget,
@@ -109,7 +110,7 @@ if (__DEV__ && !global.__APPWRITE_SERVER_ERROR_FILTER__) {
       return;
     }
 
-    originalConsoleError(...args);
+    originalConsoleError.apply(console, args);
   };
 }
 
@@ -785,8 +786,80 @@ const NotificationSetup = ({ navigationRef }) => {
   return null;
 };
 
+const RealtimeLifecycleManager = () => {
+  const resumeTimeoutRef = useRef(null);
+  const appStateRef = useRef(AppState.currentState);
+
+  const pauseRealtime = useCallback(() => {
+    const realtime = appwriteClient?.realtime;
+    if (!realtime) {
+      return;
+    }
+
+    try {
+      if (realtime.heartbeat) {
+        clearInterval(realtime.heartbeat);
+        realtime.heartbeat = undefined;
+      }
+
+      if (realtime.socket && realtime.socket.readyState < 2) {
+        realtime.reconnect = false;
+        realtime.socket.close();
+      }
+    } catch (error) {
+      // Ignore realtime teardown errors
+    }
+  }, []);
+
+  const resumeRealtime = useCallback(() => {
+    const realtime = appwriteClient?.realtime;
+    if (!realtime) {
+      return;
+    }
+
+    try {
+      realtime.reconnect = true;
+
+      if (realtime.channels?.size > 0 && (!realtime.socket || realtime.socket.readyState > 1)) {
+        realtime.connect?.();
+      }
+    } catch (error) {
+      // Ignore realtime startup errors
+    }
+  }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      const wasBackground = appStateRef.current?.match(/inactive|background/);
+
+      if (nextState?.match(/inactive|background/)) {
+        pauseRealtime();
+      } else if (wasBackground && nextState === 'active') {
+        if (resumeTimeoutRef.current) {
+          clearTimeout(resumeTimeoutRef.current);
+        }
+
+        resumeTimeoutRef.current = setTimeout(() => {
+          resumeRealtime();
+        }, 300);
+      }
+
+      appStateRef.current = nextState;
+    });
+
+    return () => {
+      subscription?.remove();
+      if (resumeTimeoutRef.current) {
+        clearTimeout(resumeTimeoutRef.current);
+      }
+    };
+  }, [pauseRealtime, resumeRealtime]);
+
+  return null;
+};
+
 // Component to handle deep links for password recovery
-const DeepLinkHandler = ({ navigationRef }) => {
+const DeepLinkHandler = ({ navigationRef, pendingRouteRef }) => {
   useEffect(() => {
     const handleDeepLink = (event) => {
       const url = event.url;
@@ -794,15 +867,40 @@ const DeepLinkHandler = ({ navigationRef }) => {
       
       try {
         const parsed = Linking.parse(url);
+        const parsedPath = parsed?.path || '';
+        const parsedHost = parsed?.hostname || '';
+
+        const navigateSafe = (name, params) => {
+          if (navigationRef?.isReady?.()) {
+            navigationRef.navigate(name, params);
+            return true;
+          }
+          if (pendingRouteRef) {
+            pendingRouteRef.current = { name, params };
+          }
+          return false;
+        };
         
         // Handle password reset deep link (both schemes)
         // collegecommunity://reset-password OR appwrite-callback-xxx://reset-password
-        if (parsed.path === 'reset-password' || url.includes('reset-password')) {
+        if (parsedPath === 'reset-password' || url.includes('reset-password')) {
           const { userId, secret } = parsed.queryParams || {};
-          if (userId && secret && navigationRef.current) {
+          if (userId && secret) {
             // Navigate to ForgotPassword with recovery params
-            navigationRef.current.navigate('ForgotPassword', { userId, secret });
+            navigateSafe('ForgotPassword', { userId, secret });
           }
+        }
+
+        // Handle profile deep link
+        // collegecommunity://profile/{userId}
+        if (parsedPath && parsedPath.startsWith('profile/')) {
+          const profileUserId = parsedPath.replace('profile/', '');
+          if (profileUserId) {
+            navigateSafe('UserProfile', { userId: profileUserId });
+          }
+        } else if (parsedHost === 'profile' && parsedPath) {
+          const profileUserId = parsedPath;
+          navigateSafe('UserProfile', { userId: profileUserId });
         }
       } catch (error) {
         // Silent fail for deep link parsing errors
@@ -825,7 +923,7 @@ const DeepLinkHandler = ({ navigationRef }) => {
     return () => {
       subscription?.remove();
     };
-  }, [navigationRef]);
+  }, [navigationRef, pendingRouteRef]);
 
   return null;
 };
@@ -852,7 +950,8 @@ const GlobalCustomAlert = () => {
 
 export default function App() {
   const navigationRef = useNavigationContainerRef();
-  
+  const pendingRouteRef = useRef(null);
+
   try {
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
@@ -862,9 +961,18 @@ export default function App() {
               <AppSettingsProvider>
                 <UserProvider>
                   <GlobalAlertProvider>
-                    <NavigationContainer ref={navigationRef}>
+                    <NavigationContainer
+                      ref={navigationRef}
+                      onReady={() => {
+                        if (pendingRouteRef.current && navigationRef.isReady()) {
+                          const { name, params } = pendingRouteRef.current;
+                          pendingRouteRef.current = null;
+                          navigationRef.navigate(name, params);
+                        }
+                      }}>
+                      <RealtimeLifecycleManager />
                       <NotificationSetup navigationRef={navigationRef} />
-                      <DeepLinkHandler navigationRef={navigationRef} />
+                      <DeepLinkHandler navigationRef={navigationRef} pendingRouteRef={pendingRouteRef} />
                       <UpdatePrompt />
                       <MainStack />
                     </NavigationContainer>

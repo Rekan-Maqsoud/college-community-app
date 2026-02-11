@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import safeStorage from './safeStorage';
 
 const CACHE_PREFIX = 'cache_';
 const CACHE_EXPIRY_TIME = 1000 * 60 * 60 * 24; // 24 hours
@@ -21,7 +21,7 @@ export const cacheManager = {
         timestamp: Date.now(),
         expiryTime
       };
-      await AsyncStorage.setItem(
+      await safeStorage.setItem(
         `${CACHE_PREFIX}${key}`,
         JSON.stringify(cacheData)
       );
@@ -32,7 +32,7 @@ export const cacheManager = {
 
   async get(key, ignoreExpiry = false) {
     try {
-      const cachedData = await AsyncStorage.getItem(`${CACHE_PREFIX}${key}`);
+      const cachedData = await safeStorage.getItem(`${CACHE_PREFIX}${key}`);
       if (!cachedData) return null;
 
       const { value, timestamp, expiryTime } = JSON.parse(cachedData);
@@ -55,7 +55,7 @@ export const cacheManager = {
 
   async getWithMeta(key) {
     try {
-      const cachedData = await AsyncStorage.getItem(`${CACHE_PREFIX}${key}`);
+      const cachedData = await safeStorage.getItem(`${CACHE_PREFIX}${key}`);
       if (!cachedData) return null;
 
       const { value, timestamp, expiryTime } = JSON.parse(cachedData);
@@ -69,7 +69,7 @@ export const cacheManager = {
 
   async remove(key) {
     try {
-      await AsyncStorage.removeItem(`${CACHE_PREFIX}${key}`);
+      await safeStorage.removeItem(`${CACHE_PREFIX}${key}`);
     } catch (error) {
       // Failed to remove cache
     }
@@ -77,10 +77,10 @@ export const cacheManager = {
 
   async removeByPrefix(prefix) {
     try {
-      const keys = await AsyncStorage.getAllKeys();
+      const keys = await safeStorage.getAllKeys();
       const cacheKeys = keys.filter(key => key.startsWith(`${CACHE_PREFIX}${prefix}`));
       if (cacheKeys.length > 0) {
-        await AsyncStorage.multiRemove(cacheKeys);
+        await safeStorage.multiRemove(cacheKeys);
       }
     } catch (error) {
       // Failed to remove cache by prefix
@@ -89,9 +89,9 @@ export const cacheManager = {
 
   async clear() {
     try {
-      const keys = await AsyncStorage.getAllKeys();
+      const keys = await safeStorage.getAllKeys();
       const cacheKeys = keys.filter(key => key.startsWith(CACHE_PREFIX));
-      await AsyncStorage.multiRemove(cacheKeys);
+      await safeStorage.multiRemove(cacheKeys);
     } catch (error) {
       // Failed to clear cache
     }
@@ -140,6 +140,7 @@ export const postsCacheManager = {
     if (filters.stage && filters.stage !== 'all') parts.push(`stage_${filters.stage}`);
     if (filters.userId) parts.push(`user_${filters.userId}`);
     if (filters.postType) parts.push(`type_${filters.postType}`);
+    if (filters.answerStatus && filters.answerStatus !== 'all') parts.push(`answer_${filters.answerStatus}`);
     parts.push(`l${limit}_o${offset}`);
     return parts.join('_');
   },

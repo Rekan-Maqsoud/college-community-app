@@ -334,8 +334,9 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize(13),
   },
   divider: {
-    height: 1,
+    height: StyleSheet.hairlineWidth,
     marginLeft: spacing.md + 36 + spacing.md,
+    opacity: 0.3,
   },
   warningBox: {
     flexDirection: 'row',

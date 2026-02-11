@@ -12,7 +12,7 @@ applyTo: "**"
 
 1. **NEVER use TypeScript syntax** - This is a JavaScript-only project
 2. **NEVER hardcode text** - Always use translation keys
-3-**NEVER BRAG TOO MUCH** - Show Minimum of you thinking and processing Thoughts
+   3-**NEVER BRAG TOO MUCH** - Show Minimum of you thinking and processing Thoughts
 3. **NEVER leave TODO/FIXME incomplete** - Complete them or remove
 4. **NEVER leave commented-out code**
 5. **NEVER delete multiple files at once** - Make minimal changes
@@ -263,7 +263,6 @@ Query.search('content', searchTerm),
 
 ## 📝 AFTER MAKING CHANGES
 
-1. **Verify no console.log left**
 2. **Verify no TODO/FIXME left incomplete**
 3. **Verify no commented-out code**
 4. **Verify translations added to all 3 locales**

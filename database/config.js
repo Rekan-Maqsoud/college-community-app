@@ -1,6 +1,33 @@
 import { Client, Account, Databases, Storage } from 'appwrite';
 import realtimeDebugLogger from '../app/utils/realtimeDebugLogger';
 
+// Polyfill window.localStorage for the Appwrite web SDK.
+// The SDK's realtime handler accesses window.localStorage.getItem('cookieFallback')
+// without a guard, which crashes in React Native where localStorage doesn't exist.
+if (typeof window !== 'undefined' && !window.localStorage) {
+    const memoryStorage = {};
+    window.localStorage = {
+        getItem(key) {
+            return Object.prototype.hasOwnProperty.call(memoryStorage, key) ? memoryStorage[key] : null;
+        },
+        setItem(key, value) {
+            memoryStorage[key] = String(value);
+        },
+        removeItem(key) {
+            delete memoryStorage[key];
+        },
+        clear() {
+            Object.keys(memoryStorage).forEach(k => delete memoryStorage[k]);
+        },
+        get length() {
+            return Object.keys(memoryStorage).length;
+        },
+        key(index) {
+            return Object.keys(memoryStorage)[index] || null;
+        },
+    };
+}
+
 const client = new Client();
 
 const endpoint = process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT;

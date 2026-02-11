@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import safeStorage from '../utils/safeStorage';
 import * as Localization from 'expo-localization';
 import i18n from '../../locales/i18n';
 import { I18nManager } from 'react-native';
@@ -25,7 +25,7 @@ export const LanguageProvider = ({ children }) => {
 
   const loadLanguagePreference = async () => {
     try {
-      const savedLanguage = await AsyncStorage.getItem('appLanguage');
+      const savedLanguage = await safeStorage.getItem('appLanguage');
       if (savedLanguage) {
         setCurrentLanguage(savedLanguage);
         i18n.locale = savedLanguage;
@@ -58,7 +58,7 @@ export const LanguageProvider = ({ children }) => {
     try {
       setCurrentLanguage(languageCode);
       i18n.locale = languageCode;
-      await AsyncStorage.setItem('appLanguage', languageCode);
+      await safeStorage.setItem('appLanguage', languageCode);
       
       // Enable RTL for Arabic
       if (languageCode === 'ar') {

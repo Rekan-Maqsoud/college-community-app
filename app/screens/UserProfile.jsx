@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar, ActivityIndicator, Platform, Share, Modal, Linking } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,18 +12,20 @@ import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { getPostsByUser, togglePostLike } from '../../database/posts';
-import { getUserById, followUser, unfollowUser, isFollowing as checkIsFollowing, blockUser } from '../../database/users';
+import { getUserById, followUser, unfollowUser, isFollowing as checkIsFollowing, blockUser, blockUserChatOnly } from '../../database/users';
 import { notifyFollow } from '../../database/notifications';
 import { createPrivateChat } from '../../database/chatHelpers';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { useUserProfile } from '../hooks/useRealtimeSubscription';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const UserProfile = ({ route, navigation }) => {
   const { userId, userData: initialUserData } = route.params;
   const { t, theme, isDarkMode } = useAppSettings();
   const { user: currentUser, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const insets = useSafeAreaInsets();
   const [userPosts, setUserPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [postsError, setPostsError] = useState(null);
@@ -35,6 +39,7 @@ const UserProfile = ({ route, navigation }) => {
   const [blockLoading, setBlockLoading] = useState(false);
   const [messageLoading, setMessageLoading] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+  const displayName = userData?.fullName || userData?.name || t('errors.unknownUser');
 
   // Generate profile link for sharing
   const getProfileLink = () => {
@@ -42,16 +47,41 @@ const UserProfile = ({ route, navigation }) => {
     return `collegecommunity://profile/${userId}`;
   };
 
+  const getQrImageUrl = () => {
+    return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(getProfileLink())}`;
+  };
+
   const handleShareProfile = async () => {
     try {
       const profileLink = getProfileLink();
       await Share.share({
-        message: t('profile.shareMessage')?.replace('{name}', userData?.fullName || 'User') + '\n' + profileLink,
+        message: t('profile.shareMessage').replace('{name}', displayName) + '\n' + profileLink,
         title: t('profile.shareProfile'),
       });
     } catch (error) {
       // Share cancelled or failed
     }
+  };
+
+  const handleShareQr = async () => {
+    try {
+      const qrUrl = getQrImageUrl();
+      const fileUri = `${FileSystem.cacheDirectory}profile-qr-${userId}.png`;
+      await FileSystem.downloadAsync(qrUrl, fileUri);
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'image/png',
+          dialogTitle: t('profile.shareProfile'),
+        });
+        return;
+      }
+    } catch (error) {
+      // Fall through to link sharing
+    }
+
+    handleShareProfile();
   };
 
   // Smart realtime subscription for user profile updates (followers, etc.)
@@ -242,12 +272,32 @@ const UserProfile = ({ route, navigation }) => {
     
     showAlert({
       type: 'warning',
-      title: t('profile.blockUser') || 'Block User',
-      message: (t('profile.blockConfirm') || 'Are you sure you want to block {name}?').replace('{name}', userData?.fullName || 'this user'),
+      title: t('common.blockOptionsTitle'),
+      message: t('common.blockOptionsMessage').replace('{name}', displayName),
       buttons: [
         { text: t('common.cancel'), style: 'cancel' },
         {
-          text: t('common.block') || 'Block',
+          text: t('common.blockMessagesOnly'),
+          style: 'default',
+          onPress: async () => {
+            setBlockLoading(true);
+            try {
+              await blockUserChatOnly(currentUser.$id, userId);
+              await refreshUser();
+              showAlert({
+                type: 'success',
+                title: t('common.success'),
+                message: t('chats.messagesOnlyBlocked'),
+              });
+            } catch (error) {
+              showAlert({ type: 'error', title: t('common.error'), message: t('chats.blockError') });
+            } finally {
+              setBlockLoading(false);
+            }
+          },
+        },
+        {
+          text: t('common.blockEverything'),
           style: 'destructive',
           onPress: async () => {
             setBlockLoading(true);
@@ -257,20 +307,19 @@ const UserProfile = ({ route, navigation }) => {
               setIsFollowing(false);
               // Refresh user context so blockedUsers list is updated for filtering
               await refreshUser();
-              console.log('[BLOCK] User blocked, refreshed context');
               showAlert({
                 type: 'success',
                 title: t('common.success'),
-                message: t('profile.userBlocked') || 'User has been blocked',
+                message: t('profile.userBlocked'),
               });
               navigation.goBack();
             } catch (error) {
-              showAlert({ type: 'error', title: t('common.error'), message: t('profile.blockError') || 'Failed to block user' });
+              showAlert({ type: 'error', title: t('common.error'), message: t('profile.blockError') });
             } finally {
               setBlockLoading(false);
             }
-          }
-        }
+          },
+        },
       ],
     });
   };
@@ -385,7 +434,7 @@ const UserProfile = ({ route, navigation }) => {
     );
   }
 
-  const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent((userData.fullName || 'User').replace(/[^a-zA-Z0-9\s]/g, '').substring(0, 50)) + '&size=400&background=667eea&color=fff&bold=true';
+  const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(displayName.replace(/[^a-zA-Z0-9\s]/g, '').substring(0, 50)) + '&size=400&background=667eea&color=fff&bold=true';
   const avatarUri = userData.profilePicture ? userData.profilePicture : defaultAvatar;
   
   const stageKey = getStageKey(userData.stage);
@@ -393,7 +442,7 @@ const UserProfile = ({ route, navigation }) => {
   const departmentTranslation = userData.department ? t(`departments.${userData.department}`) : '';
   
   const userProfile = {
-    name: userData.fullName || 'User',
+    name: displayName,
     email: userData.email || '',
     bio: userData.bio || t('profile.defaultBio'),
     gender: userData.gender || '',
@@ -423,7 +472,7 @@ const UserProfile = ({ route, navigation }) => {
         
         {userProfile.university && (
           <>
-            <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)' }]} />
             <View style={styles.infoRow}>
               <Ionicons name="school-outline" size={moderateScale(20)} color={theme.success} />
               <View style={styles.infoTextContainer}>
@@ -436,7 +485,7 @@ const UserProfile = ({ route, navigation }) => {
         
         {userProfile.college && (
           <>
-            <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)' }]} />
             <View style={styles.infoRow}>
               <Ionicons name="library-outline" size={moderateScale(20)} color={theme.warning} />
               <View style={styles.infoTextContainer}>
@@ -449,7 +498,7 @@ const UserProfile = ({ route, navigation }) => {
         
         {userProfile.stage && (
           <>
-            <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)' }]} />
             <View style={styles.infoRow}>
               <Ionicons name="stats-chart-outline" size={moderateScale(20)} color={theme.secondary} />
               <View style={styles.infoTextContainer}>
@@ -462,7 +511,7 @@ const UserProfile = ({ route, navigation }) => {
         
         {userProfile.department && (
           <>
-            <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)' }]} />
             <View style={styles.infoRow}>
               <Ionicons name="briefcase-outline" size={moderateScale(20)} color={theme.primary} />
               <View style={styles.infoTextContainer}>
@@ -551,7 +600,7 @@ const UserProfile = ({ route, navigation }) => {
                 key={post.$id || index}
                 post={{
                   ...post,
-                  userName: userData.fullName,
+                  userName: displayName,
                   userProfilePicture: userData.profilePicture,
                 }}
                 onReply={() => navigation.navigate('PostDetails', { post })}
@@ -573,7 +622,7 @@ const UserProfile = ({ route, navigation }) => {
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       <AnimatedBackground particleCount={35} />
       <LinearGradient colors={isDarkMode ? ['#1a1a2e', '#16213e', '#0f3460'] : ['#e3f2fd', '#bbdefb', '#90caf9']} style={styles.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + spacing.sm }]} showsVerticalScrollIndicator={false}>
           <View style={styles.profileHeader}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
               <GlassContainer borderRadius={borderRadius.round} style={styles.backButtonInner}>
@@ -703,7 +752,7 @@ const UserProfile = ({ route, navigation }) => {
                 onPress={() => navigation.navigate('FollowList', { 
                   userId, 
                   initialTab: 'followers',
-                  userName: userData?.fullName 
+                  userName: displayName
                 })}
               >
                 <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.followers}</Text>
@@ -716,7 +765,7 @@ const UserProfile = ({ route, navigation }) => {
                 onPress={() => navigation.navigate('FollowList', { 
                   userId, 
                   initialTab: 'following',
-                  userName: userData?.fullName 
+                  userName: displayName
                 })}
               >
                 <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.following}</Text>
@@ -753,20 +802,20 @@ const UserProfile = ({ route, navigation }) => {
             </View>
             <View style={styles.qrCodeContainer}>
               <Image
-                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getProfileLink())}` }}
+                source={{ uri: getQrImageUrl() }}
                 style={styles.qrCodeImage}
                 resizeMode="contain"
               />
             </View>
             <Text style={[styles.qrModalName, { color: theme.text }]}>
-              {userData?.fullName || 'User'}
+              {displayName}
             </Text>
             <Text style={[styles.qrModalHint, { color: theme.textSecondary }]}>
               {t('profile.qrHint') || 'Scan this QR code to view this profile'}
             </Text>
             <TouchableOpacity
               style={[styles.shareButton, { backgroundColor: theme.primary }]}
-              onPress={handleShareProfile}>
+              onPress={handleShareQr}>
               <Ionicons name="share-outline" size={moderateScale(18)} color="#FFFFFF" />
               <Text style={styles.shareButtonText}>{t('profile.shareProfile') || 'Share Profile'}</Text>
             </TouchableOpacity>
@@ -809,7 +858,7 @@ const styles = StyleSheet.create({
   },
   gradient: { flex: 1 }, 
   scrollView: { flex: 1 }, 
-  scrollContent: { paddingTop: Platform.OS === 'ios' ? hp(5) : hp(3), paddingBottom: hp(10) }, 
+  scrollContent: { paddingBottom: hp(6) }, 
   profileHeader: { alignItems: 'center', paddingHorizontal: wp(5), marginBottom: spacing.md, position: 'relative' }, 
   backButton: { position: 'absolute', top: spacing.md, left: wp(5), zIndex: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }, 
   backButtonInner: { width: moderateScale(44), height: moderateScale(44), justifyContent: 'center', alignItems: 'center' }, 
@@ -924,8 +973,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     overflow: 'hidden',
   }, 
-  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, paddingVertical: spacing.xs }, 
-  infoDivider: { height: 1, opacity: 0.1, marginVertical: spacing.xs / 2 },
+  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, paddingVertical: spacing.sm }, 
+  infoDivider: { height: 1, marginVertical: spacing.sm, width: '100%', alignSelf: 'stretch', marginHorizontal: -spacing.md },
   infoTextContainer: { flex: 1, flexShrink: 1 }, 
   infoLabel: { fontWeight: '600', marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.3 }, 
   infoValue: { fontWeight: '500', flexWrap: 'wrap' }, 

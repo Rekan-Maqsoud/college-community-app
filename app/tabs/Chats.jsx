@@ -24,7 +24,7 @@ import {
   getAllUserChats,
 } from '../../database/chatHelpers';
 import { getUserById } from '../../database/users';
-import { getUnreadCount, decryptChatPreview } from '../../database/chats';
+import { getUnreadCount, decryptChatPreview, isChatRemovedByUser } from '../../database/chats';
 import { getChatClearedAt } from '../../database/userChatSettings';
 import { chatsCacheManager } from '../utils/cacheManager';
 import { 
@@ -235,19 +235,19 @@ const Chats = ({ navigation }) => {
       setDefaultGroups(chats.defaultGroups || []);
       setCustomGroups(chats.customGroups || []);
 
-      // Filter out private chats where the partner is blocked
+      // Filter out private chats where the partner is blocked or the user has removed the conversation
       const blockedUsers = user?.blockedUsers || [];
       const allPrivateChats = chats.privateChats || [];
-      console.log('[CHATS] blockedUsers:', blockedUsers, 'privateChats count:', allPrivateChats.length);
-      const filteredPrivateChats = Array.isArray(blockedUsers) && blockedUsers.length > 0
-        ? allPrivateChats.filter(c => {
-            const otherUserId = c.otherUser?.$id || c.otherUser?.id || c.participants?.find(id => id !== user?.$id);
-            const isBlocked = blockedUsers.includes(otherUserId);
-            if (isBlocked) console.log('[CHATS] Filtering out private chat with blocked user:', otherUserId);
-            return !isBlocked;
-          })
-        : allPrivateChats;
-      console.log('[CHATS] filteredPrivateChats count:', filteredPrivateChats.length);
+      const filteredPrivateChats = allPrivateChats.filter(c => {
+        // Filter out chats removed by the current user
+        if (isChatRemovedByUser(c, user?.$id)) return false;
+        // Filter out chats where the partner is blocked
+        if (Array.isArray(blockedUsers) && blockedUsers.length > 0) {
+          const otherUserId = c.otherUser?.$id || c.otherUser?.id || c.participants?.find(id => id !== user?.$id);
+          if (blockedUsers.includes(otherUserId)) return false;
+        }
+        return true;
+      });
       setPrivateChats(filteredPrivateChats);
       
       // Load unread counts for all chats
@@ -683,11 +683,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: spacing.sm,
     textAlign: 'center',
+    writingDirection: 'auto',
   },
   emptyMessage: {
     textAlign: 'center',
     lineHeight: fontSize(20),
     paddingHorizontal: wp(5),
+    writingDirection: 'auto',
   },
   emptyActionButton: {
     flexDirection: 'row',
@@ -703,6 +705,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: fontSize(14),
     fontWeight: '600',
+    writingDirection: 'auto',
   },
 });
 

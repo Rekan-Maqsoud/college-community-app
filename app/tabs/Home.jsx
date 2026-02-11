@@ -9,6 +9,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   Animated,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +34,7 @@ import {
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { FEED_TYPES, getDepartmentsInSameMajor } from '../constants/feedCategories';
+import { POST_TYPES } from '../constants/postConstants';
 import { getPosts, getPostsByDepartments, getAllPublicPosts, togglePostLike, deletePost, enrichPostsWithUserData, reportPost, incrementPostViewCount, markQuestionAsResolved, getPost } from '../../database/posts';
 import { notifyPostLike, getUnreadNotificationCount } from '../../database/notifications';
 import { handleNetworkError } from '../utils/networkErrorHandler';
@@ -53,6 +55,7 @@ const Home = ({ navigation, route }) => {
   const [selectedStage, setSelectedStage] = useState('all');
   const [sortBy, setSortBy] = useState(SORT_OPTIONS.NEWEST);
   const [filterType, setFilterType] = useState('all');
+  const [answerStatus, setAnswerStatus] = useState('all');
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -71,6 +74,15 @@ const Home = ({ navigation, route }) => {
   const lastScrollY = useRef(0);
   const lastTapTime = useRef(0);
   const scrollToTopOpacity = useRef(new Animated.Value(0)).current;
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < 375;
+  const isVerySmallScreen = width < 340;
+  const headerHeight = isVerySmallScreen ? moderateScale(36) : isSmallScreen ? moderateScale(38) : moderateScale(44);
+  const actionButtonSize = isVerySmallScreen ? moderateScale(30) : isSmallScreen ? moderateScale(34) : moderateScale(40);
+  const headerIconSize = isVerySmallScreen ? moderateScale(14) : isSmallScreen ? moderateScale(16) : moderateScale(18);
+  const headerTop = insets.top + (isSmallScreen ? spacing.xs : spacing.sm);
+  const listTopPadding = headerHeight + spacing.md;
+  const loadingTopPadding = listTopPadding + spacing.xl;
 
   // Real-time subscription for new/updated posts
   const handleRealtimePostUpdate = useCallback(async (payload) => {
@@ -116,9 +128,9 @@ const Home = ({ navigation, route }) => {
 
   useEffect(() => {
     if (user && user.department) {
-      loadPosts(true);
+      loadPosts(true, { forceNetwork: true });
     }
-  }, [selectedFeed, selectedStage, sortBy, filterType, user]);
+  }, [selectedFeed, selectedStage, sortBy, filterType, answerStatus, user]);
 
   // Load unread notification count
   useEffect(() => {
@@ -147,6 +159,19 @@ const Home = ({ navigation, route }) => {
       // Check if there's a post that needs to be refreshed
       const updatedPostId = route?.params?.updatedPostId;
       const updatedReplyCount = route?.params?.updatedReplyCount;
+      const updatedPost = route?.params?.updatedPost;
+      const paramsToClear = {};
+
+      if (updatedPost?.$id) {
+        setPosts(prevPosts => 
+          prevPosts.map(p => 
+            p.$id === updatedPost.$id 
+              ? { ...p, ...updatedPost }
+              : p
+          )
+        );
+        paramsToClear.updatedPost = undefined;
+      }
       
       if (updatedPostId !== undefined && updatedReplyCount !== undefined) {
         // Update the specific post in the list
@@ -157,8 +182,12 @@ const Home = ({ navigation, route }) => {
               : p
           )
         );
-        // Clear the params
-        navigation.setParams({ updatedPostId: undefined, updatedReplyCount: undefined });
+        paramsToClear.updatedPostId = undefined;
+        paramsToClear.updatedReplyCount = undefined;
+      }
+
+      if (Object.keys(paramsToClear).length > 0) {
+        navigation.setParams(paramsToClear);
       }
     });
     
@@ -263,10 +292,13 @@ const Home = ({ navigation, route }) => {
     }
   );
 
-  const loadPosts = async (reset = false) => {
+  const loadPosts = async (reset = false, options = {}) => {
     if (!user || !user.department) {
       return;
     }
+
+    const { forceNetwork = false } = options;
+    const useCache = !forceNetwork;
 
     const currentPage = reset ? 0 : page;
     const loadingState = reset ? setIsLoadingPosts : setIsLoadingMore;
@@ -278,14 +310,16 @@ const Home = ({ navigation, route }) => {
       const offset = currentPage * POSTS_PER_PAGE;
 
       if (selectedFeed === FEED_TYPES.DEPARTMENT) {
+        const shouldForceQuestion = answerStatus !== 'all' && filterType !== POST_TYPES.QUESTION;
         const filters = {
           department: user.department,
-          postType: filterType,
+          postType: shouldForceQuestion ? POST_TYPES.QUESTION : filterType,
+          answerStatus,
         };
         if (selectedStage !== 'all') {
           filters.stage = selectedStage;
         }
-        fetchedPosts = await getPosts(filters, POSTS_PER_PAGE, offset, true, sortBy);
+        fetchedPosts = await getPosts(filters, POSTS_PER_PAGE, offset, useCache, sortBy);
       } else if (selectedFeed === FEED_TYPES.MAJOR) {
         const relatedDepartments = getDepartmentsInSameMajor(user.department);
         fetchedPosts = await getPostsByDepartments(
@@ -293,12 +327,21 @@ const Home = ({ navigation, route }) => {
           selectedStage,
           POSTS_PER_PAGE,
           offset,
-          true,
+          useCache,
           sortBy,
-          filterType
+          filterType,
+          answerStatus
         );
       } else if (selectedFeed === FEED_TYPES.PUBLIC) {
-        fetchedPosts = await getAllPublicPosts(selectedStage, POSTS_PER_PAGE, offset, true, sortBy, filterType);
+        fetchedPosts = await getAllPublicPosts(
+          selectedStage,
+          POSTS_PER_PAGE,
+          offset,
+          useCache,
+          sortBy,
+          filterType,
+          answerStatus
+        );
       }
 
       // Enrich posts with user data for those missing userName
@@ -306,15 +349,12 @@ const Home = ({ navigation, route }) => {
 
       // Filter out posts from blocked users
       const blockedUsers = user?.blockedUsers || [];
-      console.log('[HOME] blockedUsers:', blockedUsers, 'enrichedPosts count:', enrichedPosts.length);
       const filteredPosts = Array.isArray(blockedUsers) && blockedUsers.length > 0
         ? enrichedPosts.filter(p => {
             const isBlocked = blockedUsers.includes(p.userId);
-            if (isBlocked) console.log('[HOME] Filtering out post by blocked user:', p.userId);
             return !isBlocked;
           })
         : enrichedPosts;
-      console.log('[HOME] filteredPosts count:', filteredPosts.length);
 
       if (reset) {
         setPosts(filteredPosts);
@@ -340,8 +380,8 @@ const Home = ({ navigation, route }) => {
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
-    loadPosts(true);
-  }, [selectedFeed, selectedStage, sortBy, filterType, user]);
+    loadPosts(true, { forceNetwork: true });
+  }, [selectedFeed, selectedStage, sortBy, filterType, answerStatus, user]);
 
   const handleScrollToTop = useCallback(() => {
     flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
@@ -394,6 +434,22 @@ const Home = ({ navigation, route }) => {
   const handleFilterTypeChange = (type) => {
     if (type !== filterType) {
       setFilterType(type);
+      if (type !== POST_TYPES.QUESTION && answerStatus !== 'all') {
+        setAnswerStatus('all');
+      }
+      setPosts([]);
+      setPage(0);
+      setHasMore(true);
+      setIsLoadingPosts(true);
+    }
+  };
+
+  const handleAnswerStatusChange = (status) => {
+    if (status !== answerStatus) {
+      setAnswerStatus(status);
+      if (status !== 'all' && filterType !== POST_TYPES.QUESTION) {
+        setFilterType(POST_TYPES.QUESTION);
+      }
       setPosts([]);
       setPage(0);
       setHasMore(true);
@@ -605,7 +661,7 @@ const Home = ({ navigation, route }) => {
   const renderFeedContent = () => {
     if (isLoadingPosts) {
       return (
-        <View style={[styles.feedContent, { paddingTop: 56 + 80 }]}>
+        <View style={[styles.feedContent, { paddingTop: loadingTopPadding }]}>
           <View style={styles.postContainer}>
             <PostCardSkeleton />
           </View>
@@ -715,7 +771,7 @@ const Home = ({ navigation, route }) => {
           </ReanimatedAnimated.View>
         )}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.postsListContent}
+        contentContainerStyle={[styles.postsListContent, { paddingTop: listTopPadding }]}
         ListHeaderComponent={<GreetingBanner />}
         refreshControl={
           <RefreshControl
@@ -755,17 +811,20 @@ const Home = ({ navigation, route }) => {
 
         <AnimatedBackground particleCount={18} />
 
-        <View style={[styles.content, { paddingTop: insets.top + spacing.sm }]}>
+        <View style={[styles.content, { paddingTop: headerTop }]}>
           <Animated.View
             style={[
               styles.headerRow,
               {
-                top: insets.top + spacing.sm,
+                top: headerTop,
+                height: headerHeight,
+                paddingHorizontal: wp(isVerySmallScreen ? 1 : isSmallScreen ? 2 : 3),
+                gap: isVerySmallScreen ? 2 : isSmallScreen ? spacing.xs * 0.5 : spacing.xs,
                 transform: [{ translateY: headerTranslateY }],
               }
             ]}
           >
-            <View style={styles.searchIconButton}>
+            <View style={[styles.searchIconButton, { width: headerHeight, height: headerHeight }]}>
               <SearchBar
                 ref={searchBarRef}
                 iconOnly={true}
@@ -774,15 +833,16 @@ const Home = ({ navigation, route }) => {
               />
             </View>
 
-            <View style={styles.feedSelectorWrapper}>
+            <View style={[styles.feedSelectorWrapper, { height: headerHeight }]}>
               <FeedSelector
                 selectedFeed={selectedFeed}
                 onFeedChange={handleFeedChange}
+                height={headerHeight}
               />
             </View>
 
             <TouchableOpacity
-              style={styles.sortButton}
+              style={[styles.sortButton, { height: actionButtonSize, width: actionButtonSize }]}
               onPress={() => setShowFilterSortModal(true)}
               activeOpacity={0.7}
             >
@@ -790,11 +850,15 @@ const Home = ({ navigation, route }) => {
                 style={[
                   styles.sortContainer,
                   {
+                    width: actionButtonSize,
+                    height: actionButtonSize,
                     backgroundColor: (sortBy !== SORT_OPTIONS.NEWEST || filterType !== 'all' || selectedStage !== 'all')
+                      || answerStatus !== 'all'
                       ? (isDarkMode ? 'rgba(0, 122, 255, 0.2)' : 'rgba(0, 122, 255, 0.1)')
                       : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.04)'),
                     borderWidth: 0.5,
                     borderColor: (sortBy !== SORT_OPTIONS.NEWEST || filterType !== 'all' || selectedStage !== 'all')
+                      || answerStatus !== 'all'
                       ? theme.primary + '40'
                       : (isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)'),
                   }
@@ -802,14 +866,14 @@ const Home = ({ navigation, route }) => {
               >
                 <Ionicons 
                   name="options-outline" 
-                  size={moderateScale(18)} 
-                  color={(sortBy !== SORT_OPTIONS.NEWEST || filterType !== 'all' || selectedStage !== 'all') ? theme.primary : theme.text} 
+                  size={headerIconSize} 
+                  color={(sortBy !== SORT_OPTIONS.NEWEST || filterType !== 'all' || selectedStage !== 'all') || answerStatus !== 'all' ? theme.primary : theme.text} 
                 />
               </View>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.notificationButton}
+              style={[styles.notificationButton, { height: actionButtonSize, width: actionButtonSize }]}
               onPress={() => navigation.navigate('Notifications')}
               activeOpacity={0.7}
             >
@@ -817,6 +881,8 @@ const Home = ({ navigation, route }) => {
                 style={[
                   styles.notificationContainer,
                   {
+                    width: actionButtonSize,
+                    height: actionButtonSize,
                     backgroundColor: isDarkMode
                       ? 'rgba(255, 255, 255, 0.1)'
                       : 'rgba(0, 0, 0, 0.04)',
@@ -827,7 +893,7 @@ const Home = ({ navigation, route }) => {
                   }
                 ]}
               >
-                <Ionicons name="notifications-outline" size={moderateScale(18)} color={theme.text} />
+                <Ionicons name="notifications-outline" size={headerIconSize} color={theme.text} />
                 {unreadNotifications > 0 && (
                   <View style={styles.notificationBadge}>
                     <Text style={styles.notificationBadgeText}>
@@ -852,6 +918,8 @@ const Home = ({ navigation, route }) => {
         onSortChange={handleSortChange}
         filterType={filterType}
         onFilterTypeChange={handleFilterTypeChange}
+        answerStatus={answerStatus}
+        onAnswerStatusChange={handleAnswerStatusChange}
         selectedStage={selectedStage}
         onStageChange={handleStageChange}
       />
@@ -911,10 +979,7 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: wp(3),
     marginBottom: spacing.sm,
-    gap: spacing.xs,
-    height: 44,
     position: 'absolute',
     top: 0,
     left: 0,
@@ -922,8 +987,8 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   searchIconButton: {
-    width: 44,
-    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   iconContainer: {
     width: '100%',
@@ -933,45 +998,41 @@ const styles = StyleSheet.create({
   },
   feedSelectorWrapper: {
     flex: 1,
-    height: 44,
+    minWidth: wp(42),
   },
   sortButton: {
-    height: 40,
-    width: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sortContainer: {
-    width: 40,
-    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: borderRadius.md,
   },
   notificationButton: {
-    height: 40,
-    width: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   notificationContainer: {
-    width: 40,
-    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: borderRadius.md,
   },
   notificationBadge: {
     position: 'absolute',
-    top: 2,
-    right: 2,
+    top: moderateScale(2),
+    right: moderateScale(2),
     backgroundColor: '#EF4444',
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    borderRadius: moderateScale(10),
+    minWidth: moderateScale(16),
+    height: moderateScale(16),
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: moderateScale(3),
   },
   notificationBadgeText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: fontSize(9),
     fontWeight: '600',
   },
   searchSection: {
@@ -1034,7 +1095,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   postsListContent: {
-    paddingTop: 56,
     paddingBottom: spacing.xl,
   },
   footerLoader: {

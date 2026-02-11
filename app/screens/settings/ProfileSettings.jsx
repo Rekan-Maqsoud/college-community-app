@@ -14,13 +14,14 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import safeStorage from '../../utils/safeStorage';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
 import { borderRadius, shadows } from '../../theme/designTokens';
-import { wp, hp, fontSize as responsiveFontSize, spacing } from '../../utils/responsive';
+import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { uploadProfilePicture } from '../../../services/imgbbService';
-import { syncUserNameInChats } from '../../../database/users';
+import { syncUserNameInChats, syncUserProfilePicture } from '../../../database/users';
 import SearchableDropdownNew from '../../components/SearchableDropdownNew';
 import CustomAlert from '../../components/CustomAlert';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
@@ -48,6 +49,7 @@ const ProfileSettings = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user, updateUser, updateProfilePicture, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const insets = useSafeAreaInsets();
 
   const bioInputRef = useRef(null);
   
@@ -140,7 +142,7 @@ const ProfileSettings = ({ navigation }) => {
           socialLinksVisibility: user.socialLinksVisibility || 'everyone',
         });
       } else {
-        const userData = await AsyncStorage.getItem('userData');
+        const userData = await safeStorage.getItem('userData');
         if (userData) {
           const parsedData = JSON.parse(userData);
           setProfileData({
@@ -194,9 +196,14 @@ const ProfileSettings = ({ navigation }) => {
       if (success) {
         await refreshUser();
 
-        // If the display name changed, sync it across chat messages
-        if (updatedData.name && updatedData.name !== user.name) {
-          syncUserNameInChats(user.$id, updatedData.name).catch(() => {});
+        // If the display name changed, sync it across chat messages and notifications
+        if (updatedData.fullName && updatedData.fullName !== user.fullName) {
+          syncUserNameInChats(user.$id, updatedData.fullName).catch(() => {});
+        }
+
+        // If the profile picture changed, sync it across notifications
+        if (updatedData.profilePicture !== user.profilePicture) {
+          syncUserProfilePicture(user.$id, updatedData.profilePicture).catch(() => {});
         }
 
         setProfileData({
@@ -234,6 +241,8 @@ const ProfileSettings = ({ navigation }) => {
         if (success) {
           setProfileData({ ...profileData, profilePicture: result.displayUrl });
           await refreshUser();
+          // Sync profile picture across notifications
+          syncUserProfilePicture(user.$id, result.displayUrl).catch(() => {});
           showAlert({
             type: 'success',
             title: t('common.success'),
@@ -364,6 +373,16 @@ const ProfileSettings = ({ navigation }) => {
     ];
   }, [t]);
 
+  const socialLinksConfig = useMemo(() => {
+    return [
+      { key: 'instagram', icon: 'logo-instagram', placeholder: '@username', color: '#E4405F' },
+      { key: 'twitter', icon: 'logo-twitter', placeholder: '@username', color: '#1DA1F2' },
+      { key: 'linkedin', icon: 'logo-linkedin', placeholder: 'linkedin.com/in/username', color: '#0A66C2' },
+      { key: 'github', icon: 'logo-github', placeholder: 'github.com/username', color: isDarkMode ? '#FFFFFF' : '#333333' },
+      { key: 'website', icon: 'globe-outline', placeholder: 'https://yourwebsite.com', color: theme.primary },
+    ];
+  }, [isDarkMode, theme.primary]);
+
   const departmentOptions = useMemo(() => {
     if (!profileData.university || !profileData.college) return [];
     const keys = getDepartmentsForCollege(profileData.university, profileData.college);
@@ -405,11 +424,11 @@ const ProfileSettings = ({ navigation }) => {
         style={styles.keyboardView}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
         
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={theme.text} />
+            <Ionicons name="arrow-back" size={moderateScale(22)} color={theme.text} />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
             <Text style={[styles.headerTitle, { color: theme.text }]}>
@@ -437,7 +456,7 @@ const ProfileSettings = ({ navigation }) => {
                 />
               ) : (
                 <View style={[styles.profilePicturePlaceholder, { backgroundColor: isDarkMode ? 'rgba(10, 132, 255, 0.2)' : 'rgba(0, 122, 255, 0.2)' }]}>
-                  <Ionicons name="person" size={60} color={theme.primary} />
+                  <Ionicons name="person" size={moderateScale(50)} color={theme.primary} />
                 </View>
               )}
               
@@ -449,7 +468,7 @@ const ProfileSettings = ({ navigation }) => {
                 {isUploadingImage ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Ionicons name="add" size={24} color="#FFFFFF" />
+                  <Ionicons name="add" size={moderateScale(22)} color="#FFFFFF" />
                 )}
               </TouchableOpacity>
             </View>
@@ -549,36 +568,40 @@ const ProfileSettings = ({ navigation }) => {
                 {t('settings.socialLinks') || 'Social Links'}
               </Text>
 
-              {[
-                { key: 'instagram', icon: 'logo-instagram', placeholder: '@username', color: '#E4405F' },
-                { key: 'twitter', icon: 'logo-twitter', placeholder: '@username', color: '#1DA1F2' },
-                { key: 'linkedin', icon: 'logo-linkedin', placeholder: 'linkedin.com/in/username', color: '#0A66C2' },
-                { key: 'github', icon: 'logo-github', placeholder: 'github.com/username', color: isDarkMode ? '#FFFFFF' : '#333333' },
-                { key: 'website', icon: 'globe-outline', placeholder: 'https://yourwebsite.com', color: theme.primary },
-              ].map(({ key, icon, placeholder, color }) => (
-                <View key={key} style={styles.socialLinkRow}>
-                  <View style={[styles.socialIconContainer, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }]}>
-                    <Ionicons name={icon} size={20} color={color} />
+              {socialLinksConfig.map(({ key, icon, placeholder, color }, index) => (
+                <React.Fragment key={key}>
+                  <View style={styles.socialLinkRow}>
+                    <View style={[styles.socialIconContainer, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }]}>
+                      <Ionicons name={icon} size={moderateScale(18)} color={color} />
+                    </View>
+                    <TextInput
+                      style={[
+                        styles.socialInput,
+                        {
+                          color: theme.text,
+                          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
+                          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+                        },
+                      ]}
+                      value={profileData.socialLinks?.[key] || ''}
+                      onChangeText={(text) => handleSocialLinkChange(key, text)}
+                      editable={true}
+                      placeholder={placeholder}
+                      placeholderTextColor={theme.textSecondary}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      keyboardType={key === 'website' ? 'url' : 'default'}
+                    />
                   </View>
-                  <TextInput
-                    style={[
-                      styles.socialInput,
-                      {
-                        color: theme.text,
-                        backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
-                        borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
-                      },
-                    ]}
-                    value={profileData.socialLinks?.[key] || ''}
-                    onChangeText={(text) => handleSocialLinkChange(key, text)}
-                    editable={true}
-                    placeholder={placeholder}
-                    placeholderTextColor={theme.textSecondary}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType={key === 'website' ? 'url' : 'default'}
-                  />
-                </View>
+                  {index < socialLinksConfig.length - 1 && (
+                    <View
+                      style={[
+                        styles.socialLinkDivider,
+                        { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }
+                      ]}
+                    />
+                  )}
+                </React.Fragment>
               ))}
 
               <View style={styles.inputGroup}>
@@ -605,7 +628,7 @@ const ProfileSettings = ({ navigation }) => {
                   backgroundColor: isDarkMode ? 'rgba(255, 149, 0, 0.15)' : 'rgba(255, 149, 0, 0.1)',
                   borderColor: isDarkMode ? 'rgba(255, 149, 0, 0.3)' : 'rgba(255, 149, 0, 0.2)',
                 }]}>
-                  <Ionicons name="time-outline" size={20} color="#FF9500" />
+                  <Ionicons name="time-outline" size={moderateScale(18)} color="#FF9500" />
                   <View style={styles.cooldownTextContainer}>
                     <Text style={[styles.cooldownTitle, { color: theme.text }]}>
                       {t('settings.academicCooldown')} {cooldownInfo.remainingDays} {cooldownInfo.remainingDays === 1 ? t('settings.dayRemaining') : t('settings.daysRemaining')}
@@ -622,7 +645,7 @@ const ProfileSettings = ({ navigation }) => {
                   backgroundColor: isDarkMode ? 'rgba(52, 199, 89, 0.15)' : 'rgba(52, 199, 89, 0.1)',
                   borderColor: isDarkMode ? 'rgba(52, 199, 89, 0.3)' : 'rgba(52, 199, 89, 0.2)',
                 }]}>
-                  <Ionicons name="checkmark-circle-outline" size={20} color="#34C759" />
+                  <Ionicons name="checkmark-circle-outline" size={moderateScale(18)} color="#34C759" />
                   <View style={styles.cooldownTextContainer}>
                     <Text style={[styles.cooldownTitle, { color: theme.text }]}>
                       {t('settings.canUpdateNow')}
@@ -746,13 +769,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: Platform.OS === 'ios' ? hp(7) : hp(3.5),
     paddingHorizontal: wp(5),
     paddingBottom: spacing.md,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: moderateScale(40),
+    height: moderateScale(40),
     justifyContent: 'center',
   },
   headerTitleContainer: {
@@ -764,13 +786,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   editButton: {
-    width: 40,
-    height: 40,
+    width: moderateScale(40),
+    height: moderateScale(40),
     justifyContent: 'center',
     alignItems: 'flex-end',
   },
   placeholder: {
-    width: 40,
+    width: moderateScale(40),
   },
   scrollView: {
     flex: 1,
@@ -784,21 +806,21 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   profilePictureWrapper: {
-    width: 120,
-    height: 120,
+    width: moderateScale(120),
+    height: moderateScale(120),
     position: 'relative',
   },
   profilePicture: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: moderateScale(120),
+    height: moderateScale(120),
+    borderRadius: moderateScale(60),
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   profilePicturePlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: moderateScale(120),
+    height: moderateScale(120),
+    borderRadius: moderateScale(60),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
@@ -808,9 +830,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -2,
     right: -2,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: moderateScale(38),
+    height: moderateScale(38),
+    borderRadius: moderateScale(19),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
@@ -854,7 +876,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   bioInput: {
-    minHeight: 100,
+    minHeight: moderateScale(100),
     textAlignVertical: 'top',
     paddingTop: spacing.sm,
   },
@@ -936,9 +958,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     gap: spacing.sm,
   },
+  socialLinkDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: moderateScale(44) + spacing.sm,
+    marginBottom: spacing.sm,
+    opacity: 0.3,
+  },
   socialIconContainer: {
-    width: 44,
-    height: 44,
+    width: moderateScale(44),
+    height: moderateScale(44),
     borderRadius: borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
@@ -950,7 +978,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
-    height: 44,
+    height: moderateScale(44),
   },
   bottomPadding: {
     height: hp(5),

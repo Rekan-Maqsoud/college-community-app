@@ -419,6 +419,36 @@ export const blockUser = async (userId, blockedUserId) => {
 };
 
 /**
+ * Block a user in chats only (posts remain visible)
+ */
+export const blockUserChatOnly = async (userId, blockedUserId) => {
+    try {
+        if (!userId || !blockedUserId || userId === blockedUserId) {
+            throw new Error('Invalid chat block request');
+        }
+
+        const user = await getUserById(userId);
+        const chatBlockedUsers = user.chatBlockedUsers || [];
+
+        if (chatBlockedUsers.includes(blockedUserId)) {
+            return { alreadyBlocked: true };
+        }
+
+        const newChatBlockedUsers = [...chatBlockedUsers, blockedUserId];
+
+        await databases.updateDocument(config.databaseId, config.usersCollectionId, userId, {
+            chatBlockedUsers: newChatBlockedUsers,
+        });
+
+        await userCacheManager.invalidateUser(userId);
+
+        return { success: true };
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
  * Unblock a user
  */
 export const unblockUser = async (userId, blockedUserId) => {
@@ -513,7 +543,7 @@ export const syncUserNameInChats = async (userId, newName) => {
             ]
         );
 
-        const updatePromises = recentMessages.documents
+        const msgPromises = recentMessages.documents
             .filter(msg => msg.senderName !== newName)
             .map(msg =>
                 databases.updateDocument(
@@ -524,7 +554,67 @@ export const syncUserNameInChats = async (userId, newName) => {
                 ).catch(() => null)
             );
 
-        await Promise.all(updatePromises);
+        // Update senderName on the user's recent notifications (last 200)
+        const recentNotifications = await databases.listDocuments(
+            dbConfig.databaseId,
+            dbConfig.notificationsCollectionId,
+            [
+                Query.equal('senderId', userId),
+                Query.orderDesc('$createdAt'),
+                Query.limit(200),
+            ]
+        );
+
+        const notifPromises = recentNotifications.documents
+            .filter(n => n.senderName !== newName)
+            .map(n =>
+                databases.updateDocument(
+                    dbConfig.databaseId,
+                    dbConfig.notificationsCollectionId,
+                    n.$id,
+                    { senderName: newName }
+                ).catch(() => null)
+            );
+
+        await Promise.all([...msgPromises, ...notifPromises]);
+    } catch (error) {
+        // Non-critical — silently fail
+    }
+};
+
+/**
+ * Sync user profile picture across notifications where it's stored.
+ * Should be called when a user changes their profile picture.
+ */
+export const syncUserProfilePicture = async (userId, newProfilePicture) => {
+    try {
+        if (!userId) return;
+
+        await userCacheManager.invalidateUser(userId);
+
+        const { config: dbConfig } = require('./config');
+        const recentNotifications = await databases.listDocuments(
+            dbConfig.databaseId,
+            dbConfig.notificationsCollectionId,
+            [
+                Query.equal('senderId', userId),
+                Query.orderDesc('$createdAt'),
+                Query.limit(200),
+            ]
+        );
+
+        const promises = recentNotifications.documents
+            .filter(n => n.senderProfilePicture !== (newProfilePicture || null))
+            .map(n =>
+                databases.updateDocument(
+                    dbConfig.databaseId,
+                    dbConfig.notificationsCollectionId,
+                    n.$id,
+                    { senderProfilePicture: newProfilePicture || null }
+                ).catch(() => null)
+            );
+
+        await Promise.all(promises);
     } catch (error) {
         // Non-critical — silently fail
     }

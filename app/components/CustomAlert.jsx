@@ -204,7 +204,7 @@ const CustomAlert = ({
                         button.style === 'destructive' && {
                           backgroundColor: '#FF3B30',
                         },
-                        (button.style === 'cancel' || button.style === 'default') && {
+                        (!button.style || button.style === 'cancel' || button.style === 'default') && {
                           backgroundColor: isDarkMode
                             ? 'rgba(255, 255, 255, 0.1)'
                             : 'rgba(0, 0, 0, 0.08)',
@@ -219,7 +219,7 @@ const CustomAlert = ({
                             color: '#FFFFFF',
                             fontWeight: '600',
                           },
-                          (button.style === 'cancel' || button.style === 'default') && {
+                          (!button.style || button.style === 'cancel' || button.style === 'default') && {
                             color: theme.text,
                             fontWeight: '500',
                           },

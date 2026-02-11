@@ -16,9 +16,11 @@ import { useAppSettings } from '../../context/AppSettingsContext';
 import CustomAlert from '../../components/CustomAlert';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { borderRadius, shadows } from '../../theme/designTokens';
-import { wp, hp, fontSize as responsiveFontSize, spacing } from '../../utils/responsive';
+import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const PersonalizationSettings = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const {
     t,
     theme,
@@ -133,11 +135,11 @@ const PersonalizationSettings = ({ navigation }) => {
         style={styles.headerGradient}
       />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+          <Ionicons name="arrow-back" size={moderateScale(22)} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>
@@ -173,7 +175,7 @@ const PersonalizationSettings = ({ navigation }) => {
                   ]}>
                     <Ionicons
                       name={option.icon}
-                      size={20}
+                      size={moderateScale(18)}
                       color={themePreference === option.value ? theme.primary : theme.textSecondary}
                     />
                   </View>
@@ -184,7 +186,7 @@ const PersonalizationSettings = ({ navigation }) => {
                     {option.label}
                   </Text>
                   {themePreference === option.value && (
-                    <Ionicons name="checkmark-circle" size={22} color={theme.primary} />
+                    <Ionicons name="checkmark-circle" size={moderateScale(20)} color={theme.primary} />
                   )}
                 </TouchableOpacity>
                 {index < themeOptions.length - 1 && (
@@ -205,7 +207,7 @@ const PersonalizationSettings = ({ navigation }) => {
                     <TouchableOpacity
                       style={[styles.timeButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
                       onPress={() => openTimePicker('start')}>
-                      <Ionicons name="moon-outline" size={18} color={theme.primary} />
+                      <Ionicons name="moon-outline" size={moderateScale(16)} color={theme.primary} />
                       <Text style={[styles.timeText, { color: theme.text }]}>{darkModeSchedule.startTime}</Text>
                     </TouchableOpacity>
                   </View>
@@ -216,7 +218,7 @@ const PersonalizationSettings = ({ navigation }) => {
                     <TouchableOpacity
                       style={[styles.timeButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
                       onPress={() => openTimePicker('end')}>
-                      <Ionicons name="sunny-outline" size={18} color={theme.primary} />
+                      <Ionicons name="sunny-outline" size={moderateScale(16)} color={theme.primary} />
                       <Text style={[styles.timeText, { color: theme.text }]}>{darkModeSchedule.endTime}</Text>
                     </TouchableOpacity>
                   </View>
@@ -260,7 +262,7 @@ const PersonalizationSettings = ({ navigation }) => {
                   activeOpacity={0.7}
                 >
                   {(accentColor === item.color || (!accentColor && !item.color)) && (
-                    <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                    <Ionicons name="checkmark" size={moderateScale(18)} color="#FFFFFF" />
                   )}
                 </TouchableOpacity>
               ))}
@@ -291,7 +293,7 @@ const PersonalizationSettings = ({ navigation }) => {
                     </Text>
                   </View>
                   {currentLanguage === lang.code && (
-                    <Ionicons name="checkmark-circle" size={22} color={theme.primary} />
+                    <Ionicons name="checkmark-circle" size={moderateScale(20)} color={theme.primary} />
                   )}
                 </TouchableOpacity>
                 {index < languages.length - 1 && (
@@ -336,7 +338,7 @@ const PersonalizationSettings = ({ navigation }) => {
                     {option.label}
                   </Text>
                   {fontScale === option.value && (
-                    <Ionicons name="checkmark-circle" size={22} color={theme.primary} />
+                    <Ionicons name="checkmark-circle" size={moderateScale(20)} color={theme.primary} />
                   )}
                 </TouchableOpacity>
                 {index < fontSizeOptions.length - 1 && (
@@ -370,7 +372,7 @@ const PersonalizationSettings = ({ navigation }) => {
               ]}>
                 <Ionicons 
                   name="flash-off-outline" 
-                  size={20} 
+                  size={moderateScale(18)} 
                   color={reduceMotion ? theme.primary : theme.textSecondary} 
                 />
               </View>
@@ -413,7 +415,7 @@ const PersonalizationSettings = ({ navigation }) => {
               ]}>
                 <Ionicons 
                   name="radio-button-on-outline" 
-                  size={20} 
+                  size={moderateScale(18)} 
                   color={hapticEnabled ? theme.primary : theme.textSecondary} 
                 />
               </View>
@@ -456,7 +458,7 @@ const PersonalizationSettings = ({ navigation }) => {
               ]}>
                 <Ionicons 
                   name="grid-outline" 
-                  size={20} 
+                  size={moderateScale(18)} 
                   color={compactMode ? theme.primary : theme.textSecondary} 
                 />
               </View>
@@ -499,7 +501,7 @@ const PersonalizationSettings = ({ navigation }) => {
               ]}>
                 <Ionicons 
                   name="leaf-outline" 
-                  size={20} 
+                  size={moderateScale(18)} 
                   color={dataSaverMode ? theme.primary : theme.textSecondary} 
                 />
               </View>
@@ -549,7 +551,7 @@ const PersonalizationSettings = ({ navigation }) => {
               ]}>
                 <Ionicons 
                   name="eye-outline" 
-                  size={20} 
+                  size={moderateScale(18)} 
                   color={showActivityStatus ? theme.primary : theme.textSecondary} 
                 />
               </View>
@@ -667,13 +669,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: Platform.OS === 'ios' ? hp(6) : hp(2),
     paddingHorizontal: wp(5),
     paddingBottom: spacing.md,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: moderateScale(40),
+    height: moderateScale(40),
     justifyContent: 'center',
   },
   headerTitleContainer: {
@@ -685,7 +686,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   placeholder: {
-    width: 40,
+    width: moderateScale(40),
   },
   scrollView: {
     flex: 1,
@@ -719,8 +720,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   iconContainer: {
-    width: 36,
-    height: 36,
+    width: moderateScale(36),
+    height: moderateScale(36),
     borderRadius: borderRadius.sm,
     justifyContent: 'center',
     alignItems: 'center',
@@ -744,8 +745,9 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize(13),
   },
   divider: {
-    height: 1,
-    marginLeft: spacing.md + 36 + spacing.md,
+    height: StyleSheet.hairlineWidth,
+    marginLeft: spacing.md + moderateScale(36) + spacing.md,
+    opacity: 0.3,
   },
   sectionNote: {
     fontSize: responsiveFontSize(12),
@@ -760,16 +762,16 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   toggle: {
-    width: 50,
-    height: 30,
-    borderRadius: 15,
-    padding: 3,
+    width: moderateScale(50),
+    height: moderateScale(30),
+    borderRadius: moderateScale(15),
+    padding: moderateScale(3),
     justifyContent: 'center',
   },
   toggleKnob: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: moderateScale(24),
+    height: moderateScale(24),
+    borderRadius: moderateScale(12),
   },
   scheduleRow: {
     flexDirection: 'row',
@@ -807,7 +809,7 @@ const styles = StyleSheet.create({
   },
   timePickerModal: {
     width: '80%',
-    maxWidth: 300,
+    maxWidth: wp(80),
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     alignItems: 'center',
@@ -856,9 +858,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   colorOption: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(22),
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',

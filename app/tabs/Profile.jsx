@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar, ActivityIndicator, Platform, FlatList, RefreshControl, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar, ActivityIndicator, Platform, FlatList, RefreshControl, Linking, Share, Modal } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
@@ -24,6 +26,48 @@ const Profile = ({ navigation, route }) => {
   const [postsError, setPostsError] = useState(null);
   const [postsLoaded, setPostsLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+
+  const getProfileLink = () => {
+    return `collegecommunity://profile/${user?.$id}`;
+  };
+
+  const getQrImageUrl = () => {
+    return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(getProfileLink())}`;
+  };
+
+  const handleShareProfile = async () => {
+    try {
+      const profileLink = getProfileLink();
+      await Share.share({
+        message: t('profile.shareMessage').replace('{name}', user?.fullName || t('common.user')) + '\n' + profileLink,
+        title: t('profile.shareProfile'),
+      });
+    } catch (error) {
+      // Share cancelled or failed
+    }
+  };
+
+  const handleShareQr = async () => {
+    try {
+      const qrUrl = getQrImageUrl();
+      const fileUri = `${FileSystem.cacheDirectory}profile-qr-${user?.$id || 'user'}.png`;
+      await FileSystem.downloadAsync(qrUrl, fileUri);
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'image/png',
+          dialogTitle: t('profile.shareProfile'),
+        });
+        return;
+      }
+    } catch (error) {
+      // Fall through to link sharing
+    }
+
+    handleShareProfile();
+  };
 
   const loadUserPosts = useCallback(async () => {
     if (!user?.$id) return;
@@ -55,7 +99,20 @@ const Profile = ({ navigation, route }) => {
       // Check if there's a post that needs to be refreshed
       const updatedPostId = route?.params?.updatedPostId;
       const updatedReplyCount = route?.params?.updatedReplyCount;
+      const updatedPost = route?.params?.updatedPost;
+      const paramsToClear = {};
       
+      if (updatedPost?.$id) {
+        setUserPosts(prevPosts => 
+          prevPosts.map(p => 
+            p.$id === updatedPost.$id 
+              ? { ...p, ...updatedPost }
+              : p
+          )
+        );
+        paramsToClear.updatedPost = undefined;
+      }
+
       if (updatedPostId !== undefined && updatedReplyCount !== undefined) {
         // Update the specific post in the list
         setUserPosts(prevPosts => 
@@ -65,8 +122,12 @@ const Profile = ({ navigation, route }) => {
               : p
           )
         );
-        // Clear the params
-        navigation.setParams({ updatedPostId: undefined, updatedReplyCount: undefined });
+        paramsToClear.updatedPostId = undefined;
+        paramsToClear.updatedReplyCount = undefined;
+      }
+
+      if (Object.keys(paramsToClear).length > 0) {
+        navigation.setParams(paramsToClear);
       } else {
         setPostsLoaded(false);
       }
@@ -307,7 +368,7 @@ const Profile = ({ navigation, route }) => {
         
         {userProfile.university && (
           <>
-            <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)' }]} />
             <View style={styles.infoRow}>
               <Ionicons name="school-outline" size={moderateScale(20)} color={theme.success} />
               <View style={styles.infoTextContainer}>
@@ -320,7 +381,7 @@ const Profile = ({ navigation, route }) => {
         
         {userProfile.college && (
           <>
-            <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)' }]} />
             <View style={styles.infoRow}>
               <Ionicons name="library-outline" size={moderateScale(20)} color={theme.warning} />
               <View style={styles.infoTextContainer}>
@@ -333,7 +394,7 @@ const Profile = ({ navigation, route }) => {
         
         {userProfile.stage && (
           <>
-            <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)' }]} />
             <View style={styles.infoRow}>
               <Ionicons name="stats-chart-outline" size={moderateScale(20)} color={theme.secondary} />
               <View style={styles.infoTextContainer}>
@@ -346,7 +407,7 @@ const Profile = ({ navigation, route }) => {
         
         {userProfile.department && (
           <>
-            <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)' }]} />
             <View style={styles.infoRow}>
               <Ionicons name="briefcase-outline" size={moderateScale(20)} color={theme.primary} />
               <View style={styles.infoTextContainer}>
@@ -359,7 +420,7 @@ const Profile = ({ navigation, route }) => {
         
         {user.$createdAt && (
           <>
-            <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)' }]} />
             <View style={styles.infoRow}>
               <Ionicons name="calendar-outline" size={moderateScale(20)} color={theme.textSecondary} />
               <View style={styles.infoTextContainer}>
@@ -523,18 +584,44 @@ const Profile = ({ navigation, route }) => {
           }
         >
           <View style={styles.profileHeader}>
-            <TouchableOpacity 
-              style={[
-                styles.settingsButton,
-                {
-                  backgroundColor: cardBackground,
-                  borderRadius: borderRadius.round,
-                }
-              ]} 
-              onPress={() => navigation.navigate('Settings')} 
-              activeOpacity={0.7}>
-              <Ionicons name="settings-outline" size={moderateScale(24)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
-            </TouchableOpacity>
+            <View style={styles.headerRightActions}>
+              <TouchableOpacity 
+                style={[
+                  styles.headerActionButton,
+                  {
+                    backgroundColor: cardBackground,
+                    borderRadius: borderRadius.round,
+                  }
+                ]} 
+                onPress={handleShareProfile} 
+                activeOpacity={0.7}>
+                <Ionicons name="share-outline" size={moderateScale(22)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  styles.headerActionButton,
+                  {
+                    backgroundColor: cardBackground,
+                    borderRadius: borderRadius.round,
+                  }
+                ]} 
+                onPress={() => setShowQRModal(true)} 
+                activeOpacity={0.7}>
+                <Ionicons name="qr-code-outline" size={moderateScale(22)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  styles.headerActionButton,
+                  {
+                    backgroundColor: cardBackground,
+                    borderRadius: borderRadius.round,
+                  }
+                ]} 
+                onPress={() => navigation.navigate('Settings')} 
+                activeOpacity={0.7}>
+                <Ionicons name="settings-outline" size={moderateScale(22)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
+              </TouchableOpacity>
+            </View>
             <View style={styles.avatarContainer}>
               <LinearGradient colors={theme.gradient} style={styles.avatarBorder} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                 <View style={[styles.avatarInner, { backgroundColor: theme.background }]}>
@@ -587,6 +674,47 @@ const Profile = ({ navigation, route }) => {
           </View>
         </ScrollView>
       </LinearGradient>
+      {/* QR Code Modal */}
+      <Modal
+        visible={showQRModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowQRModal(false)}>
+        <TouchableOpacity
+          style={styles.qrModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowQRModal(false)}>
+          <View style={[styles.qrModalContent, { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' }]}>
+            <View style={styles.qrModalHeader}>
+              <Text style={[styles.qrModalTitle, { color: theme.text }]}>
+                {t('profile.scanToConnect')}
+              </Text>
+              <TouchableOpacity onPress={() => setShowQRModal(false)}>
+                <Ionicons name="close" size={moderateScale(24)} color={theme.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.qrCodeContainer}>
+              <Image
+                source={{ uri: getQrImageUrl() }}
+                style={styles.qrCodeImage}
+                resizeMode="contain"
+              />
+            </View>
+            <Text style={[styles.qrModalName, { color: theme.text }]}>
+              {user?.fullName || t('common.user')}
+            </Text>
+            <Text style={[styles.qrModalHint, { color: theme.textSecondary }]}>
+              {t('profile.qrHint')}
+            </Text>
+            <TouchableOpacity
+              style={[styles.shareButton, { backgroundColor: theme.primary }]}
+              onPress={handleShareQr}>
+              <Ionicons name="share-outline" size={moderateScale(18)} color="#FFFFFF" />
+              <Text style={styles.shareButtonText}>{t('profile.shareProfile')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
       <CustomAlert
         visible={alertConfig.visible}
         type={alertConfig.type}
@@ -655,10 +783,11 @@ const styles = StyleSheet.create({
   },
   gradient: { flex: 1 }, 
   scrollView: { flex: 1 }, 
-  scrollContent: { paddingBottom: hp(10) }, 
+  scrollContent: { paddingBottom: hp(6) }, 
   profileHeader: { alignItems: 'center', paddingHorizontal: wp(5), marginBottom: spacing.md, position: 'relative' }, 
-  settingsButton: { position: 'absolute', top: spacing.md, right: wp(5), zIndex: 10, width: moderateScale(44), height: moderateScale(44), justifyContent: 'center', alignItems: 'center' }, 
-  avatarContainer: { marginBottom: spacing.sm }, 
+  headerRightActions: { position: 'absolute', top: spacing.md, right: wp(5), zIndex: 10, flexDirection: 'row', gap: spacing.xs },
+  headerActionButton: { width: moderateScale(40), height: moderateScale(40), justifyContent: 'center', alignItems: 'center' }, 
+  avatarContainer: { marginBottom: spacing.sm, marginTop: moderateScale(50) }, 
   avatarBorder: { width: moderateScale(110), height: moderateScale(110), borderRadius: moderateScale(55), padding: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 4 }, 
   avatarInner: { width: moderateScale(104), height: moderateScale(104), borderRadius: moderateScale(52), padding: 3 }, 
   avatar: { width: moderateScale(98), height: moderateScale(98), borderRadius: moderateScale(49) }, 
@@ -689,8 +818,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     overflow: 'hidden',
   }, 
-  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, paddingVertical: spacing.xs }, 
-  infoDivider: { height: 1, opacity: 0.1, marginVertical: spacing.xs / 2 },
+  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, paddingVertical: spacing.sm }, 
+  infoDivider: { height: 1, marginVertical: spacing.sm, width: '100%', alignSelf: 'stretch', marginHorizontal: -spacing.md },
   infoTextContainer: { flex: 1, flexShrink: 1 }, 
   infoLabel: { fontWeight: '600', marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.3 }, 
   infoValue: { fontWeight: '500', flexWrap: 'wrap' }, 
@@ -711,6 +840,64 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  qrModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  qrModalContent: {
+    width: '85%',
+    maxWidth: 320,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    alignItems: 'center',
+  },
+  qrModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: spacing.md,
+  },
+  qrModalTitle: {
+    fontSize: fontSize(18),
+    fontWeight: '700',
+  },
+  qrCodeContainer: {
+    padding: spacing.md,
+    backgroundColor: '#FFFFFF',
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.md,
+  },
+  qrCodeImage: {
+    width: moderateScale(200),
+    height: moderateScale(200),
+  },
+  qrModalName: {
+    fontSize: fontSize(16),
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  qrModalHint: {
+    fontSize: fontSize(12),
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.lg,
+    gap: spacing.xs,
+  },
+  shareButtonText: {
+    color: '#FFFFFF',
+    fontSize: fontSize(14),
+    fontWeight: '600',
   },
 });
 

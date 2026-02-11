@@ -10,7 +10,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import safeStorage from '../utils/safeStorage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '../hooks/useTranslation';
@@ -27,8 +27,6 @@ import {
   isExtendedStageDepartment,
   VALIDATION_RULES,
   MAX_IMAGES_PER_POST,
-  POST_COLORS,
-  POST_ICONS,
 } from '../constants/postConstants';
 import { uploadImage } from '../../services/imgbbService';
 import { createPost } from '../../database/posts';
@@ -96,11 +94,31 @@ const CreatePost = ({ navigation, route }) => {
 
   const stageOptions = getStageOptionsForDepartment(department);
 
+  const visibilityOptions = ['department', 'major', 'public'];
+
+  const cycleVisibility = () => {
+    const currentIndex = visibilityOptions.indexOf(visibility);
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % visibilityOptions.length;
+    setVisibility(visibilityOptions[nextIndex]);
+  };
+
+  const getVisibilityLabel = () => {
+    if (visibility === 'major') return t('post.majorOnly');
+    if (visibility === 'public') return t('post.publicPost');
+    return t('post.departmentOnly');
+  };
+
+  const getVisibilityHelper = () => {
+    if (visibility === 'major') return t('post.majorOnlyHelper');
+    if (visibility === 'public') return t('post.publicPostHelper');
+    return t('post.departmentOnlyHelper');
+  };
+
   // Load draft on mount
   useEffect(() => {
     const loadDraft = async () => {
       try {
-        const savedDraft = await AsyncStorage.getItem(DRAFT_STORAGE_KEY);
+        const savedDraft = await safeStorage.getItem(DRAFT_STORAGE_KEY);
         if (savedDraft) {
           const draft = JSON.parse(savedDraft);
           if (draft.topic) setTopic(draft.topic);
@@ -133,14 +151,14 @@ const CreatePost = ({ navigation, route }) => {
       if (hasContent) {
         try {
           const draft = { topic, text, postType, tags, links, visibility, savedAt: Date.now() };
-          await AsyncStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+          await safeStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
         } catch (error) {
           // Failed to save draft
         }
       } else {
         // Clear draft if no content
         try {
-          await AsyncStorage.removeItem(DRAFT_STORAGE_KEY);
+          await safeStorage.removeItem(DRAFT_STORAGE_KEY);
         } catch (error) {
           // Failed to clear draft
         }
@@ -157,7 +175,7 @@ const CreatePost = ({ navigation, route }) => {
   // Clear draft after successful post
   const clearDraft = async () => {
     try {
-      await AsyncStorage.removeItem(DRAFT_STORAGE_KEY);
+      await safeStorage.removeItem(DRAFT_STORAGE_KEY);
     } catch (error) {
       // Failed to clear draft
     }
@@ -328,45 +346,6 @@ const CreatePost = ({ navigation, route }) => {
     }
   };
 
-  const renderPostTypeSelector = () => (
-    <View style={styles.section}>
-      <Text style={styles.sectionLabel}>{t('post.postType')}</Text>
-      <View style={styles.postTypeGrid}>
-        {POST_TYPE_OPTIONS.map((option) => {
-          const isSelected = postType === option.value;
-          return (
-            <TouchableOpacity
-              key={option.value}
-              style={[
-                styles.postTypeButton,
-                isSelected && {
-                  backgroundColor: POST_COLORS[option.value],
-                  borderColor: POST_COLORS[option.value],
-                },
-              ]}
-              onPress={() => setPostType(option.value)}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={POST_ICONS[option.value]}
-                size={24}
-                color={isSelected ? '#fff' : '#6B7280'}
-              />
-              <Text
-                style={[
-                  styles.postTypeText,
-                  isSelected && styles.postTypeTextSelected,
-                ]}
-              >
-                {t(option.labelKey)}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </View>
-  );
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -400,7 +379,17 @@ const CreatePost = ({ navigation, route }) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {renderPostTypeSelector()}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>{t('post.postType')}</Text>
+            <SearchableDropdownNew
+              items={POST_TYPE_OPTIONS}
+              value={postType}
+              onSelect={setPostType}
+              placeholder={t('post.postType')}
+              icon="list-outline"
+              disabled={loading}
+            />
+          </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>
@@ -468,87 +457,17 @@ const CreatePost = ({ navigation, route }) => {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
-              {t('post.visibility')} *
-            </Text>
-            <View style={styles.visibilityContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.visibilityButton,
-                  visibility === 'department' && styles.visibilityButtonSelected,
-                ]}
-                onPress={() => setVisibility('department')}
-                disabled={loading}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="people"
-                  size={20}
-                  color={visibility === 'department' ? '#fff' : '#6B7280'}
-                />
-                <Text
-                  style={[
-                    styles.visibilityText,
-                    visibility === 'department' && styles.visibilityTextSelected,
-                  ]}
-                >
-                  {t('post.departmentOnly')}
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[
-                  styles.visibilityButton,
-                  visibility === 'major' && styles.visibilityButtonSelected,
-                ]}
-                onPress={() => setVisibility('major')}
-                disabled={loading}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="school"
-                  size={20}
-                  color={visibility === 'major' ? '#fff' : '#6B7280'}
-                />
-                <Text
-                  style={[
-                    styles.visibilityText,
-                    visibility === 'major' && styles.visibilityTextSelected,
-                  ]}
-                >
-                  {t('post.majorOnly')}
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[
-                  styles.visibilityButton,
-                  visibility === 'public' && styles.visibilityButtonSelected,
-                ]}
-                onPress={() => setVisibility('public')}
-                disabled={loading}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="globe"
-                  size={20}
-                  color={visibility === 'public' ? '#fff' : '#6B7280'}
-                />
-                <Text
-                  style={[
-                    styles.visibilityText,
-                    visibility === 'public' && styles.visibilityTextSelected,
-                  ]}
-                >
-                  {t('post.publicPost')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.helperText}>
-              {visibility === 'department' && t('post.departmentOnlyHelper')}
-              {visibility === 'major' && t('post.majorOnlyHelper')}
-              {visibility === 'public' && t('post.publicPostHelper')}
-            </Text>
+            <Text style={styles.sectionLabel}>{t('post.visibility')}</Text>
+            <TouchableOpacity
+              style={styles.visibilityToggle}
+              onPress={cycleVisibility}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="eye-outline" size={18} color="#2563eb" />
+              <Text style={styles.visibilityToggleText}>{getVisibilityLabel()}</Text>
+            </TouchableOpacity>
+            <Text style={styles.helperText}>{getVisibilityHelper()}</Text>
           </View>
 
           <View style={styles.section}>
@@ -834,6 +753,22 @@ const styles = StyleSheet.create({
   visibilityTextSelected: {
     color: '#fff',
     fontWeight: '600',
+  },
+  visibilityToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+  },
+  visibilityToggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0f172a',
   },
   chipsInputContainer: {
     flexDirection: 'row',

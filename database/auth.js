@@ -1,6 +1,6 @@
 import { account, databases, config } from './config';
 import { ID, Permission, Role, Query, OAuthProvider } from 'appwrite';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import safeStorage from '../app/utils/safeStorage';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { userCacheManager } from '../app/utils/cacheManager';
@@ -154,7 +154,7 @@ export const initiateSignup = async (email, password, name, additionalData = {})
             otpUserId: tokenResponse.userId
         };
         
-        await AsyncStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingData));
+        await safeStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingData));
         
         return {
             userId,
@@ -169,7 +169,7 @@ export const initiateSignup = async (email, password, name, additionalData = {})
 
 export const checkAndCompleteVerification = async () => {
     try {
-        const storedData = await AsyncStorage.getItem(PENDING_VERIFICATION_KEY);
+        const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
         
         if (!storedData) {
             throw new Error('No pending verification found');
@@ -180,7 +180,7 @@ export const checkAndCompleteVerification = async () => {
         // Check if user document already exists
         try {
             await getUserDocument(pendingData.userId);
-            await AsyncStorage.removeItem(PENDING_VERIFICATION_KEY);
+            await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
             return true;
         } catch (error) {
             // User document not found, need to create one
@@ -193,7 +193,7 @@ export const checkAndCompleteVerification = async () => {
             pendingData.additionalData
         );
         
-        await AsyncStorage.removeItem(PENDING_VERIFICATION_KEY);
+        await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
         
         return true;
     } catch (error) {
@@ -204,7 +204,7 @@ export const checkAndCompleteVerification = async () => {
 // Verify OTP code entered by user
 export const verifyOTPCode = async (otpCode) => {
     try {
-        const storedData = await AsyncStorage.getItem(PENDING_VERIFICATION_KEY);
+        const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
         
         if (!storedData) {
             throw new Error('No pending verification found');
@@ -240,7 +240,7 @@ export const verifyOTPCode = async (otpCode) => {
         }
         
         // Clean up storage
-        await AsyncStorage.removeItem(PENDING_VERIFICATION_KEY);
+        await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
         
         return true;
     } catch (error) {
@@ -256,7 +256,7 @@ export const verifyOTPCode = async (otpCode) => {
 // Resend OTP verification email
 export const resendVerificationEmail = async () => {
     try {
-        const storedData = await AsyncStorage.getItem(PENDING_VERIFICATION_KEY);
+        const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
         
         if (!storedData) {
             throw new Error('No pending verification found');
@@ -270,7 +270,7 @@ export const resendVerificationEmail = async () => {
         // Update expiration time and token data
         pendingData.expiresAt = Date.now() + VERIFICATION_TIMEOUT;
         pendingData.otpUserId = tokenResponse.userId;
-        await AsyncStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingData));
+        await safeStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingData));
         
         return true;
     } catch (error) {
@@ -397,7 +397,7 @@ export const storePendingOAuthSignup = async (data) => {
             timestamp: Date.now(),
             isOAuth: true
         };
-        await AsyncStorage.setItem(PENDING_OAUTH_KEY, JSON.stringify(pendingData));
+        await safeStorage.setItem(PENDING_OAUTH_KEY, JSON.stringify(pendingData));
         return true;
     } catch (error) {
         throw error;
@@ -407,7 +407,7 @@ export const storePendingOAuthSignup = async (data) => {
 // Get pending OAuth signup data
 export const getPendingOAuthSignup = async () => {
     try {
-        const data = await AsyncStorage.getItem(PENDING_OAUTH_KEY);
+        const data = await safeStorage.getItem(PENDING_OAUTH_KEY);
         if (!data) return null;
         return JSON.parse(data);
     } catch (error) {
@@ -418,7 +418,7 @@ export const getPendingOAuthSignup = async () => {
 // Clear pending OAuth signup data
 export const clearPendingOAuthSignup = async () => {
     try {
-        await AsyncStorage.removeItem(PENDING_OAUTH_KEY);
+        await safeStorage.removeItem(PENDING_OAUTH_KEY);
     } catch (error) {
         // Ignore errors
     }
@@ -466,7 +466,7 @@ export const completeOAuthSignup = async (userId, email, name, additionalData = 
 export const cancelPendingVerification = async () => {
     try {
         // Get pending data to know if we need cleanup
-        const storedData = await AsyncStorage.getItem(PENDING_VERIFICATION_KEY);
+        const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
         
         try {
             // Delete the current session
@@ -476,19 +476,19 @@ export const cancelPendingVerification = async () => {
         }
         
         // Remove pending verification data
-        await AsyncStorage.removeItem(PENDING_VERIFICATION_KEY);
+        await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
         
         return true;
     } catch (error) {
         // Even if there's an error, try to clean up storage
-        await AsyncStorage.removeItem(PENDING_VERIFICATION_KEY);
+        await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
         throw error;
     }
 };
 
 export const checkExpiredVerification = async () => {
     try {
-        const storedData = await AsyncStorage.getItem(PENDING_VERIFICATION_KEY);
+        const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
         
         if (!storedData) {
             return { expired: false, hasPending: false };
@@ -505,7 +505,7 @@ export const checkExpiredVerification = async () => {
                 // Session might already be deleted
             }
             
-            await AsyncStorage.removeItem(PENDING_VERIFICATION_KEY);
+            await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
             
             return { expired: true, hasPending: false };
         }
@@ -524,7 +524,7 @@ export const checkExpiredVerification = async () => {
 
 export const getPendingVerificationData = async () => {
     try {
-        const storedData = await AsyncStorage.getItem(PENDING_VERIFICATION_KEY);
+        const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
         
         if (!storedData) {
             return null;
@@ -912,7 +912,7 @@ export const sendPasswordResetOTP = async (email) => {
                 expiresAt: Date.now() + PASSWORD_RESET_TIMEOUT,
             };
             
-            await AsyncStorage.setItem(PENDING_PASSWORD_RESET_KEY, JSON.stringify(pendingData));
+            await safeStorage.setItem(PENDING_PASSWORD_RESET_KEY, JSON.stringify(pendingData));
             
             return {
                 success: true,
@@ -952,7 +952,7 @@ export const completePasswordReset = async (userId, secret, newPassword) => {
         await account.updateRecovery(userId, secret, newPassword);
         
         // Clean up stored data
-        await AsyncStorage.removeItem(PENDING_PASSWORD_RESET_KEY);
+        await safeStorage.removeItem(PENDING_PASSWORD_RESET_KEY);
         
         return {
             success: true,
@@ -981,7 +981,7 @@ export const resendPasswordResetOTP = async (email) => {
 // Clear pending password reset data
 export const clearPendingPasswordReset = async () => {
     try {
-        await AsyncStorage.removeItem(PENDING_PASSWORD_RESET_KEY);
+        await safeStorage.removeItem(PENDING_PASSWORD_RESET_KEY);
     } catch (error) {
         // Ignore errors
     }

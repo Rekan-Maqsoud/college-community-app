@@ -15,8 +15,10 @@ import {
   markAllMessagesAsRead,
   clearChatMessages,
   decryptMessageForChat,
+  toggleMessageReaction,
+  deleteChat,
 } from '../../../database/chats';
-import { getUserById, blockUser, getFriends } from '../../../database/users';
+import { getUserById, blockUser, blockUserChatOnly, getFriends } from '../../../database/users';
 import { 
   muteChat, 
   unmuteChat, 
@@ -29,6 +31,9 @@ import {
   getChatClearedAt,
   hideMessagesForUser,
   getHiddenMessageIds,
+  getReactionDefaults,
+  updateReactionDefaults,
+  DEFAULT_REACTION_SET,
 } from '../../../database/userChatSettings';
 import { useChatMessages } from '../../hooks/useRealtimeSubscription';
 import { messagesCacheManager } from '../../utils/cacheManager';
@@ -73,6 +78,8 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState([]);
   const [isBlockedByOtherUser, setIsBlockedByOtherUser] = useState(false);
+  const [isChatBlockedByOtherUser, setIsChatBlockedByOtherUser] = useState(false);
+  const [reactionDefaults, setReactionDefaultsState] = useState(DEFAULT_REACTION_SET);
   
   const flatListRef = useRef(null);
   const pollingInterval = useRef(null);
@@ -241,13 +248,14 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
 
   const loadChatSettings = async () => {
     try {
-      const [status, pinPermission, mentionPermission, bookmarks, chatClearedAt, hidden] = await Promise.all([
+      const [status, pinPermission, mentionPermission, bookmarks, chatClearedAt, hidden, defaults] = await Promise.all([
         getMuteStatus(user.$id, chat.$id),
         canUserPinMessage(chat.$id, user.$id),
         canUserMentionEveryone(chat.$id, user.$id),
         getBookmarkedMessages(user.$id, chat.$id),
         getChatClearedAt(user.$id, chat.$id),
         getHiddenMessageIds(user.$id, chat.$id),
+        getReactionDefaults(user.$id, chat.$id),
       ]);
       setMuteStatus(status);
       setCanPin(pinPermission);
@@ -255,10 +263,79 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       setBookmarkedMsgIds(bookmarks);
       setClearedAtState(chatClearedAt);
       setHiddenMessageIds(hidden);
+      setReactionDefaultsState(defaults || DEFAULT_REACTION_SET);
     } catch (error) {
       // Silently fail
     }
   };
+
+  const parseReactions = (value) => {
+    if (!value) return {};
+    if (typeof value === 'object' && !Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return typeof parsed === 'object' && parsed ? parsed : {};
+      } catch (error) {
+        return {};
+      }
+    }
+    return {};
+  };
+
+  const applyReactionUpdate = (message, emoji, userId) => {
+    const reactions = parseReactions(message.reactions);
+    const current = Array.isArray(reactions[emoji]) ? reactions[emoji] : [];
+    const hasReacted = current.includes(userId);
+
+    const nextReactions = Object.entries(reactions).reduce((acc, [key, users]) => {
+      const filtered = Array.isArray(users) ? users.filter(id => id !== userId) : [];
+      if (filtered.length > 0) {
+        acc[key] = filtered;
+      }
+      return acc;
+    }, {});
+
+    if (!hasReacted) {
+      nextReactions[emoji] = [...(nextReactions[emoji] || []), userId];
+    }
+
+    return {
+      ...message,
+      reactions: JSON.stringify(nextReactions),
+    };
+  };
+
+  const handleToggleReaction = useCallback(async (message, emoji) => {
+    if (!message?.$id || !emoji || !user?.$id) {
+      return;
+    }
+
+    setMessages(prev => prev.map(m => (m.$id === message.$id ? applyReactionUpdate(m, emoji, user.$id) : m)));
+
+    try {
+      const updated = await toggleMessageReaction(chat.$id, message.$id, user.$id, emoji);
+      if (updated?.$id) {
+        setMessages(prev => prev.map(m => (m.$id === updated.$id ? { ...m, reactions: updated.reactions } : m)));
+      }
+    } catch (error) {
+      setMessages(prev => prev.map(m => (m.$id === message.$id ? applyReactionUpdate(m, emoji, user.$id) : m)));
+    }
+  }, [chat.$id, user?.$id]);
+
+  const handleUpdateReactionDefaults = useCallback(async (nextDefaults) => {
+    if (!user?.$id || !chat?.$id) {
+      return DEFAULT_REACTION_SET;
+    }
+
+    try {
+      const updated = await updateReactionDefaults(user.$id, chat.$id, nextDefaults);
+      setReactionDefaultsState(updated);
+      return updated;
+    } catch (error) {
+      return reactionDefaults;
+    }
+  }, [chat?.$id, reactionDefaults, user?.$id]);
 
   const checkPermissions = async () => {
     try {
@@ -427,9 +504,12 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     try {
       const otherUserDoc = await getUserById(otherUserId, true);
       const theirBlockedList = otherUserDoc?.blockedUsers || [];
+      const theirChatBlockedList = otherUserDoc?.chatBlockedUsers || [];
       const blocked = Array.isArray(theirBlockedList) && theirBlockedList.includes(user?.$id);
+      const chatBlocked = Array.isArray(theirChatBlockedList) && theirChatBlockedList.includes(user?.$id);
       setIsBlockedByOtherUser(blocked);
-      if (blocked) setCanSend(false);
+      setIsChatBlockedByOtherUser(chatBlocked);
+      if (blocked || chatBlocked) setCanSend(false);
     } catch (e) {
       // Silent fail
     }
@@ -775,27 +855,45 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     }
     
     triggerAlert(
-      t('chats.blockUser'),
-      (t('chats.blockConfirm')).replace('{name}', otherUserName),
+      t('common.blockOptionsTitle'),
+      t('common.blockOptionsMessage').replace('{name}', otherUserName),
       'warning',
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
-          text: t('common.block') || 'Block',
+          text: t('common.blockMessagesOnly'),
+          onPress: async () => {
+            try {
+              await blockUserChatOnly(user.$id, otherUserId);
+              if (refreshUser) {
+                try {
+                  await refreshUser();
+                } catch (error) {
+                  // Ignore refresh errors after successful block
+                }
+              }
+              setCanSend(false);
+              triggerAlert(t('common.success'), t('chats.messagesOnlyBlocked'), 'success');
+            } catch (error) {
+              triggerAlert(t('common.error'), t('chats.blockError'));
+            }
+          },
+        },
+        {
+          text: t('common.blockEverything'),
           style: 'destructive',
           onPress: async () => {
             try {
               await blockUser(user.$id, otherUserId);
               // Refresh user context so blockedUsers is updated for filtering
               if (refreshUser) await refreshUser();
-              console.log('[BLOCK] User blocked from chat, refreshed context');
               // Navigate back after block to avoid state updates on unmounted component
               navigation.goBack();
             } catch (error) {
               triggerAlert(t('common.error'), t('chats.blockError'));
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -835,6 +933,31 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     );
   };
 
+  const handleDeleteConversation = async () => {
+    if (chat.type !== 'private') return;
+
+    triggerAlert(
+      t('chats.deleteConversation') || 'Delete Conversation',
+      t('chats.deleteConversationConfirm') || 'This will permanently delete the conversation for both users.',
+      'warning',
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete') || 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteChat(chat.$id);
+              navigation.goBack();
+            } catch (error) {
+              triggerAlert(t('common.error'), t('chats.deleteConversationError') || 'Failed to delete conversation.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleChatHeaderPress = useCallback(() => {
     setShowChatOptionsModal(true);
   }, []);
@@ -864,6 +987,8 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     clearedAt,
     hiddenMessageIds,
     isBlockedByOtherUser,
+    isChatBlockedByOtherUser,
+    reactionDefaults,
     
     // Setters
     setShowMuteModal,
@@ -887,9 +1012,12 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     cancelReply,
     handleSendMessage,
     handleRetryMessage,
+    handleToggleReaction,
+    handleUpdateReactionDefaults,
     handleVisitProfile,
     handleBlockUser,
     handleClearChat,
+    handleDeleteConversation,
     toggleSelectionMode,
     toggleMessageSelection,
     handleBatchCopy,

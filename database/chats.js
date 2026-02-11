@@ -768,6 +768,95 @@ export const deleteChat = async (chatId) => {
     }
 };
 
+/**
+ * Remove a private chat for a single user.
+ * First user to remove: chat is hidden for them (stored in settings.removedBy).
+ * Second user to remove: chat is fully deleted from the database.
+ * Returns 'hidden' if only hidden for the user, 'deleted' if fully deleted.
+ */
+export const removePrivateChatForUser = async (chatId, userId) => {
+    try {
+        if (!chatId || !userId) {
+            throw new Error('Invalid chat ID or user ID');
+        }
+
+        const chat = await databases.getDocument(
+            config.databaseId,
+            config.chatsCollectionId,
+            chatId
+        );
+
+        if (chat.type !== 'private') {
+            throw new Error('This function is only for private chats');
+        }
+
+        const settings = parseChatSettings(chat.settings);
+        const removedBy = Array.isArray(settings.removedBy) ? settings.removedBy : [];
+
+        if (!removedBy.includes(userId)) {
+            removedBy.push(userId);
+        }
+
+        // Check if all participants have removed the chat
+        const participants = Array.isArray(chat.participants) ? chat.participants : [];
+        const allRemoved = participants.length > 0 && participants.every(p => removedBy.includes(p));
+
+        if (allRemoved) {
+            await deleteChat(chatId);
+            return 'deleted';
+        } else {
+            const updatedSettings = { ...settings, removedBy };
+            await databases.updateDocument(
+                config.databaseId,
+                config.chatsCollectionId,
+                chatId,
+                { settings: JSON.stringify(updatedSettings) }
+            );
+            return 'hidden';
+        }
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Check if a private chat has been removed by a specific user.
+ */
+export const isChatRemovedByUser = (chat, userId) => {
+    const settings = parseChatSettings(chat.settings);
+    const removedBy = Array.isArray(settings.removedBy) ? settings.removedBy : [];
+    return removedBy.includes(userId);
+};
+
+/**
+ * Clear the removedBy flag for a user when they send a new message,
+ * so the chat reappears in both users' lists.
+ */
+export const restorePrivateChatForUser = async (chatId, userId) => {
+    try {
+        const chat = await databases.getDocument(
+            config.databaseId,
+            config.chatsCollectionId,
+            chatId
+        );
+
+        const settings = parseChatSettings(chat.settings);
+        if (!Array.isArray(settings.removedBy) || settings.removedBy.length === 0) return;
+
+        const updatedRemovedBy = settings.removedBy.filter(id => id !== userId);
+        const updatedSettings = { ...settings, removedBy: updatedRemovedBy };
+
+        await databases.updateDocument(
+            config.databaseId,
+            config.chatsCollectionId,
+            chatId,
+            { settings: JSON.stringify(updatedSettings) }
+        );
+    } catch (error) {
+        // Non-critical — silently fail
+    }
+};
+
 export const canUserSendMessage = async (chatId, userId) => {
     try {
         if (!chatId || !userId) {
@@ -792,7 +881,14 @@ export const canUserSendMessage = async (chatId, userId) => {
                     ]);
                     const myBlocked = currentUserDoc?.blockedUsers || [];
                     const theirBlocked = otherUserDoc?.blockedUsers || [];
-                    if (myBlocked.includes(otherUserId) || theirBlocked.includes(userId)) {
+                    const myChatBlocked = currentUserDoc?.chatBlockedUsers || [];
+                    const theirChatBlocked = otherUserDoc?.chatBlockedUsers || [];
+                    if (
+                        myBlocked.includes(otherUserId) ||
+                        theirBlocked.includes(userId) ||
+                        myChatBlocked.includes(otherUserId) ||
+                        theirChatBlocked.includes(userId)
+                    ) {
                         return false;
                     }
                 } catch (e) {
@@ -866,6 +962,12 @@ export const sendMessage = async (chatId, messageData) => {
         const chat = await ensureChatParticipant(chatId, messageData.senderId) || await getChat(chatId);
         // Cache the chat document to prevent redundant fetches during encryption pipeline
         setCachedChatDoc(chatId, chat);
+
+        // If user had previously removed this private DM, restore it
+        if (chat.type === 'private') {
+            restorePrivateChatForUser(chatId, messageData.senderId).catch(() => {});
+        }
+
         const chatKey = await ensureChatEncryption(chat, messageData.senderId);
 
         // ensureChatEncryption already calls addMissingE2eeKeys, so we only
@@ -1181,6 +1283,64 @@ export const updateMessage = async (messageId, messageData) => {
             messageData
         );
         return message;
+    } catch (error) {
+        throw error;
+    }
+};
+
+const parseMessageReactions = (value) => {
+    if (!value) return {};
+    if (typeof value === 'object' && !Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            return typeof parsed === 'object' && parsed ? parsed : {};
+        } catch (error) {
+            return {};
+        }
+    }
+    return {};
+};
+
+export const toggleMessageReaction = async (chatId, messageId, userId, emoji) => {
+    try {
+        if (!messageId || !userId || !emoji) {
+            throw new Error('Message ID, user ID, and emoji are required');
+        }
+
+        const message = await databases.getDocument(
+            config.databaseId,
+            config.messagesCollectionId,
+            messageId
+        );
+
+        const reactions = parseMessageReactions(message.reactions);
+        const current = Array.isArray(reactions[emoji]) ? reactions[emoji] : [];
+        const hasReacted = current.includes(userId);
+        const nextReactions = Object.entries(reactions).reduce((acc, [key, users]) => {
+            const filtered = Array.isArray(users) ? users.filter(id => id !== userId) : [];
+            if (filtered.length > 0) {
+                acc[key] = filtered;
+            }
+            return acc;
+        }, {});
+
+        if (!hasReacted) {
+            nextReactions[emoji] = [...(nextReactions[emoji] || []), userId];
+        }
+
+        const updatedMessage = await databases.updateDocument(
+            config.databaseId,
+            config.messagesCollectionId,
+            messageId,
+            { reactions: JSON.stringify(nextReactions) }
+        );
+
+        if (chatId) {
+            await messagesCacheManager.invalidateChatMessages(chatId);
+        }
+
+        return updatedMessage;
     } catch (error) {
         throw error;
     }

@@ -336,18 +336,6 @@ applyTo: "**"
 
 → Check: `app/tabs/Home.jsx`, `database/posts.js`
 
----
-
-## ⚠️ IMPORTANT PATTERNS
-
-1. **NO HARDCODED TEXT** - Always use translation keys from `locales/`
-2. **NO TYPESCRIPT** - Pure JavaScript only
-3. **NO CONSOLE.LOG** - Remove before committing
-4. **COMPLETE TODOs** - Don't leave incomplete code
-5. **FUNCTIONAL COMPONENTS** - Use hooks, not class components
-6. **RESPONSIVE SIZING** - Use `wp()`, `hp()`, `normalize()` from utils
-
----
 
 ## 📱 NAVIGATION STRUCTURE
 

@@ -659,6 +659,7 @@ const GroupSettings = ({ navigation, route }) => {
                   settings.onlyAdminsCanPost,
                   (val) => handleSettingToggle('onlyAdminsCanPost', val)
                 )}
+                <View style={[styles.settingsDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]} />
                 {renderSettingItem(
                   'person-add',
                   t('chats.allowMemberInvites'),
@@ -666,6 +667,7 @@ const GroupSettings = ({ navigation, route }) => {
                   settings.allowMemberInvites,
                   (val) => handleSettingToggle('allowMemberInvites', val)
                 )}
+                <View style={[styles.settingsDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]} />
                 {renderSettingItem(
                   'at',
                   t('chats.allowEveryoneMention'),
@@ -673,6 +675,7 @@ const GroupSettings = ({ navigation, route }) => {
                   settings.allowEveryoneMention !== false,
                   (val) => handleSettingToggle('allowEveryoneMention', val)
                 )}
+                <View style={[styles.settingsDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]} />
                 {renderSettingItem(
                   'megaphone',
                   t('chats.onlyAdminsCanMention'),
@@ -680,6 +683,7 @@ const GroupSettings = ({ navigation, route }) => {
                   settings.onlyAdminsCanMention,
                   (val) => handleSettingToggle('onlyAdminsCanMention', val)
                 )}
+                <View style={[styles.settingsDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]} />
                 {renderSettingItem(
                   'pin',
                   t('chats.onlyAdminsCanPin'),
@@ -943,10 +947,16 @@ const styles = StyleSheet.create({
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xs,
   },
   settingRowDisabled: {
     opacity: 0.5,
+  },
+  settingsDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: spacing.md + moderateScale(36) + spacing.md,
+    opacity: 0.6,
   },
   settingIcon: {
     width: moderateScale(36),
