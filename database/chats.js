@@ -1007,11 +1007,18 @@ export const sendMessage = async (chatId, messageData) => {
             documentData.type = messageData.type;
         }
 
-        // Add metadata for special message types (post_share, location, etc.)
+        // Add metadata for special message types (post_share, location, gif, etc.)
         if (messageData.metadata) {
             documentData.content = typeof messageData.metadata === 'string'
                 ? messageData.metadata
                 : JSON.stringify(messageData.metadata);
+        }
+
+        // Handle GIF/Sticker metadata - store as content JSON, do NOT upload the file
+        if (messageData.type === 'gif' && messageData.gif_metadata) {
+            documentData.content = typeof messageData.gif_metadata === 'string'
+                ? messageData.gif_metadata
+                : JSON.stringify(messageData.gif_metadata);
         }
         
         // Handle image - use imageUrl field only (most reliable)
@@ -1043,6 +1050,8 @@ export const sendMessage = async (chatId, messageData) => {
         let lastMessagePreview = '';
         if (messageData.type === 'image' || (hasImages && !hasContent)) {
             lastMessagePreview = '\uD83D\uDCF7 Image';
+        } else if (messageData.type === 'gif') {
+            lastMessagePreview = 'GIF';
         } else if (messageData.type === 'location') {
             lastMessagePreview = '\uD83D\uDCCD Location';
         } else if (messageData.type === 'post_share') {

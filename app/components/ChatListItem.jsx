@@ -9,6 +9,7 @@ import {
   moderateScale,
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { isUserOnline } from '../utils/onlineStatus';
 
 const CHAT_TYPES = {
   STAGE_GROUP: 'stage_group',
@@ -18,7 +19,7 @@ const CHAT_TYPES = {
 };
 
 const ChatListItem = ({ chat, onPress, currentUserId, unreadCount = 0, clearedAt = null }) => {
-  const { theme, isDarkMode, t } = useAppSettings();
+  const { theme, isDarkMode, t, showActivityStatus } = useAppSettings();
 
   const getChatIcon = () => {
     switch (chat.type) {
@@ -129,6 +130,11 @@ const ChatListItem = ({ chat, onPress, currentUserId, unreadCount = 0, clearedAt
   const chatSubtitle = getChatSubtitle();
   const iconColor = getChatIconColor();
 
+  // Online status for private chats (only when activity status setting is enabled)
+  const otherUserOnline = showActivityStatus && isPrivateChat && chat.otherUser?.lastSeen
+    ? isUserOnline(chat.otherUser.lastSeen)
+    : false;
+
   const cardBackground = isDarkMode 
     ? 'rgba(255, 255, 255, 0.05)' 
     : 'rgba(255, 255, 255, 0.9)';
@@ -155,11 +161,19 @@ const ChatListItem = ({ chat, onPress, currentUserId, unreadCount = 0, clearedAt
       ]}>
       
       {isPrivateChat && chat.otherUser ? (
-        <ProfilePicture 
-          uri={chat.otherUser.profilePicture}
-          name={chatName}
-          size={moderateScale(42)}
-        />
+        <View style={styles.avatarWrapper}>
+          <ProfilePicture 
+            uri={chat.otherUser.profilePicture}
+            name={chatName}
+            size={moderateScale(42)}
+          />
+          {otherUserOnline && (
+            <View style={[
+              styles.onlineDot,
+              { borderColor: isDarkMode ? '#1C1C1E' : '#FFFFFF' },
+            ]} />
+          )}
+        </View>
       ) : chat.type === CHAT_TYPES.CUSTOM_GROUP ? (
         <ProfilePicture 
           uri={chat.groupPhoto}
@@ -240,6 +254,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: borderRadius.md,
     borderWidth: 1,
+  },
+  avatarWrapper: {
+    position: 'relative',
+  },
+  onlineDot: {
+    position: 'absolute',
+    bottom: 1,
+    right: 1,
+    width: moderateScale(12),
+    height: moderateScale(12),
+    borderRadius: moderateScale(6),
+    backgroundColor: '#34C759',
+    borderWidth: 2,
+    zIndex: 1,
   },
   iconContainer: {
     width: moderateScale(42),

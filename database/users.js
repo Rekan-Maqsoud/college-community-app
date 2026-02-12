@@ -621,6 +621,30 @@ export const syncUserProfilePicture = async (userId, newProfilePicture) => {
 };
 
 /**
+ * Update user's lastSeen timestamp for online status tracking.
+ * Throttled: only updates if the last write was more than 60 seconds ago.
+ */
+let _lastSeenWriteTimestamp = 0;
+export const updateLastSeen = async (userId) => {
+    try {
+        if (!userId || typeof userId !== 'string') return;
+
+        const now = Date.now();
+        if (now - _lastSeenWriteTimestamp < 60000) return; // throttle to 1 min
+        _lastSeenWriteTimestamp = now;
+
+        await databases.updateDocument(
+            config.databaseId,
+            config.usersCollectionId,
+            userId,
+            { lastSeen: new Date().toISOString() }
+        );
+    } catch (error) {
+        // Non-critical — silently fail
+    }
+};
+
+/**
  * Save or update user's push notification token
  * Uses separate pushTokens collection to avoid column limit on users collection
  */

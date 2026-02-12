@@ -729,7 +729,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     );
   }, [selectedMessageIds, user.$id, chat.$id, t]);
 
-  const handleSendMessage = async (content, imageUrl = null, messageType = null) => {
+  const handleSendMessage = async (content, imageUrl = null, messageType = null, gifMetadata = null) => {
     if (!canSend) {
       triggerAlert(t('chats.noPermission'), t('chats.representativeOnlyMessage'), 'warning');
       return;
@@ -750,6 +750,12 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       _status: 'sending',
       _isOptimistic: true,
     };
+
+    // Attach gif metadata to optimistic message for instant preview
+    if (messageType === 'gif' && gifMetadata) {
+      optimisticMessage.type = 'gif';
+      optimisticMessage.content = JSON.stringify(gifMetadata);
+    }
     
     if (imageUrl && typeof imageUrl === 'string') {
       optimisticMessage.images = [imageUrl];
@@ -777,7 +783,9 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
 
       // Build rich notification preview based on message type
       let notifyBody = t('chats.newMessage');
-      if (messageType === 'image' || (imageUrl && !content)) {
+      if (messageType === 'gif') {
+        notifyBody = 'GIF';
+      } else if (messageType === 'image' || (imageUrl && !content)) {
         notifyBody = '\uD83D\uDCF7 ' + (t('chats.sentImage') || 'Sent an image');
       } else if (messageType === 'location') {
         notifyBody = '\uD83D\uDCCD ' + (t('chats.sharedLocation') || 'Shared a location');
@@ -787,6 +795,11 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
         notifyBody = content.length > 50 ? content.substring(0, 50) + '...' : content;
       }
       messageData.notificationPreview = notifyBody;
+
+      // Attach gif_metadata for GIF/Sticker messages
+      if (messageType === 'gif' && gifMetadata) {
+        messageData.gif_metadata = gifMetadata;
+      }
 
       // Add message type for special messages (location, post_share)
       if (messageType) {

@@ -326,6 +326,7 @@ const MessageBubble = ({
   const mentionsAll = message.mentionsAll;
   const isPostShare = message.type === 'post_share';
   const isLocation = message.type === 'location';
+  const isGif = message.type === 'gif';
 
   // Pinned message highlight glow animation (react-native-reanimated)
   const highlightOpacity = useSharedValue(0);
@@ -373,6 +374,19 @@ const MessageBubble = ({
       return null;
     }
   }, [isLocation, message.content]);
+
+  // Parse GIF/Sticker metadata
+  const gifData = React.useMemo(() => {
+    if (!isGif) return null;
+    try {
+      if (typeof message.content === 'string') {
+        return JSON.parse(message.content);
+      }
+      return message.content;
+    } catch {
+      return null;
+    }
+  }, [isGif, message.content]);
 
   const handleLongPress = () => {
     if (selectionMode && onToggleSelect) {
@@ -753,7 +767,27 @@ const MessageBubble = ({
         </Pressable>
       )}
 
-      {!isPostShare && !isLocation && hasImage && (
+      {/* GIF / Sticker Bubble */}
+      {isGif && gifData && (
+        <View style={styles.gifContainer}>
+          <Image
+            source={{ uri: gifData.gif_url || gifData.gif_preview_url }}
+            style={[
+              styles.gifImage,
+              {
+                width: Math.min(wp(55), moderateScale(220)),
+                aspectRatio: gifData.gif_aspect_ratio || 1,
+              },
+            ]}
+            resizeMode="cover"
+          />
+          <View style={styles.gifBadge}>
+            <Text style={styles.gifBadgeText}>GIF</Text>
+          </View>
+        </View>
+      )}
+
+      {!isPostShare && !isLocation && !isGif && hasImage && (
         <TouchableOpacity 
           onPress={() => setImageModalVisible(true)}
           disabled={selectionMode}
@@ -769,7 +803,7 @@ const MessageBubble = ({
         </TouchableOpacity>
       )}
 
-      {!isPostShare && !isLocation && renderMessageContent()}
+      {!isPostShare && !isLocation && !isGif && renderMessageContent()}
       
       <View style={styles.timeStatusRow}>
         <Text style={[
@@ -1663,6 +1697,32 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     paddingHorizontal: spacing.xs,
     marginTop: spacing.xs / 2,
+  },
+  // GIF / Sticker styles
+  gifContainer: {
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  gifImage: {
+    borderRadius: borderRadius.md,
+    minHeight: moderateScale(80),
+    maxHeight: moderateScale(300),
+  },
+  gifBadge: {
+    position: 'absolute',
+    bottom: moderateScale(6),
+    left: moderateScale(6),
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: moderateScale(4),
+    paddingHorizontal: moderateScale(5),
+    paddingVertical: moderateScale(1),
+  },
+  gifBadgeText: {
+    color: '#FFFFFF',
+    fontSize: moderateScale(9),
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });
 

@@ -21,7 +21,7 @@ import realtimeDebugLogger from './utils/realtimeDebugLogger';
 import { getCurrentUser, getUserDocument, signOut } from '../database/auth';
 import { getAllUserChats } from '../database/chatHelpers';
 import { getTotalUnreadCount } from '../database/chats';
-import { updateUserPushToken } from '../database/users';
+import { updateUserPushToken, updateLastSeen } from '../database/users';
 import appwriteClient from '../database/config';
 import {
   registerForPushNotifications,
@@ -858,6 +858,39 @@ const RealtimeLifecycleManager = () => {
   return null;
 };
 
+/**
+ * Tracks the current user's lastSeen timestamp so other users can
+ * see online / last-seen status.  Respects the showActivityStatus
+ * privacy setting.
+ */
+const LastSeenTracker = () => {
+  const { user } = useUser();
+  const { showActivityStatus } = useAppSettings();
+
+  useEffect(() => {
+    if (!user?.$id || !showActivityStatus) return;
+
+    updateLastSeen(user.$id);
+
+    const interval = setInterval(() => {
+      updateLastSeen(user.$id);
+    }, 60000);
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        updateLastSeen(user.$id);
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription?.remove();
+    };
+  }, [user?.$id, showActivityStatus]);
+
+  return null;
+};
+
 // Component to handle deep links for password recovery
 const DeepLinkHandler = ({ navigationRef, pendingRouteRef }) => {
   useEffect(() => {
@@ -971,6 +1004,7 @@ export default function App() {
                         }
                       }}>
                       <RealtimeLifecycleManager />
+                      <LastSeenTracker />
                       <NotificationSetup navigationRef={navigationRef} />
                       <DeepLinkHandler navigationRef={navigationRef} pendingRouteRef={pendingRouteRef} />
                       <UpdatePrompt />

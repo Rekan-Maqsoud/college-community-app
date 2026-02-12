@@ -34,10 +34,12 @@ import { MuteModal, PinnedMessagesModal, ChatOptionsModal } from './chatRoom/Cha
 import { chatRoomStyles as styles } from './chatRoom/styles';
 import { useChatRoom } from './chatRoom/useChatRoom';
 import PostViewModal from '../components/PostViewModal';
+import { isUserOnline, getLastSeenText } from '../utils/onlineStatus';
+import { getUserById } from '../../database/users';
 
 const ChatRoom = ({ route, navigation }) => {
   const { chat } = route.params;
-  const { t, theme, isDarkMode, chatSettings } = useAppSettings();
+  const { t, theme, isDarkMode, chatSettings, showActivityStatus } = useAppSettings();
   const { user, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
@@ -133,6 +135,32 @@ const ChatRoom = ({ route, navigation }) => {
   // Post view modal state (for shared posts)
   const [postModalVisible, setPostModalVisible] = useState(false);
   const [postModalPostId, setPostModalPostId] = useState(null);
+
+  // Online status tracking for private chats
+  const [otherUserLastSeen, setOtherUserLastSeen] = useState(
+    chat.type === 'private' ? chat.otherUser?.lastSeen || null : null
+  );
+  const otherUserOnline = showActivityStatus && isUserOnline(otherUserLastSeen);
+
+  useEffect(() => {
+    if (chat.type !== 'private' || !showActivityStatus) return;
+    const otherUserId = chat.otherUser?.$id;
+    if (!otherUserId) return;
+
+    let active = true;
+    const poll = async () => {
+      try {
+        const freshUser = await getUserById(otherUserId, true);
+        if (active && freshUser?.lastSeen) {
+          setOtherUserLastSeen(freshUser.lastSeen);
+        }
+      } catch (_) {}
+    };
+    poll();
+    const interval = setInterval(poll, 30000); // refresh every 30s
+    return () => { active = false; clearInterval(interval); };
+  }, [chat.type, chat.otherUser?.$id, showActivityStatus]);
+
   const formattedChatTitle = useMemo(() => {
     const raw = getChatDisplayName() || '';
     const parts = raw.split(',').map(part => part.trim()).filter(Boolean);
@@ -263,13 +291,35 @@ const ChatRoom = ({ route, navigation }) => {
           }}>
             {formattedChatTitle}
           </Text>
-          <Text style={{ 
-            color: theme.textSecondary, 
-            fontSize: fontSize(11), 
-            textAlign: 'center',
-          }}>
-            {t('chats.tapForOptions')}
-          </Text>
+          {chat.type === 'private' && showActivityStatus ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              {otherUserOnline && (
+                <View style={{
+                  width: moderateScale(7),
+                  height: moderateScale(7),
+                  borderRadius: moderateScale(4),
+                  backgroundColor: '#34C759',
+                }} />
+              )}
+              <Text style={{ 
+                color: otherUserOnline ? '#34C759' : theme.textSecondary, 
+                fontSize: fontSize(11), 
+                textAlign: 'center',
+              }}>
+                {otherUserOnline
+                  ? t('chats.online')
+                  : (getLastSeenText(otherUserLastSeen, t) || t('chats.tapForOptions'))}
+              </Text>
+            </View>
+          ) : (
+            <Text style={{ 
+              color: theme.textSecondary, 
+              fontSize: fontSize(11), 
+              textAlign: 'center',
+            }}>
+              {t('chats.tapForOptions')}
+            </Text>
+          )}
         </TouchableOpacity>
       ),
       headerStyle: {
@@ -292,7 +342,7 @@ const ChatRoom = ({ route, navigation }) => {
         </View>
       ),
     });
-  }, [chat, isDarkMode, theme, muteStatus, chatSettings, openSearch, formattedChatTitle, handleChatHeaderPress, navigation, t]);
+  }, [chat, isDarkMode, theme, muteStatus, chatSettings, openSearch, formattedChatTitle, handleChatHeaderPress, navigation, t, otherUserOnline, otherUserLastSeen, showActivityStatus]);
 
   const memoizedMessages = useMemo(() => {
     let filtered = messages;
