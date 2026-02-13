@@ -3,7 +3,71 @@ import { ID, Query } from 'appwrite';
 import { handleNetworkError } from '../app/utils/networkErrorHandler';
 import { postsCacheManager } from '../app/utils/cacheManager';
 import { getUserById } from './users';
-import { notifyDepartmentPost } from './notifications';
+import { notifyDepartmentPost, notifyPostHiddenByReports } from './notifications';
+
+const REPORT_HIDE_THRESHOLD = 5;
+const REPORT_HIDE_MAX_VIEWS = 20;
+const REPORT_HIDE_MIN_REPORTERS = 2;
+const REPORT_HIDE_SCORE_THRESHOLD = 8;
+const REPORT_REASONS = [
+    'spam',
+    'harassment',
+    'inappropriate',
+    'misinformation',
+    'hate_speech',
+    'violence',
+    'self_harm',
+    'copyright',
+    'other',
+];
+const REPORT_FEEDBACK_REASONS = ['dont_like'];
+const REPORT_REASON_WEIGHTS = {
+    self_harm: 6,
+    violence: 5,
+    hate_speech: 5,
+    harassment: 4,
+    misinformation: 3,
+    inappropriate: 3,
+    copyright: 3,
+    spam: 2,
+    other: 1,
+};
+const DEFAULT_REPORT_REVIEW_WEBHOOK = 'https://discord.com/api/webhooks/1471830877049720842/CMWl-KzBZXuv0QaM73QUlsjYHh5sN9p_86EHRNgeOvy7P11WORRk-gMiH9cDpP-gw86N';
+
+const sanitizeReportReason = (reason = '') => {
+    const normalized = String(reason || '').trim().toLowerCase();
+    return REPORT_REASONS.includes(normalized) ? normalized : 'other';
+};
+
+const sanitizeModerationReason = (reason = '') => {
+    const normalized = String(reason || '').trim().toLowerCase();
+    if (REPORT_REASONS.includes(normalized)) return normalized;
+    if (REPORT_FEEDBACK_REASONS.includes(normalized)) return normalized;
+    return 'other';
+};
+
+const isSchemaAttributeError = (error) => {
+    const message = String(error?.message || '').toLowerCase();
+    return message.includes('unknown attribute')
+        || message.includes('attribute not found')
+        || (message.includes('invalid document') && message.includes('attribute'));
+};
+
+const isHiddenForViewer = (post, viewerId = null) => {
+    if (!post || !post.isHidden) return false;
+    return post.userId !== viewerId;
+};
+
+const filterPostsByVisibility = (posts = [], viewerId = null) => {
+    return posts.filter(post => !isHiddenForViewer(post, viewerId));
+};
+
+const calculateReportScore = (reasons = []) => {
+    return reasons.reduce((total, reason) => {
+        const normalizedReason = sanitizeReportReason(reason);
+        return total + (REPORT_REASON_WEIGHTS[normalizedReason] || 1);
+    }, 0);
+};
 
 export const createPost = async (postData) => {
     try {
@@ -59,7 +123,7 @@ export const createPost = async (postData) => {
     }
 };
 
-export const getPost = async (postId) => {
+export const getPost = async (postId, viewerId = null) => {
     try {
         if (!postId || typeof postId !== 'string') {
             throw new Error('Invalid post ID');
@@ -70,13 +134,18 @@ export const getPost = async (postId) => {
             config.postsCollectionId,
             postId
         );
+
+        if (isHiddenForViewer(post, viewerId)) {
+            throw new Error('Post not found');
+        }
+
         return post;
     } catch (error) {
         throw error;
     }
 };
 
-export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = true, sortBy = 'newest', blockedUserIds = []) => {
+export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = true, sortBy = 'newest', blockedUserIds = [], currentUserId = null) => {
     const cacheKey = postsCacheManager.generateCacheKey(filters, limit, offset) + `_sort_${sortBy}`;
     
     try {
@@ -84,11 +153,12 @@ export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = 
         if (useCache && offset === 0) {
             const cached = await postsCacheManager.getCachedPosts(cacheKey);
             if (cached?.value && !cached.isStale) {
+                const visibleCached = filterPostsByVisibility(cached.value, currentUserId);
                 // Filter blocked users from cached results
                 if (blockedUserIds.length > 0) {
-                    return cached.value.filter(post => !blockedUserIds.includes(post.userId));
+                    return visibleCached.filter(post => !blockedUserIds.includes(post.userId));
                 }
-                return cached.value;
+                return visibleCached;
             }
         }
         
@@ -134,7 +204,7 @@ export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = 
         }
 
         // Filter out posts from blocked users
-        let results = posts.documents;
+        let results = filterPostsByVisibility(posts.documents, currentUserId);
         if (Array.isArray(blockedUserIds) && blockedUserIds.length > 0) {
             results = results.filter(post => !blockedUserIds.includes(post.userId));
         }
@@ -145,7 +215,7 @@ export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = 
         if (offset === 0) {
             const cached = await postsCacheManager.getCachedPosts(cacheKey);
             if (cached?.value) {
-                return cached.value;
+                return filterPostsByVisibility(cached.value, currentUserId);
             }
         }
         const errorInfo = handleNetworkError(error);
@@ -153,7 +223,7 @@ export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = 
     }
 };
 
-export const getPostsByDepartments = async (departments = [], stage = 'all', limit = 20, offset = 0, useCache = true, sortBy = 'newest', postType = 'all', answerStatus = 'all', blockedUserIds = []) => {
+export const getPostsByDepartments = async (departments = [], stage = 'all', limit = 20, offset = 0, useCache = true, sortBy = 'newest', postType = 'all', answerStatus = 'all', blockedUserIds = [], currentUserId = null) => {
     const cacheKey = `posts_multi_depts_${departments.sort().join('-')}_stage_${stage}_type_${postType}_answer_${answerStatus}_sort_${sortBy}_l${limit}_o${offset}`;
     
     try {
@@ -165,7 +235,7 @@ export const getPostsByDepartments = async (departments = [], stage = 'all', lim
         if (useCache && offset === 0) {
             const cached = await postsCacheManager.getCachedPosts(cacheKey);
             if (cached?.value && !cached.isStale) {
-                return cached.value;
+                return filterPostsByVisibility(cached.value, currentUserId);
             }
         }
 
@@ -208,7 +278,7 @@ export const getPostsByDepartments = async (departments = [], stage = 'all', lim
         }
 
         // Filter out posts from blocked users
-        let deptResults = posts.documents;
+        let deptResults = filterPostsByVisibility(posts.documents, currentUserId);
         if (Array.isArray(blockedUserIds) && blockedUserIds.length > 0) {
             deptResults = deptResults.filter(post => !blockedUserIds.includes(post.userId));
         }
@@ -219,7 +289,7 @@ export const getPostsByDepartments = async (departments = [], stage = 'all', lim
         if (offset === 0) {
             const cached = await postsCacheManager.getCachedPosts(cacheKey);
             if (cached?.value) {
-                return cached.value;
+                return filterPostsByVisibility(cached.value, currentUserId);
             }
         }
         const errorInfo = handleNetworkError(error);
@@ -227,7 +297,7 @@ export const getPostsByDepartments = async (departments = [], stage = 'all', lim
     }
 };
 
-export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, useCache = true, sortBy = 'newest', postType = 'all', answerStatus = 'all', blockedUserIds = []) => {
+export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, useCache = true, sortBy = 'newest', postType = 'all', answerStatus = 'all', blockedUserIds = [], currentUserId = null) => {
     const cacheKey = `posts_public_stage_${stage}_type_${postType}_answer_${answerStatus}_sort_${sortBy}_l${limit}_o${offset}`;
     
     try {
@@ -235,7 +305,7 @@ export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, u
         if (useCache && offset === 0) {
             const cached = await postsCacheManager.getCachedPosts(cacheKey);
             if (cached?.value && !cached.isStale) {
-                return cached.value;
+                return filterPostsByVisibility(cached.value, currentUserId);
             }
         }
         
@@ -277,7 +347,7 @@ export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, u
         }
 
         // Filter out posts from blocked users
-        let publicResults = posts.documents;
+        let publicResults = filterPostsByVisibility(posts.documents, currentUserId);
         if (Array.isArray(blockedUserIds) && blockedUserIds.length > 0) {
             publicResults = publicResults.filter(post => !blockedUserIds.includes(post.userId));
         }
@@ -288,7 +358,7 @@ export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, u
         if (offset === 0) {
             const cached = await postsCacheManager.getCachedPosts(cacheKey);
             if (cached?.value) {
-                return cached.value;
+                return filterPostsByVisibility(cached.value, currentUserId);
             }
         }
         const errorInfo = handleNetworkError(error);
@@ -296,15 +366,15 @@ export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, u
     }
 };
 
-export const getPostsByDepartmentAndStage = async (department, stage, limit = 20, offset = 0) => {
-    return getPosts({ department, stage }, limit, offset);
+export const getPostsByDepartmentAndStage = async (department, stage, limit = 20, offset = 0, currentUserId = null) => {
+    return getPosts({ department, stage }, limit, offset, true, 'newest', [], currentUserId);
 };
 
-export const getPostsByUser = async (userId, limit = 20, offset = 0) => {
-    return getPosts({ userId }, limit, offset);
+export const getPostsByUser = async (userId, limit = 20, offset = 0, currentUserId = null) => {
+    return getPosts({ userId }, limit, offset, true, 'newest', [], currentUserId);
 };
 
-export const searchPosts = async (searchQuery, userDepartment = null, userMajor = null, limit = 20) => {
+export const searchPosts = async (searchQuery, userDepartment = null, userMajor = null, limit = 20, currentUserId = null) => {
     try {
         if (!searchQuery || searchQuery.trim().length === 0) {
             return [];
@@ -423,9 +493,201 @@ export const searchPosts = async (searchQuery, userDepartment = null, userMajor 
 
         // Sort by date and limit results
         allResults.sort((a, b) => new Date(b.$createdAt) - new Date(a.$createdAt));
-        return allResults.slice(0, limit);
+        return filterPostsByVisibility(allResults, currentUserId).slice(0, limit);
     } catch (error) {
         return [];
+    }
+};
+
+export const createRepost = async (originalPostId, userId, repostData = {}) => {
+    try {
+        if (!originalPostId || typeof originalPostId !== 'string') {
+            throw new Error('Invalid original post ID');
+        }
+
+        if (!userId || typeof userId !== 'string') {
+            throw new Error('Invalid user ID');
+        }
+
+        const directOriginal = await databases.getDocument(
+            config.databaseId,
+            config.postsCollectionId,
+            originalPostId
+        );
+
+        const rootOriginalId = directOriginal?.isRepost && directOriginal?.originalPostId
+            ? directOriginal.originalPostId
+            : directOriginal.$id;
+
+        const rootOriginal = rootOriginalId === directOriginal.$id
+            ? directOriginal
+            : await databases.getDocument(
+                config.databaseId,
+                config.postsCollectionId,
+                rootOriginalId
+            );
+
+        if (!rootOriginal || rootOriginal.isHidden) {
+            throw new Error('Original post is not available');
+        }
+
+        const canRepost = rootOriginal.userId === userId || rootOriginal.canOthersRepost !== false;
+        if (!canRepost) {
+            throw new Error('Repost is not allowed for this post');
+        }
+
+        const existingRepost = await databases.listDocuments(
+            config.databaseId,
+            config.postsCollectionId,
+            [
+                Query.equal('userId', userId),
+                Query.equal('isRepost', true),
+                Query.equal('originalPostId', rootOriginal.$id),
+                Query.limit(1),
+            ]
+        );
+
+        if (existingRepost.documents.length > 0) {
+            return {
+                alreadyReposted: true,
+                post: existingRepost.documents[0],
+            };
+        }
+
+        const repostTopic = typeof repostData.topic === 'string' && repostData.topic.trim().length > 0
+            ? repostData.topic.trim().slice(0, 200)
+            : (rootOriginal.topic || '');
+
+        const repostText = typeof repostData.text === 'string' && repostData.text.trim().length > 0
+            ? repostData.text.trim().slice(0, 5000)
+            : (rootOriginal.text || '');
+
+        const post = await createPost({
+            userId,
+            userName: repostData.userName || null,
+            profilePicture: repostData.profilePicture || null,
+            topic: repostTopic,
+            text: repostText,
+            department: repostData.department || rootOriginal.department || 'public',
+            stage: repostData.stage || rootOriginal.stage || 'all',
+            postType: repostData.postType || rootOriginal.postType || 'discussion',
+            images: Array.isArray(repostData.images) ? repostData.images : [],
+            imageDeleteUrls: Array.isArray(repostData.imageDeleteUrls) ? repostData.imageDeleteUrls : [],
+            tags: Array.isArray(repostData.tags) ? repostData.tags : [],
+            links: Array.isArray(repostData.links) ? repostData.links : [],
+            isRepost: true,
+            originalPostId: rootOriginal.$id,
+            originalPostOwnerId: rootOriginal.userId,
+            originalPostTopic: rootOriginal.topic || '',
+            originalPostPreview: (rootOriginal.text || '').slice(0, 180),
+            canOthersRepost: rootOriginal.canOthersRepost !== false,
+        });
+
+        try {
+            const nextRepostCount = Number(rootOriginal.repostCount || 0) + 1;
+            await databases.updateDocument(
+                config.databaseId,
+                config.postsCollectionId,
+                rootOriginal.$id,
+                { repostCount: nextRepostCount }
+            );
+        } catch (error) {
+            // Silent fail - repost must not fail because of counter update
+        }
+
+        return {
+            success: true,
+            post,
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const requestPostReview = async (postId, requesterUserId = null) => {
+    try {
+        if (!postId || typeof postId !== 'string') {
+            throw new Error('Invalid post ID');
+        }
+
+        const post = await databases.getDocument(
+            config.databaseId,
+            config.postsCollectionId,
+            postId
+        );
+
+        if (!post) {
+            throw new Error('Post not found');
+        }
+
+        if (requesterUserId && post.userId !== requesterUserId) {
+            throw new Error('Only post owner can request review');
+        }
+
+        if (!post.isHidden) {
+            throw new Error('Only hidden posts can request review');
+        }
+
+        const now = Date.now();
+        const lastRequested = post.reviewRequestedAt ? new Date(post.reviewRequestedAt).getTime() : 0;
+        const REVIEW_COOLDOWN_MS = 60 * 60 * 1000;
+        if (lastRequested && now - lastRequested < REVIEW_COOLDOWN_MS) {
+            throw new Error('Review request already sent recently');
+        }
+
+        const webhookUrl = config.reportReviewWebhookUrl || DEFAULT_REPORT_REVIEW_WEBHOOK;
+        if (!webhookUrl) {
+            throw new Error('Review webhook is not configured');
+        }
+
+        const payload = {
+            username: 'College Community Moderation',
+            embeds: [
+                {
+                    title: 'Post Review Request',
+                    color: 15158332,
+                    fields: [
+                        { name: 'Post ID', value: String(post.$id), inline: false },
+                        { name: 'Owner ID', value: String(post.userId || 'unknown'), inline: true },
+                        { name: 'Requester ID', value: String(requesterUserId || 'unknown'), inline: true },
+                        { name: 'Reports', value: String(post.reportCount || 0), inline: true },
+                        { name: 'Views', value: String(post.viewCount || 0), inline: true },
+                        { name: 'Likes', value: String(post.likeCount || 0), inline: true },
+                        { name: 'Replies', value: String(post.replyCount || 0), inline: true },
+                        { name: 'Topic', value: String(post.topic || 'No topic').slice(0, 250), inline: false },
+                    ],
+                    timestamp: new Date().toISOString(),
+                },
+            ],
+        };
+
+        const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to send review request');
+        }
+
+        await databases.updateDocument(
+            config.databaseId,
+            config.postsCollectionId,
+            postId,
+            {
+                reviewRequestedAt: new Date().toISOString(),
+                reviewRequestedBy: requesterUserId || post.userId,
+            }
+        ).catch(() => {
+            // Optional columns may not exist yet.
+        });
+
+        return { success: true };
+    } catch (error) {
+        throw error;
     }
 };
 
@@ -570,16 +832,24 @@ export const togglePostLike = async (postId, userId) => {
 };
 
 export const markQuestionAsResolved = async (postId) => {
+    return setQuestionResolvedStatus(postId, true);
+};
+
+export const setQuestionResolvedStatus = async (postId, isResolved) => {
     try {
         if (!postId || typeof postId !== 'string') {
             throw new Error('Invalid post ID');
+        }
+
+        if (typeof isResolved !== 'boolean') {
+            throw new Error('Invalid resolved status');
         }
         
         await databases.updateDocument(
             config.databaseId,
             config.postsCollectionId,
             postId,
-            { isResolved: true }
+            { isResolved }
         );
     } catch (error) {
         throw error;
@@ -731,27 +1001,122 @@ export const reportPost = async (postId, userId, reason = '') => {
         }
 
         const post = await getPost(postId);
+        if (!post || post.isHidden) {
+            return { success: true, alreadyHidden: true, reportCount: post?.reportCount || 0 };
+        }
+
+        if (post.userId === userId) {
+            throw new Error('Users cannot report their own posts');
+        }
+
+        const moderationReason = sanitizeModerationReason(reason);
         const reportedBy = post.reportedBy || [];
 
         if (reportedBy.includes(userId)) {
             return { alreadyReported: true };
         }
 
-        const newReportedBy = [...reportedBy, userId];
-        const reportCount = newReportedBy.length;
-
-        await databases.updateDocument(
-            config.databaseId,
-            config.postsCollectionId,
-            postId,
-            {
-                reportedBy: newReportedBy,
-                reportCount: reportCount,
-                isHidden: reportCount >= 5,
+        if (REPORT_FEEDBACK_REASONS.includes(moderationReason)) {
+            if (config.postReportsCollectionId) {
+                try {
+                    await databases.createDocument(
+                        config.databaseId,
+                        config.postReportsCollectionId,
+                        ID.unique(),
+                        {
+                            postId,
+                            reporterId: userId,
+                            postOwnerId: post.userId,
+                            reason: moderationReason,
+                        }
+                    );
+                } catch (error) {
+                    // Silent fail if optional collection is not available
+                }
             }
-        );
 
-        return { success: true, reportCount };
+            return { success: true, treatedAsFeedback: true, reportCount: post.reportCount || 0 };
+        }
+
+        const newReportedBy = [...new Set([...reportedBy, userId])];
+        const reportCount = newReportedBy.length;
+        const reportReason = sanitizeReportReason(moderationReason);
+        const existingReasons = Array.isArray(post.reportReasons) ? post.reportReasons : [];
+        const nextReportReasons = [...existingReasons, reportReason].slice(-200);
+        const viewCount = Number(post.viewCount || 0);
+        const reportScore = calculateReportScore(nextReportReasons);
+        const passedWeightedThreshold = reportScore >= REPORT_HIDE_SCORE_THRESHOLD;
+        const passedCountThreshold = reportCount >= REPORT_HIDE_THRESHOLD;
+        const isHidden = reportCount >= REPORT_HIDE_MIN_REPORTERS
+            && (passedWeightedThreshold || passedCountThreshold)
+            && viewCount < REPORT_HIDE_MAX_VIEWS;
+        const becameHidden = isHidden && !post.isHidden;
+        let moderationStatePersisted = true;
+
+        try {
+            await databases.updateDocument(
+                config.databaseId,
+                config.postsCollectionId,
+                postId,
+                {
+                    reportedBy: newReportedBy,
+                    reportCount: reportCount,
+                    reportReasons: nextReportReasons,
+                    isHidden,
+                }
+            );
+        } catch (error) {
+            if (isSchemaAttributeError(error)) {
+                moderationStatePersisted = false;
+            } else {
+                throw error;
+            }
+        }
+
+        if (becameHidden && moderationStatePersisted) {
+            notifyPostHiddenByReports(
+                post.userId,
+                post.$id,
+                post.topic || post.text || '',
+                reportCount,
+                viewCount
+            ).catch(() => {
+                // Silent fail - reporting should not fail on notify
+            });
+        }
+
+        if (config.postReportsCollectionId) {
+            try {
+                await databases.createDocument(
+                    config.databaseId,
+                    config.postReportsCollectionId,
+                    ID.unique(),
+                    {
+                        postId,
+                        reporterId: userId,
+                        postOwnerId: post.userId,
+                        reason: reportReason,
+                    }
+                );
+            } catch (error) {
+                // Silent fail if optional collection is not available
+            }
+        }
+
+        return {
+            success: true,
+            reportCount: moderationStatePersisted ? reportCount : (post.reportCount || 0),
+            isHidden: moderationStatePersisted ? isHidden : false,
+            moderationStatePersisted,
+            hideCriteria: {
+                requiredReports: REPORT_HIDE_THRESHOLD,
+                requiredMinReporters: REPORT_HIDE_MIN_REPORTERS,
+                requiredScore: REPORT_HIDE_SCORE_THRESHOLD,
+                currentScore: reportScore,
+                maxViews: REPORT_HIDE_MAX_VIEWS,
+                currentViews: viewCount,
+            },
+        };
     } catch (error) {
         throw error;
     }

@@ -9,6 +9,10 @@
     "web": "expo start --web",
     "count": "node count-code.js",
     "test": "jest",
+    "test:core-utils": "jest --runInBand __tests__/networkErrorHandler.test.js __tests__/onlineStatus.test.js __tests__/safeStorage.test.js __tests__/cacheManager.test.js __tests__/postRanking.test.js __tests__/feedCategories.test.js",
+    "test:realtime": "jest --runInBand __tests__/realtimeEvents.test.js __tests__/chatRealtimeMessages.test.js",
+    "test:moderation": "jest --runInBand __tests__/postsModerationRepost.test.js",
+    "test:critical": "jest --runInBand __tests__/realtimeEvents.test.js __tests__/chatRealtimeMessages.test.js __tests__/postsModerationRepost.test.js __tests__/networkErrorHandler.test.js __tests__/onlineStatus.test.js __tests__/safeStorage.test.js __tests__/cacheManager.test.js __tests__/postRanking.test.js __tests__/feedCategories.test.js",
     "publish:prod": "eas update --branch native-app --channel production"
   },
   "dependencies": {
@@ -22,6 +26,7 @@
     "appwrite": "^21.2.1",
     "expo": "~54.0.33",
     "expo-auth-session": "~7.0.10",
+    "expo-av": "^16.0.8",
     "expo-blur": "~15.0.8",
     "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",

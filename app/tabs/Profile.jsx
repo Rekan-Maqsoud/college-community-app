@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar, ActivityIndicator, Platform, FlatList, RefreshControl, Linking, Share, Modal } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -11,7 +11,7 @@ import AnimatedBackground from '../components/AnimatedBackground';
 import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
 import { useCustomAlert } from '../hooks/useCustomAlert';
-import { getPostsByUser, togglePostLike, markQuestionAsResolved, deletePost } from '../../database/posts';
+import { getPostsByUser, togglePostLike, setQuestionResolvedStatus, deletePost } from '../../database/posts';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 
@@ -33,40 +33,66 @@ const Profile = ({ navigation, route }) => {
   };
 
   const getQrImageUrl = () => {
-    return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(getProfileLink())}`;
+    const displayName = user?.fullName || t('common.user');
+    const caption = (t('profile.qrShareCaption') || 'Scan to visit {name} profile').replace('{name}', displayName);
+    return `https://quickchart.io/qr?size=320&margin=2&text=${encodeURIComponent(getProfileLink())}&caption=${encodeURIComponent(caption)}&captionFontSize=15`;
+  };
+
+  const shareProfileText = async (fallbackUrl = null) => {
+    const profileLink = getProfileLink();
+    const messageParts = [
+      t('profile.shareMessage').replace('{name}', user?.fullName || t('common.user')),
+      profileLink,
+    ];
+
+    if (fallbackUrl) {
+      messageParts.push(fallbackUrl);
+    }
+
+    await Share.share({
+      message: messageParts.join('\n'),
+      url: fallbackUrl || profileLink,
+      title: t('profile.shareProfile'),
+    });
   };
 
   const handleShareProfile = async () => {
-    try {
-      const profileLink = getProfileLink();
-      await Share.share({
-        message: t('profile.shareMessage').replace('{name}', user?.fullName || t('common.user')) + '\n' + profileLink,
-        title: t('profile.shareProfile'),
-      });
-    } catch (error) {
-      // Share cancelled or failed
-    }
+    await handleShareQr();
   };
 
   const handleShareQr = async () => {
+    const qrUrl = getQrImageUrl();
+
     try {
-      const qrUrl = getQrImageUrl();
-      const fileUri = `${FileSystem.cacheDirectory}profile-qr-${user?.$id || 'user'}.png`;
-      await FileSystem.downloadAsync(qrUrl, fileUri);
+      const qrFile = new File(Paths.cache, `profile-qr-${user?.$id || 'user'}.png`);
+
+      if (qrFile.exists) {
+        qrFile.delete();
+      }
+
+      const downloadedFile = await File.downloadFileAsync(qrUrl, qrFile, { idempotent: true });
+
+      if (!downloadedFile.exists || downloadedFile.size < 100) {
+        throw new Error('QR file invalid');
+      }
 
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
-        await Sharing.shareAsync(fileUri, {
+        await Sharing.shareAsync(downloadedFile.uri, {
           mimeType: 'image/png',
           dialogTitle: t('profile.shareProfile'),
+          UTI: 'public.png',
         });
         return;
       }
     } catch (error) {
-      // Fall through to link sharing
+      console.error('[Profile] QR share failed, falling back to text share', {
+        userId: user?.$id,
+        message: error?.message,
+      });
     }
 
-    handleShareProfile();
+    await shareProfileText(qrUrl);
   };
 
   const loadUserPosts = useCallback(async () => {
@@ -75,7 +101,7 @@ const Profile = ({ navigation, route }) => {
     setLoadingPosts(true);
     setPostsError(null);
     try {
-      const posts = await getPostsByUser(user.$id, 20, 0);
+      const posts = await getPostsByUser(user.$id, 20, 0, user?.$id);
       setUserPosts(posts);
       setPostsLoaded(true);
     } catch (error) {
@@ -179,14 +205,14 @@ const Profile = ({ navigation, route }) => {
     }
   };
 
-  const handleMarkResolved = async (postId) => {
+  const handleMarkResolved = async (postId, nextResolvedState) => {
     try {
-      await markQuestionAsResolved(postId);
+      await setQuestionResolvedStatus(postId, nextResolvedState);
       
       setUserPosts(prevPosts => 
         prevPosts.map(post => 
           post.$id === postId 
-            ? { ...post, isResolved: true }
+            ? { ...post, isResolved: nextResolvedState }
             : post
         )
       );
@@ -550,7 +576,7 @@ const Profile = ({ navigation, route }) => {
                 }}
                 onReply={() => navigation.navigate('PostDetails', { post })}
                 onLike={() => handleLike(post.$id)}
-                onMarkResolved={() => handleMarkResolved(post.$id)}
+                onMarkResolved={(nextResolvedState) => handleMarkResolved(post.$id, nextResolvedState)}
                 onEdit={() => handleEditPost(post)}
                 onDelete={() => handleDeletePost(post)}
                 onUserPress={() => {}}

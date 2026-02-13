@@ -16,7 +16,7 @@ import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
 import CustomAlert from '../../components/CustomAlert';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
-import { getBlockedUsers, unblockUser } from '../../../database/users';
+import { getBlockedUsers, getChatBlockedUsers, unblockUser, unblockUserChatOnly } from '../../../database/users';
 import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,16 +27,22 @@ const BlockList = ({ navigation }) => {
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
   const [blockedUsers, setBlockedUsers] = useState([]);
+  const [chatBlockedUsers, setChatBlockedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unblocking, setUnblocking] = useState(null);
+  const [unblockingChat, setUnblockingChat] = useState(null);
 
   const loadBlockedUsers = useCallback(async () => {
     if (!user?.$id) return;
     
     try {
       setLoading(true);
-      const users = await getBlockedUsers(user.$id);
+      const [users, chatUsers] = await Promise.all([
+        getBlockedUsers(user.$id),
+        getChatBlockedUsers(user.$id),
+      ]);
       setBlockedUsers(users);
+      setChatBlockedUsers(chatUsers);
     } catch (error) {
       // Handle silently
     } finally {
@@ -51,6 +57,40 @@ const BlockList = ({ navigation }) => {
   const handleUnblock = async (blockedUserId, blockedUserName) => {
     showAlert({
       type: 'warning',
+      title: t('settings.unblockUser'),
+      message: t('settings.unblockConfirm').replace('{name}', blockedUserName),
+      buttons: [
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('common.unblock'),
+          onPress: async () => {
+            try {
+              setUnblocking(blockedUserId);
+              await unblockUser(user.$id, blockedUserId);
+              setBlockedUsers(prev => prev.filter(u => u.$id !== blockedUserId));
+              // Refresh user context so blockedUsers is updated for filtering
+              if (refreshUser) await refreshUser();
+            } catch (error) {
+              showAlert({
+                type: 'error',
+                title: t('common.error'),
+                message: t('settings.unblockError'),
+              });
+            } finally {
+              setUnblocking(null);
+            }
+          },
+        },
+      ],
+    });
+  };
+
+  const handleUnblockChatOnly = async (blockedUserId, blockedUserName) => {
+    showAlert({
+      type: 'warning',
       title: t('settings.unblockUser') || 'Unblock User',
       message: (t('settings.unblockConfirm') || 'Are you sure you want to unblock {name}?').replace('{name}', blockedUserName),
       buttons: [
@@ -62,10 +102,9 @@ const BlockList = ({ navigation }) => {
           text: t('common.unblock') || 'Unblock',
           onPress: async () => {
             try {
-              setUnblocking(blockedUserId);
-              await unblockUser(user.$id, blockedUserId);
-              setBlockedUsers(prev => prev.filter(u => u.$id !== blockedUserId));
-              // Refresh user context so blockedUsers is updated for filtering
+              setUnblockingChat(blockedUserId);
+              await unblockUserChatOnly(user.$id, blockedUserId);
+              setChatBlockedUsers(prev => prev.filter(u => u.$id !== blockedUserId));
               if (refreshUser) await refreshUser();
             } catch (error) {
               showAlert({
@@ -74,7 +113,7 @@ const BlockList = ({ navigation }) => {
                 message: t('settings.unblockError') || 'Failed to unblock user. Please try again.',
               });
             } finally {
-              setUnblocking(null);
+              setUnblockingChat(null);
             }
           },
         },
@@ -98,7 +137,7 @@ const BlockList = ({ navigation }) => {
     </BlurView>
   );
 
-  const renderBlockedUser = (blockedUser) => (
+  const renderBlockedUser = (blockedUser, onUnblock, isChatOnly = false) => (
     <View key={blockedUser.$id} style={styles.userItem}>
       <View style={styles.userInfo}>
         {blockedUser.profilePicture ? (
@@ -126,9 +165,9 @@ const BlockList = ({ navigation }) => {
       </View>
       <TouchableOpacity
         style={[styles.unblockButton, { backgroundColor: theme.primary + '15' }]}
-        onPress={() => handleUnblock(blockedUser.$id, blockedUser.name)}
-        disabled={unblocking === blockedUser.$id}>
-        {unblocking === blockedUser.$id ? (
+        onPress={() => onUnblock(blockedUser.$id, blockedUser.name)}
+        disabled={isChatOnly ? unblockingChat === blockedUser.$id : unblocking === blockedUser.$id}>
+        {(isChatOnly ? unblockingChat === blockedUser.$id : unblocking === blockedUser.$id) ? (
           <ActivityIndicator size="small" color={theme.primary} />
         ) : (
           <Text style={[styles.unblockText, { color: theme.primary }]}>
@@ -172,30 +211,65 @@ const BlockList = ({ navigation }) => {
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={theme.primary} />
           </View>
-        ) : blockedUsers.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <View style={[styles.emptyIcon, { backgroundColor: theme.primary + '15' }]}>
-              <Ionicons name="person-remove-outline" size={moderateScale(48)} color={theme.primary} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: theme.text }]}>
-              {t('settings.noBlockedUsers') || 'No Blocked Users'}
-            </Text>
-            <Text style={[styles.emptyDescription, { color: theme.textSecondary }]}>
-              {t('settings.noBlockedUsersDesc') || 'Users you block will appear here'}
-            </Text>
-          </View>
         ) : (
-          <GlassCard>
-            {blockedUsers.map(renderBlockedUser)}
-          </GlassCard>
-        )}
+          <>
+            <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+              {t('settings.blockedUsers')}
+            </Text>
+            {blockedUsers.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <View style={[styles.emptyIcon, { backgroundColor: theme.primary + '15' }]}>
+                  <Ionicons name="person-remove-outline" size={moderateScale(48)} color={theme.primary} />
+                </View>
+                <Text style={[styles.emptyTitle, { color: theme.text }]}>
+                  {t('settings.noBlockedUsers')}
+                </Text>
+                <Text style={[styles.emptyDescription, { color: theme.textSecondary }]}>
+                  {t('settings.noBlockedUsersDesc')}
+                </Text>
+              </View>
+            ) : (
+              <GlassCard>
+                {blockedUsers.map((userItem) => renderBlockedUser(userItem, handleUnblock))}
+              </GlassCard>
+            )}
 
-        <View style={styles.infoContainer}>
-          <Ionicons name="information-circle-outline" size={moderateScale(20)} color={theme.textSecondary} />
-          <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-            {t('settings.blockInfo') || 'Blocked users cannot see your posts, send you messages, or view your profile.'}
-          </Text>
-        </View>
+            <View style={styles.infoContainer}>
+              <Ionicons name="information-circle-outline" size={moderateScale(20)} color={theme.textSecondary} />
+              <Text style={[styles.infoText, { color: theme.textSecondary }]}>
+                {t('settings.blockInfo')}
+              </Text>
+            </View>
+
+            <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+              {t('settings.chatBlockedUsers')}
+            </Text>
+            {chatBlockedUsers.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <View style={[styles.emptyIcon, { backgroundColor: theme.primary + '15' }]}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={moderateScale(48)} color={theme.primary} />
+                </View>
+                <Text style={[styles.emptyTitle, { color: theme.text }]}>
+                  {t('settings.noChatBlockedUsers')}
+                </Text>
+                <Text style={[styles.emptyDescription, { color: theme.textSecondary }]}>
+                  {t('settings.noChatBlockedUsersDesc')}
+                </Text>
+              </View>
+            ) : (
+              <GlassCard>
+                {chatBlockedUsers.map((userItem) => renderBlockedUser(userItem, handleUnblockChatOnly, true))}
+              </GlassCard>
+            )}
+
+            <View style={styles.infoContainer}>
+              <Ionicons name="information-circle-outline" size={moderateScale(20)} color={theme.textSecondary} />
+              <Text style={[styles.infoText, { color: theme.textSecondary }]}>
+                {t('settings.chatBlockInfo')}
+              </Text>
+            </View>
+          </>
+        )}
 
         <View style={styles.bottomPadding} />
       </ScrollView>
@@ -250,6 +324,12 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: wp(5),
     paddingTop: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: responsiveFontSize(14),
+    fontWeight: '600',
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
   glassCard: {
     borderRadius: borderRadius.lg,

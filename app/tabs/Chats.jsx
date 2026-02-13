@@ -97,8 +97,15 @@ const Chats = ({ navigation }) => {
       if (!resolvedPayload?.$id) return false;
 
       if (resolvedPayload.type === 'private') {
+        const blockedUsers = user?.blockedUsers || [];
+        const chatBlockedUsers = user?.chatBlockedUsers || [];
+        const blockedSet = new Set([...blockedUsers, ...chatBlockedUsers]);
+
         let chatToAdd = resolvedPayload;
         const otherUserId = resolvedPayload.participants?.find(id => id !== user?.$id);
+        if (blockedSet.size > 0 && otherUserId && blockedSet.has(otherUserId)) {
+          return true;
+        }
         if (otherUserId) {
           try {
             const otherUser = await getUserById(otherUserId);
@@ -237,14 +244,16 @@ const Chats = ({ navigation }) => {
 
       // Filter out private chats where the partner is blocked or the user has removed the conversation
       const blockedUsers = user?.blockedUsers || [];
+      const chatBlockedUsers = user?.chatBlockedUsers || [];
+      const blockedSet = new Set([...blockedUsers, ...chatBlockedUsers]);
       const allPrivateChats = chats.privateChats || [];
       const filteredPrivateChats = allPrivateChats.filter(c => {
         // Filter out chats removed by the current user
         if (isChatRemovedByUser(c, user?.$id)) return false;
         // Filter out chats where the partner is blocked
-        if (Array.isArray(blockedUsers) && blockedUsers.length > 0) {
+        if (blockedSet.size > 0) {
           const otherUserId = c.otherUser?.$id || c.otherUser?.id || c.participants?.find(id => id !== user?.$id);
-          if (blockedUsers.includes(otherUserId)) return false;
+          if (blockedSet.has(otherUserId)) return false;
         }
         return true;
       });
@@ -308,7 +317,7 @@ const Chats = ({ navigation }) => {
     }
 
     if ((activeFilter === 'all' || activeFilter === 'direct') && privateChats.length > 0) {
-      const blockedSet = new Set(user?.blockedUsers || []);
+      const blockedSet = new Set([...(user?.blockedUsers || []), ...(user?.chatBlockedUsers || [])]);
       const visiblePrivateChats = blockedSet.size > 0
         ? privateChats.filter(c => {
             const otherUserId = c.participants?.find(id => id !== user?.$id);

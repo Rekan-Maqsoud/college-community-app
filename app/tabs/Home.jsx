@@ -9,6 +9,8 @@ import {
   RefreshControl,
   TouchableOpacity,
   Animated,
+  Modal,
+  ScrollView,
   useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,7 +22,7 @@ import { useUser } from '../context/UserContext';
 import AnimatedBackground from '../components/AnimatedBackground';
 import SearchBar from '../components/SearchBar';
 import FeedSelector from '../components/FeedSelector';
-import FilterSortModal, { SORT_OPTIONS } from '../components/FilterSortModal';
+import FilterSortModal, { SORT_OPTIONS, FILTER_TYPES } from '../components/FilterSortModal';
 import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
 import GreetingBanner from '../components/GreetingBanner';
@@ -35,7 +37,7 @@ import {
 import { borderRadius } from '../theme/designTokens';
 import { FEED_TYPES, getDepartmentsInSameMajor } from '../constants/feedCategories';
 import { POST_TYPES } from '../constants/postConstants';
-import { getPosts, getPostsByDepartments, getAllPublicPosts, togglePostLike, deletePost, enrichPostsWithUserData, reportPost, incrementPostViewCount, markQuestionAsResolved, getPost } from '../../database/posts';
+import { getPosts, getPostsByDepartments, getAllPublicPosts, togglePostLike, deletePost, enrichPostsWithUserData, reportPost, incrementPostViewCount, setQuestionResolvedStatus, createRepost } from '../../database/posts';
 import { notifyPostLike, getUnreadNotificationCount } from '../../database/notifications';
 import { handleNetworkError } from '../utils/networkErrorHandler';
 import { useCustomAlert } from '../hooks/useCustomAlert';
@@ -64,6 +66,9 @@ const Home = ({ navigation, route }) => {
   const [page, setPage] = useState(0);
   const [userInteractions, setUserInteractions] = useState({});
   const [showFilterSortModal, setShowFilterSortModal] = useState(false);
+  const [showReportReasonModal, setShowReportReasonModal] = useState(false);
+  const [selectedReportPost, setSelectedReportPost] = useState(null);
+  const [submittingReportReason, setSubmittingReportReason] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
 
@@ -72,6 +77,7 @@ const Home = ({ navigation, route }) => {
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerTranslateY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
+  const headerVisible = useRef(true);
   const lastTapTime = useRef(0);
   const scrollToTopOpacity = useRef(new Animated.Value(0)).current;
   const { width } = useWindowDimensions();
@@ -80,6 +86,18 @@ const Home = ({ navigation, route }) => {
   const headerHeight = isVerySmallScreen ? moderateScale(36) : isSmallScreen ? moderateScale(38) : moderateScale(44);
   const actionButtonSize = isVerySmallScreen ? moderateScale(30) : isSmallScreen ? moderateScale(34) : moderateScale(40);
   const headerIconSize = isVerySmallScreen ? moderateScale(14) : isSmallScreen ? moderateScale(16) : moderateScale(18);
+  const reportReasonOptions = [
+    { key: 'self_harm', labelKey: 'selfHarm', icon: 'medkit-outline', color: '#DC2626', severityKey: 'critical' },
+    { key: 'violence', labelKey: 'violence', icon: 'warning-outline', color: '#EF4444', severityKey: 'high' },
+    { key: 'hate_speech', labelKey: 'hateSpeech', icon: 'ban-outline', color: '#B91C1C', severityKey: 'high' },
+    { key: 'harassment', labelKey: 'harassment', icon: 'hand-left-outline', color: '#F97316', severityKey: 'high' },
+    { key: 'misinformation', labelKey: 'misinformation', icon: 'alert-circle-outline', color: '#F59E0B', severityKey: 'medium' },
+    { key: 'copyright', labelKey: 'copyright', icon: 'document-text-outline', color: '#8B5CF6', severityKey: 'medium' },
+    { key: 'inappropriate', labelKey: 'inappropriate', icon: 'eye-off-outline', color: '#3B82F6', severityKey: 'medium' },
+    { key: 'spam', labelKey: 'spam', icon: 'mail-unread-outline', color: '#0EA5E9', severityKey: 'low' },
+    { key: 'other', labelKey: 'other', icon: 'ellipsis-horizontal-circle-outline', color: '#6B7280', severityKey: 'low' },
+    { key: 'dont_like', labelKey: 'dontLike', icon: 'chatbubble-ellipses-outline', color: '#64748B', severityKey: 'feedback' },
+  ];
   const headerTop = insets.top + (isSmallScreen ? spacing.xs : spacing.sm);
   const listTopPadding = headerHeight + spacing.md;
   const loadingTopPadding = listTopPadding + spacing.xl;
@@ -262,17 +280,34 @@ const Home = ({ navigation, route }) => {
         const currentScrollY = event.nativeEvent.contentOffset.y;
         const diff = currentScrollY - lastScrollY.current;
 
-        if (diff > 5 && currentScrollY > 50) {
+        if (currentScrollY <= 50 && !headerVisible.current) {
+          // Near top - always show header
+          headerVisible.current = true;
+          headerTranslateY.stopAnimation();
+          Animated.spring(headerTranslateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 100,
+            friction: 12,
+          }).start();
+        } else if (diff > 8 && currentScrollY > 50 && headerVisible.current) {
+          // Scrolling down fast enough - hide header
+          headerVisible.current = false;
+          headerTranslateY.stopAnimation();
           Animated.timing(headerTranslateY, {
             toValue: -120,
             duration: 200,
             useNativeDriver: true,
           }).start();
-        } else if (diff < -5 || currentScrollY < 50) {
-          Animated.timing(headerTranslateY, {
+        } else if (diff < -3 && currentScrollY > 50 && !headerVisible.current) {
+          // Scrolling up even slightly - show header immediately
+          headerVisible.current = true;
+          headerTranslateY.stopAnimation();
+          Animated.spring(headerTranslateY, {
             toValue: 0,
-            duration: 200,
             useNativeDriver: true,
+            tension: 120,
+            friction: 10,
           }).start();
         }
 
@@ -309,17 +344,25 @@ const Home = ({ navigation, route }) => {
       let fetchedPosts = [];
       const offset = currentPage * POSTS_PER_PAGE;
 
+      const resolvedAnswerStatus = filterType === FILTER_TYPES.UNANSWERED_QUESTIONS
+        ? 'unanswered'
+        : answerStatus;
+      const resolvedFilterType = filterType === FILTER_TYPES.UNANSWERED_QUESTIONS
+        ? POST_TYPES.QUESTION
+        : filterType;
+      const blockedUsers = user?.blockedUsers || [];
+
       if (selectedFeed === FEED_TYPES.DEPARTMENT) {
-        const shouldForceQuestion = answerStatus !== 'all' && filterType !== POST_TYPES.QUESTION;
+        const shouldForceQuestion = resolvedAnswerStatus !== 'all' && resolvedFilterType !== POST_TYPES.QUESTION;
         const filters = {
           department: user.department,
-          postType: shouldForceQuestion ? POST_TYPES.QUESTION : filterType,
-          answerStatus,
+          postType: shouldForceQuestion ? POST_TYPES.QUESTION : resolvedFilterType,
+          answerStatus: resolvedAnswerStatus,
         };
         if (selectedStage !== 'all') {
           filters.stage = selectedStage;
         }
-        fetchedPosts = await getPosts(filters, POSTS_PER_PAGE, offset, useCache, sortBy);
+        fetchedPosts = await getPosts(filters, POSTS_PER_PAGE, offset, useCache, sortBy, blockedUsers, user?.$id);
       } else if (selectedFeed === FEED_TYPES.MAJOR) {
         const relatedDepartments = getDepartmentsInSameMajor(user.department);
         fetchedPosts = await getPostsByDepartments(
@@ -329,8 +372,10 @@ const Home = ({ navigation, route }) => {
           offset,
           useCache,
           sortBy,
-          filterType,
-          answerStatus
+          resolvedFilterType,
+          resolvedAnswerStatus,
+          blockedUsers,
+          user?.$id
         );
       } else if (selectedFeed === FEED_TYPES.PUBLIC) {
         fetchedPosts = await getAllPublicPosts(
@@ -339,8 +384,10 @@ const Home = ({ navigation, route }) => {
           offset,
           useCache,
           sortBy,
-          filterType,
-          answerStatus
+          resolvedFilterType,
+          resolvedAnswerStatus,
+          blockedUsers,
+          user?.$id
         );
       }
 
@@ -348,7 +395,6 @@ const Home = ({ navigation, route }) => {
       const enrichedPosts = await enrichPostsWithUserData(fetchedPosts);
 
       // Filter out posts from blocked users
-      const blockedUsers = user?.blockedUsers || [];
       const filteredPosts = Array.isArray(blockedUsers) && blockedUsers.length > 0
         ? enrichedPosts.filter(p => {
             const isBlocked = blockedUsers.includes(p.userId);
@@ -434,9 +480,13 @@ const Home = ({ navigation, route }) => {
   const handleFilterTypeChange = (type) => {
     if (type !== filterType) {
       setFilterType(type);
-      if (type !== POST_TYPES.QUESTION && answerStatus !== 'all') {
+
+      if (type === FILTER_TYPES.UNANSWERED_QUESTIONS) {
+        setAnswerStatus('unanswered');
+      } else if (type !== POST_TYPES.QUESTION && answerStatus !== 'all') {
         setAnswerStatus('all');
       }
+
       setPosts([]);
       setPage(0);
       setHasMore(true);
@@ -447,9 +497,15 @@ const Home = ({ navigation, route }) => {
   const handleAnswerStatusChange = (status) => {
     if (status !== answerStatus) {
       setAnswerStatus(status);
-      if (status !== 'all' && filterType !== POST_TYPES.QUESTION) {
+
+      if (status !== 'all' && filterType !== POST_TYPES.QUESTION && filterType !== FILTER_TYPES.UNANSWERED_QUESTIONS) {
         setFilterType(POST_TYPES.QUESTION);
       }
+
+      if (filterType === FILTER_TYPES.UNANSWERED_QUESTIONS && status !== 'unanswered') {
+        setFilterType(POST_TYPES.QUESTION);
+      }
+
       setPosts([]);
       setPage(0);
       setHasMore(true);
@@ -547,19 +603,23 @@ const Home = ({ navigation, route }) => {
     navigation.navigate('EditPost', { post });
   };
 
-  const handleMarkResolved = async (postId) => {
+  const handleMarkResolved = async (postId, nextResolvedState) => {
     try {
-      await markQuestionAsResolved(postId);
+      await setQuestionResolvedStatus(postId, nextResolvedState);
       
       setPosts(prevPosts => 
         prevPosts.map(post => 
           post.$id === postId 
-            ? { ...post, isResolved: true }
+            ? { ...post, isResolved: nextResolvedState }
             : post
         )
       );
       
-      showAlert(t('common.success'), t('post.markedAsResolved'), 'success');
+      showAlert(
+        t('common.success'),
+        nextResolvedState ? t('post.markedAsResolved') : t('post.markedAsUnanswered'),
+        'success'
+      );
     } catch (error) {
       const errorInfo = handleNetworkError(error);
       showAlert(
@@ -607,44 +667,87 @@ const Home = ({ navigation, route }) => {
 
     // If no reason provided, show reason selection first
     if (!reason) {
-      const reasons = [
-        { key: 'spam', label: t('report.spam') || 'Spam' },
-        { key: 'harassment', label: t('report.harassment') || 'Harassment or bullying' },
-        { key: 'inappropriate', label: t('report.inappropriate') || 'Inappropriate content' },
-        { key: 'misinformation', label: t('report.misinformation') || 'Misinformation' },
-        { key: 'other', label: t('report.other') || 'Other' },
-      ];
-
-      showAlert({
-        type: 'info',
-        title: t('post.reportPost'),
-        message: t('report.selectReason') || 'Why are you reporting this post?',
-        buttons: [
-          ...reasons.map(r => ({
-            text: r.label,
-            onPress: () => handleReportPost(post, r.key),
-          })),
-          { text: t('common.cancel'), style: 'cancel' },
-        ],
-      });
+      setSelectedReportPost(post);
+      setShowReportReasonModal(true);
       return;
     }
 
     // Submit the report with reason
     try {
+      setSubmittingReportReason(true);
       const result = await reportPost(post.$id, user.$id, reason);
+      if (result?.moderationStatePersisted === false) {
+        console.warn('[Home] Report saved but moderation fields were not persisted on post document', {
+          postId: post.$id,
+          reason,
+          userId: user.$id,
+        });
+      }
       if (result.alreadyReported) {
-        showAlert(t('common.info'), t('post.alreadyReported') || 'You have already reported this post', 'info');
+        showAlert(t('common.info'), t('post.alreadyReported'), 'info');
+      } else if (result.treatedAsFeedback) {
+        showAlert(t('common.info'), t('post.reportFeedbackSaved'), 'info');
       } else {
-        showAlert(t('common.success'), t('post.reportSuccess'), 'success');
+        showAlert(t('common.success'), t('post.reportSuccessPolicy'), 'success');
+        if (result.isHidden) {
+          setPosts(prevPosts => prevPosts.filter(p => p.$id !== post.$id));
+        }
       }
     } catch (error) {
       const errorInfo = handleNetworkError(error);
+      console.error('[Home] Report submission failed', {
+        postId: post?.$id,
+        reason,
+        userId: user?.$id,
+        message: error?.message,
+      });
+      const message = error?.message === 'Users cannot report their own posts'
+        ? t('post.cannotReportOwnPost')
+        : t('post.reportError');
       showAlert(
         errorInfo.isNetworkError ? t('error.noInternet') : t('error.title'),
-        t('post.reportError'),
+        message,
         [{ text: t('common.ok') }]
       );
+    } finally {
+      setSubmittingReportReason(false);
+      setShowReportReasonModal(false);
+      setSelectedReportPost(null);
+    }
+  };
+
+  const handleRepost = async (post) => {
+    if (!user?.$id || !post?.$id) return;
+
+    try {
+      const result = await createRepost(post.$id, user.$id, {
+        userName: user.fullName || user.name,
+        profilePicture: user.profilePicture || null,
+        department: user.department || post.department,
+        stage: user.stage || post.stage,
+        postType: post.postType,
+        canOthersRepost: true,
+      });
+
+      if (result?.alreadyReposted) {
+        showAlert(t('common.info'), t('post.alreadyReposted') || 'You already reposted this post', 'info');
+        return;
+      }
+
+      if (result?.post) {
+        setPosts(prevPosts => {
+          const alreadyInFeed = prevPosts.some(existing => existing.$id === result.post.$id);
+          return alreadyInFeed ? prevPosts : [result.post, ...prevPosts];
+        });
+      }
+
+      showAlert(t('common.success'), t('post.repostSuccess') || 'Post reposted successfully', 'success');
+    } catch (error) {
+      const message = error?.message === 'Repost is not allowed for this post'
+        ? (t('post.repostNotAllowed') || 'Reposting is not allowed for this post')
+        : (t('post.repostError') || 'Failed to repost');
+
+      showAlert(t('common.error'), message, 'error');
     }
   };
 
@@ -761,7 +864,8 @@ const Home = ({ navigation, route }) => {
               onEdit={() => handleEditPost(item)}
               onDelete={() => handleDeletePost(item)}
               onReport={() => handleReportPost(item)}
-              onMarkResolved={() => handleMarkResolved(item.$id)}
+              onRepost={() => handleRepost(item)}
+              onMarkResolved={(nextResolvedState) => handleMarkResolved(item.$id, nextResolvedState)}
               onTagPress={(tag) => searchBarRef.current?.openWithQuery(`#${tag}`)}
               isLiked={item.likedBy?.includes(user?.$id)}
               isOwner={item.userId === user?.$id}
@@ -923,6 +1027,75 @@ const Home = ({ navigation, route }) => {
         selectedStage={selectedStage}
         onStageChange={handleStageChange}
       />
+
+      <Modal
+        visible={showReportReasonModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!submittingReportReason) {
+            setShowReportReasonModal(false);
+            setSelectedReportPost(null);
+          }
+        }}
+      >
+        <View style={styles.reportModalOverlay}>
+          <View style={[styles.reportModalCard, { backgroundColor: theme.card || theme.cardBackground, borderColor: theme.border }]}>
+            <View style={styles.reportModalHeader}>
+              <View style={styles.reportModalHeaderTextWrap}>
+                <Text style={[styles.reportModalTitle, { color: theme.text }]}>{t('post.reportPost')}</Text>
+                <Text style={[styles.reportModalSubtitle, { color: theme.textSecondary }]}>{t('report.modalSubtitle')}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  if (!submittingReportReason) {
+                    setShowReportReasonModal(false);
+                    setSelectedReportPost(null);
+                  }
+                }}
+                style={styles.reportModalCloseBtn}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={moderateScale(18)} color={theme.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.reportReasonsScroll} showsVerticalScrollIndicator={false}>
+              {reportReasonOptions.map((reason) => (
+                <TouchableOpacity
+                  key={reason.key}
+                  style={[styles.reportReasonItem, { borderColor: theme.border, backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }]}
+                  activeOpacity={0.8}
+                  disabled={submittingReportReason}
+                  onPress={() => {
+                    if (selectedReportPost) {
+                      handleReportPost(selectedReportPost, reason.key);
+                    }
+                  }}
+                >
+                  <View style={[styles.reportReasonIconWrap, { backgroundColor: `${reason.color}20` }]}>
+                    <Ionicons name={reason.icon} size={moderateScale(16)} color={reason.color} />
+                  </View>
+                  <View style={styles.reportReasonTextWrap}>
+                    <Text style={[styles.reportReasonTitle, { color: theme.text }]}>{t(`report.${reason.labelKey}`)}</Text>
+                    <Text style={[styles.reportReasonDescription, { color: theme.textSecondary }]} numberOfLines={2}>{t(`report.description.${reason.key}`)}</Text>
+                  </View>
+                  <View style={[styles.reportReasonPriorityBadge, { backgroundColor: isDarkMode ? `${reason.color}25` : `${reason.color}18` }]}>
+                    <Text style={[styles.reportReasonPriorityText, { color: reason.color }]}>{t(`report.priority.${reason.severityKey}`)}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {submittingReportReason ? (
+              <View style={styles.reportSubmittingWrap}>
+                <ActivityIndicator size="small" color={theme.primary} />
+                <Text style={[styles.reportSubmittingText, { color: theme.textSecondary }]}>{t('report.submitting')}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
 
       {/* Scroll to Top Button */}
       <Animated.View
@@ -1095,7 +1268,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   postsListContent: {
-    paddingBottom: spacing.xl,
+    paddingBottom: hp(6),
   },
   footerLoader: {
     paddingVertical: spacing.lg,
@@ -1121,6 +1294,98 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 8,
+  },
+  reportModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    paddingHorizontal: wp(5),
+  },
+  reportModalCard: {
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    maxHeight: hp(75),
+    padding: spacing.md,
+  },
+  reportModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  reportModalHeaderTextWrap: {
+    flex: 1,
+    paddingRight: spacing.sm,
+  },
+  reportModalTitle: {
+    fontSize: fontSize(18),
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+  },
+  reportModalSubtitle: {
+    fontSize: fontSize(13),
+    lineHeight: fontSize(18),
+  },
+  reportModalCloseBtn: {
+    width: moderateScale(34),
+    height: moderateScale(34),
+    borderRadius: moderateScale(17),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reportReasonsScroll: {
+    marginTop: spacing.xs,
+  },
+  reportReasonItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  reportReasonIconWrap: {
+    width: moderateScale(34),
+    height: moderateScale(34),
+    borderRadius: moderateScale(17),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reportReasonTextWrap: {
+    flex: 1,
+  },
+  reportReasonTitle: {
+    fontSize: fontSize(14),
+    fontWeight: '700',
+    marginBottom: spacing.xs * 0.4,
+  },
+  reportReasonDescription: {
+    fontSize: fontSize(12),
+    lineHeight: fontSize(16),
+  },
+  reportReasonPriorityBadge: {
+    borderRadius: borderRadius.round,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs * 0.6,
+  },
+  reportReasonPriorityText: {
+    fontSize: fontSize(10),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  reportSubmittingWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+    paddingTop: spacing.sm,
+  },
+  reportSubmittingText: {
+    fontSize: fontSize(12),
+    fontWeight: '500',
   },
 });
 

@@ -3,6 +3,7 @@ import {
   View,
   TextInput,
   TouchableOpacity,
+  PanResponder,
   StyleSheet,
   Platform,
   Image,
@@ -12,9 +13,13 @@ import {
   Pressable,
   Animated,
   Keyboard,
+  Linking,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
 import LeafletMap from './LeafletMap';
 import GiphyPickerModal from './GiphyPickerModal';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -26,12 +31,16 @@ import {
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { pickAndCompressImages, takePictureAndCompress } from '../utils/imageCompression';
-import { uploadChatImage } from '../../database/chats';
+import { uploadChatImage, uploadChatVoiceMessage } from '../../database/chats';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 
 const MAX_INPUT_LINES = 5;
 const LINE_HEIGHT = moderateScale(20);
 const MAX_INPUT_HEIGHT = LINE_HEIGHT * MAX_INPUT_LINES;
+const GIF_SEND_COOLDOWN_MS = 300;
+const VOICE_LOCK_THRESHOLD = moderateScale(70);
+const MIN_VOICE_DURATION_MS = 500;
 
 const MessageInput = ({
   onSend,
@@ -47,6 +56,7 @@ const MessageInput = ({
 }) => {
   const { theme, isDarkMode, t } = useAppSettings();
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
   const [message, setMessage] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -55,10 +65,20 @@ const MessageInput = ({
   const [showLocationPreview, setShowLocationPreview] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [showGiphyPicker, setShowGiphyPicker] = useState(false);
-  const [sendingGif, setSendingGif] = useState(false);
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionStartIndex, setMentionStartIndex] = useState(-1);
+  const [recording, setRecording] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isRecordingLocked, setIsRecordingLocked] = useState(false);
+  const [recordingDurationMs, setRecordingDurationMs] = useState(0);
+  const lastGifSentAtRef = useRef(0);
+  const recordingDurationIntervalRef = useRef(null);
+  const recordingStartYRef = useRef(0);
+  const isRecordingRef = useRef(false);
+  const isRecordingLockedRef = useRef(false);
+  const disabledRef = useRef(disabled);
+  const uploadingRef = useRef(uploading);
   const inputRef = useRef(null);
   const actionSheetAnim = useRef(new Animated.Value(0)).current;
 
@@ -71,6 +91,214 @@ const MessageInput = ({
       useNativeDriver: true,
     }).start();
   }, [showActionSheet]);
+
+  useEffect(() => {
+    isRecordingRef.current = isRecording;
+  }, [isRecording]);
+
+  useEffect(() => {
+    isRecordingLockedRef.current = isRecordingLocked;
+  }, [isRecordingLocked]);
+
+  useEffect(() => {
+    disabledRef.current = disabled;
+  }, [disabled]);
+
+  useEffect(() => {
+    uploadingRef.current = uploading;
+  }, [uploading]);
+
+  useEffect(() => {
+    return () => {
+      if (recordingDurationIntervalRef.current) {
+        clearInterval(recordingDurationIntervalRef.current);
+      }
+      if (recording) {
+        recording.stopAndUnloadAsync().catch(() => {});
+      }
+    };
+  }, [recording]);
+
+  const formatVoiceDuration = (durationMs) => {
+    const totalSeconds = Math.max(0, Math.floor((durationMs || 0) / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  };
+
+  const clearRecordingTicker = () => {
+    if (recordingDurationIntervalRef.current) {
+      clearInterval(recordingDurationIntervalRef.current);
+      recordingDurationIntervalRef.current = null;
+    }
+  };
+
+  const startRecordingTicker = (activeRecording) => {
+    clearRecordingTicker();
+    recordingDurationIntervalRef.current = setInterval(async () => {
+      if (!activeRecording) return;
+      try {
+        const status = await activeRecording.getStatusAsync();
+        if (status?.isRecording) {
+          setRecordingDurationMs(status.durationMillis || 0);
+        }
+      } catch {
+      }
+    }, 250);
+  };
+
+  const resetRecordingState = () => {
+    clearRecordingTicker();
+    setRecording(null);
+    setIsRecording(false);
+    setIsRecordingLocked(false);
+    setRecordingDurationMs(0);
+    isRecordingRef.current = false;
+    isRecordingLockedRef.current = false;
+  };
+
+  const startVoiceRecording = async () => {
+    if (disabled || uploading || isRecordingRef.current || message.trim() || selectedImage) {
+      return;
+    }
+
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (!permission.granted) {
+        if (!permission.canAskAgain) {
+          showPermissionDeniedAlert('microphone');
+        } else {
+          triggerAlert(t('common.error'), t('chats.microphonePermissionDenied'));
+        }
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+
+      const nextRecording = new Audio.Recording();
+      await nextRecording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await nextRecording.startAsync();
+
+      setRecording(nextRecording);
+      setRecordingDurationMs(0);
+      setIsRecording(true);
+      setIsRecordingLocked(false);
+      startRecordingTicker(nextRecording);
+    } catch {
+      resetRecordingState();
+      triggerAlert(t('common.error'), t('chats.voiceRecordingFailed'));
+    }
+  };
+
+  const stopVoiceRecording = async ({ shouldSend }) => {
+    const activeRecording = recording;
+    if (!activeRecording) {
+      resetRecordingState();
+      return;
+    }
+
+    try {
+      clearRecordingTicker();
+      let status = await activeRecording.getStatusAsync();
+      if (status?.isRecording) {
+        await activeRecording.stopAndUnloadAsync();
+        status = await activeRecording.getStatusAsync();
+      }
+
+      const durationMillis = status?.durationMillis || recordingDurationMs || 0;
+      const recordingUri = activeRecording.getURI();
+      resetRecordingState();
+
+      if (!shouldSend || !recordingUri) {
+        if (recordingUri) {
+          FileSystem.deleteAsync(recordingUri, { idempotent: true }).catch(() => {});
+        }
+        return;
+      }
+
+      if (durationMillis < MIN_VOICE_DURATION_MS) {
+        triggerAlert(t('common.error'), t('chats.voiceTooShort'));
+        FileSystem.deleteAsync(recordingUri, { idempotent: true }).catch(() => {});
+        return;
+      }
+
+      if (!onSend) {
+        return;
+      }
+
+      setUploading(true);
+      const info = await FileSystem.getInfoAsync(recordingUri, { size: true });
+      const uploadedVoice = await uploadChatVoiceMessage({
+        uri: recordingUri,
+        name: `voice_${Date.now()}.m4a`,
+        type: 'audio/m4a',
+        size: info?.size || 0,
+      });
+
+      await onSend('', null, 'voice', {
+        voice_url: uploadedVoice.viewUrl,
+        voice_file_id: uploadedVoice.fileId,
+        voice_duration_ms: durationMillis,
+        voice_mime_type: uploadedVoice.mimeType || 'audio/m4a',
+        voice_size: uploadedVoice.size || info?.size || 0,
+      });
+
+      FileSystem.deleteAsync(recordingUri, { idempotent: true }).catch(() => {});
+    } catch {
+      triggerAlert(t('common.error'), t('chats.voiceSendError'));
+    } finally {
+      setUploading(false);
+      Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      }).catch(() => {});
+    }
+  };
+
+  const voicePanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => !disabledRef.current && !uploadingRef.current,
+      onStartShouldSetPanResponderCapture: () => !disabledRef.current && !uploadingRef.current,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (event) => {
+        recordingStartYRef.current = event?.nativeEvent?.pageY || 0;
+        startVoiceRecording();
+      },
+      onPanResponderMove: (event) => {
+        if (!isRecordingRef.current || isRecordingLockedRef.current) {
+          return;
+        }
+
+        const currentY = event?.nativeEvent?.pageY || 0;
+        const deltaY = recordingStartYRef.current - currentY;
+        if (deltaY > VOICE_LOCK_THRESHOLD) {
+          setIsRecordingLocked(true);
+          isRecordingLockedRef.current = true;
+        }
+      },
+      onPanResponderRelease: () => {
+        if (!isRecordingRef.current) {
+          return;
+        }
+        if (!isRecordingLockedRef.current) {
+          stopVoiceRecording({ shouldSend: true });
+        }
+      },
+      onPanResponderTerminate: () => {
+        if (!isRecordingRef.current) {
+          return;
+        }
+        if (!isRecordingLockedRef.current) {
+          stopVoiceRecording({ shouldSend: true });
+        }
+      },
+    })
+  ).current;
 
   // --- Mention logic ---
   const getMentionSuggestions = () => {
@@ -142,10 +370,53 @@ const MessageInput = ({
   // --- Action handlers ---
   const closeActionSheet = () => setShowActionSheet(false);
 
+  // Smart permission helper: shows alert with "Open Settings" button when permanently denied
+  const showPermissionDeniedAlert = (permissionType) => {
+    const titles = {
+      gallery: t('errors.galleryPermissionDenied') || 'Gallery Access Required',
+      camera: t('errors.cameraPermissionDenied') || 'Camera Access Required',
+      location: t('chats.locationPermissionDenied') || 'Location Access Required',
+      microphone: t('chats.microphonePermissionDeniedTitle'),
+    };
+    const descriptions = {
+      gallery: t('permissions.galleryDesc') || 'Please allow gallery access in your device settings to share photos.',
+      camera: t('permissions.cameraDesc') || 'Please allow camera access in your device settings to take photos.',
+      location: t('permissions.locationDesc') || 'Please allow location access in your device settings to share your location.',
+      microphone: t('permissions.microphoneDesc'),
+    };
+
+    triggerAlert(
+      titles[permissionType],
+      descriptions[permissionType],
+      'warning',
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('notifications.openSettings') || 'Open Settings',
+          onPress: () => Linking.openSettings(),
+        },
+      ]
+    );
+  };
+
   const handlePickImage = async () => {
     if (disabled || uploading) return;
     closeActionSheet();
     try {
+      // Pre-check permission to handle permanently-denied case
+      const { status, canAskAgain } = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        const req = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!req.granted) {
+          if (!req.canAskAgain) {
+            showPermissionDeniedAlert('gallery');
+          } else {
+            triggerAlert(t('common.error'), t('errors.galleryPermissionDenied') || 'Gallery permission is required');
+          }
+          return;
+        }
+      }
+
       const result = await pickAndCompressImages({
         allowsMultipleSelection: false,
         maxImages: 1,
@@ -155,7 +426,11 @@ const MessageInput = ({
         setSelectedImage(result[0]);
       }
     } catch (error) {
-      triggerAlert(t('common.error'), error.message || t('chats.imagePickError'));
+      if (error.translationKey === 'errors.galleryPermissionDenied') {
+        showPermissionDeniedAlert('gallery');
+      } else {
+        triggerAlert(t('common.error'), error.message || t('chats.imagePickError'));
+      }
     }
   };
 
@@ -163,12 +438,30 @@ const MessageInput = ({
     if (disabled || uploading) return;
     closeActionSheet();
     try {
+      // Pre-check permission to handle permanently-denied case
+      const { status, canAskAgain } = await ImagePicker.getCameraPermissionsAsync();
+      if (status !== 'granted') {
+        const req = await ImagePicker.requestCameraPermissionsAsync();
+        if (!req.granted) {
+          if (!req.canAskAgain) {
+            showPermissionDeniedAlert('camera');
+          } else {
+            triggerAlert(t('common.error'), t('errors.cameraPermissionDenied') || 'Camera permission is required');
+          }
+          return;
+        }
+      }
+
       const result = await takePictureAndCompress({ quality: 'medium' });
       if (result) {
         setSelectedImage(result);
       }
     } catch (error) {
-      triggerAlert(t('common.error'), error.message || t('chats.cameraError'));
+      if (error.translationKey === 'errors.cameraPermissionDenied') {
+        showPermissionDeniedAlert('camera');
+      } else {
+        triggerAlert(t('common.error'), error.message || t('chats.cameraError'));
+      }
     }
   };
 
@@ -176,11 +469,19 @@ const MessageInput = ({
     closeActionSheet();
     setLocationLoading(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      const { status, canAskAgain } = await Location.getForegroundPermissionsAsync();
       if (status !== 'granted') {
-        triggerAlert(t('common.error'), t('chats.locationPermissionDenied'));
-        return;
+        const req = await Location.requestForegroundPermissionsAsync();
+        if (req.status !== 'granted') {
+          if (!req.canAskAgain) {
+            showPermissionDeniedAlert('location');
+          } else {
+            triggerAlert(t('common.error'), t('chats.locationPermissionDenied'));
+          }
+          return;
+        }
       }
+
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       });
@@ -219,8 +520,14 @@ const MessageInput = ({
   };
 
   const handleGifSelected = async (gifData) => {
-    if (!onSend || sendingGif) return;
-    setSendingGif(true);
+    if (!onSend) return false;
+    const now = Date.now();
+    if (now - lastGifSentAtRef.current < GIF_SEND_COOLDOWN_MS) {
+      return false;
+    }
+
+    lastGifSentAtRef.current = now;
+
     try {
       const metadata = {
         gif_url: gifData.url,
@@ -234,10 +541,10 @@ const MessageInput = ({
         gif_type: gifData.type || 'gif',
       };
       await onSend(null, null, 'gif', metadata);
+      return true;
     } catch {
       triggerAlert(t('common.error'), t('chats.sendError'));
-    } finally {
-      setSendingGif(false);
+      return false;
     }
   };
 
@@ -345,6 +652,11 @@ const MessageInput = ({
   ].filter((item) => !item.hidden);
 
   const canSendMessage = (message.trim() || selectedImage) && !disabled && !uploading;
+  const shouldShowSendButton = !!(message.trim() || selectedImage);
+  const isSmallDevice = screenHeight < 750;
+  const baseBottomPadding = Platform.OS === 'ios' ? spacing.xs : spacing.sm;
+  const extraBottomPadding = moderateScale(isSmallDevice ? 8 : 5);
+  const wrapperBottomPadding = Math.max(baseBottomPadding + extraBottomPadding, insets.bottom + moderateScale(4));
 
   // Colors
   const containerBg = isDarkMode ? '#1a1a2e' : '#F8F9FA';
@@ -358,7 +670,7 @@ const MessageInput = ({
         {
           backgroundColor: containerBg,
           borderTopColor: borderColor,
-          paddingBottom: Math.max(Platform.OS === 'ios' ? spacing.xs : spacing.sm, insets.bottom),
+          paddingBottom: wrapperBottomPadding,
         },
       ]}
     >
@@ -378,7 +690,9 @@ const MessageInput = ({
               style={[styles.replyText, { color: theme.textSecondary, fontSize: fontSize(12) }]}
               numberOfLines={1}
             >
-              {replyingTo.content || t('chats.image')}
+              {replyingTo.type === 'voice'
+                ? t('chats.voiceMessage')
+                : (replyingTo.content || t('chats.image'))}
             </Text>
           </View>
           <TouchableOpacity
@@ -525,29 +839,109 @@ const MessageInput = ({
           />
         </View>
 
-        {/* Send button */}
-        <TouchableOpacity
+        {/* Send / Voice button */}
+        {shouldShowSendButton ? (
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              {
+                backgroundColor: canSendMessage ? theme.primary : (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+              },
+            ]}
+            onPress={handleSend}
+            disabled={!canSendMessage}
+            activeOpacity={0.7}
+          >
+            {uploading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons
+                name="send"
+                size={moderateScale(18)}
+                color={canSendMessage ? '#FFFFFF' : theme.textSecondary}
+              />
+            )}
+          </TouchableOpacity>
+        ) : (
+          <View
+            style={[
+              styles.sendButton,
+              {
+                backgroundColor: isRecording
+                  ? '#EF4444'
+                  : (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+                opacity: disabled || uploading ? 0.5 : 1,
+              },
+            ]}
+            {...voicePanResponder.panHandlers}
+          >
+            {uploading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons
+                name={isRecording ? 'mic' : 'mic-outline'}
+                size={moderateScale(19)}
+                color={isRecording ? '#FFFFFF' : theme.textSecondary}
+              />
+            )}
+          </View>
+        )}
+      </View>
+
+      {isRecording && (
+        <View
           style={[
-            styles.sendButton,
+            styles.voiceRecordingBar,
             {
-              backgroundColor: canSendMessage ? theme.primary : (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+              backgroundColor: isDarkMode ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.1)',
+              borderColor: isDarkMode ? 'rgba(239,68,68,0.35)' : 'rgba(239,68,68,0.25)',
             },
           ]}
-          onPress={handleSend}
-          disabled={!canSendMessage}
-          activeOpacity={0.7}
         >
-          {uploading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Ionicons
-              name="send"
-              size={moderateScale(18)}
-              color={canSendMessage ? '#FFFFFF' : theme.textSecondary}
-            />
+          <View style={styles.voiceRecordingInfoRow}>
+            <Ionicons name="mic" size={moderateScale(16)} color="#EF4444" />
+            <Text style={[styles.voiceRecordingTime, { color: theme.text }]}>
+              {formatVoiceDuration(recordingDurationMs)}
+            </Text>
+            {!isRecordingLocked && (
+              <Text style={[styles.voiceRecordingHint, { color: theme.textSecondary }]}>
+                {t('chats.slideUpToLock')}
+              </Text>
+            )}
+            {isRecordingLocked && (
+              <Text style={[styles.voiceRecordingHint, { color: theme.textSecondary }]}>
+                {t('chats.recordingLocked')}
+              </Text>
+            )}
+          </View>
+
+          {isRecordingLocked && (
+            <View style={styles.voiceRecordingActions}>
+              <TouchableOpacity
+                style={[styles.voiceActionButton, { borderColor: borderColor }]}
+                onPress={() => stopVoiceRecording({ shouldSend: false })}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={moderateScale(16)} color="#EF4444" />
+                <Text style={[styles.voiceActionText, { color: '#EF4444' }]}>
+                  {t('common.cancel')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.voiceActionButton, { backgroundColor: theme.primary, borderColor: theme.primary }]}
+                onPress={() => stopVoiceRecording({ shouldSend: true })}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="send" size={moderateScale(14)} color="#FFFFFF" />
+                <Text style={[styles.voiceActionText, { color: '#FFFFFF' }]}>
+                  {t('common.send')}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
-        </TouchableOpacity>
-      </View>
+        </View>
+      )}
 
       {/* Action Sheet (expandable grid) */}
       {showActionSheet && (
@@ -848,6 +1242,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: moderateScale(1),
+  },
+  voiceRecordingBar: {
+    marginTop: spacing.xs,
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    gap: spacing.xs,
+  },
+  voiceRecordingInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  voiceRecordingTime: {
+    fontWeight: '700',
+    fontSize: fontSize(13),
+  },
+  voiceRecordingHint: {
+    fontWeight: '500',
+    fontSize: fontSize(12),
+  },
+  voiceRecordingActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
+  },
+  voiceActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  voiceActionText: {
+    fontWeight: '600',
+    fontSize: fontSize(12),
   },
 
   // Action sheet

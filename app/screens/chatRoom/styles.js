@@ -49,6 +49,12 @@ export const chatRoomStyles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: wp(5),
   },
+  emptyOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: wp(5),
+  },
   emptyCard: {
     padding: spacing.xl,
     alignItems: 'center',

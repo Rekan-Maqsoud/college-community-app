@@ -11,6 +11,7 @@ import {
   StyleSheet,
   Dimensions,
   Pressable,
+  Switch,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +36,7 @@ const NUM_COLUMNS = 2;
 const GRID_GAP = spacing.xs;
 const ITEM_WIDTH = (SCREEN_WIDTH - spacing.md * 2 - GRID_GAP) / NUM_COLUMNS;
 const DEBOUNCE_MS = 400;
+const GIF_SEND_COOLDOWN_MS = 300;
 
 const GiphyPickerModal = ({ visible, onClose, onSelect }) => {
   const { theme, isDarkMode, t } = useAppSettings();
@@ -46,8 +48,29 @@ const GiphyPickerModal = ({ visible, onClose, onSelect }) => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [offset, setOffset] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [closeOnSelect, setCloseOnSelect] = useState(true);
+  const [lastSentItemId, setLastSentItemId] = useState(null);
+  const [sendFeedback, setSendFeedback] = useState(null);
   const debounceRef = useRef(null);
   const inputRef = useRef(null);
+  const lastSendAtRef = useRef(0);
+  const feedbackTimerRef = useRef(null);
+  const sentMarkerTimerRef = useRef(null);
+
+  const showSendFeedback = useCallback((type, message) => {
+    setSendFeedback({ type, message });
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = setTimeout(() => {
+      setSendFeedback(null);
+    }, 1200);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+      if (sentMarkerTimerRef.current) clearTimeout(sentMarkerTimerRef.current);
+    };
+  }, []);
 
   const fetchData = useCallback(async (searchQuery, tab, pageOffset = 0, append = false) => {
     try {
@@ -109,21 +132,47 @@ const GiphyPickerModal = ({ visible, onClose, onSelect }) => {
     fetchData(query, activeTab, offset, true);
   };
 
-  const handleSelect = (item) => {
-    if (onSelect) {
-      onSelect({
-        id: item.id,
-        url: item.url,
-        previewUrl: item.previewUrl,
-        width: item.width,
-        height: item.height,
-        aspectRatio: item.aspectRatio,
-        title: item.title,
-        source: 'giphy',
-        type: activeTab === 'gifs' ? 'gif' : 'sticker',
-      });
+  const handleSelect = async (item) => {
+    const now = Date.now();
+    if (now - lastSendAtRef.current < GIF_SEND_COOLDOWN_MS) {
+      showSendFeedback('warning', t('chats.gifSendCooldown'));
+      return;
     }
-    onClose();
+    lastSendAtRef.current = now;
+
+    const payload = {
+      id: item.id,
+      url: item.url,
+      previewUrl: item.previewUrl,
+      width: item.width,
+      height: item.height,
+      aspectRatio: item.aspectRatio,
+      title: item.title,
+      source: 'giphy',
+      type: activeTab === 'gifs' ? 'gif' : 'sticker',
+    };
+
+    let sent = true;
+    if (onSelect) {
+      const result = await onSelect(payload);
+      sent = result !== false;
+    }
+
+    if (!sent) {
+      showSendFeedback('error', t('chats.sendError'));
+      return;
+    }
+
+    setLastSentItemId(item.id);
+    if (sentMarkerTimerRef.current) clearTimeout(sentMarkerTimerRef.current);
+    sentMarkerTimerRef.current = setTimeout(() => {
+      setLastSentItemId(null);
+    }, 900);
+    showSendFeedback('success', t('chats.sentGif'));
+
+    if (closeOnSelect) {
+      onClose();
+    }
   };
 
   const handleTabSwitch = (tab) => {
@@ -153,6 +202,14 @@ const GiphyPickerModal = ({ visible, onClose, onSelect }) => {
           style={styles.gridImage}
           resizeMode="cover"
         />
+        {lastSentItemId === item.id && (
+          <View style={styles.sentOverlay}>
+            <Ionicons name="checkmark-circle" size={moderateScale(22)} color="#FFFFFF" />
+            <Text style={[styles.sentOverlayText, { fontSize: fontSize(11) }]}>
+              {t('chats.messageSent')}
+            </Text>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
@@ -255,6 +312,39 @@ const GiphyPickerModal = ({ visible, onClose, onSelect }) => {
           )}
         </View>
 
+        <View style={[styles.toggleRow, { backgroundColor: surfaceBg }]}>
+          <Text style={[styles.toggleLabel, { color: theme.text, fontSize: fontSize(13) }]}>
+            {t('chats.autoCloseGifPicker')}
+          </Text>
+          <Switch
+            value={closeOnSelect}
+            onValueChange={setCloseOnSelect}
+            trackColor={{ false: theme.border, true: theme.primary }}
+            thumbColor="#FFFFFF"
+            ios_backgroundColor={theme.border}
+          />
+        </View>
+
+        {sendFeedback && (
+          <View
+            style={[
+              styles.feedbackRow,
+              {
+                backgroundColor:
+                  sendFeedback.type === 'error'
+                    ? (isDarkMode ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.12)')
+                    : sendFeedback.type === 'warning'
+                      ? (isDarkMode ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.12)')
+                      : (isDarkMode ? 'rgba(52,199,89,0.2)' : 'rgba(52,199,89,0.12)'),
+              },
+            ]}
+          >
+            <Text style={[styles.feedbackText, { color: theme.text, fontSize: fontSize(12) }]}>
+              {sendFeedback.message}
+            </Text>
+          </View>
+        )}
+
         {/* Grid */}
         {loading && items.length === 0 ? (
           <View style={styles.centered}>
@@ -349,6 +439,21 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: moderateScale(20),
   },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: spacing.md,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  toggleLabel: {
+    fontWeight: '500',
+    flex: 1,
+    marginRight: spacing.sm,
+  },
   centered: {
     flex: 1,
     justifyContent: 'center',
@@ -373,6 +478,28 @@ const styles = StyleSheet.create({
   gridImage: {
     width: '100%',
     height: '100%',
+  },
+  sentOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  sentOverlayText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  feedbackRow: {
+    marginHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.sm,
+    alignItems: 'center',
+  },
+  feedbackText: {
+    fontWeight: '600',
   },
   footer: {
     paddingVertical: spacing.lg,

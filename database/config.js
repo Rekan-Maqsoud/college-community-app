@@ -146,6 +146,9 @@ export const config = {
     followsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_FOLLOWS_COLLECTION_ID,
     notificationsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_NOTIFICATIONS_COLLECTION_ID,
     pushTokensCollectionId: process.env.EXPO_PUBLIC_APPWRITE_PUSH_TOKENS_COLLECTION_ID,
+    voiceMessagesStorageId: process.env.EXPO_PUBLIC_APPWRITE_VOICE_MESSAGES_STORAGE_ID,
+    postReportsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_POST_REPORTS_COLLECTION_ID,
+    reportReviewWebhookUrl: process.env.EXPO_PUBLIC_REPORT_REVIEW_WEBHOOK_URL,
 };
 
 export default client;

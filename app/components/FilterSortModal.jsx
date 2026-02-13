@@ -20,6 +20,10 @@ export const SORT_OPTIONS = {
   POPULAR: 'popular',
 };
 
+export const FILTER_TYPES = {
+  UNANSWERED_QUESTIONS: 'unanswered_questions',
+};
+
 const STAGES = [
   { key: 'all', label: 'filter.allStages', icon: 'school-outline' },
   { key: 'stage_1', label: 'filter.stage1', icon: 'school-outline' },
@@ -54,6 +58,7 @@ const FilterSortModal = ({
   const typeOptions = [
     { key: 'all', label: t('filter.all'), icon: 'apps-outline' },
     { key: POST_TYPES.QUESTION, label: t('post.types.question'), icon: 'help-circle-outline' },
+    { key: FILTER_TYPES.UNANSWERED_QUESTIONS, label: t('filter.unansweredQuestions'), icon: 'help-circle' },
     { key: POST_TYPES.DISCUSSION, label: t('post.types.discussion'), icon: 'chatbubbles-outline' },
     { key: POST_TYPES.NOTE, label: t('post.types.note'), icon: 'document-text-outline' },
     { key: POST_TYPES.ANNOUNCEMENT, label: t('post.types.announcement'), icon: 'megaphone-outline' },

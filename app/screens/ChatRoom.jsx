@@ -165,7 +165,7 @@ const ChatRoom = ({ route, navigation }) => {
     const raw = getChatDisplayName() || '';
     const parts = raw.split(',').map(part => part.trim()).filter(Boolean);
     const limitedNames = parts.length > 2 ? `${parts[0]}, ${parts[1]}` : raw;
-    const maxLength = 32;
+    const maxLength = 24;
     if (limitedNames.length > maxLength) {
       return `${limitedNames.slice(0, maxLength - 3)}...`;
     }
@@ -277,6 +277,7 @@ const ChatRoom = ({ route, navigation }) => {
     };
 
     navigation.setOptions({
+      headerTintColor: theme.text,
       headerTitle: () => (
         <TouchableOpacity onPress={handleChatHeaderPress} activeOpacity={0.7}>
           <Text
@@ -287,7 +288,7 @@ const ChatRoom = ({ route, navigation }) => {
             fontSize: fontSize(16), 
             fontWeight: '600',
             textAlign: 'center',
-            maxWidth: wp(60),
+            maxWidth: wp(52),
           }}>
             {formattedChatTitle}
           </Text>
@@ -324,6 +325,7 @@ const ChatRoom = ({ route, navigation }) => {
       ),
       headerStyle: {
         backgroundColor: getHeaderBgColor(),
+        height: moderateScale(68),
       },
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
@@ -471,13 +473,17 @@ const ChatRoom = ({ route, navigation }) => {
     );
   };
 
-  const renderEmpty = () => {
+  const renderEmpty = () => null;
+
+  const renderEmptyOverlay = () => {
+    if (memoizedMessages.length > 0 || loading) return null;
+
     const cardBackground = isDarkMode 
       ? 'rgba(255, 255, 255, 0.05)' 
       : 'rgba(255, 255, 255, 0.6)';
-    
+
     return (
-      <View style={[styles.emptyContainer, { transform: [{ scaleY: -1 }] }]}>
+      <View style={styles.emptyOverlay} pointerEvents="none">
         <View 
           style={[
             styles.emptyCard,
@@ -661,6 +667,8 @@ const ChatRoom = ({ route, navigation }) => {
         initialNumToRender={20}
         inverted={true}
       />
+
+      {renderEmptyOverlay()}
 
       {/* Selection Mode Toolbar */}
       {selectionMode && (

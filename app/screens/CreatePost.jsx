@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import safeStorage from '../utils/safeStorage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -44,6 +45,7 @@ const CreatePost = ({ navigation, route }) => {
   const [department, setDepartment] = useState('');
   const [stage, setStage] = useState('');
   const [visibility, setVisibility] = useState('department');
+  const [canOthersRepost, setCanOthersRepost] = useState(true);
   const [images, setImages] = useState([]);
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState('');
@@ -127,6 +129,7 @@ const CreatePost = ({ navigation, route }) => {
           if (draft.tags) setTags(draft.tags);
           if (draft.links) setLinks(draft.links);
           if (draft.visibility) setVisibility(draft.visibility);
+          if (typeof draft.canOthersRepost === 'boolean') setCanOthersRepost(draft.canOthersRepost);
         }
       } catch (error) {
         // Failed to load draft
@@ -151,6 +154,7 @@ const CreatePost = ({ navigation, route }) => {
       if (hasContent) {
         try {
           const draft = { topic, text, postType, tags, links, visibility, savedAt: Date.now() };
+          draft.canOthersRepost = canOthersRepost;
           await safeStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
         } catch (error) {
           // Failed to save draft
@@ -170,7 +174,7 @@ const CreatePost = ({ navigation, route }) => {
         clearTimeout(autoSaveTimerRef.current);
       }
     };
-  }, [topic, text, postType, tags, links, visibility, draftLoaded]);
+  }, [topic, text, postType, tags, links, visibility, canOthersRepost, draftLoaded]);
 
   // Clear draft after successful post
   const clearDraft = async () => {
@@ -314,6 +318,7 @@ const CreatePost = ({ navigation, route }) => {
         likeCount: 0,
         replyCount: 0,
         isEdited: false,
+        canOthersRepost,
       };
 
       if (tagArray.length > 0) {
@@ -468,6 +473,22 @@ const CreatePost = ({ navigation, route }) => {
               <Text style={styles.visibilityToggleText}>{getVisibilityLabel()}</Text>
             </TouchableOpacity>
             <Text style={styles.helperText}>{getVisibilityHelper()}</Text>
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.repostPermissionRow}>
+              <View style={styles.repostPermissionTextWrap}>
+                <Text style={styles.sectionLabel}>{t('post.allowReposts')}</Text>
+                <Text style={styles.helperText}>{t('post.allowRepostsHelper')}</Text>
+              </View>
+              <Switch
+                value={canOthersRepost}
+                onValueChange={setCanOthersRepost}
+                disabled={loading}
+                trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
+                thumbColor={canOthersRepost ? '#2563EB' : '#F3F4F6'}
+              />
+            </View>
           </View>
 
           <View style={styles.section}>
@@ -769,6 +790,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#0f172a',
+  },
+  repostPermissionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  repostPermissionTextWrap: {
+    flex: 1,
   },
   chipsInputContainer: {
     flexDirection: 'row',

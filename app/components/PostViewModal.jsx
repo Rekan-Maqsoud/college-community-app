@@ -55,7 +55,7 @@ const PostViewModal = ({
       setError(null);
 
       try {
-        const fetchedPost = initialPost || await getPost(targetPostId);
+        const fetchedPost = initialPost || await getPost(targetPostId, user?.$id);
         if (!fetchedPost) {
           setError(t('post.postNotFound'));
           setLoading(false);

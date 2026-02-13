@@ -96,6 +96,18 @@ export const postCardStyles = StyleSheet.create({
     fontSize: fontSize(8),
     fontWeight: '600',
   },
+  repostBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: moderateScale(5),
+    paddingVertical: moderateScale(2),
+    borderRadius: moderateScale(5),
+    gap: moderateScale(2),
+  },
+  repostText: {
+    fontSize: fontSize(8),
+    fontWeight: '600',
+  },
   menuButton: {
     padding: moderateScale(4),
   },

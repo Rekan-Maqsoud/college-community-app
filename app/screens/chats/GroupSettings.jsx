@@ -34,6 +34,7 @@ import {
   leaveGroup,
   deleteGroup,
 } from '../../../database/chatHelpers';
+import { getChat } from '../../../database/chats';
 import { getUserChatSettings, muteChat, unmuteChat } from '../../../database/userChatSettings';
 import { 
   wp, 
@@ -73,7 +74,7 @@ const GroupSettings = ({ navigation, route }) => {
                   chat?.representatives?.includes(currentUser?.$id);
   const isCreator = chat?.admins?.[0] === currentUser?.$id;
 
-  // Refs for debounced auto-save
+  // Refs for debounced auto-save (text fields only)
   const saveTimeoutRef = useRef(null);
   const latestSettingsRef = useRef(settings);
   const latestNameRef = useRef(groupName);
@@ -92,49 +93,61 @@ const GroupSettings = ({ navigation, route }) => {
     latestDescriptionRef.current = description;
   }, [description]);
 
-  // Auto-save function with debounce
-  const autoSave = useCallback(async (updatedSettings = null) => {
+  // Debounced auto-save for text fields (name/description)
+  const autoSaveText = useCallback(async () => {
     if (!isAdmin) return;
 
-    // Clear any pending save
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
 
-    // Debounce save by 500ms
     saveTimeoutRef.current = setTimeout(async () => {
       try {
-        const settingsToSave = updatedSettings || latestSettingsRef.current;
-        await updateGroupSettings(chat.$id, {
+        const result = await updateGroupSettings(chat.$id, {
           name: latestNameRef.current.trim(),
           description: latestDescriptionRef.current.trim(),
-          groupPhoto: groupPhoto,
-          settings: JSON.stringify(settingsToSave),
-          requiresRepresentative: settingsToSave.onlyAdminsCanPost,
         });
-        
-        // Update navigation params to reflect change immediately
+
         navigation.setParams({
           chat: {
             ...chat,
-            name: latestNameRef.current.trim(),
-            description: latestDescriptionRef.current.trim(),
-            settings: JSON.stringify(settingsToSave),
-            requiresRepresentative: settingsToSave.onlyAdminsCanPost,
+            ...result,
           }
         });
       } catch (error) {
-        // Silent fail for auto-save, user will see on next attempt
+        // Silent fail for auto-save
       }
-    }, 500);
-  }, [isAdmin, chat, groupPhoto, navigation]);
+    }, 800);
+  }, [isAdmin, chat, navigation]);
 
-  // Handle setting toggle with immediate state update and auto-save
-  const handleSettingToggle = useCallback((key, value) => {
-    const newSettings = { ...settings, [key]: value };
+  // Immediate save for toggle changes (no debounce)
+  const handleSettingToggle = useCallback(async (key, value) => {
+    const newSettings = { ...latestSettingsRef.current, [key]: value };
     setSettings(newSettings);
-    autoSave(newSettings);
-  }, [settings, autoSave]);
+    latestSettingsRef.current = newSettings;
+
+    if (!isAdmin) return;
+
+    try {
+      const result = await updateGroupSettings(chat.$id, {
+        settings: JSON.stringify(newSettings),
+        requiresRepresentative: newSettings.onlyAdminsCanPost,
+      });
+
+      navigation.setParams({
+        chat: {
+          ...chat,
+          ...result,
+        }
+      });
+    } catch (error) {
+      // Revert on error
+      const revertedSettings = { ...newSettings, [key]: !value };
+      setSettings(revertedSettings);
+      latestSettingsRef.current = revertedSettings;
+      showAlert({ type: 'error', title: t('common.error'), message: t('chats.settingsSaveError') });
+    }
+  }, [isAdmin, chat, navigation, t, showAlert]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -147,11 +160,36 @@ const GroupSettings = ({ navigation, route }) => {
 
   useEffect(() => {
     loadMembers();
-    loadSettings();
+    loadFreshSettings();
     loadUserMuteSettings();
-  }, [chat]);
+  }, []);
 
-  const loadSettings = () => {
+  const loadFreshSettings = async () => {
+    try {
+      // Always fetch fresh from database to avoid stale nav params
+      const freshChat = await getChat(chat.$id, true);
+      if (freshChat) {
+        if (freshChat.name) setGroupName(freshChat.name);
+        if (freshChat.description !== undefined) setDescription(freshChat.description || '');
+        if (freshChat.groupPhoto !== undefined) setGroupPhoto(freshChat.groupPhoto || null);
+        
+        if (freshChat.settings) {
+          const parsed = typeof freshChat.settings === 'string' 
+            ? JSON.parse(freshChat.settings) 
+            : freshChat.settings;
+          setSettings(prev => ({ ...prev, ...parsed }));
+        }
+
+        // Update nav params with fresh data
+        navigation.setParams({ chat: freshChat });
+      }
+    } catch (e) {
+      // Fallback to chat param data
+      loadSettingsFromParam();
+    }
+  };
+
+  const loadSettingsFromParam = () => {
     try {
       if (chat?.settings) {
         const parsed = typeof chat.settings === 'string' 
@@ -497,8 +535,10 @@ const GroupSettings = ({ navigation, route }) => {
         value={value}
         onValueChange={onToggle}
         disabled={disabled || !isAdmin}
-        trackColor={{ false: isDarkMode ? '#555' : '#ccc', true: `${theme.primary}80` }}
-        thumbColor={value ? theme.primary : isDarkMode ? '#888' : '#f4f3f4'}
+        trackColor={{ false: isDarkMode ? '#555' : '#D1D1D6', true: `${theme.primary}80` }}
+        thumbColor={Platform.OS === 'android' ? (value ? theme.primary : isDarkMode ? '#888' : '#f4f3f4') : undefined}
+        ios_backgroundColor={isDarkMode ? '#555' : '#D1D1D6'}
+        style={Platform.OS === 'ios' ? { transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] } : undefined}
       />
     </View>
   );
@@ -605,7 +645,7 @@ const GroupSettings = ({ navigation, route }) => {
                     ]}
                     value={groupName}
                     onChangeText={setGroupName}
-                    onBlur={() => autoSave()}
+                    onBlur={() => autoSaveText()}
                     editable={isAdmin}
                     placeholder={t('chats.groupNamePlaceholder')}
                     placeholderTextColor={theme.textSecondary}
@@ -627,7 +667,7 @@ const GroupSettings = ({ navigation, route }) => {
                     ]}
                     value={description}
                     onChangeText={setDescription}
-                    onBlur={() => autoSave()}
+                    onBlur={() => autoSaveText()}
                     editable={isAdmin}
                     multiline
                     numberOfLines={3}
@@ -723,8 +763,10 @@ const GroupSettings = ({ navigation, route }) => {
                   <Switch
                     value={userMuted}
                     onValueChange={handleToggleUserMute}
-                    trackColor={{ false: isDarkMode ? '#555' : '#ccc', true: `${theme.primary}80` }}
-                    thumbColor={userMuted ? theme.primary : isDarkMode ? '#888' : '#f4f3f4'}
+                    trackColor={{ false: isDarkMode ? '#555' : '#D1D1D6', true: `${theme.primary}80` }}
+                    thumbColor={Platform.OS === 'android' ? (userMuted ? theme.primary : isDarkMode ? '#888' : '#f4f3f4') : undefined}
+                    ios_backgroundColor={isDarkMode ? '#555' : '#D1D1D6'}
+                    style={Platform.OS === 'ios' ? { transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] } : undefined}
                   />
                 </View>
               </View>

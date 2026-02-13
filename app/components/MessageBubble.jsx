@@ -1,4 +1,4 @@
-import React, { useState, useRef, memo, useEffect } from 'react';
+import React, { useState, useRef, memo, useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
 import ReanimatedModule, {
   useSharedValue,
   useAnimatedStyle,
@@ -279,9 +280,33 @@ const MessageBubble = ({
   const [actionsVisible, setActionsVisible] = useState(false);
   const [mentionPreview, setMentionPreview] = useState(null);
   const [reactionPickerVisible, setReactionPickerVisible] = useState(false);
+  const [isVoicePlaying, setIsVoicePlaying] = useState(false);
+  const [voiceDurationMs, setVoiceDurationMs] = useState(0);
+  const [voicePositionMs, setVoicePositionMs] = useState(0);
+  const [voiceLoading, setVoiceLoading] = useState(false);
+  const voiceSoundRef = useRef(null);
   
   const translateX = useRef(new Animated.Value(0)).current;
   const swipeDirection = isCurrentUser ? -1 : 1;
+  const onReplyRef = useRef(onReply);
+  const swipeDirectionRef = useRef(swipeDirection);
+
+  useEffect(() => {
+    onReplyRef.current = onReply;
+  }, [onReply]);
+
+  useEffect(() => {
+    swipeDirectionRef.current = swipeDirection;
+  }, [swipeDirection]);
+
+  const snapBack = useCallback(() => {
+    Animated.spring(translateX, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 100,
+      friction: 10,
+    }).start();
+  }, [translateX]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -290,16 +315,26 @@ const MessageBubble = ({
         return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dy) < 20;
       },
       onPanResponderMove: (_, gestureState) => {
-        const dx = gestureState.dx * swipeDirection;
+        const dir = swipeDirectionRef.current;
+        const dx = gestureState.dx * dir;
         if (dx > 0 && dx < SWIPE_THRESHOLD + 20) {
           translateX.setValue(gestureState.dx);
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        const dx = gestureState.dx * swipeDirection;
-        if (dx > SWIPE_THRESHOLD && onReply) {
-          onReply();
+        const dir = swipeDirectionRef.current;
+        const dx = gestureState.dx * dir;
+        if (dx > SWIPE_THRESHOLD && onReplyRef.current) {
+          onReplyRef.current();
         }
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 10,
+        }).start();
+      },
+      onPanResponderTerminate: () => {
         Animated.spring(translateX, {
           toValue: 0,
           useNativeDriver: true,
@@ -320,13 +355,20 @@ const MessageBubble = ({
   const hasLegacyImage = message.imageUrl && message.imageUrl.trim().length > 0;
   const imageUrl = hasImages ? message.images[0] : (hasLegacyImage ? message.imageUrl : null);
   const hasImage = !!imageUrl;
-  const hasText = message.content && message.content.trim().length > 0;
   const hasReply = message.replyToId && message.replyToContent;
   const isPinned = message.isPinned;
   const mentionsAll = message.mentionsAll;
   const isPostShare = message.type === 'post_share';
   const isLocation = message.type === 'location';
   const isGif = message.type === 'gif';
+  const isVoice = message.type === 'voice';
+  const hasText = !isVoice && message.content && message.content.trim().length > 0;
+  const isSticker = isGif && (() => {
+    try {
+      const parsed = typeof message.content === 'string' ? JSON.parse(message.content) : message.content;
+      return parsed?.gif_type === 'sticker';
+    } catch { return false; }
+  })();
 
   // Pinned message highlight glow animation (react-native-reanimated)
   const highlightOpacity = useSharedValue(0);
@@ -387,6 +429,113 @@ const MessageBubble = ({
       return null;
     }
   }, [isGif, message.content]);
+
+  const voiceData = React.useMemo(() => {
+    if (!isVoice) return null;
+    try {
+      const parsed = typeof message.content === 'string'
+        ? JSON.parse(message.content)
+        : message.content;
+      const duration = Number(parsed?.voice_duration_ms || 0);
+      return {
+        url: parsed?.voice_url || '',
+        duration,
+      };
+    } catch {
+      return null;
+    }
+  }, [isVoice, message.content]);
+
+  useEffect(() => {
+    return () => {
+      if (voiceSoundRef.current) {
+        voiceSoundRef.current.unloadAsync().catch(() => {});
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isVoice) {
+      return;
+    }
+    setVoiceDurationMs(voiceData?.duration || 0);
+    setVoicePositionMs(0);
+    setIsVoicePlaying(false);
+  }, [isVoice, voiceData?.duration, message.$id]);
+
+  const formatVoiceTime = (durationMs = 0) => {
+    const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  };
+
+  const onVoiceStatusUpdate = useCallback((status) => {
+    if (!status) return;
+    if (status.isLoaded) {
+      setVoicePositionMs(status.positionMillis || 0);
+      setVoiceDurationMs(status.durationMillis || voiceData?.duration || 0);
+      setIsVoicePlaying(status.isPlaying || false);
+
+      if (status.didJustFinish) {
+        setIsVoicePlaying(false);
+        setVoicePositionMs(0);
+      }
+    }
+  }, [voiceData?.duration]);
+
+  const handleToggleVoicePlayback = useCallback(async () => {
+    if (!voiceData?.url || selectionMode) {
+      return;
+    }
+
+    try {
+      setVoiceLoading(true);
+
+      if (voiceSoundRef.current) {
+        const status = await voiceSoundRef.current.getStatusAsync();
+        if (status?.isLoaded && status.isPlaying) {
+          await voiceSoundRef.current.pauseAsync();
+          setIsVoicePlaying(false);
+          setVoiceLoading(false);
+          return;
+        }
+
+        if (status?.isLoaded) {
+          await voiceSoundRef.current.playAsync();
+          setIsVoicePlaying(true);
+          setVoiceLoading(false);
+          return;
+        }
+
+        await voiceSoundRef.current.unloadAsync();
+        voiceSoundRef.current = null;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      });
+
+      const { sound, status } = await Audio.Sound.createAsync(
+        { uri: voiceData.url },
+        { shouldPlay: true, progressUpdateIntervalMillis: 250 },
+        onVoiceStatusUpdate
+      );
+
+      voiceSoundRef.current = sound;
+      setIsVoicePlaying(status?.isPlaying || false);
+      setVoiceDurationMs(status?.durationMillis || voiceData.duration || 0);
+    } catch {
+      showAlert?.({
+        type: 'error',
+        title: t('common.error'),
+        message: t('chats.voicePlayError'),
+      });
+    } finally {
+      setVoiceLoading(false);
+    }
+  }, [onVoiceStatusUpdate, selectionMode, showAlert, t, voiceData]);
 
   const handleLongPress = () => {
     if (selectionMode && onToggleSelect) {
@@ -619,7 +768,7 @@ const MessageBubble = ({
   };
 
   const actionButtons = [
-    { icon: 'copy-outline', label: t('chats.copy'), action: onCopy, show: hasText },
+    { icon: 'copy-outline', label: t('chats.copy'), action: onCopy, show: hasText && !isVoice },
     { icon: 'arrow-undo-outline', label: t('chats.reply'), action: onReply, show: true },
     { icon: 'arrow-redo-outline', label: t('chats.forward'), action: onForward, show: true },
     { icon: isPinned ? 'pin' : 'pin-outline', label: isPinned ? t('chats.unpin') : t('chats.pin'), action: isPinned ? onUnpin : onPin, show: onPin || onUnpin },
@@ -767,8 +916,8 @@ const MessageBubble = ({
         </Pressable>
       )}
 
-      {/* GIF / Sticker Bubble */}
-      {isGif && gifData && (
+      {/* GIF Bubble */}
+      {isGif && gifData && !isSticker && (
         <View style={styles.gifContainer}>
           <Image
             source={{ uri: gifData.gif_url || gifData.gif_preview_url }}
@@ -787,7 +936,117 @@ const MessageBubble = ({
         </View>
       )}
 
-      {!isPostShare && !isLocation && !isGif && hasImage && (
+      {/* Sticker Bubble - transparent, no badge, smaller */}
+      {isSticker && gifData && (
+        <View style={styles.stickerContainer}>
+          <Image
+            source={{ uri: gifData.gif_url || gifData.gif_preview_url }}
+            style={[
+              styles.stickerImage,
+              {
+                width: Math.min(wp(35), moderateScale(150)),
+                aspectRatio: gifData.gif_aspect_ratio || 1,
+              },
+            ]}
+            resizeMode="contain"
+          />
+        </View>
+      )}
+
+      {/* Voice Bubble */}
+      {isVoice && voiceData && (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          disabled={selectionMode || voiceLoading}
+          onPress={handleToggleVoicePlayback}
+          style={[
+            styles.voiceCard,
+            {
+              backgroundColor: isCurrentUser
+                ? 'rgba(255,255,255,0.12)'
+                : (isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+              borderColor: isCurrentUser
+                ? 'rgba(255,255,255,0.16)'
+                : (isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'),
+            },
+          ]}
+        >
+          <View style={styles.voiceTopRow}>
+            <View
+              style={[
+                styles.voicePlayButton,
+                {
+                  backgroundColor: isCurrentUser
+                    ? 'rgba(255,255,255,0.2)'
+                    : theme.primary,
+                },
+              ]}
+            >
+              {voiceLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons
+                  name={isVoicePlaying ? 'pause' : 'play'}
+                  size={moderateScale(16)}
+                  color="#FFFFFF"
+                />
+              )}
+            </View>
+
+            <View style={styles.voiceMetaContainer}>
+              <Text
+                style={[
+                  styles.voiceLabel,
+                  {
+                    color: isCurrentUser ? '#FFFFFF' : theme.text,
+                    fontSize: fontSize(12),
+                  },
+                ]}
+              >
+                {t('chats.voiceMessage')}
+              </Text>
+              <Text
+                style={[
+                  styles.voiceDuration,
+                  {
+                    color: isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.textSecondary,
+                    fontSize: fontSize(10),
+                  },
+                ]}
+              >
+                {formatVoiceTime(voicePositionMs)} / {formatVoiceTime(voiceDurationMs || voiceData.duration || 0)}
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.voiceProgressTrack,
+              {
+                backgroundColor: isCurrentUser ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)',
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.voiceProgressFill,
+                {
+                  width: `${Math.min(
+                    100,
+                    Math.max(
+                      0,
+                      ((voicePositionMs || 0) / Math.max(1, voiceDurationMs || voiceData.duration || 1)) * 100
+                    )
+                  )}%`,
+                  backgroundColor: isCurrentUser ? '#FFFFFF' : theme.primary,
+                },
+              ]}
+            />
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {!isPostShare && !isLocation && !isGif && !isVoice && hasImage && (
         <TouchableOpacity 
           onPress={() => setImageModalVisible(true)}
           disabled={selectionMode}
@@ -803,7 +1062,7 @@ const MessageBubble = ({
         </TouchableOpacity>
       )}
 
-      {!isPostShare && !isLocation && !isGif && renderMessageContent()}
+      {!isPostShare && !isLocation && !isGif && !isVoice && renderMessageContent()}
       
       <View style={styles.timeStatusRow}>
         <Text style={[
@@ -920,6 +1179,11 @@ const MessageBubble = ({
               onLongPress={handleLongPress}
               onPress={handlePress}
               delayLongPress={300}>
+              {isSticker ? (
+                <View style={[styles.stickerBubble]}>
+                  {renderBubbleContent()}
+                </View>
+              ) : (
               <LinearGradient
                 colors={chatSettings.bubbleColor.replace('gradient::', '').split(',')}
                 start={{ x: 0, y: 0 }}
@@ -933,6 +1197,7 @@ const MessageBubble = ({
                 ]}>
                 {renderBubbleContent()}
               </LinearGradient>
+              )}
             </Pressable>
           ) : (
             <Pressable
@@ -940,16 +1205,16 @@ const MessageBubble = ({
               onPress={handlePress}
               delayLongPress={300}
               style={[
-                styles.bubble,
-                isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble,
-                getBubbleStyleRadius(chatSettings?.bubbleStyle),
-                {
+                isSticker ? styles.stickerBubble : styles.bubble,
+                !isSticker && (isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble),
+                !isSticker && getBubbleStyleRadius(chatSettings?.bubbleStyle),
+                !isSticker && {
                   backgroundColor: isCurrentUser 
                     ? (chatSettings?.bubbleColor || '#667eea')
                     : (isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)')
                 },
-                hasImage && !hasText && styles.imageBubble,
-                isPinned && styles.pinnedBubble,
+                !isSticker && hasImage && !hasText && styles.imageBubble,
+                !isSticker && isPinned && styles.pinnedBubble,
               ]}>
               {renderBubbleContent()}
             </Pressable>
@@ -1698,6 +1963,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
     marginTop: spacing.xs / 2,
   },
+  // Voice message styles
+  voiceCard: {
+    width: moderateScale(220),
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+  },
+  voiceTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  voicePlayButton: {
+    width: moderateScale(34),
+    height: moderateScale(34),
+    borderRadius: moderateScale(17),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  voiceMetaContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  voiceLabel: {
+    fontWeight: '700',
+  },
+  voiceDuration: {
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  voiceProgressTrack: {
+    width: '100%',
+    height: moderateScale(4),
+    borderRadius: moderateScale(2),
+    overflow: 'hidden',
+  },
+  voiceProgressFill: {
+    height: '100%',
+    borderRadius: moderateScale(2),
+  },
   // GIF / Sticker styles
   gifContainer: {
     borderRadius: borderRadius.md,
@@ -1723,6 +2030,20 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(9),
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  // Sticker-specific styles
+  stickerBubble: {
+    backgroundColor: 'transparent',
+    padding: spacing.xs,
+    maxWidth: moderateScale(170),
+  },
+  stickerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stickerImage: {
+    minHeight: moderateScale(60),
+    maxHeight: moderateScale(160),
   },
 });
 

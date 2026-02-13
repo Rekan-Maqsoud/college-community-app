@@ -106,12 +106,12 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
       }
       
       if (filter === SEARCH_FILTERS.POSTS || filter === SEARCH_FILTERS.ALL) {
-        postsResults = await searchPosts(cleanQuery, currentUser?.department, currentUser?.major, 15);
+        postsResults = await searchPosts(cleanQuery, currentUser?.department, currentUser?.major, 15, currentUser?.$id);
       }
       
       if (filter === SEARCH_FILTERS.HASHTAGS) {
         // Search specifically for hashtags/tags
-        postsResults = await searchPosts(`#${cleanQuery}`, currentUser?.department, currentUser?.major, 15);
+        postsResults = await searchPosts(`#${cleanQuery}`, currentUser?.department, currentUser?.major, 15, currentUser?.$id);
       }
 
       // Enrich posts with user data (name, profile picture)

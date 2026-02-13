@@ -56,6 +56,7 @@ export const UserProvider = ({ children }) => {
             socialLinks: socialLinksData.links || null,
             socialLinksVisibility: socialLinksData.visibility || 'everyone',
             blockedUsers: completeUserData.blockedUsers || [],
+            chatBlockedUsers: completeUserData.chatBlockedUsers || [],
           };
           
               await safeStorage.setItem('userData', JSON.stringify(userData));
@@ -127,6 +128,7 @@ export const UserProvider = ({ children }) => {
             socialLinks: socialLinksData.links || null,
             socialLinksVisibility: socialLinksData.visibility || 'everyone',
             blockedUsers: completeUserData.blockedUsers || [],
+            chatBlockedUsers: completeUserData.chatBlockedUsers || [],
           };
           
             await safeStorage.setItem('userData', JSON.stringify(userData));

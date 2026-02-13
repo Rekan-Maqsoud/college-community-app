@@ -32,6 +32,7 @@ const NOTIFICATION_TYPES = {
   FRIEND_POST: 'friend_post',
   FOLLOW: 'follow',
   DEPARTMENT_POST: 'department_post',
+  POST_HIDDEN_REPORT: 'post_hidden_report',
 };
 
 // Group notifications by post and type
@@ -125,6 +126,8 @@ const getNotificationIcon = (type) => {
       return { name: 'person-add', color: '#FF9500' };
     case NOTIFICATION_TYPES.DEPARTMENT_POST:
       return { name: 'school', color: '#8B5CF6' };
+    case NOTIFICATION_TYPES.POST_HIDDEN_REPORT:
+      return { name: 'warning', color: '#EF4444' };
     default:
       return { name: 'notifications', color: '#8E8E93' };
   }
@@ -178,6 +181,8 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
         return t('notifications.startedFollowing') || 'started following you';
       case NOTIFICATION_TYPES.DEPARTMENT_POST:
         return t('notifications.departmentPost') || 'posted in your department';
+      case NOTIFICATION_TYPES.POST_HIDDEN_REPORT:
+        return t('notifications.postHiddenByReports') || 'your post was hidden for review';
       default:
         return '';
     }

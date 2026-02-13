@@ -17,6 +17,7 @@ import {
   decryptMessageForChat,
   toggleMessageReaction,
   deleteChat,
+  removePrivateChatForUser,
 } from '../../../database/chats';
 import { getUserById, blockUser, blockUserChatOnly, getFriends } from '../../../database/users';
 import { 
@@ -119,10 +120,26 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
 
     // Insert at beginning for inverted FlatList (newest first)
     setMessages(prev => {
-      // Check if message already exists
+      // Check if message already exists by server ID
       if (prev.some(m => m.$id === decryptedPayload.$id)) {
         return prev.map(m => m.$id === decryptedPayload.$id ? decryptedPayload : m);
       }
+
+      // Check if this is a realtime echo of an optimistic message we already added
+      const optimisticMatch = prev.find(m =>
+        m._isOptimistic &&
+        m.senderId === decryptedPayload.senderId &&
+        Math.abs(new Date(m.$createdAt) - new Date(decryptedPayload.$createdAt)) < 30000
+      );
+      if (optimisticMatch) {
+        // Replace the optimistic message with the real server message
+        return prev.map(m =>
+          m.$id === optimisticMatch.$id
+            ? { ...decryptedPayload, _status: 'sent', _isOptimistic: false }
+            : m
+        );
+      }
+
       return [decryptedPayload, ...prev];
     });
 
@@ -691,7 +708,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   const handleBatchCopy = useCallback(async () => {
     const selected = messages.filter(m => selectedMessageIds.includes(m.$id));
     const textParts = selected
-      .filter(m => m.content && m.content.trim().length > 0 && m.type !== 'post_share' && m.type !== 'location')
+      .filter(m => m.content && m.content.trim().length > 0 && m.type !== 'post_share' && m.type !== 'location' && m.type !== 'voice')
       .map(m => m.content);
     if (textParts.length > 0) {
       await Clipboard.setStringAsync(textParts.join('\n'));
@@ -729,7 +746,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     );
   }, [selectedMessageIds, user.$id, chat.$id, t]);
 
-  const handleSendMessage = async (content, imageUrl = null, messageType = null, gifMetadata = null) => {
+  const handleSendMessage = async (content, imageUrl = null, messageType = null, messageMetadata = null) => {
     if (!canSend) {
       triggerAlert(t('chats.noPermission'), t('chats.representativeOnlyMessage'), 'warning');
       return;
@@ -752,9 +769,14 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     };
 
     // Attach gif metadata to optimistic message for instant preview
-    if (messageType === 'gif' && gifMetadata) {
+    if (messageType === 'gif' && messageMetadata) {
       optimisticMessage.type = 'gif';
-      optimisticMessage.content = JSON.stringify(gifMetadata);
+      optimisticMessage.content = JSON.stringify(messageMetadata);
+    }
+
+    if (messageType === 'voice' && messageMetadata) {
+      optimisticMessage.type = 'voice';
+      optimisticMessage.content = JSON.stringify(messageMetadata);
     }
     
     if (imageUrl && typeof imageUrl === 'string') {
@@ -785,6 +807,8 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       let notifyBody = t('chats.newMessage');
       if (messageType === 'gif') {
         notifyBody = 'GIF';
+      } else if (messageType === 'voice') {
+        notifyBody = '\uD83C\uDFA4 ' + t('chats.sentVoiceMessage');
       } else if (messageType === 'image' || (imageUrl && !content)) {
         notifyBody = '\uD83D\uDCF7 ' + (t('chats.sentImage') || 'Sent an image');
       } else if (messageType === 'location') {
@@ -797,8 +821,12 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       messageData.notificationPreview = notifyBody;
 
       // Attach gif_metadata for GIF/Sticker messages
-      if (messageType === 'gif' && gifMetadata) {
-        messageData.gif_metadata = gifMetadata;
+      if (messageType === 'gif' && messageMetadata) {
+        messageData.gif_metadata = messageMetadata;
+      }
+
+      if (messageType === 'voice' && messageMetadata) {
+        messageData.metadata = messageMetadata;
       }
 
       // Add message type for special messages (location, post_share)
@@ -818,12 +846,20 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       
       const sentMessage = await sendMessage(chat.$id, messageData);
       
-      // Replace optimistic message with real message
-      setMessages(prev => prev.map(msg => 
-        msg.$id === tempId 
-          ? { ...sentMessage, _status: 'sent', _isOptimistic: false }
-          : msg
-      ));
+      // Replace optimistic message with real message, or deduplicate if realtime already added it
+      setMessages(prev => {
+        const hasRealMessage = prev.some(m => m.$id === sentMessage.$id && !m._isOptimistic);
+        if (hasRealMessage) {
+          // Realtime already delivered this message; just remove the optimistic one
+          return prev.filter(m => m.$id !== tempId);
+        }
+        // Replace optimistic with real message
+        return prev.map(msg =>
+          msg.$id === tempId
+            ? { ...sentMessage, _status: 'sent', _isOptimistic: false }
+            : msg
+        );
+      });
       
     } catch (error) {
       // Mark message as failed
@@ -844,9 +880,26 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     setMessages(prev => prev.filter(msg => msg.$id !== failedMessage.$id));
     
     // Resend
+    const retryType = failedMessage.type || null;
+    let retryMetadata = null;
+
+    if (retryType === 'gif' || retryType === 'voice' || retryType === 'post_share') {
+      try {
+        retryMetadata = typeof failedMessage.content === 'string'
+          ? JSON.parse(failedMessage.content)
+          : failedMessage.content;
+      } catch {
+        retryMetadata = null;
+      }
+    }
+
     await handleSendMessage(
-      failedMessage.content, 
-      failedMessage.images?.[0] || failedMessage.imageUrl
+      retryType === 'gif' || retryType === 'voice' || retryType === 'post_share'
+        ? ''
+        : (failedMessage.content || ''),
+      failedMessage.images?.[0] || failedMessage.imageUrl,
+      retryType,
+      retryMetadata
     );
   };
 
@@ -878,6 +931,13 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
           onPress: async () => {
             try {
               await blockUserChatOnly(user.$id, otherUserId);
+              if (chat?.$id) {
+                try {
+                  await removePrivateChatForUser(chat.$id, user.$id);
+                } catch (removeError) {
+                  // Silent fail - blocking still applies
+                }
+              }
               if (refreshUser) {
                 try {
                   await refreshUser();
@@ -887,7 +947,12 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
               }
               setCanSend(false);
               triggerAlert(t('common.success'), t('chats.messagesOnlyBlocked'), 'success');
+              navigation.goBack();
             } catch (error) {
+              if (error?.code === 'CHAT_BLOCK_COLUMN_MISSING') {
+                triggerAlert(t('common.error'), t('chats.chatBlockNeedsColumn'));
+                return;
+              }
               triggerAlert(t('common.error'), t('chats.blockError'));
             }
           },

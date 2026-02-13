@@ -18,6 +18,7 @@ export const NOTIFICATION_TYPES = {
     FRIEND_POST: 'friend_post',
     FOLLOW: 'follow',
     DEPARTMENT_POST: 'department_post',
+    POST_HIDDEN_REPORT: 'post_hidden_report',
 };
 
 /**
@@ -601,4 +602,33 @@ export const notifyDepartmentPost = async (posterId, posterName, posterPhoto, po
     } catch (error) {
         // Silent fail - department notifications should not break post creation
     }
+};
+
+/**
+ * Notify post owner when a post gets hidden by reports.
+ */
+export const notifyPostHiddenByReports = async (postOwnerId, postId, postPreview, reportCount, viewCount) => {
+    const notification = await createNotification({
+        userId: postOwnerId,
+        senderId: 'system',
+        senderName: 'System',
+        senderProfilePicture: null,
+        type: NOTIFICATION_TYPES.POST_HIDDEN_REPORT,
+        postId: postId || null,
+        postPreview: `[reports:${reportCount}|views:${viewCount}]${(postPreview || '').substring(0, 80)}`,
+    });
+
+    sendGeneralPushNotification({
+        recipientUserId: postOwnerId,
+        senderId: 'system',
+        senderName: 'System',
+        type: NOTIFICATION_TYPES.POST_HIDDEN_REPORT,
+        title: 'Post hidden',
+        body: `Your post was hidden for review (${reportCount} reports, ${viewCount} views)` ,
+        postId,
+    }).catch(() => {
+        // Silent fail for push notification
+    });
+
+    return notification;
 };

@@ -444,6 +444,41 @@ export const blockUserChatOnly = async (userId, blockedUserId) => {
 
         return { success: true };
     } catch (error) {
+        if (error?.message?.includes('Unknown attribute') && error?.message?.includes('chatBlockedUsers')) {
+            const schemaError = new Error('CHAT_BLOCK_COLUMN_MISSING');
+            schemaError.code = 'CHAT_BLOCK_COLUMN_MISSING';
+            throw schemaError;
+        }
+        throw error;
+    }
+};
+
+/**
+ * Unblock a user in chats only
+ */
+export const unblockUserChatOnly = async (userId, blockedUserId) => {
+    try {
+        if (!userId || !blockedUserId) {
+            throw new Error('Invalid chat unblock request');
+        }
+
+        const user = await getUserById(userId);
+        const chatBlockedUsers = user.chatBlockedUsers || [];
+        const newChatBlockedUsers = chatBlockedUsers.filter(id => id !== blockedUserId);
+
+        await databases.updateDocument(config.databaseId, config.usersCollectionId, userId, {
+            chatBlockedUsers: newChatBlockedUsers,
+        });
+
+        await userCacheManager.invalidateUser(userId);
+
+        return { success: true };
+    } catch (error) {
+        if (error?.message?.includes('Unknown attribute') && error?.message?.includes('chatBlockedUsers')) {
+            const schemaError = new Error('CHAT_BLOCK_COLUMN_MISSING');
+            schemaError.code = 'CHAT_BLOCK_COLUMN_MISSING';
+            throw schemaError;
+        }
         throw error;
     }
 };
@@ -498,6 +533,37 @@ export const getBlockedUsers = async (userId) => {
 
         return blockedUsers.filter(Boolean);
     } catch (error) {
+        return [];
+    }
+};
+
+/**
+ * Get chat-only blocked users
+ */
+export const getChatBlockedUsers = async (userId) => {
+    try {
+        if (!userId) {
+            return [];
+        }
+
+        const user = await getUserById(userId);
+        const blockedUserIds = user.chatBlockedUsers || [];
+
+        const blockedUsers = await Promise.all(
+            blockedUserIds.map(async (id) => {
+                try {
+                    return await getUserById(id);
+                } catch (e) {
+                    return null;
+                }
+            })
+        );
+
+        return blockedUsers.filter(Boolean);
+    } catch (error) {
+        if (error?.message?.includes('Unknown attribute') && error?.message?.includes('chatBlockedUsers')) {
+            return [];
+        }
         return [];
     }
 };

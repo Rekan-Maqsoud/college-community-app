@@ -1,4 +1,4 @@
-import { databases, config } from './config';
+import { databases, storage, config } from './config';
 import { ID, Query } from 'appwrite';
 import * as SecureStore from 'expo-secure-store';
 import * as Random from 'expo-random';
@@ -34,6 +34,52 @@ export const uploadChatImage = async (file) => {
             fileId: null,
             viewUrl: result.url,
             deleteUrl: result.deleteUrl || null,
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const uploadChatVoiceMessage = async (file) => {
+    try {
+        if (!file || !file.uri) {
+            throw new Error('Invalid voice file');
+        }
+
+        if (!config.voiceMessagesStorageId) {
+            throw new Error('Voice storage bucket is not configured');
+        }
+
+        const response = await fetch(file.uri);
+        const blob = await response.blob();
+        const fileName = file.name || `voice_${Date.now()}.m4a`;
+        const mimeType = file.type || 'audio/m4a';
+
+        let uploadFile = blob;
+        if (typeof File !== 'undefined') {
+            uploadFile = new File([blob], fileName, { type: mimeType });
+        } else {
+            uploadFile = {
+                uri: file.uri,
+                name: fileName,
+                type: mimeType,
+                size: file.size,
+            };
+        }
+
+        const uploaded = await storage.createFile(
+            config.voiceMessagesStorageId,
+            ID.unique(),
+            uploadFile
+        );
+
+        const viewUrl = storage.getFileView(config.voiceMessagesStorageId, uploaded.$id)?.toString();
+
+        return {
+            fileId: uploaded.$id,
+            viewUrl,
+            mimeType,
+            size: file.size || uploaded.sizeOriginal || 0,
         };
     } catch (error) {
         throw error;
@@ -989,6 +1035,12 @@ export const sendMessage = async (chatId, messageData) => {
         const encryptedReplyContent = messageData.replyToContent
             ? (shouldEncrypt ? encryptContent(messageData.replyToContent, chatKey) : messageData.replyToContent)
             : '';
+        const serializedMetadata = messageData.metadata
+            ? (typeof messageData.metadata === 'string' ? messageData.metadata : JSON.stringify(messageData.metadata))
+            : '';
+        const encryptedMetadata = serializedMetadata
+            ? (shouldEncrypt ? encryptContent(serializedMetadata, chatKey) : serializedMetadata)
+            : '';
         
         // Build document with only valid fields matching Appwrite schema
         const documentData = {
@@ -1009,16 +1061,17 @@ export const sendMessage = async (chatId, messageData) => {
 
         // Add metadata for special message types (post_share, location, gif, etc.)
         if (messageData.metadata) {
-            documentData.content = typeof messageData.metadata === 'string'
-                ? messageData.metadata
-                : JSON.stringify(messageData.metadata);
+            documentData.content = encryptedMetadata;
         }
 
         // Handle GIF/Sticker metadata - store as content JSON, do NOT upload the file
         if (messageData.type === 'gif' && messageData.gif_metadata) {
-            documentData.content = typeof messageData.gif_metadata === 'string'
+            const serializedGifMetadata = typeof messageData.gif_metadata === 'string'
                 ? messageData.gif_metadata
                 : JSON.stringify(messageData.gif_metadata);
+            documentData.content = shouldEncrypt
+                ? encryptContent(serializedGifMetadata, chatKey)
+                : serializedGifMetadata;
         }
         
         // Handle image - use imageUrl field only (most reliable)
@@ -1052,6 +1105,8 @@ export const sendMessage = async (chatId, messageData) => {
             lastMessagePreview = '\uD83D\uDCF7 Image';
         } else if (messageData.type === 'gif') {
             lastMessagePreview = 'GIF';
+        } else if (messageData.type === 'voice') {
+            lastMessagePreview = '\uD83C\uDFA4 Voice message';
         } else if (messageData.type === 'location') {
             lastMessagePreview = '\uD83D\uDCCD Location';
         } else if (messageData.type === 'post_share') {

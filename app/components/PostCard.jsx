@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, memo } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,10 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { isPostBookmarked, togglePostBookmark } from '../utils/bookmarkService';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
+import { createRepost, requestPostReview } from '../../database/posts';
 import { moderateScale, fontSize, getResponsiveSize } from '../utils/responsive';
 import { POST_COLORS, POST_ICONS } from '../constants/postConstants';
 import PostCardImageGallery from './postCard/PostCardImageGallery';
@@ -19,6 +21,8 @@ import PostCardMenu from './postCard/PostCardMenu';
 import ImageWithPlaceholder from './ImageWithPlaceholder';
 import SharePostToChat from './SharePostToChat';
 import CustomAlert from './CustomAlert';
+import PostLikesModal from './PostLikesModal';
+import PostViewModal from './PostViewModal';
 import useCustomAlert from '../hooks/useCustomAlert';
 import { 
   postCardStyles as styles, 
@@ -38,6 +42,7 @@ const PostCard = ({
   onEdit,
   onDelete,
   onReport,
+  onRepost,
   onMarkResolved,
   onTagPress,
   showImages = true,
@@ -45,6 +50,7 @@ const PostCard = ({
   isOwner = false,
   compact = false,
 }) => {
+  const navigation = useNavigation();
   const { t, theme, isDarkMode } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
@@ -58,11 +64,42 @@ const PostCard = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showShareToChat, setShowShareToChat] = useState(false);
+  const [showLikesModal, setShowLikesModal] = useState(false);
+  const [showOriginalPostModal, setShowOriginalPostModal] = useState(false);
+  const [originalPostId, setOriginalPostId] = useState(null);
+  const likeLongPressRef = useRef(false);
 
 
   const postColor = POST_COLORS[post.postType] || '#6B7280';
   const postIcon = POST_ICONS[post.postType] || 'document-outline';
-  const stageColor = STAGE_COLORS[post.stage] || '#6B7280';
+  const normalizeStageKey = (stageValue) => {
+    const normalized = String(stageValue || '').trim();
+    const stageAliases = {
+      '1': 'stage_1',
+      '2': 'stage_2',
+      '3': 'stage_3',
+      '4': 'stage_4',
+      '5': 'stage_5',
+      '6': 'stage_6',
+      firstYear: 'stage_1',
+      secondYear: 'stage_2',
+      thirdYear: 'stage_3',
+      fourthYear: 'stage_4',
+      fifthYear: 'stage_5',
+      sixthYear: 'stage_6',
+      'First Year': 'stage_1',
+      'Second Year': 'stage_2',
+      'Third Year': 'stage_3',
+      'Fourth Year': 'stage_4',
+      'Fifth Year': 'stage_5',
+      'Sixth Year': 'stage_6',
+    };
+
+    return stageAliases[normalized] || normalized || 'all';
+  };
+
+  const stageKey = normalizeStageKey(post.stage);
+  const stageColor = STAGE_COLORS[stageKey] || '#6B7280';
 
   // Responsive footer icon sizes for small devices
   const footerIconSize = getResponsiveSize(14, 16, 18);
@@ -70,6 +107,7 @@ const PostCard = ({
   const footerStatsIconSize = getResponsiveSize(11, 12, 13);
 
   const isCurrentUserPost = user && post.userId === user.$id;
+  const canCurrentUserRepost = isCurrentUserPost || post.canOthersRepost !== false;
   const postOwnerName = isCurrentUserPost 
     ? user.fullName 
     : (post.userName || post.authorName || t('common.user'));
@@ -81,6 +119,10 @@ const PostCard = ({
     setLiked(isLiked);
     setLikeCount(post.likeCount || 0);
   }, [isLiked, post.likeCount]);
+
+  useEffect(() => {
+    setResolved(post.isResolved || false);
+  }, [post.isResolved]);
 
   // Check if post is bookmarked on mount
   useEffect(() => {
@@ -96,7 +138,12 @@ const PostCard = ({
     }
   };
 
-  const handleLike = async () => {
+  const handleLikePress = async () => {
+    if (likeLongPressRef.current) {
+      likeLongPressRef.current = false;
+      return;
+    }
+
     if (isLiking) return;
     
     setIsLiking(true);
@@ -118,6 +165,28 @@ const PostCard = ({
     }
   };
 
+  const handleLikeLongPress = () => {
+    likeLongPressRef.current = true;
+    setShowLikesModal(true);
+  };
+
+  const likedByIds = useMemo(() => {
+    const baseIds = Array.isArray(post.likedBy) ? post.likedBy : [];
+    const currentUserId = user?.$id;
+
+    if (!currentUserId) return baseIds;
+
+    if (liked && !baseIds.includes(currentUserId)) {
+      return [...baseIds, currentUserId];
+    }
+
+    if (!liked && baseIds.includes(currentUserId)) {
+      return baseIds.filter((id) => id !== currentUserId);
+    }
+
+    return baseIds;
+  }, [post.likedBy, liked, user?.$id]);
+
   const handleShare = async () => {
     try {
       await Share.share({
@@ -135,6 +204,58 @@ const PostCard = ({
       await Clipboard.setStringAsync(textToCopy);
     } catch (error) {
       // Copy failed
+    }
+  };
+
+  const handleRepost = async () => {
+    if (!user?.$id) return;
+
+    if (onRepost) {
+      onRepost();
+      return;
+    }
+
+    try {
+      const result = await createRepost(post.$id, user.$id, {
+        userName: user.fullName || user.name,
+        profilePicture: user.profilePicture || null,
+        department: user.department || post.department,
+        stage: user.stage || post.stage,
+        postType: post.postType,
+        canOthersRepost: true,
+      });
+
+      if (result?.alreadyReposted) {
+        showAlert(t('common.info'), t('post.alreadyReposted') || 'You already reposted this post', 'info');
+        return;
+      }
+
+      showAlert(t('common.success'), t('post.repostSuccess') || 'Post reposted successfully', 'success');
+    } catch (error) {
+      const message = error?.message === 'Repost is not allowed for this post'
+        ? (t('post.repostNotAllowed') || 'Reposting is not allowed for this post')
+        : (t('post.repostError') || 'Failed to repost');
+      showAlert(t('common.error'), message, 'error');
+    }
+  };
+
+  const handleVisitOriginal = () => {
+    if (!post?.originalPostId) return;
+    setOriginalPostId(post.originalPostId);
+    setShowOriginalPostModal(true);
+  };
+
+  const handleRequestReview = async () => {
+    if (!user?.$id || !post?.$id) return;
+
+    try {
+      await requestPostReview(post.$id, user.$id);
+      showAlert(t('common.success'), t('post.reviewRequestSent'), 'success');
+    } catch (error) {
+      const message = error?.message === 'Review request already sent recently'
+        ? t('post.reviewRequestCooldown')
+        : t('post.reviewRequestError');
+      showAlert(t('common.error'), message, 'error');
     }
   };
 
@@ -299,7 +420,7 @@ const PostCard = ({
           <View style={styles.badgesRow}>
             <View style={[styles.stageBadge, { backgroundColor: isDarkMode ? `${stageColor}15` : `${stageColor}20`, borderColor: stageColor }]}>
               <Text style={[styles.stageText, { color: stageColor }]}>
-                {t(`stages.${post.stage}`)}
+                {t(`stages.${stageKey}`) || t(`stages.${post.stage}`)}
               </Text>
             </View>
             <View style={[styles.typeBadgeInline, { backgroundColor: isDarkMode ? `${postColor}10` : `${postColor}18` }]}>
@@ -308,6 +429,14 @@ const PostCard = ({
                 {t(`post.types.${post.postType}`)}
               </Text>
             </View>
+            {post.isRepost === true && (
+              <View style={[styles.repostBadge, { backgroundColor: isDarkMode ? `${theme.primary}15` : `${theme.primary}20` }]}>
+                <Ionicons name="repeat-outline" size={moderateScale(10)} color={theme.primary} />
+                <Text style={[styles.repostText, { color: theme.primary }]}>
+                  {t('post.reposted') || 'Reposted'}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
         <TouchableOpacity 
@@ -397,7 +526,9 @@ const PostCard = ({
         <View style={styles.footerLeft}>
           <TouchableOpacity 
             style={styles.actionButton}
-            onPress={handleLike}
+            onPress={handleLikePress}
+            onLongPress={handleLikeLongPress}
+            delayLongPress={300}
             activeOpacity={0.7}
             disabled={isLiking}
           >
@@ -475,6 +606,7 @@ const PostCard = ({
         isOwner={isOwner}
         isQuestion={post.postType === 'question'}
         isResolved={resolved}
+        isHidden={post.isHidden === true}
         onEdit={() => {
           if (onEdit) onEdit();
         }}
@@ -484,9 +616,15 @@ const PostCard = ({
         onReport={() => {
           if (onReport) onReport();
         }}
+        onRepost={handleRepost}
+        canRepost={canCurrentUserRepost}
+        isRepost={post.isRepost === true && !!post.originalPostId}
+        onVisitOriginal={post.originalPostId ? handleVisitOriginal : null}
+        onRequestReview={isOwner && post.isHidden ? handleRequestReview : null}
         onMarkResolved={() => {
-          if (onMarkResolved) onMarkResolved();
-          setResolved(true);
+          const nextResolvedState = !resolved;
+          if (onMarkResolved) onMarkResolved(nextResolvedState);
+          setResolved(nextResolvedState);
         }}
         onCopy={handleCopy}
         onBookmark={handleBookmark}
@@ -501,6 +639,22 @@ const PostCard = ({
         onClose={() => setShowShareToChat(false)}
         post={post}
         showAlert={showAlert}
+      />
+
+      <PostLikesModal
+        visible={showLikesModal}
+        onClose={() => setShowLikesModal(false)}
+        likedByIds={likedByIds}
+      />
+
+      <PostViewModal
+        visible={showOriginalPostModal}
+        onClose={() => {
+          setShowOriginalPostModal(false);
+          setOriginalPostId(null);
+        }}
+        postId={originalPostId}
+        navigation={navigation}
       />
 
       <CustomAlert

@@ -1,9 +1,14 @@
+import { Platform } from 'react-native';
 import { GiphyFetch } from '@giphy/js-fetch-api';
 
-const GIPHY_API_KEY = process.env.EXPO_PUBLIC_GIPHY_API_KEY;
+const DEFAULT_GIPHY_API_KEY = process.env.EXPO_PUBLIC_GIPHY_API_KEY;
+const IOS_GIPHY_API_KEY = process.env.EXPO_PUBLIC_GIPHY_API_KEY_IOS;
+const GIPHY_API_KEY = Platform.OS === 'ios'
+  ? (IOS_GIPHY_API_KEY || DEFAULT_GIPHY_API_KEY)
+  : DEFAULT_GIPHY_API_KEY;
 
 if (!GIPHY_API_KEY) {
-  console.warn('[GiphyService] EXPO_PUBLIC_GIPHY_API_KEY is not set in .env');
+  console.warn('[GiphyService] Giphy API key is not set in .env');
 }
 
 const gf = new GiphyFetch(GIPHY_API_KEY || '');

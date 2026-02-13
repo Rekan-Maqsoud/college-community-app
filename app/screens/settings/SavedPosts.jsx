@@ -42,7 +42,7 @@ const SavedPosts = ({ navigation }) => {
 
       const postPromises = bookmarkIds.map(async (id) => {
         try {
-          return await getPost(id);
+          return await getPost(id, user?.$id);
         } catch {
           return null;
         }

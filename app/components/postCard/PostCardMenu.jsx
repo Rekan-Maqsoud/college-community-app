@@ -14,9 +14,15 @@ const PostCardMenu = ({
   isOwner,
   isQuestion,
   isResolved,
+  isHidden,
   onEdit,
   onDelete,
   onReport,
+  onRepost,
+  canRepost,
+  isRepost,
+  onVisitOriginal,
+  onRequestReview,
   onMarkResolved,
   onCopy,
   onBookmark,
@@ -34,6 +40,15 @@ const PostCardMenu = ({
     }
     if (action === 'report' && onReport) {
       onReport();
+    }
+    if (action === 'repost' && onRepost) {
+      onRepost();
+    }
+    if (action === 'visitOriginal' && onVisitOriginal) {
+      onVisitOriginal();
+    }
+    if (action === 'requestReview' && onRequestReview) {
+      onRequestReview();
     }
     if (action === 'markResolved' && onMarkResolved) {
       onMarkResolved();
@@ -61,15 +76,15 @@ const PostCardMenu = ({
         <View style={[styles.menuModal, { backgroundColor: theme.card || theme.cardBackground }]}>
           {isOwner ? (
             <>
-              {isQuestion && !isResolved && (
+              {isQuestion && (
                 <>
                   <TouchableOpacity 
                     style={styles.menuItem} 
                     onPress={() => handleAction('markResolved')}
                   >
-                    <Ionicons name="checkmark-circle-outline" size={22} color="#10B981" />
-                    <Text style={[styles.menuText, { color: '#10B981' }]}>
-                      {t('post.markAsAnswered')}
+                    <Ionicons name={isResolved ? 'close-circle-outline' : 'checkmark-circle-outline'} size={22} color={isResolved ? '#F59E0B' : '#10B981'} />
+                    <Text style={[styles.menuText, { color: isResolved ? '#F59E0B' : '#10B981' }]}>
+                      {isResolved ? t('post.markAsUnanswered') : t('post.markAsAnswered')}
                     </Text>
                   </TouchableOpacity>
                   <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
@@ -94,17 +109,61 @@ const PostCardMenu = ({
                   {t('common.delete')}
                 </Text>
               </TouchableOpacity>
+              {isHidden && (
+                <>
+                  <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+                  <TouchableOpacity 
+                    style={styles.menuItem} 
+                    onPress={() => handleAction('requestReview')}
+                  >
+                    <Ionicons name="shield-checkmark-outline" size={22} color={theme.primary || '#007AFF'} />
+                    <Text style={[styles.menuText, { color: theme.primary || '#007AFF' }]}>
+                      {t('post.requestReview')}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </>
           ) : (
-            <TouchableOpacity 
-              style={styles.menuItem} 
-              onPress={() => handleAction('report')}
-            >
-              <Ionicons name="flag-outline" size={22} color="#F59E0B" />
-              <Text style={[styles.menuText, { color: '#F59E0B' }]}>
-                {t('post.report')}
-              </Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity 
+                style={styles.menuItem} 
+                onPress={() => handleAction('report')}
+              >
+                <Ionicons name="flag-outline" size={22} color="#F59E0B" />
+                <Text style={[styles.menuText, { color: '#F59E0B' }]}>
+                  {t('post.report')}
+                </Text>
+              </TouchableOpacity>
+              {canRepost && (
+                <>
+                  <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+                  <TouchableOpacity 
+                    style={styles.menuItem} 
+                    onPress={() => handleAction('repost')}
+                  >
+                    <Ionicons name="repeat-outline" size={22} color={theme.primary || '#007AFF'} />
+                    <Text style={[styles.menuText, { color: theme.primary || '#007AFF' }]}>
+                      {t('post.repost') || 'Repost'}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </>
+          )}
+          {isRepost && onVisitOriginal && (
+            <>
+              <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+              <TouchableOpacity 
+                style={styles.menuItem} 
+                onPress={() => handleAction('visitOriginal')}
+              >
+                <Ionicons name="open-outline" size={22} color={theme.primary || '#007AFF'} />
+                <Text style={[styles.menuText, { color: theme.primary || '#007AFF' }]}>
+                  {t('post.visitOriginalPost') || 'Visit original post'}
+                </Text>
+              </TouchableOpacity>
+            </>
           )}
           <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
           <TouchableOpacity 

@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Image,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -46,6 +47,7 @@ const EditPost = ({ navigation, route }) => {
   const [department, setDepartment] = useState(post?.department || user?.department || '');
   const [stage, setStage] = useState(post?.stage || '');
   const [visibility, setVisibility] = useState(post?.visibility || 'department');
+  const [canOthersRepost, setCanOthersRepost] = useState(post?.canOthersRepost !== false);
   const [images, setImages] = useState([]);
   const [existingImages, setExistingImages] = useState(post?.images || []);
   const [tags, setTags] = useState([]);
@@ -174,6 +176,7 @@ const EditPost = ({ navigation, route }) => {
         stage,
         images: uploadedImages,
         imageDeleteUrls,
+        canOthersRepost,
       };
 
       updateData.tags = tagArray;
@@ -356,6 +359,23 @@ const EditPost = ({ navigation, route }) => {
             <Text style={[styles.helperText, styles.compactHelper, { color: theme.textSecondary }]}>
               {getVisibilityHelper()}
             </Text>
+            <View style={styles.repostPermissionRow}>
+              <View style={styles.repostPermissionTextWrap}>
+                <Text style={[styles.compactLabel, { color: theme.textSecondary }]}>
+                  {t('post.allowReposts')}
+                </Text>
+                <Text style={[styles.helperText, { color: theme.textSecondary }]}>
+                  {t('post.allowRepostsHelper')}
+                </Text>
+              </View>
+              <Switch
+                value={canOthersRepost}
+                onValueChange={setCanOthersRepost}
+                disabled={loading}
+                trackColor={{ false: theme.input.border, true: `${theme.primary}88` }}
+                thumbColor={canOthersRepost ? theme.primary : '#F3F4F6'}
+              />
+            </View>
           </View>
 
           <View style={styles.section}>
@@ -677,6 +697,16 @@ const styles = StyleSheet.create({
   },
   compactHelper: {
     marginTop: spacing.xs,
+  },
+  repostPermissionRow: {
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  repostPermissionTextWrap: {
+    flex: 1,
   },
   postTypeGrid: {
     flexDirection: 'row',

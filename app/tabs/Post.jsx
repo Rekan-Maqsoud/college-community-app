@@ -12,6 +12,7 @@ import {
   StatusBar,
   Image,
   Modal,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -62,6 +63,7 @@ const Post = () => {
   const [showTags, setShowTags] = useState(false);
   const [showLinks, setShowLinks] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
+  const [canOthersRepost, setCanOthersRepost] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(null);
   
   const POST_TYPE_OPTIONS = [
@@ -184,6 +186,7 @@ const Post = () => {
         imageDeleteUrls,
         tags: tagsArray,
         links: linksArray,
+        canOthersRepost,
       });
 
       // Notify followers about the new post (non-blocking)
@@ -213,6 +216,7 @@ const Post = () => {
       setLinkInput('');
       setImages([]);
       setPostType(POST_TYPES.DISCUSSION);
+      setCanOthersRepost(true);
     } catch (error) {
       showAlert({ type: 'error', title: t('common.error'), message: t('post.createError') });
     } finally {
@@ -375,6 +379,24 @@ const Post = () => {
                   />
                 </TouchableOpacity>
               </View>
+            </View>
+
+            <View style={styles.repostPermissionRow}>
+              <View style={styles.repostPermissionTextWrap}>
+                <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
+                  {t('post.allowReposts')}
+                </Text>
+                <Text style={[styles.repostPermissionHelper, { color: theme.textSecondary }]}>
+                  {t('post.allowRepostsHelper')}
+                </Text>
+              </View>
+              <Switch
+                value={canOthersRepost}
+                onValueChange={setCanOthersRepost}
+                disabled={loading}
+                trackColor={{ false: theme.border, true: `${theme.primary}88` }}
+                thumbColor={canOthersRepost ? theme.primary : '#f4f3f4'}
+              />
             </View>
 
             <View style={styles.actionButtonsRow}>
@@ -836,6 +858,19 @@ const styles = StyleSheet.create({
   actionButtonsRow: {
     flexDirection: 'row',
     gap: 10,
+  },
+  repostPermissionRow: {
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  repostPermissionTextWrap: {
+    flex: 1,
+  },
+  repostPermissionHelper: {
+    fontSize: 11,
   },
   actionButton: {
     flex: 1,

@@ -112,7 +112,7 @@ const PostDetails = ({ navigation, route }) => {
       if (!initialPost && routePostId) {
         setIsLoadingPost(true);
         try {
-          const fetchedPost = await getPost(routePostId);
+          const fetchedPost = await getPost(routePostId, user?.$id);
           if (fetchedPost) {
             setPost(fetchedPost);
           } else {
