@@ -18,7 +18,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Permission, Role } from 'appwrite';
 import ReanimatedModule, {
   useSharedValue,
   useAnimatedStyle,
@@ -37,6 +39,7 @@ import {
   wp,
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { config, storage } from '../../database/config';
 
 const ReanimatedView = ReanimatedModule?.View || View;
 
@@ -52,6 +55,40 @@ if (
 }
 
 const SWIPE_THRESHOLD = 60;
+const VOICE_VISUAL_BARS = 20;
+const sharedVoiceControllers = new Map();
+
+const buildSeededWaveform = (seedText = '', bars = VOICE_VISUAL_BARS) => {
+  let seed = 0;
+  for (let index = 0; index < seedText.length; index += 1) {
+    seed = (seed * 31 + seedText.charCodeAt(index)) >>> 0;
+  }
+
+  return Array.from({ length: bars }, (_, index) => {
+    seed = (seed * 1664525 + 1013904223 + index) >>> 0;
+    const randomValue = (seed % 1000) / 1000;
+    return Number((0.18 + randomValue * 0.72).toFixed(3));
+  });
+};
+
+const normalizeWaveformSamples = (samples, bars = VOICE_VISUAL_BARS, seedText = '') => {
+  const source = (Array.isArray(samples) ? samples : [])
+    .map((sample) => Number(sample))
+    .filter((sample) => Number.isFinite(sample))
+    .map((sample) => Math.max(0.08, Math.min(1, sample)));
+
+  if (source.length === 0) {
+    return buildSeededWaveform(seedText, bars);
+  }
+
+  return Array.from({ length: bars }, (_, index) => {
+    const start = Math.floor((index * source.length) / bars);
+    const end = Math.max(start + 1, Math.floor(((index + 1) * source.length) / bars));
+    const segment = source.slice(start, end);
+    const average = segment.reduce((sum, value) => sum + value, 0) / Math.max(1, segment.length);
+    return Number(average.toFixed(3));
+  });
+};
 
 // Message status indicator component
 // Status flow: sending -> sent (1 check) -> delivered (2 checks) -> read (pfp in private, blue checks in group)
@@ -284,7 +321,11 @@ const MessageBubble = ({
   const [voiceDurationMs, setVoiceDurationMs] = useState(0);
   const [voicePositionMs, setVoicePositionMs] = useState(0);
   const [voiceLoading, setVoiceLoading] = useState(false);
-  const voiceSoundRef = useRef(null);
+  const voicePlayerRef = useRef(null);
+  const voicePlayerListenerRef = useRef(null);
+  const voicePlayerUrlRef = useRef('');
+  const voiceLocalPlaybackUriRef = useRef('');
+  const voiceLocalPlaybackRemoteUrlRef = useRef('');
   
   const translateX = useRef(new Animated.Value(0)).current;
   const swipeDirection = isCurrentUser ? -1 : 1;
@@ -439,29 +480,190 @@ const MessageBubble = ({
       const duration = Number(parsed?.voice_duration_ms || 0);
       return {
         url: parsed?.voice_url || '',
+        fileId: parsed?.voice_file_id || '',
         duration,
+        waveform: normalizeWaveformSamples(
+          parsed?.voice_waveform,
+          VOICE_VISUAL_BARS,
+          `${parsed?.voice_file_id || ''}_${parsed?.voice_url || ''}_${duration}`
+        ),
       };
     } catch {
       return null;
     }
   }, [isVoice, message.content]);
 
+  const disposeVoicePlayer = useCallback(() => {
+    if (voicePlayerListenerRef.current?.remove) {
+      voicePlayerListenerRef.current.remove();
+    }
+    voicePlayerListenerRef.current = null;
+
+    if (voicePlayerRef.current?.remove) {
+      try {
+        voicePlayerRef.current.remove();
+      } catch {}
+    }
+    voicePlayerRef.current = null;
+    voicePlayerUrlRef.current = '';
+  }, []);
+
+  const stopVoicePlayback = useCallback(async (resetPosition = true) => {
+    if (voicePlayerRef.current?.pause) {
+      try {
+        voicePlayerRef.current.pause();
+      } catch {}
+    }
+
+    disposeVoicePlayer();
+    setIsVoicePlaying(false);
+    setVoiceLoading(false);
+    if (resetPosition) {
+      setVoicePositionMs(0);
+    }
+  }, [disposeVoicePlayer]);
+
+  const clearVoicePlaybackCache = useCallback(() => {
+    const localUri = voiceLocalPlaybackUriRef.current;
+    voiceLocalPlaybackUriRef.current = '';
+    voiceLocalPlaybackRemoteUrlRef.current = '';
+
+    if (localUri) {
+      FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => {});
+    }
+  }, []);
+
+  const resolveVoicePlaybackUri = useCallback(async () => {
+    if (!voiceData?.url) {
+      return '';
+    }
+
+    if (
+      voiceLocalPlaybackUriRef.current &&
+      voiceLocalPlaybackRemoteUrlRef.current === voiceData.url
+    ) {
+      return voiceLocalPlaybackUriRef.current;
+    }
+
+    const baseDirectory = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+    if (!baseDirectory) {
+      return voiceData.url;
+    }
+
+    const targetUri = `${baseDirectory}voice_playback_${message.$id || Date.now()}.m4a`;
+    let downloadHeaders = {};
+
+    try {
+      const preparedUrl = new URL(voiceData.url);
+      const { options } = storage.client.prepareRequest('get', preparedUrl, {}, {});
+      downloadHeaders = options?.headers || {};
+    } catch {}
+
+    const blobToBase64 = (blob) => new Promise((resolve, reject) => {
+      try {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result;
+          if (typeof result !== 'string') {
+            reject(new Error('Voice blob encoding failed'));
+            return;
+          }
+          const commaIndex = result.indexOf(',');
+          resolve(commaIndex >= 0 ? result.slice(commaIndex + 1) : result);
+        };
+        reader.onerror = () => reject(reader.error || new Error('Voice blob read failed'));
+        reader.readAsDataURL(blob);
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    const fetchVoice = async (url, headers) => {
+      return await fetch(url, {
+        method: 'GET',
+        headers: headers || {},
+      });
+    };
+
+    let downloadResponse = null;
+    try {
+      downloadResponse = await fetchVoice(voiceData.url, downloadHeaders);
+    } catch {
+      downloadResponse = await fetchVoice(voiceData.url, {});
+    }
+
+    if (!downloadResponse?.ok) {
+      const statusCode = Number(downloadResponse?.status || 0);
+
+      if (
+        statusCode === 401 &&
+        voiceData?.fileId &&
+        config.voiceMessagesStorageId
+      ) {
+        try {
+          await storage.updateFile({
+            bucketId: config.voiceMessagesStorageId,
+            fileId: voiceData.fileId,
+            permissions: [
+              Permission.read(Role.users()),
+              Permission.update(Role.users()),
+              Permission.delete(Role.users()),
+            ],
+          });
+
+          const repairedUrl = storage.getFileView(config.voiceMessagesStorageId, voiceData.fileId)?.toString() || voiceData.url;
+          downloadResponse = await fetchVoice(repairedUrl, downloadHeaders);
+        } catch {}
+      }
+    }
+
+    if (!downloadResponse?.ok) {
+      throw new Error(`Voice download failed (${downloadResponse?.status || 'unknown'})`);
+    }
+
+    const audioBlob = await downloadResponse.blob();
+    const base64Audio = await blobToBase64(audioBlob);
+    await FileSystem.writeAsStringAsync(targetUri, base64Audio, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    voiceLocalPlaybackUriRef.current = targetUri;
+    voiceLocalPlaybackRemoteUrlRef.current = voiceData.url;
+
+    return targetUri;
+  }, [message.$id, voiceData?.fileId, voiceData?.url]);
+
+  useEffect(() => {
+    if (!message?.$id) {
+      return () => {};
+    }
+
+    sharedVoiceControllers.set(message.$id, stopVoicePlayback);
+
+    return () => {
+      sharedVoiceControllers.delete(message.$id);
+    };
+  }, [message?.$id, stopVoicePlayback]);
+
   useEffect(() => {
     return () => {
-      if (voiceSoundRef.current) {
-        voiceSoundRef.current.unloadAsync().catch(() => {});
-      }
+      disposeVoicePlayer();
+      clearVoicePlaybackCache();
     };
-  }, []);
+  }, [clearVoicePlaybackCache, disposeVoicePlayer]);
 
   useEffect(() => {
     if (!isVoice) {
       return;
     }
+    disposeVoicePlayer();
+    if (voiceLocalPlaybackRemoteUrlRef.current !== (voiceData?.url || '')) {
+      clearVoicePlaybackCache();
+    }
     setVoiceDurationMs(voiceData?.duration || 0);
     setVoicePositionMs(0);
     setIsVoicePlaying(false);
-  }, [isVoice, voiceData?.duration, message.$id]);
+  }, [clearVoicePlaybackCache, disposeVoicePlayer, isVoice, voiceData?.duration, voiceData?.url, message.$id]);
 
   const formatVoiceTime = (durationMs = 0) => {
     const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
@@ -469,20 +671,6 @@ const MessageBubble = ({
     const seconds = totalSeconds % 60;
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
-
-  const onVoiceStatusUpdate = useCallback((status) => {
-    if (!status) return;
-    if (status.isLoaded) {
-      setVoicePositionMs(status.positionMillis || 0);
-      setVoiceDurationMs(status.durationMillis || voiceData?.duration || 0);
-      setIsVoicePlaying(status.isPlaying || false);
-
-      if (status.didJustFinish) {
-        setIsVoicePlaying(false);
-        setVoicePositionMs(0);
-      }
-    }
-  }, [voiceData?.duration]);
 
   const handleToggleVoicePlayback = useCallback(async () => {
     if (!voiceData?.url || selectionMode) {
@@ -492,41 +680,96 @@ const MessageBubble = ({
     try {
       setVoiceLoading(true);
 
-      if (voiceSoundRef.current) {
-        const status = await voiceSoundRef.current.getStatusAsync();
-        if (status?.isLoaded && status.isPlaying) {
-          await voiceSoundRef.current.pauseAsync();
+      const activePlayer = voicePlayerRef.current;
+      const sameVoice = voicePlayerUrlRef.current === voiceData.url;
+
+      if (activePlayer && sameVoice) {
+        if (activePlayer.playing) {
+          activePlayer.pause();
           setIsVoicePlaying(false);
           setVoiceLoading(false);
           return;
         }
 
-        if (status?.isLoaded) {
-          await voiceSoundRef.current.playAsync();
-          setIsVoicePlaying(true);
-          setVoiceLoading(false);
+        if (activePlayer.duration > 0 && activePlayer.currentTime >= activePlayer.duration - 0.05) {
+          await activePlayer.seekTo(0);
+        }
+
+        activePlayer.play();
+        setIsVoicePlaying(true);
+        setVoiceLoading(false);
+        return;
+      }
+
+      const stopPromises = [];
+      sharedVoiceControllers.forEach((controller, messageId) => {
+        if (messageId !== message.$id) {
+          stopPromises.push(controller());
+        }
+      });
+      if (stopPromises.length > 0) {
+        await Promise.all(stopPromises);
+      }
+
+      if (activePlayer && !sameVoice) {
+        disposeVoicePlayer();
+      }
+
+      await setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
+      });
+
+      const playableUri = await resolveVoicePlaybackUri();
+      if (!playableUri) {
+        throw new Error('Voice source URL is missing');
+      }
+
+      const player = createAudioPlayer(
+        { uri: playableUri },
+        { updateInterval: 200, downloadFirst: true }
+      );
+
+      voicePlayerRef.current = player;
+      voicePlayerUrlRef.current = voiceData.url;
+
+      voicePlayerListenerRef.current = player.addListener('playbackStatusUpdate', (status) => {
+        if (!status) {
           return;
         }
 
-        await voiceSoundRef.current.unloadAsync();
-        voiceSoundRef.current = null;
-      }
+        const nextPositionMs = Math.max(0, Math.floor((status.currentTime || 0) * 1000));
+        const nextDurationMs = Math.max(
+          Number(voiceData.duration || 0),
+          Math.floor((status.duration || 0) * 1000)
+        );
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
+        setVoicePositionMs(nextPositionMs);
+        setVoiceDurationMs(nextDurationMs);
+        setIsVoicePlaying(Boolean(status.playing));
+
+        if (status.didJustFinish) {
+          setIsVoicePlaying(false);
+          setVoicePositionMs(nextDurationMs);
+        }
       });
 
-      const { sound, status } = await Audio.Sound.createAsync(
-        { uri: voiceData.url },
-        { shouldPlay: true, progressUpdateIntervalMillis: 250 },
-        onVoiceStatusUpdate
-      );
+      if (player.duration > 0 && player.currentTime >= player.duration - 0.05) {
+        await player.seekTo(0);
+      }
 
-      voiceSoundRef.current = sound;
-      setIsVoicePlaying(status?.isPlaying || false);
-      setVoiceDurationMs(status?.durationMillis || voiceData.duration || 0);
+      player.play();
+
+      setIsVoicePlaying(true);
+      setVoiceDurationMs(Math.max(
+        Number(voiceData.duration || 0),
+        Math.floor((player.duration || 0) * 1000)
+      ));
     } catch {
+      stopVoicePlayback();
+      setIsVoicePlaying(false);
+      setVoicePositionMs(0);
+      setVoiceDurationMs(voiceData?.duration || 0);
       showAlert?.({
         type: 'error',
         title: t('common.error'),
@@ -535,7 +778,7 @@ const MessageBubble = ({
     } finally {
       setVoiceLoading(false);
     }
-  }, [onVoiceStatusUpdate, selectionMode, showAlert, t, voiceData]);
+  }, [disposeVoicePlayer, message?.$id, resolveVoicePlaybackUri, selectionMode, showAlert, stopVoicePlayback, t, voiceData]);
 
   const handleLongPress = () => {
     if (selectionMode && onToggleSelect) {
@@ -996,52 +1239,48 @@ const MessageBubble = ({
             <View style={styles.voiceMetaContainer}>
               <Text
                 style={[
-                  styles.voiceLabel,
-                  {
-                    color: isCurrentUser ? '#FFFFFF' : theme.text,
-                    fontSize: fontSize(12),
-                  },
-                ]}
-              >
-                {t('chats.voiceMessage')}
-              </Text>
-              <Text
-                style={[
                   styles.voiceDuration,
                   {
                     color: isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.textSecondary,
-                    fontSize: fontSize(10),
+                    fontSize: fontSize(11),
                   },
                 ]}
               >
                 {formatVoiceTime(voicePositionMs)} / {formatVoiceTime(voiceDurationMs || voiceData.duration || 0)}
               </Text>
-            </View>
-          </View>
 
-          <View
-            style={[
-              styles.voiceProgressTrack,
-              {
-                backgroundColor: isCurrentUser ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)',
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.voiceProgressFill,
-                {
-                  width: `${Math.min(
-                    100,
+              <View style={styles.voiceBarsRow}>
+                {(voiceData.waveform || []).map((sample, index) => {
+                  const progressRatio = Math.min(
+                    1,
                     Math.max(
                       0,
-                      ((voicePositionMs || 0) / Math.max(1, voiceDurationMs || voiceData.duration || 1)) * 100
+                      (voicePositionMs || 0) / Math.max(1, voiceDurationMs || voiceData.duration || 1)
                     )
-                  )}%`,
-                  backgroundColor: isCurrentUser ? '#FFFFFF' : theme.primary,
-                },
-              ]}
-            />
+                  );
+                  const totalBars = Math.max(1, voiceData.waveform?.length || VOICE_VISUAL_BARS);
+                  const activeBars = Math.max(1, Math.round(progressRatio * totalBars));
+                  const isActive = index < activeBars;
+                  const visualSample = Math.pow(Math.max(0.08, Math.min(1, sample)), 0.65);
+                  const barHeight = moderateScale(2) + visualSample * moderateScale(13.5);
+
+                  return (
+                    <View
+                      key={`voice-bar-${message.$id}-${index}`}
+                      style={[
+                        styles.voiceBar,
+                        {
+                          height: barHeight,
+                          backgroundColor: isActive
+                            ? (isCurrentUser ? '#FFFFFF' : theme.primary)
+                            : (isCurrentUser ? 'rgba(255,255,255,0.24)' : 'rgba(0,0,0,0.16)'),
+                        },
+                      ]}
+                    />
+                  );
+                })}
+              </View>
+            </View>
           </View>
         </TouchableOpacity>
       )}
@@ -1965,35 +2204,45 @@ const styles = StyleSheet.create({
   },
   // Voice message styles
   voiceCard: {
-    width: moderateScale(220),
+    width: moderateScale(182),
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    gap: spacing.xs,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
   },
   voiceTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   voicePlayButton: {
-    width: moderateScale(34),
-    height: moderateScale(34),
-    borderRadius: moderateScale(17),
+    width: moderateScale(30),
+    height: moderateScale(30),
+    borderRadius: moderateScale(15),
     justifyContent: 'center',
     alignItems: 'center',
   },
   voiceMetaContainer: {
     flex: 1,
     justifyContent: 'center',
+    gap: spacing.xs / 2,
   },
   voiceLabel: {
     fontWeight: '700',
   },
   voiceDuration: {
-    marginTop: 2,
     fontWeight: '500',
+  },
+  voiceBarsRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.xs / 4,
+    minHeight: moderateScale(10),
+  },
+  voiceBar: {
+    width: moderateScale(3),
+    borderRadius: moderateScale(2),
   },
   voiceProgressTrack: {
     width: '100%',

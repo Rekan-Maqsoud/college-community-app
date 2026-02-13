@@ -81,6 +81,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   const [isBlockedByOtherUser, setIsBlockedByOtherUser] = useState(false);
   const [isChatBlockedByOtherUser, setIsChatBlockedByOtherUser] = useState(false);
   const [reactionDefaults, setReactionDefaultsState] = useState(DEFAULT_REACTION_SET);
+  const [chatSettingsLoaded, setChatSettingsLoaded] = useState(false);
   
   const flatListRef = useRef(null);
   const pollingInterval = useRef(null);
@@ -171,6 +172,10 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   );
 
   const pollMessages = useCallback(async () => {
+    if (!chatSettingsLoaded) {
+      return;
+    }
+
     try {
       const fetchedMessages = await getMessages(chat.$id, user?.$id, 100, 0, false);
       let chronological = fetchedMessages.reverse(); // oldest first
@@ -261,7 +266,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     } catch (error) {
       // Silent fail for polling
     }
-  }, [chat.$id, clearedAt, hiddenMessageIds]);
+  }, [chat.$id, chatSettingsLoaded, clearedAt, hiddenMessageIds]);
 
   const loadChatSettings = async () => {
     try {
@@ -364,6 +369,10 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   };
 
   const loadMessages = async () => {
+    if (!chatSettingsLoaded) {
+      return;
+    }
+
     try {
       // Stale-While-Revalidate: show cached messages immediately
       const cached = await messagesCacheManager.getCachedMessages(chat.$id, 100);
@@ -533,6 +542,10 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   };
 
   useEffect(() => {
+    if (!chatSettingsLoaded) {
+      return;
+    }
+
     loadMessages();
     checkPermissions();
     checkIfBlockedByOther();
@@ -565,10 +578,24 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       }
       subscription.remove();
     };
-  }, [chat.$id, pollMessages]);
+  }, [chat.$id, chatSettingsLoaded, pollMessages]);
 
   useEffect(() => {
-    loadChatSettings();
+    let isMounted = true;
+
+    setChatSettingsLoaded(false);
+    const hydrateChatSettings = async () => {
+      await loadChatSettings();
+      if (isMounted) {
+        setChatSettingsLoaded(true);
+      }
+    };
+
+    hydrateChatSettings();
+
+    return () => {
+      isMounted = false;
+    };
   }, [chat.$id, user.$id]);
 
   const handleViewPinnedMessages = async () => {

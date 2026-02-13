@@ -18,8 +18,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+import {
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+  useAudioRecorderState,
+  RecordingPresets,
+} from 'expo-audio';
+import * as FileSystem from 'expo-file-system/legacy';
 import LeafletMap from './LeafletMap';
 import GiphyPickerModal from './GiphyPickerModal';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -40,7 +46,13 @@ const LINE_HEIGHT = moderateScale(20);
 const MAX_INPUT_HEIGHT = LINE_HEIGHT * MAX_INPUT_LINES;
 const GIF_SEND_COOLDOWN_MS = 300;
 const VOICE_LOCK_THRESHOLD = moderateScale(70);
+const VOICE_CANCEL_THRESHOLD = moderateScale(90);
+const VOICE_LOCK_HORIZONTAL_TOLERANCE = moderateScale(58);
+const VOICE_PRESS_RETENTION = moderateScale(120);
 const MIN_VOICE_DURATION_MS = 500;
+const VOICE_WAVE_BARS = 16;
+const VOICE_WAVE_PAYLOAD_BARS = 24;
+const VOICE_WAVE_HISTORY_LIMIT = 600;
 
 const MessageInput = ({
   onSend,
@@ -68,19 +80,34 @@ const MessageInput = ({
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionStartIndex, setMentionStartIndex] = useState(-1);
-  const [recording, setRecording] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isRecordingLocked, setIsRecordingLocked] = useState(false);
   const [recordingDurationMs, setRecordingDurationMs] = useState(0);
+  const [recordingWaveform, setRecordingWaveform] = useState(Array(VOICE_WAVE_BARS).fill(0.15));
+  const [recordingSlideOffsetX, setRecordingSlideOffsetX] = useState(0);
+  const [isLockTargetActive, setIsLockTargetActive] = useState(false);
   const lastGifSentAtRef = useRef(0);
   const recordingDurationIntervalRef = useRef(null);
   const recordingStartYRef = useRef(0);
+  const recordingStartXRef = useRef(0);
+  const recordingDeltaYRef = useRef(0);
+  const recordingDeltaXRef = useRef(0);
+  const recordingGestureCancelledRef = useRef(false);
+  const recordingStartedAtRef = useRef(0);
+  const recordingWaveformRef = useRef(Array(VOICE_WAVE_BARS).fill(0.15));
+  const recordingWaveformHistoryRef = useRef([]);
   const isRecordingRef = useRef(false);
   const isRecordingLockedRef = useRef(false);
   const disabledRef = useRef(disabled);
   const uploadingRef = useRef(uploading);
+  const isPanGestureActiveRef = useRef(false);
   const inputRef = useRef(null);
   const actionSheetAnim = useRef(new Animated.Value(0)).current;
+  const audioRecorder = useAudioRecorder({
+    ...RecordingPresets.HIGH_QUALITY,
+    isMeteringEnabled: true,
+  });
+  const recorderState = useAudioRecorderState(audioRecorder, 120);
 
   // Animate action sheet
   useEffect(() => {
@@ -101,6 +128,10 @@ const MessageInput = ({
   }, [isRecordingLocked]);
 
   useEffect(() => {
+    recordingWaveformRef.current = recordingWaveform;
+  }, [recordingWaveform]);
+
+  useEffect(() => {
     disabledRef.current = disabled;
   }, [disabled]);
 
@@ -113,11 +144,9 @@ const MessageInput = ({
       if (recordingDurationIntervalRef.current) {
         clearInterval(recordingDurationIntervalRef.current);
       }
-      if (recording) {
-        recording.stopAndUnloadAsync().catch(() => {});
-      }
+      audioRecorder.stop().catch(() => {});
     };
-  }, [recording]);
+  }, [audioRecorder]);
 
   const formatVoiceDuration = (durationMs) => {
     const totalSeconds = Math.max(0, Math.floor((durationMs || 0) / 1000));
@@ -133,29 +162,124 @@ const MessageInput = ({
     }
   };
 
-  const startRecordingTicker = (activeRecording) => {
+  const startRecordingTicker = () => {
     clearRecordingTicker();
-    recordingDurationIntervalRef.current = setInterval(async () => {
-      if (!activeRecording) return;
-      try {
-        const status = await activeRecording.getStatusAsync();
-        if (status?.isRecording) {
-          setRecordingDurationMs(status.durationMillis || 0);
-        }
-      } catch {
+    recordingDurationIntervalRef.current = setInterval(() => {
+      if (!isRecordingRef.current || !recordingStartedAtRef.current) {
+        return;
       }
+      const elapsed = Date.now() - recordingStartedAtRef.current;
+      setRecordingDurationMs((prev) => Math.max(prev, elapsed));
     }, 250);
+  };
+
+  const appendWaveSample = (level) => {
+    const normalized = Math.max(0.08, Math.min(1, level));
+
+    recordingWaveformHistoryRef.current.push(normalized);
+    if (recordingWaveformHistoryRef.current.length > VOICE_WAVE_HISTORY_LIMIT) {
+      recordingWaveformHistoryRef.current = recordingWaveformHistoryRef.current.slice(-VOICE_WAVE_HISTORY_LIMIT);
+    }
+
+    setRecordingWaveform((prev) => {
+      const next = prev.slice(-VOICE_WAVE_BARS + 1);
+      next.push(normalized);
+      return next;
+    });
+  };
+
+  const serializeVoiceWaveform = (samples, targetBars = VOICE_WAVE_PAYLOAD_BARS) => {
+    const sanitized = (Array.isArray(samples) ? samples : [])
+      .map((sample) => Number(sample))
+      .filter((sample) => Number.isFinite(sample))
+      .map((sample) => Math.max(0.08, Math.min(1, sample)));
+
+    if (sanitized.length === 0) {
+      return Array(targetBars).fill(0.15);
+    }
+
+    return Array.from({ length: targetBars }, (_, index) => {
+      const segmentStart = Math.floor((index * sanitized.length) / targetBars);
+      const segmentEnd = Math.max(
+        segmentStart + 1,
+        Math.floor(((index + 1) * sanitized.length) / targetBars)
+      );
+      const segment = sanitized.slice(segmentStart, segmentEnd);
+      const peak = Math.max(...segment);
+      const average = segment.reduce((sum, value) => sum + value, 0) / Math.max(1, segment.length);
+      const signal = Math.max(0.08, Math.min(1, (peak * 0.78) + (average * 0.22)));
+      return Number(signal.toFixed(3));
+    });
   };
 
   const resetRecordingState = () => {
     clearRecordingTicker();
-    setRecording(null);
     setIsRecording(false);
     setIsRecordingLocked(false);
     setRecordingDurationMs(0);
+    setRecordingWaveform(Array(VOICE_WAVE_BARS).fill(0.15));
+    setRecordingSlideOffsetX(0);
+    setIsLockTargetActive(false);
+    recordingDeltaYRef.current = 0;
+    recordingDeltaXRef.current = 0;
+    recordingGestureCancelledRef.current = false;
+    recordingStartedAtRef.current = 0;
+    recordingWaveformHistoryRef.current = [];
+    isPanGestureActiveRef.current = false;
     isRecordingRef.current = false;
     isRecordingLockedRef.current = false;
   };
+
+  const isWithinLockTarget = (deltaY, deltaX) => {
+    if (deltaY < VOICE_LOCK_THRESHOLD) {
+      return false;
+    }
+    return Math.abs(deltaX) <= VOICE_LOCK_HORIZONTAL_TOLERANCE;
+  };
+
+  const applyGestureDeltas = (deltaY, deltaX) => {
+    recordingDeltaYRef.current = deltaY;
+    recordingDeltaXRef.current = deltaX;
+
+    if (deltaX < 0) {
+      setRecordingSlideOffsetX(Math.max(deltaX, -VOICE_CANCEL_THRESHOLD));
+    } else {
+      setRecordingSlideOffsetX(0);
+    }
+
+    const lockHovering = isWithinLockTarget(deltaY, deltaX);
+    setIsLockTargetActive(lockHovering);
+    return lockHovering;
+  };
+
+  const lockCurrentRecording = () => {
+    setIsRecordingLocked(true);
+    isRecordingLockedRef.current = true;
+    setRecordingSlideOffsetX(0);
+    setIsLockTargetActive(false);
+  };
+
+  useEffect(() => {
+    if (!isRecording) {
+      return;
+    }
+
+    const recorderDuration = Number(recorderState?.durationMillis || 0);
+    if (recorderDuration > 0) {
+      setRecordingDurationMs((prev) => Math.max(prev, recorderDuration));
+    }
+
+    const metering = Number(recorderState?.metering);
+    if (Number.isFinite(metering)) {
+      const clampedDb = Math.max(-80, Math.min(0, metering));
+      const amplitude = Math.pow(10, clampedDb / 20);
+      const level = Math.max(0.08, Math.min(1, Math.pow(amplitude, 0.55)));
+      appendWaveSample(level);
+    } else {
+      const previous = recordingWaveformHistoryRef.current[recordingWaveformHistoryRef.current.length - 1] || 0.12;
+      appendWaveSample(Math.max(0.08, previous * 0.985));
+    }
+  }, [isRecording, recorderState?.durationMillis, recorderState?.metering]);
 
   const startVoiceRecording = async () => {
     if (disabled || uploading || isRecordingRef.current || message.trim() || selectedImage) {
@@ -163,7 +287,7 @@ const MessageInput = ({
     }
 
     try {
-      const permission = await Audio.requestPermissionsAsync();
+      const permission = await requestRecordingPermissionsAsync();
       if (!permission.granted) {
         if (!permission.canAskAgain) {
           showPermissionDeniedAlert('microphone');
@@ -173,45 +297,53 @@ const MessageInput = ({
         return;
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+        shouldRouteThroughEarpiece: false,
       });
 
-      const nextRecording = new Audio.Recording();
-      await nextRecording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      await nextRecording.startAsync();
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
 
-      setRecording(nextRecording);
+      recordingStartedAtRef.current = Date.now();
+      recordingWaveformHistoryRef.current = [];
       setRecordingDurationMs(0);
+      setRecordingWaveform(Array(VOICE_WAVE_BARS).fill(0.15));
       setIsRecording(true);
       setIsRecordingLocked(false);
-      startRecordingTicker(nextRecording);
-    } catch {
+      setIsLockTargetActive(false);
+      startRecordingTicker();
+    } catch (error) {
       resetRecordingState();
       triggerAlert(t('common.error'), t('chats.voiceRecordingFailed'));
     }
   };
 
   const stopVoiceRecording = async ({ shouldSend }) => {
-    const activeRecording = recording;
-    if (!activeRecording) {
+    if (!audioRecorder) {
       resetRecordingState();
       return;
     }
 
     try {
       clearRecordingTicker();
-      let status = await activeRecording.getStatusAsync();
-      if (status?.isRecording) {
-        await activeRecording.stopAndUnloadAsync();
-        status = await activeRecording.getStatusAsync();
+      const statusBeforeStop = audioRecorder.getStatus();
+      if (statusBeforeStop?.isRecording) {
+        await audioRecorder.stop();
       }
+      const finalStatus = audioRecorder.getStatus();
 
-      const durationMillis = status?.durationMillis || recordingDurationMs || 0;
-      const recordingUri = activeRecording.getURI();
+      const durationMillis = Math.max(
+        Number(finalStatus?.durationMillis || 0),
+        Number(recordingDurationMs || 0),
+        recordingStartedAtRef.current ? (Date.now() - recordingStartedAtRef.current) : 0
+      );
+      const recordingUri = audioRecorder.uri || finalStatus?.url || null;
+      const waveformForPayload = serializeVoiceWaveform(
+        recordingWaveformHistoryRef.current,
+        VOICE_WAVE_PAYLOAD_BARS
+      );
       resetRecordingState();
 
       if (!shouldSend || !recordingUri) {
@@ -246,28 +378,30 @@ const MessageInput = ({
         voice_duration_ms: durationMillis,
         voice_mime_type: uploadedVoice.mimeType || 'audio/m4a',
         voice_size: uploadedVoice.size || info?.size || 0,
+        voice_waveform: waveformForPayload,
       });
 
       FileSystem.deleteAsync(recordingUri, { idempotent: true }).catch(() => {});
-    } catch {
+    } catch (error) {
       triggerAlert(t('common.error'), t('chats.voiceSendError'));
     } finally {
       setUploading(false);
-      Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
+      setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
       }).catch(() => {});
     }
   };
 
   const voicePanResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => !disabledRef.current && !uploadingRef.current,
-      onStartShouldSetPanResponderCapture: () => !disabledRef.current && !uploadingRef.current,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (event) => {
-        recordingStartYRef.current = event?.nativeEvent?.pageY || 0;
-        startVoiceRecording();
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: () => isRecordingRef.current,
+      onMoveShouldSetPanResponderCapture: () => isRecordingRef.current,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => {
+        isPanGestureActiveRef.current = true;
       },
       onPanResponderMove: (event) => {
         if (!isRecordingRef.current || isRecordingLockedRef.current) {
@@ -275,27 +409,48 @@ const MessageInput = ({
         }
 
         const currentY = event?.nativeEvent?.pageY || 0;
+        const currentX = event?.nativeEvent?.pageX || 0;
         const deltaY = recordingStartYRef.current - currentY;
-        if (deltaY > VOICE_LOCK_THRESHOLD) {
-          setIsRecordingLocked(true);
-          isRecordingLockedRef.current = true;
+        const deltaX = currentX - recordingStartXRef.current;
+
+        applyGestureDeltas(deltaY, deltaX);
+
+        if (deltaX <= -VOICE_CANCEL_THRESHOLD) {
+          recordingGestureCancelledRef.current = true;
+          stopVoiceRecording({ shouldSend: false });
         }
       },
       onPanResponderRelease: () => {
+        isPanGestureActiveRef.current = false;
         if (!isRecordingRef.current) {
           return;
         }
+        if (recordingGestureCancelledRef.current) {
+          return;
+        }
+
+        if (recordingDeltaXRef.current <= -VOICE_CANCEL_THRESHOLD) {
+          stopVoiceRecording({ shouldSend: false });
+          return;
+        }
+
+        if (isWithinLockTarget(recordingDeltaYRef.current, recordingDeltaXRef.current)) {
+          lockCurrentRecording();
+          return;
+        }
+
         if (!isRecordingLockedRef.current) {
           stopVoiceRecording({ shouldSend: true });
+        } else {
+          setRecordingSlideOffsetX(0);
         }
       },
       onPanResponderTerminate: () => {
+        isPanGestureActiveRef.current = false;
         if (!isRecordingRef.current) {
           return;
         }
-        if (!isRecordingLockedRef.current) {
-          stopVoiceRecording({ shouldSend: true });
-        }
+        stopVoiceRecording({ shouldSend: false });
       },
     })
   ).current;
@@ -656,7 +811,7 @@ const MessageInput = ({
   const isSmallDevice = screenHeight < 750;
   const baseBottomPadding = Platform.OS === 'ios' ? spacing.xs : spacing.sm;
   const extraBottomPadding = moderateScale(isSmallDevice ? 8 : 5);
-  const wrapperBottomPadding = Math.max(baseBottomPadding + extraBottomPadding, insets.bottom + moderateScale(4));
+  const wrapperBottomPadding = Math.max(baseBottomPadding + extraBottomPadding - moderateScale(5), insets.bottom + moderateScale(4));
 
   // Colors
   const containerBg = isDarkMode ? '#1a1a2e' : '#F8F9FA';
@@ -863,7 +1018,8 @@ const MessageInput = ({
             )}
           </TouchableOpacity>
         ) : (
-          <View
+          <View style={styles.voiceButtonWrap}>
+            <TouchableOpacity
             style={[
               styles.sendButton,
               {
@@ -873,16 +1029,85 @@ const MessageInput = ({
                 opacity: disabled || uploading ? 0.5 : 1,
               },
             ]}
+            activeOpacity={0.8}
+            hitSlop={{ top: spacing.sm, bottom: spacing.sm, left: spacing.sm, right: spacing.sm }}
+            pressRetentionOffset={{
+              top: VOICE_PRESS_RETENTION,
+              bottom: VOICE_PRESS_RETENTION,
+              left: VOICE_PRESS_RETENTION,
+              right: VOICE_PRESS_RETENTION,
+            }}
+            onPressIn={(event) => {
+              if (disabled || uploading || isRecordingRef.current) {
+                return;
+              }
+              recordingStartYRef.current = event?.nativeEvent?.pageY || 0;
+              recordingStartXRef.current = event?.nativeEvent?.pageX || 0;
+              recordingDeltaYRef.current = 0;
+              recordingDeltaXRef.current = 0;
+              recordingGestureCancelledRef.current = false;
+              setRecordingSlideOffsetX(0);
+              startVoiceRecording();
+            }}
+            onPressOut={(event) => {
+              if (!isRecordingRef.current || isRecordingLockedRef.current || recordingGestureCancelledRef.current) {
+                return;
+              }
+
+              if (isPanGestureActiveRef.current) {
+                return;
+              }
+
+              const currentY = event?.nativeEvent?.pageY || 0;
+              const currentX = event?.nativeEvent?.pageX || 0;
+              const deltaY = recordingStartYRef.current - currentY;
+              const deltaX = currentX - recordingStartXRef.current;
+
+              applyGestureDeltas(deltaY, deltaX);
+
+              if (deltaX <= -VOICE_CANCEL_THRESHOLD) {
+                recordingGestureCancelledRef.current = true;
+                stopVoiceRecording({ shouldSend: false });
+                return;
+              }
+
+              if (isWithinLockTarget(deltaY, deltaX)) {
+                lockCurrentRecording();
+                return;
+              }
+
+              stopVoiceRecording({ shouldSend: true });
+            }}
             {...voicePanResponder.panHandlers}
-          >
-            {uploading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Ionicons
-                name={isRecording ? 'mic' : 'mic-outline'}
-                size={moderateScale(19)}
-                color={isRecording ? '#FFFFFF' : theme.textSecondary}
-              />
+            >
+              {uploading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons
+                  name={isRecording ? 'mic' : 'mic-outline'}
+                  size={moderateScale(19)}
+                  color={isRecording ? '#FFFFFF' : theme.textSecondary}
+                />
+              )}
+            </TouchableOpacity>
+
+            {isRecording && !isRecordingLocked && (
+              <View
+                style={[
+                  styles.voiceLockPopup,
+                  {
+                    borderColor: isLockTargetActive ? '#EF4444' : borderColor,
+                    backgroundColor: isDarkMode ? '#1f1f33' : '#FFFFFF',
+                  },
+                  isLockTargetActive && styles.voiceLockPopupActive,
+                ]}
+              >
+                <Ionicons
+                  name={isLockTargetActive ? 'lock-closed' : 'lock-open-outline'}
+                  size={moderateScale(16)}
+                  color={isLockTargetActive ? '#FFFFFF' : '#EF4444'}
+                />
+              </View>
             )}
           </View>
         )}
@@ -904,9 +1129,26 @@ const MessageInput = ({
               {formatVoiceDuration(recordingDurationMs)}
             </Text>
             {!isRecordingLocked && (
-              <Text style={[styles.voiceRecordingHint, { color: theme.textSecondary }]}>
-                {t('chats.slideUpToLock')}
-              </Text>
+              <View style={styles.voiceHintsContainer}>
+                <Text style={[styles.voiceRecordingHint, { color: theme.textSecondary }]}>
+                  {t('chats.slideUpToLock')}
+                </Text>
+                <Animated.View
+                  style={[
+                    styles.slideCancelPill,
+                    {
+                      borderColor: borderColor,
+                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+                      transform: [{ translateX: recordingSlideOffsetX }],
+                    },
+                  ]}
+                >
+                  <Ionicons name="chevron-back" size={moderateScale(12)} color="#EF4444" />
+                  <Text style={[styles.slideCancelText, { color: theme.textSecondary }]}>
+                    {t('chats.slideLeftToCancel')}
+                  </Text>
+                </Animated.View>
+              </View>
             )}
             {isRecordingLocked && (
               <Text style={[styles.voiceRecordingHint, { color: theme.textSecondary }]}>
@@ -915,7 +1157,27 @@ const MessageInput = ({
             )}
           </View>
 
-          {isRecordingLocked && (
+          <View style={styles.voiceWaveformRow}>
+            {recordingWaveform.map((sample, index) => {
+              const barHeight = moderateScale(4) + sample * moderateScale(16);
+              return (
+                <View
+                  key={`voice-wave-${index}`}
+                  style={[
+                    styles.voiceWaveBar,
+                    {
+                      height: barHeight,
+                      backgroundColor: sample > 0.52
+                        ? '#EF4444'
+                        : (isDarkMode ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.28)'),
+                    },
+                  ]}
+                />
+              );
+            })}
+          </View>
+
+          {isRecording && (
             <View style={styles.voiceRecordingActions}>
               <TouchableOpacity
                 style={[styles.voiceActionButton, { borderColor: borderColor }]}
@@ -1243,6 +1505,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: moderateScale(1),
   },
+  voiceButtonWrap: {
+    position: 'relative',
+  },
+  voiceLockPopup: {
+    position: 'absolute',
+    left: '50%',
+    top: -VOICE_LOCK_THRESHOLD,
+    marginLeft: moderateScale(-16),
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(16),
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  voiceLockPopupActive: {
+    backgroundColor: '#EF4444',
+    borderColor: '#EF4444',
+  },
   voiceRecordingBar: {
     marginTop: spacing.xs,
     borderWidth: 1,
@@ -1263,6 +1544,37 @@ const styles = StyleSheet.create({
   voiceRecordingHint: {
     fontWeight: '500',
     fontSize: fontSize(12),
+  },
+  voiceHintsContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.xs,
+  },
+  slideCancelPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.xs / 2,
+    paddingHorizontal: spacing.xs,
+    gap: spacing.xs / 2,
+  },
+  slideCancelText: {
+    fontWeight: '600',
+    fontSize: fontSize(11),
+  },
+  voiceWaveformRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs / 2,
+    minHeight: moderateScale(20),
+  },
+  voiceWaveBar: {
+    width: moderateScale(3),
+    borderRadius: moderateScale(2),
   },
   voiceRecordingActions: {
     flexDirection: 'row',

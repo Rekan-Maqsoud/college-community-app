@@ -1,5 +1,5 @@
 import { databases, storage, config } from './config';
-import { ID, Query } from 'appwrite';
+import { ID, Query, Permission, Role } from 'appwrite';
 import * as SecureStore from 'expo-secure-store';
 import * as Random from 'expo-random';
 import nacl from 'tweetnacl';
@@ -50,36 +50,84 @@ export const uploadChatVoiceMessage = async (file) => {
             throw new Error('Voice storage bucket is not configured');
         }
 
-        const response = await fetch(file.uri);
-        const blob = await response.blob();
         const fileName = file.name || `voice_${Date.now()}.m4a`;
         const mimeType = file.type || 'audio/m4a';
 
-        let uploadFile = blob;
+        let uploadFile = null;
         if (typeof File !== 'undefined') {
-            uploadFile = new File([blob], fileName, { type: mimeType });
-        } else {
-            uploadFile = {
-                uri: file.uri,
-                name: fileName,
-                type: mimeType,
-                size: file.size,
-            };
+            try {
+                uploadFile = new File(file.uri);
+            } catch (uriFileError) {
+                const response = await fetch(file.uri);
+                const blob = await response.blob();
+                uploadFile = new File([blob], fileName, { type: mimeType });
+            }
         }
 
-        const uploaded = await storage.createFile(
-            config.voiceMessagesStorageId,
-            ID.unique(),
-            uploadFile
+        if (!uploadFile) {
+            throw new Error('File API is unavailable for voice upload');
+        }
+
+        const fileId = ID.unique();
+        const uploadUrl = new URL(`${config.endpoint}/storage/buckets/${config.voiceMessagesStorageId}/files`);
+        const { options } = storage.client.prepareRequest(
+            'post',
+            uploadUrl,
+            { 'content-type': 'multipart/form-data' },
+            {}
         );
 
-        const viewUrl = storage.getFileView(config.voiceMessagesStorageId, uploaded.$id)?.toString();
+        const formData = new FormData();
+        formData.append('fileId', fileId);
+        formData.append('permissions[]', Permission.read(Role.users()));
+        formData.append('permissions[]', Permission.update(Role.users()));
+        formData.append('permissions[]', Permission.delete(Role.users()));
+        formData.append('read[]', Role.users());
+        formData.append('write[]', Role.users());
+        formData.append('file', {
+            uri: file.uri,
+            name: fileName,
+            type: mimeType,
+        });
+
+        options.body = formData;
+        if (options?.headers) {
+            delete options.headers['content-type'];
+        }
+
+        const response = await fetch(uploadUrl.toString(), options);
+        let responseData = null;
+        try {
+            responseData = await response.json();
+        } catch {
+            responseData = null;
+        }
+
+        if (!response.ok) {
+            throw new Error(responseData?.message || `Voice upload failed with status ${response.status}`);
+        }
+
+        const uploadedFileId = responseData?.$id || fileId;
+
+        try {
+            await storage.updateFile({
+                bucketId: config.voiceMessagesStorageId,
+                fileId: uploadedFileId,
+                permissions: [
+                    Permission.read(Role.users()),
+                    Permission.update(Role.users()),
+                    Permission.delete(Role.users()),
+                ],
+            });
+        } catch {}
+
+        const viewUrl = storage.getFileView(config.voiceMessagesStorageId, uploadedFileId)?.toString();
 
         return {
-            fileId: uploaded.$id,
+            fileId: uploadedFileId,
             viewUrl,
             mimeType,
-            size: file.size || uploaded.sizeOriginal || 0,
+            size: file.size || uploadFile?.size || responseData?.sizeOriginal || 0,
         };
     } catch (error) {
         throw error;

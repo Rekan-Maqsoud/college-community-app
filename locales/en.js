@@ -1028,6 +1028,7 @@ export default {
     voiceMessage: 'Voice message',
     sentVoiceMessage: 'Sent a voice message',
     slideUpToLock: 'Slide up to lock',
+    slideLeftToCancel: 'Slide left to cancel',
     recordingLocked: 'Recording locked',
     microphonePermissionDeniedTitle: 'Microphone Access Required',
     microphonePermissionDenied: 'Permission to access microphone was denied',

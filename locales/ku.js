@@ -1023,6 +1023,7 @@ export default {
     voiceMessage: 'نامەی دەنگی',
     sentVoiceMessage: 'نامەی دەنگی نارد',
     slideUpToLock: 'بۆ قفلکردن بەرەو سەرەوە بکێشە',
+    slideLeftToCancel: 'بۆ هەڵوەشاندنەوە بەرەو چەپ بکێشە',
     recordingLocked: 'تۆمارکردن قفل کراوە',
     microphonePermissionDeniedTitle: 'دەستوری مایکرۆفۆن پێویستە',
     microphonePermissionDenied: 'ڕێپێدانی دەستگەیشتن بە مایکرۆفۆن ڕەتکرایەوە',

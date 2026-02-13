@@ -325,7 +325,7 @@ const ChatRoom = ({ route, navigation }) => {
       ),
       headerStyle: {
         backgroundColor: getHeaderBgColor(),
-        height: moderateScale(68),
+        height: moderateScale(74),
       },
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>

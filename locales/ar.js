@@ -1023,6 +1023,7 @@ export default {
     voiceMessage: 'رسالة صوتية',
     sentVoiceMessage: 'أرسل رسالة صوتية',
     slideUpToLock: 'اسحب للأعلى للقفل',
+    slideLeftToCancel: 'اسحب لليسار للإلغاء',
     recordingLocked: 'التسجيل مقفول',
     microphonePermissionDeniedTitle: 'مطلوب إذن الميكروفون',
     microphonePermissionDenied: 'تم رفض إذن الوصول إلى الميكروفون',
