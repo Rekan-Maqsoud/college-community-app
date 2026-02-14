@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { useTranslation } from '../hooks/useTranslation';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -177,6 +177,19 @@ const LeafletMap = ({
     return `window.__RN_MARKERS = ${serializedMarkers}; window.__RN_USER_LOCATION = ${serializedUserLocation}; true;`;
   }, [serializedMarkers, serializedUserLocation]);
 
+  const handleShouldStartLoadWithRequest = useCallback((request) => {
+    const url = request?.url || '';
+    if (!url) {
+      return false;
+    }
+
+    if (url === 'about:blank') {
+      return true;
+    }
+
+    return url.startsWith('https://unpkg.com/') || /^https:\/\/[a-z]\.tile\.openstreetmap\.org\//.test(url);
+  }, []);
+
   useEffect(() => {
     if (!webViewRef.current || !WebViewComponent) {
       return;
@@ -225,12 +238,14 @@ const LeafletMap = ({
     <View style={[styles.container, containerStyle]}>
       <WebViewComponent
         ref={webViewRef}
-        originWhitelist={['*']}
+        originWhitelist={['about:blank', 'https://unpkg.com/*', 'https://*.tile.openstreetmap.org/*']}
         source={{ html }}
         style={styles.webview}
         onMessage={handleMessage}
+        onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         javaScriptEnabled={true}
         domStorageEnabled={true}
+        mixedContentMode="never"
         injectedJavaScriptBeforeContentLoaded={injectedBeforeContentLoaded}
         setSupportMultipleWindows={false}
       />

@@ -1,6 +1,35 @@
-import { databases, config } from './config';
-import { ID, Query } from 'appwrite';
+import { account, databases, config } from './config';
+import { ID, Query, Permission, Role } from 'appwrite';
 import { repliesCacheManager } from '../app/utils/cacheManager';
+
+const getAuthenticatedUserId = async () => {
+    const currentUser = await account.get();
+    const currentUserId = currentUser?.$id;
+    if (!currentUserId) {
+        throw new Error('Authentication required');
+    }
+    return currentUserId;
+};
+
+const getChangedIds = (before = [], after = []) => {
+    const beforeSet = new Set(before);
+    const afterSet = new Set(after);
+    const changed = new Set();
+
+    beforeSet.forEach((id) => {
+        if (!afterSet.has(id)) {
+            changed.add(id);
+        }
+    });
+
+    afterSet.forEach((id) => {
+        if (!beforeSet.has(id)) {
+            changed.add(id);
+        }
+    });
+
+    return Array.from(changed);
+};
 
 export const createReply = async (replyData) => {
     try {
@@ -11,12 +40,22 @@ export const createReply = async (replyData) => {
         if (!replyData.postId || !replyData.userId) {
             throw new Error('Missing required fields');
         }
+
+        const currentUserId = await getAuthenticatedUserId();
+        if (replyData.userId !== currentUserId) {
+            throw new Error('User identity mismatch');
+        }
         
         const reply = await databases.createDocument(
             config.databaseId,
             config.repliesCollectionId,
             ID.unique(),
-            replyData
+            replyData,
+            [
+                Permission.read(Role.users()),
+                Permission.update(Role.user(currentUserId)),
+                Permission.delete(Role.user(currentUserId)),
+            ]
         );
 
         await incrementPostReplyCount(replyData.postId);
@@ -122,6 +161,67 @@ export const updateReply = async (replyId, replyData, postId = null) => {
             throw new Error('Invalid reply data');
         }
         
+        const currentUserId = await getAuthenticatedUserId();
+        const existingReply = await databases.getDocument(
+            config.databaseId,
+            config.repliesCollectionId,
+            replyId
+        );
+
+        const isContentEdit = (
+            replyData.text !== undefined
+            || replyData.images !== undefined
+            || replyData.imageDeleteUrls !== undefined
+            || replyData.links !== undefined
+            || replyData.parentReplyId !== undefined
+        );
+
+        if (isContentEdit && existingReply.userId !== currentUserId) {
+            throw new Error('Not authorized to edit this reply');
+        }
+
+        const hasVoteUpdate = (
+            replyData.upvotedBy !== undefined
+            || replyData.downvotedBy !== undefined
+            || replyData.upCount !== undefined
+            || replyData.downCount !== undefined
+        );
+
+        if (hasVoteUpdate) {
+            const nextUpvotedBy = Array.isArray(replyData.upvotedBy)
+                ? replyData.upvotedBy
+                : (Array.isArray(existingReply.upvotedBy) ? existingReply.upvotedBy : []);
+            const nextDownvotedBy = Array.isArray(replyData.downvotedBy)
+                ? replyData.downvotedBy
+                : (Array.isArray(existingReply.downvotedBy) ? existingReply.downvotedBy : []);
+
+            const currentUpvotedBy = Array.isArray(existingReply.upvotedBy) ? existingReply.upvotedBy : [];
+            const currentDownvotedBy = Array.isArray(existingReply.downvotedBy) ? existingReply.downvotedBy : [];
+
+            const changedUpvoteIds = getChangedIds(currentUpvotedBy, nextUpvotedBy);
+            const changedDownvoteIds = getChangedIds(currentDownvotedBy, nextDownvotedBy);
+
+            if (
+                changedUpvoteIds.some((id) => id !== currentUserId)
+                || changedDownvoteIds.some((id) => id !== currentUserId)
+            ) {
+                throw new Error('Not authorized to modify other users votes');
+            }
+
+            if (nextUpvotedBy.includes(currentUserId) && nextDownvotedBy.includes(currentUserId)) {
+                throw new Error('Invalid vote state');
+            }
+
+            replyData.upvotedBy = nextUpvotedBy;
+            replyData.downvotedBy = nextDownvotedBy;
+            replyData.upCount = nextUpvotedBy.length;
+            replyData.downCount = nextDownvotedBy.length;
+        }
+
+        delete replyData.userId;
+        delete replyData.postId;
+        delete replyData.$id;
+
         // Only add isEdited if text is being changed (not for vote updates)
         const updateData = { ...replyData };
         if (replyData.text !== undefined && replyData.isEdited !== false) {
@@ -154,6 +254,17 @@ export const deleteReply = async (replyId, postId, imageDeleteUrls = []) => {
         
         if (!postId || typeof postId !== 'string') {
             throw new Error('Invalid post ID');
+        }
+
+        const currentUserId = await getAuthenticatedUserId();
+        const [reply, post] = await Promise.all([
+            databases.getDocument(config.databaseId, config.repliesCollectionId, replyId),
+            databases.getDocument(config.databaseId, config.postsCollectionId, postId),
+        ]);
+
+        const canDelete = reply?.userId === currentUserId || post?.userId === currentUserId;
+        if (!canDelete) {
+            throw new Error('Not authorized to delete this reply');
         }
         
         await databases.deleteDocument(

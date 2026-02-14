@@ -24,11 +24,13 @@ const CustomAlert = ({
   message,
   buttons = [],
   onDismiss,
+  onClose,
 }) => {
   const { theme, isDarkMode } = useAppSettings();
   const { t } = useTranslation();
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const handleDismiss = onDismiss || onClose;
 
   useEffect(() => {
     if (visible) {
@@ -49,7 +51,7 @@ const CustomAlert = ({
       // Auto-dismiss success alerts after 1.5 seconds
       if (type === 'success') {
         const autoDismissTimer = setTimeout(() => {
-          onDismiss?.();
+          handleDismiss?.();
         }, 1500);
         return () => clearTimeout(autoDismissTimer);
       }
@@ -57,7 +59,7 @@ const CustomAlert = ({
       // Safety auto-dismiss for alerts with no custom buttons after 5 seconds
       if (buttons.length === 0) {
         const safetyTimer = setTimeout(() => {
-          onDismiss?.();
+          handleDismiss?.();
         }, 5000);
         return () => clearTimeout(safetyTimer);
       }
@@ -75,7 +77,7 @@ const CustomAlert = ({
         }),
       ]).start();
     }
-  }, [visible, type]);
+  }, [visible, type, buttons.length, handleDismiss]);
 
   const getIconConfig = () => {
     switch (type) {
@@ -105,7 +107,7 @@ const CustomAlert = ({
       visible={visible}
       transparent
       animationType="none"
-      onRequestClose={onDismiss}
+      onRequestClose={handleDismiss}
       statusBarTranslucent>
       <Animated.View
         style={[
@@ -117,7 +119,7 @@ const CustomAlert = ({
         <TouchableOpacity
           style={styles.overlayTouchable}
           activeOpacity={1}
-          onPress={onDismiss}>
+          onPress={handleDismiss}>
           <Animated.View
             style={[
               styles.alertContainer,
@@ -192,7 +194,7 @@ const CustomAlert = ({
                       key={index}
                       onPress={() => {
                         button.onPress?.();
-                        onDismiss?.();
+                        handleDismiss?.();
                       }}
                       style={[
                         styles.button,

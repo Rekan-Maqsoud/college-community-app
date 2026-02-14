@@ -1,0 +1,10 @@
+{
+  "name": "report-review-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/main.js",
+  "dependencies": {
+    "node-appwrite": "^15.0.1"
+  }
+}

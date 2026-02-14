@@ -1,10 +1,19 @@
 import { createRepost, getPost, reportPost, requestPostReview } from '../database/posts';
-import { databases } from '../database/config';
+import { account, databases } from '../database/config';
 import { notifyPostHiddenByReports } from '../database/notifications';
 
 jest.mock('appwrite', () => ({
   ID: {
     unique: jest.fn(() => 'new-doc-id'),
+  },
+  Permission: {
+    read: jest.fn((role) => `read:${role}`),
+    update: jest.fn((role) => `update:${role}`),
+    delete: jest.fn((role) => `delete:${role}`),
+  },
+  Role: {
+    users: jest.fn(() => 'users'),
+    user: jest.fn((id) => `user:${id}`),
   },
   Query: {
     equal: jest.fn((field, value) => ({ op: 'equal', field, value })),
@@ -17,6 +26,10 @@ jest.mock('appwrite', () => ({
 }));
 
 jest.mock('../database/config', () => ({
+  account: {
+    get: jest.fn(() => Promise.resolve({ $id: 'user-2' })),
+    createJWT: jest.fn(() => Promise.resolve({ jwt: 'jwt-token' })),
+  },
   databases: {
     createDocument: jest.fn(),
     getDocument: jest.fn(),
@@ -30,7 +43,7 @@ jest.mock('../database/config', () => ({
     postsCollectionId: 'posts',
     repliesCollectionId: 'replies',
     postReportsCollectionId: 'postReports',
-    reportReviewWebhookUrl: 'https://example.com/report-webhook',
+    reportReviewEndpoint: 'https://example.com/report-review-endpoint',
   },
 }));
 
@@ -153,6 +166,8 @@ describe('posts moderation and repost flows', () => {
   });
 
   it('prevents repost when original disallows reposts for others', async () => {
+    account.get.mockResolvedValue({ $id: 'other-user' });
+
     databases.getDocument.mockResolvedValue({
       $id: 'orig-1',
       userId: 'owner-1',
@@ -171,6 +186,8 @@ describe('posts moderation and repost flows', () => {
   });
 
   it('creates repost and links back to root original post', async () => {
+    account.get.mockResolvedValue({ $id: 'user-2' });
+
     databases.getDocument.mockResolvedValue({
       $id: 'orig-2',
       userId: 'owner-2',
@@ -202,7 +219,8 @@ describe('posts moderation and repost flows', () => {
         isRepost: true,
         originalPostId: 'orig-2',
         originalPostOwnerId: 'owner-2',
-      })
+      }),
+      expect.any(Array)
     );
   });
 
@@ -228,6 +246,8 @@ describe('posts moderation and repost flows', () => {
   });
 
   it('sends review request webhook for hidden post by owner', async () => {
+    account.get.mockResolvedValue({ $id: 'owner-6' });
+
     databases.getDocument.mockResolvedValue({
       $id: 'post-6',
       userId: 'owner-6',

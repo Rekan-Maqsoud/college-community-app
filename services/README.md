@@ -12,10 +12,10 @@ This service handles image uploads to ImgBB for profile pictures and post images
 
 ## API Configuration
 
-The ImgBB API key is configured in `services/imgbbService.js`:
+The ImgBB API key is configured through environment variables in the root `.env` file:
 
-```javascript
-const IMGBB_API_KEY = "2b74b47dbff705a8ee383763714dce86";
+```env
+EXPO_PUBLIC_IMGBB_API_KEY=your-imgbb-key
 ```
 
 ## Usage

@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
-const IMGBB_API_KEY = process.env.EXPO_PUBLIC_IMGBB_API_KEY || '2b74b47dbff705a8ee383763714dce86';
+const IMGBB_API_KEY = process.env.EXPO_PUBLIC_IMGBB_API_KEY || '';
 const IMGBB_UPLOAD_URL = 'https://api.imgbb.com/1/upload';
 
 export const pickImage = async () => {
@@ -47,6 +47,10 @@ export const compressImage = async (imageUri) => {
 
 export const uploadToImgbb = async (base64Image) => {
   try {
+    if (!IMGBB_API_KEY) {
+      throw new Error('Image upload service is not configured');
+    }
+
     const formData = new FormData();
     formData.append('key', IMGBB_API_KEY);
     formData.append('image', base64Image);

@@ -907,7 +907,9 @@ export default {
     errorCreatingChat: 'Failed to create chat. Please try again.',
     // Forward message
     forwardTo: 'Forward To',
+    selectChatToForward: 'Choose a chat to forward this message',
     forwarded: 'Forwarded',
+    forwardedFromUser: 'Forwarded from {name}',
     messageForwarded: 'Message forwarded successfully',
     forwardError: 'Failed to forward message',
     searchChats: 'Search chats...',

@@ -906,7 +906,9 @@ export default {
     errorCreatingChat: 'فشل في إنشاء المحادثة. حاول مرة أخرى.',
     // Forward message
     forwardTo: 'إعادة توجيه إلى',
+    selectChatToForward: 'اختر محادثة لإعادة توجيه هذه الرسالة',
     forwarded: 'تم إعادة التوجيه',
+    forwardedFromUser: 'تمت إعادة التوجيه من {name}',
     messageForwarded: 'تم إعادة توجيه الرسالة بنجاح',
     forwardError: 'فشل في إعادة توجيه الرسالة',
     searchChats: 'بحث في المحادثات...',

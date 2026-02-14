@@ -1,5 +1,5 @@
-import { databases, storage, config } from './config';
-import { ID, Query } from 'appwrite';
+import { account, databases, storage, config } from './config';
+import { ID, Query, Permission, Role } from 'appwrite';
 import { handleNetworkError } from '../app/utils/networkErrorHandler';
 import { postsCacheManager } from '../app/utils/cacheManager';
 import { getUserById } from './users';
@@ -32,7 +32,7 @@ const REPORT_REASON_WEIGHTS = {
     spam: 2,
     other: 1,
 };
-const DEFAULT_REPORT_REVIEW_WEBHOOK = 'https://discord.com/api/webhooks/1471830877049720842/CMWl-KzBZXuv0QaM73QUlsjYHh5sN9p_86EHRNgeOvy7P11WORRk-gMiH9cDpP-gw86N';
+const DEFAULT_REPORT_REVIEW_ENDPOINT = '';
 
 const sanitizeReportReason = (reason = '') => {
     const normalized = String(reason || '').trim().toLowerCase();
@@ -69,6 +69,30 @@ const calculateReportScore = (reasons = []) => {
     }, 0);
 };
 
+const getAuthenticatedUserId = async () => {
+    const currentUser = await account.get();
+    const currentUserId = currentUser?.$id;
+    if (!currentUserId) {
+        throw new Error('Authentication required');
+    }
+    return currentUserId;
+};
+
+const assertPostOwner = async (postId) => {
+    const currentUserId = await getAuthenticatedUserId();
+    const post = await databases.getDocument(
+        config.databaseId,
+        config.postsCollectionId,
+        postId
+    );
+
+    if (!post || post.userId !== currentUserId) {
+        throw new Error('Not authorized to modify this post');
+    }
+
+    return { post, currentUserId };
+};
+
 export const createPost = async (postData) => {
     try {
         if (!postData || typeof postData !== 'object') {
@@ -91,11 +115,21 @@ export const createPost = async (postData) => {
         // Extract notification-only fields before creating document
         const { userName, fullName, profilePicture: posterPhoto, ...documentData } = postData;
 
+        const currentUserId = await getAuthenticatedUserId();
+        if (postData.userId !== currentUserId) {
+            throw new Error('User identity mismatch');
+        }
+
         const post = await databases.createDocument(
             config.databaseId,
             config.postsCollectionId,
             ID.unique(),
-            documentData
+            documentData,
+            [
+                Permission.read(Role.users()),
+                Permission.update(Role.user(currentUserId)),
+                Permission.delete(Role.user(currentUserId)),
+            ]
         );
         
         // Invalidate posts cache for the department
@@ -370,8 +404,8 @@ export const getPostsByDepartmentAndStage = async (department, stage, limit = 20
     return getPosts({ department, stage }, limit, offset, true, 'newest', [], currentUserId);
 };
 
-export const getPostsByUser = async (userId, limit = 20, offset = 0, currentUserId = null) => {
-    return getPosts({ userId }, limit, offset, true, 'newest', [], currentUserId);
+export const getPostsByUser = async (userId, limit = 20, offset = 0, currentUserId = null, useCache = true) => {
+    return getPosts({ userId }, limit, offset, useCache, 'newest', [], currentUserId);
 };
 
 export const searchPosts = async (searchQuery, userDepartment = null, userMajor = null, limit = 20, currentUserId = null) => {
@@ -610,6 +644,12 @@ export const requestPostReview = async (postId, requesterUserId = null) => {
             throw new Error('Invalid post ID');
         }
 
+        const currentUserId = await getAuthenticatedUserId();
+        const effectiveRequesterUserId = requesterUserId || currentUserId;
+        if (effectiveRequesterUserId !== currentUserId) {
+            throw new Error('User identity mismatch');
+        }
+
         const post = await databases.getDocument(
             config.databaseId,
             config.postsCollectionId,
@@ -620,7 +660,7 @@ export const requestPostReview = async (postId, requesterUserId = null) => {
             throw new Error('Post not found');
         }
 
-        if (requesterUserId && post.userId !== requesterUserId) {
+        if (post.userId !== currentUserId) {
             throw new Error('Only post owner can request review');
         }
 
@@ -635,36 +675,37 @@ export const requestPostReview = async (postId, requesterUserId = null) => {
             throw new Error('Review request already sent recently');
         }
 
-        const webhookUrl = config.reportReviewWebhookUrl || DEFAULT_REPORT_REVIEW_WEBHOOK;
-        if (!webhookUrl) {
-            throw new Error('Review webhook is not configured');
+        const reviewEndpoint = config.reportReviewEndpoint || DEFAULT_REPORT_REVIEW_ENDPOINT;
+        if (!reviewEndpoint) {
+            throw new Error('Review endpoint is not configured');
+        }
+
+        const jwt = await account.createJWT();
+        const jwtToken = jwt?.jwt;
+        if (!jwtToken) {
+            throw new Error('Failed to authorize review request');
         }
 
         const payload = {
-            username: 'College Community Moderation',
-            embeds: [
-                {
-                    title: 'Post Review Request',
-                    color: 15158332,
-                    fields: [
-                        { name: 'Post ID', value: String(post.$id), inline: false },
-                        { name: 'Owner ID', value: String(post.userId || 'unknown'), inline: true },
-                        { name: 'Requester ID', value: String(requesterUserId || 'unknown'), inline: true },
-                        { name: 'Reports', value: String(post.reportCount || 0), inline: true },
-                        { name: 'Views', value: String(post.viewCount || 0), inline: true },
-                        { name: 'Likes', value: String(post.likeCount || 0), inline: true },
-                        { name: 'Replies', value: String(post.replyCount || 0), inline: true },
-                        { name: 'Topic', value: String(post.topic || 'No topic').slice(0, 250), inline: false },
-                    ],
-                    timestamp: new Date().toISOString(),
-                },
-            ],
+            type: 'post_review_request',
+            requestedAt: new Date().toISOString(),
+            requesterUserId: effectiveRequesterUserId,
+            post: {
+                id: String(post.$id),
+                ownerId: String(post.userId || 'unknown'),
+                reports: Number(post.reportCount || 0),
+                views: Number(post.viewCount || 0),
+                likes: Number(post.likeCount || 0),
+                replies: Number(post.replyCount || 0),
+                topic: String(post.topic || 'No topic').slice(0, 250),
+            },
         };
 
-        const response = await fetch(webhookUrl, {
+        const response = await fetch(reviewEndpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                Authorization: `Bearer ${jwtToken}`,
             },
             body: JSON.stringify(payload),
         });
@@ -701,10 +742,20 @@ export const updatePost = async (postId, postData) => {
             throw new Error('Invalid post data');
         }
         
+        await assertPostOwner(postId);
+
         const updateData = {
             ...postData,
             isEdited: true
         };
+
+        delete updateData.userId;
+        delete updateData.likeCount;
+        delete updateData.replyCount;
+        delete updateData.viewCount;
+        delete updateData.likedBy;
+        delete updateData.viewedBy;
+        delete updateData.$id;
         
         const post = await databases.updateDocument(
             config.databaseId,
@@ -727,6 +778,8 @@ export const deletePost = async (postId, imageDeleteUrls = []) => {
         if (!postId || typeof postId !== 'string') {
             throw new Error('Invalid post ID');
         }
+
+        const { post } = await assertPostOwner(postId);
         
         const { deleteRepliesByPost } = require('./replies');
         const { deleteNotificationsByPostId } = require('./notifications');
@@ -740,9 +793,11 @@ export const deletePost = async (postId, imageDeleteUrls = []) => {
             postId
         );
 
-        if (imageDeleteUrls && imageDeleteUrls.length > 0) {
+        const postImageDeleteUrls = Array.isArray(post.imageDeleteUrls) ? post.imageDeleteUrls : imageDeleteUrls;
+
+        if (postImageDeleteUrls && postImageDeleteUrls.length > 0) {
             const { deleteMultipleImages } = require('../services/imgbbService');
-            await deleteMultipleImages(imageDeleteUrls);
+            await deleteMultipleImages(postImageDeleteUrls);
         }
         
         // Invalidate posts cache
@@ -797,6 +852,11 @@ export const togglePostLike = async (postId, userId) => {
             throw new Error('Invalid user ID');
         }
         
+        const currentUserId = await getAuthenticatedUserId();
+        if (userId !== currentUserId) {
+            throw new Error('User identity mismatch');
+        }
+
         const post = await getPost(postId);
         const likedBy = post.likedBy || [];
         const isLiked = likedBy.includes(userId);
@@ -845,6 +905,8 @@ export const setQuestionResolvedStatus = async (postId, isResolved) => {
             throw new Error('Invalid resolved status');
         }
         
+        await assertPostOwner(postId);
+
         await databases.updateDocument(
             config.databaseId,
             config.postsCollectionId,
@@ -861,6 +923,11 @@ export const createReply = async (postId, replyData) => {
         if (!postId || typeof postId !== 'string') {
             throw new Error('Invalid post ID');
         }
+
+        const currentUserId = await getAuthenticatedUserId();
+        if (!replyData?.userId || replyData.userId !== currentUserId) {
+            throw new Error('User identity mismatch');
+        }
         
         const reply = await databases.createDocument(
             config.databaseId,
@@ -869,7 +936,12 @@ export const createReply = async (postId, replyData) => {
             {
                 ...replyData,
                 postId
-            }
+            },
+            [
+                Permission.read(Role.users()),
+                Permission.update(Role.user(currentUserId)),
+                Permission.delete(Role.user(currentUserId)),
+            ]
         );
         return reply;
     } catch (error) {
@@ -901,6 +973,17 @@ export const deleteReply = async (replyId) => {
     try {
         if (!replyId || typeof replyId !== 'string') {
             throw new Error('Invalid reply ID');
+        }
+
+        const currentUserId = await getAuthenticatedUserId();
+        const reply = await databases.getDocument(
+            config.databaseId,
+            config.repliesCollectionId,
+            replyId
+        );
+
+        if (!reply || reply.userId !== currentUserId) {
+            throw new Error('Not authorized to delete this reply');
         }
         
         await databases.deleteDocument(

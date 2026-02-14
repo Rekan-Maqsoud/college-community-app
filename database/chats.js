@@ -1,4 +1,4 @@
-import { databases, storage, config } from './config';
+import { account, databases, storage, config } from './config';
 import { ID, Query, Permission, Role } from 'appwrite';
 import * as SecureStore from 'expo-secure-store';
 import * as Random from 'expo-random';
@@ -52,6 +52,12 @@ export const uploadChatVoiceMessage = async (file) => {
 
         const fileName = file.name || `voice_${Date.now()}.m4a`;
         const mimeType = file.type || 'audio/m4a';
+        const currentUser = await account.get();
+        const uploaderUserId = currentUser?.$id;
+
+        if (!uploaderUserId) {
+            throw new Error('Authentication required for voice upload');
+        }
 
         let uploadFile = null;
         if (typeof File !== 'undefined') {
@@ -80,10 +86,10 @@ export const uploadChatVoiceMessage = async (file) => {
         const formData = new FormData();
         formData.append('fileId', fileId);
         formData.append('permissions[]', Permission.read(Role.users()));
-        formData.append('permissions[]', Permission.update(Role.users()));
-        formData.append('permissions[]', Permission.delete(Role.users()));
+        formData.append('permissions[]', Permission.update(Role.user(uploaderUserId)));
+        formData.append('permissions[]', Permission.delete(Role.user(uploaderUserId)));
         formData.append('read[]', Role.users());
-        formData.append('write[]', Role.users());
+        formData.append('write[]', Role.user(uploaderUserId));
         formData.append('file', {
             uri: file.uri,
             name: fileName,
@@ -115,8 +121,8 @@ export const uploadChatVoiceMessage = async (file) => {
                 fileId: uploadedFileId,
                 permissions: [
                     Permission.read(Role.users()),
-                    Permission.update(Role.users()),
-                    Permission.delete(Role.users()),
+                    Permission.update(Role.user(uploaderUserId)),
+                    Permission.delete(Role.user(uploaderUserId)),
                 ],
             });
         } catch {}
@@ -173,6 +179,29 @@ const getCachedChat = (chatId) => {
 
 const setCachedChatDoc = (chatId, doc) => {
     chatDocCache.set(chatId, { doc, ts: Date.now() });
+};
+
+const getAuthenticatedUserId = async () => {
+    const currentUser = await account.get();
+    const currentUserId = currentUser?.$id;
+    if (!currentUserId) {
+        throw new Error('Authentication required');
+    }
+    return currentUserId;
+};
+
+const canManageChat = (chat, userId) => {
+    if (!chat || !userId) return false;
+
+    const participants = Array.isArray(chat.participants) ? chat.participants : [];
+    const admins = Array.isArray(chat.admins) ? chat.admins : [];
+    const representatives = Array.isArray(chat.representatives) ? chat.representatives : [];
+
+    if (chat.type === 'private') {
+        return participants.includes(userId);
+    }
+
+    return admins.includes(userId) || representatives.includes(userId);
 };
 const getSecureRandomBytes = (size) => {
     if (Random && typeof Random.getRandomBytes === 'function') {
@@ -837,15 +866,21 @@ export const getChat = async (chatId, skipCache = false) => {
     }
 };
 
-export const deleteChat = async (chatId) => {
+export const deleteChat = async (chatId, actorUserId = null) => {
     try {
         if (!chatId || typeof chatId !== 'string') {
             throw new Error('Invalid chat ID');
         }
+
+        const effectiveActorUserId = actorUserId || await getAuthenticatedUserId();
+        const chat = await getChat(chatId, true);
+        if (!canManageChat(chat, effectiveActorUserId)) {
+            throw new Error('Not authorized to delete this chat');
+        }
         
         const { deleteUserChatSettingsByChatId } = require('./userChatSettings');
         
-        await clearChatMessages(chatId);
+        await clearChatMessages(chatId, effectiveActorUserId);
         await deleteUserChatSettingsByChatId(chatId);
         
         await databases.deleteDocument(
@@ -896,7 +931,7 @@ export const removePrivateChatForUser = async (chatId, userId) => {
         const allRemoved = participants.length > 0 && participants.every(p => removedBy.includes(p));
 
         if (allRemoved) {
-            await deleteChat(chatId);
+            await deleteChat(chatId, userId);
             return 'deleted';
         } else {
             const updatedSettings = { ...settings, removedBy };
@@ -1038,6 +1073,11 @@ export const sendMessage = async (chatId, messageData) => {
         
         if (!messageData.senderId) {
             throw new Error('Missing required message fields');
+        }
+
+        const currentUserId = await getAuthenticatedUserId();
+        if (messageData.senderId !== currentUserId) {
+            throw new Error('User identity mismatch');
         }
 
         const hasContent = messageData.content && messageData.content.trim().length > 0;
@@ -1290,6 +1330,19 @@ export const deleteMessage = async (messageId, imageDeleteUrl = null) => {
         if (!messageId || typeof messageId !== 'string') {
             throw new Error('Invalid message ID');
         }
+
+        const currentUserId = await getAuthenticatedUserId();
+        const message = await databases.getDocument(
+            config.databaseId,
+            config.messagesCollectionId,
+            messageId
+        );
+
+        const chat = await getChat(message.chatId, true);
+        const canDelete = message.senderId === currentUserId || canManageChat(chat, currentUserId);
+        if (!canDelete) {
+            throw new Error('Not authorized to delete this message');
+        }
         
         await databases.deleteDocument(
             config.databaseId,
@@ -1298,10 +1351,11 @@ export const deleteMessage = async (messageId, imageDeleteUrl = null) => {
         );
         
         // Delete image from imgbb if delete URL is provided
-        if (imageDeleteUrl) {
+        const deleteUrl = message?.imageDeleteUrl || imageDeleteUrl;
+        if (deleteUrl) {
             try {
                 const { deleteImageFromImgbb } = require('../services/imgbbService');
-                await deleteImageFromImgbb(imageDeleteUrl);
+                await deleteImageFromImgbb(deleteUrl);
             } catch (imgError) {
                 // Image deletion failed but message was deleted
             }
@@ -1311,10 +1365,16 @@ export const deleteMessage = async (messageId, imageDeleteUrl = null) => {
     }
 };
 
-export const clearChatMessages = async (chatId) => {
+export const clearChatMessages = async (chatId, actorUserId = null) => {
     try {
         if (!chatId || typeof chatId !== 'string') {
             throw new Error('Invalid chat ID');
+        }
+
+        const effectiveActorUserId = actorUserId || await getAuthenticatedUserId();
+        const chat = await getChat(chatId, true);
+        if (!canManageChat(chat, effectiveActorUserId)) {
+            throw new Error('Not authorized to clear this chat');
         }
         
         // Get all messages in batches and delete them

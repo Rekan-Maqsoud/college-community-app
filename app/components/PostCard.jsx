@@ -22,7 +22,6 @@ import ImageWithPlaceholder from './ImageWithPlaceholder';
 import SharePostToChat from './SharePostToChat';
 import CustomAlert from './CustomAlert';
 import PostLikesModal from './PostLikesModal';
-import PostViewModal from './PostViewModal';
 import useCustomAlert from '../hooks/useCustomAlert';
 import { 
   postCardStyles as styles, 
@@ -65,8 +64,6 @@ const PostCard = ({
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showShareToChat, setShowShareToChat] = useState(false);
   const [showLikesModal, setShowLikesModal] = useState(false);
-  const [showOriginalPostModal, setShowOriginalPostModal] = useState(false);
-  const [originalPostId, setOriginalPostId] = useState(null);
   const likeLongPressRef = useRef(false);
 
 
@@ -241,8 +238,10 @@ const PostCard = ({
 
   const handleVisitOriginal = () => {
     if (!post?.originalPostId) return;
-    setOriginalPostId(post.originalPostId);
-    setShowOriginalPostModal(true);
+
+    navigation.navigate('PostDetails', {
+      postId: post.originalPostId,
+    });
   };
 
   const handleRequestReview = async () => {
@@ -645,16 +644,6 @@ const PostCard = ({
         visible={showLikesModal}
         onClose={() => setShowLikesModal(false)}
         likedByIds={likedByIds}
-      />
-
-      <PostViewModal
-        visible={showOriginalPostModal}
-        onClose={() => {
-          setShowOriginalPostModal(false);
-          setOriginalPostId(null);
-        }}
-        postId={originalPostId}
-        navigation={navigation}
       />
 
       <CustomAlert

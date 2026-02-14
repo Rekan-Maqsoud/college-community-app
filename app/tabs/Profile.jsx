@@ -95,13 +95,13 @@ const Profile = ({ navigation, route }) => {
     await shareProfileText(qrUrl);
   };
 
-  const loadUserPosts = useCallback(async () => {
+  const loadUserPosts = useCallback(async (useCache = true) => {
     if (!user?.$id) return;
     
     setLoadingPosts(true);
     setPostsError(null);
     try {
-      const posts = await getPostsByUser(user.$id, 20, 0, user?.$id);
+      const posts = await getPostsByUser(user.$id, 20, 0, user?.$id, useCache);
       setUserPosts(posts);
       setPostsLoaded(true);
     } catch (error) {
@@ -173,8 +173,7 @@ const Profile = ({ navigation, route }) => {
     try {
       await refreshUser();
       setImageKey(Date.now());
-      setPostsLoaded(false);
-      await loadUserPosts();
+      await loadUserPosts(false);
     } catch (error) {
     } finally {
       setRefreshing(false);

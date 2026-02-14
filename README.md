@@ -425,6 +425,7 @@ college-community/
    EXPO_PUBLIC_APPWRITE_USER_CHAT_SETTINGS_COLLECTION_ID=your-settings-collection
    EXPO_PUBLIC_APPWRITE_PUSH_TOKENS_COLLECTION_ID=your-tokens-collection
    EXPO_PUBLIC_IMGBB_API_KEY=your-imgbb-key
+   EXPO_PUBLIC_REPORT_REVIEW_ENDPOINT=https://your-backend.example.com/moderation/review-request
    ```
 
 4. Start development server:

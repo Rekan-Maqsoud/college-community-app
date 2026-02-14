@@ -396,7 +396,7 @@ const MessageBubble = ({
   const hasLegacyImage = message.imageUrl && message.imageUrl.trim().length > 0;
   const imageUrl = hasImages ? message.images[0] : (hasLegacyImage ? message.imageUrl : null);
   const hasImage = !!imageUrl;
-  const hasReply = message.replyToId && message.replyToContent;
+  const hasReply = message.replyToId && (message.replyToContent || message.replyToSender);
   const isPinned = message.isPinned;
   const mentionsAll = message.mentionsAll;
   const isPostShare = message.type === 'post_share';
@@ -1048,17 +1048,19 @@ const MessageBubble = ({
           ]}>
             {message.replyToSender || t('common.user')}
           </Text>
-          <Text 
-            style={[
-              styles.replyToContent, 
-              { 
-                fontSize: fontSize(11), 
-                color: isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.textSecondary 
-              }
-            ]}
-            numberOfLines={1}>
-            {message.replyToContent}
-          </Text>
+          {!!message.replyToContent && (
+            <Text 
+              style={[
+                styles.replyToContent, 
+                { 
+                  fontSize: fontSize(11), 
+                  color: isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.textSecondary 
+                }
+              ]}
+              numberOfLines={1}>
+              {message.replyToContent}
+            </Text>
+          )}
         </View>
       )}
 

@@ -13,6 +13,13 @@ const PENDING_OAUTH_KEY = 'pending_oauth_signup';
 const PENDING_PASSWORD_RESET_KEY = 'pending_password_reset';
 const VERIFICATION_TIMEOUT = 15 * 60 * 1000; // 15 minutes in milliseconds
 const PASSWORD_RESET_TIMEOUT = 15 * 60 * 1000; // 15 minutes for password reset
+const OTP_MAX_FAILED_ATTEMPTS = 5;
+const OTP_LOCK_DURATION = 10 * 60 * 1000; // 10 minutes
+const OTP_RESEND_COOLDOWN = 60 * 1000; // 60 seconds
+const OTP_MAX_RESENDS = 5;
+const RESET_REQUEST_WINDOW = 15 * 60 * 1000; // 15 minutes
+const RESET_MAX_REQUESTS = 5;
+const RESET_REQUEST_COOLDOWN = 60 * 1000; // 60 seconds
 
 // List of blocked public email domains
 const BLOCKED_EMAIL_DOMAINS = [
@@ -147,11 +154,14 @@ export const initiateSignup = async (email, password, name, additionalData = {})
             userId,
             email: sanitizedEmail,
             name: sanitizedName,
-            password,
             additionalData,
             timestamp: Date.now(),
             expiresAt: Date.now() + VERIFICATION_TIMEOUT,
-            otpUserId: tokenResponse.userId
+            otpUserId: tokenResponse.userId,
+            otpFailedAttempts: 0,
+            otpLockedUntil: 0,
+            otpResendCount: 0,
+            lastOtpSentAt: Date.now(),
         };
         
         await safeStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingData));
@@ -204,6 +214,11 @@ export const checkAndCompleteVerification = async () => {
 // Verify OTP code entered by user
 export const verifyOTPCode = async (otpCode) => {
     try {
+        const normalizedCode = String(otpCode || '').trim();
+        if (!/^\d{6}$/.test(normalizedCode)) {
+            throw new Error('Invalid verification code. Please check and try again.');
+        }
+
         const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
         
         if (!storedData) {
@@ -211,12 +226,38 @@ export const verifyOTPCode = async (otpCode) => {
         }
         
         const pendingData = JSON.parse(storedData);
+        const now = Date.now();
+
+        if (pendingData.expiresAt && now > pendingData.expiresAt) {
+            await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
+            throw new Error('Verification code expired. Please sign up again.');
+        }
+
+        if (pendingData.otpLockedUntil && now < pendingData.otpLockedUntil) {
+            throw new Error('Too many verification attempts. Please wait and try again.');
+        }
         
         // Verify OTP by creating a session with the code
         // The OTP code acts as the "secret" for createSession
         try {
-            await account.createSession(pendingData.otpUserId, otpCode);
+            await account.createSession(pendingData.otpUserId, normalizedCode);
         } catch (sessionError) {
+            if (sessionError.message?.includes('Invalid') ||
+                sessionError.message?.includes('expired') ||
+                sessionError.code === 401) {
+                const failedAttempts = (pendingData.otpFailedAttempts || 0) + 1;
+                const shouldLock = failedAttempts >= OTP_MAX_FAILED_ATTEMPTS;
+                const updatedPendingData = {
+                    ...pendingData,
+                    otpFailedAttempts: failedAttempts,
+                    otpLockedUntil: shouldLock ? (now + OTP_LOCK_DURATION) : 0,
+                };
+                await safeStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(updatedPendingData));
+                if (shouldLock) {
+                    throw new Error('Too many verification attempts. Please wait and try again.');
+                }
+            }
+
             if (sessionError.message?.includes('Invalid') || 
                 sessionError.message?.includes('expired') ||
                 sessionError.code === 401) {
@@ -263,6 +304,25 @@ export const resendVerificationEmail = async () => {
         }
         
         const pendingData = JSON.parse(storedData);
+        const now = Date.now();
+
+        if (pendingData.expiresAt && now > pendingData.expiresAt) {
+            await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
+            throw new Error('Verification session expired. Please sign up again.');
+        }
+
+        if (pendingData.otpLockedUntil && now < pendingData.otpLockedUntil) {
+            throw new Error('Too many verification attempts. Please wait and try again.');
+        }
+
+        if (pendingData.lastOtpSentAt && (now - pendingData.lastOtpSentAt) < OTP_RESEND_COOLDOWN) {
+            throw new Error('Please wait before requesting another verification code.');
+        }
+
+        const resendCount = pendingData.otpResendCount || 0;
+        if (resendCount >= OTP_MAX_RESENDS) {
+            throw new Error('Too many verification code requests. Please sign up again.');
+        }
         
         // Send new OTP using Email OTP
         const tokenResponse = await account.createEmailToken(pendingData.userId, pendingData.email);
@@ -270,6 +330,8 @@ export const resendVerificationEmail = async () => {
         // Update expiration time and token data
         pendingData.expiresAt = Date.now() + VERIFICATION_TIMEOUT;
         pendingData.otpUserId = tokenResponse.userId;
+        pendingData.otpResendCount = resendCount + 1;
+        pendingData.lastOtpSentAt = now;
         await safeStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingData));
         
         return true;
@@ -877,42 +939,64 @@ export const sendPasswordResetOTP = async (email) => {
             throw new Error('Invalid email format');
         }
         
-        // Check if user exists by trying to find their document
-        let userDoc = null;
-        try {
-            const users = await databases.listDocuments(
-                config.databaseId,
-                config.usersCollectionId || '68fc7b42001bf7efbba3',
-                [Query.equal('email', sanitizedEmail)]
-            );
-            
-            if (users.documents.length === 0) {
-                throw new Error('User not found');
-            }
-            
-            userDoc = users.documents[0];
-        } catch (error) {
-            if (error.message === 'User not found') {
-                throw error;
-            }
-            throw new Error('Failed to verify user: ' + error.message);
-        }
-        
-        // Use Appwrite's Recovery feature - sends email with recovery link
+        // Use Appwrite's Recovery feature - do not expose whether an account exists
         const redirectUrl = getRecoveryRedirectUrl();
+        const now = Date.now();
+
+        try {
+            const existing = await safeStorage.getItem(PENDING_PASSWORD_RESET_KEY);
+            if (existing) {
+                const pendingResetData = JSON.parse(existing);
+                if (pendingResetData?.email === sanitizedEmail) {
+                    const firstRequestedAt = Number(pendingResetData.firstRequestedAt || pendingResetData.timestamp || now);
+                    const lastRequestedAt = Number(pendingResetData.lastRequestedAt || pendingResetData.timestamp || 0);
+                    const requestCount = Number(pendingResetData.requestCount || 0);
+
+                    if (now - lastRequestedAt < RESET_REQUEST_COOLDOWN) {
+                        throw new Error('Please wait before requesting another password reset email.');
+                    }
+
+                    if ((now - firstRequestedAt) < RESET_REQUEST_WINDOW && requestCount >= RESET_MAX_REQUESTS) {
+                        throw new Error('Too many password reset requests. Please try again later.');
+                    }
+                }
+            }
+        } catch (throttleError) {
+            if (throttleError.message?.includes('Please wait') || throttleError.message?.includes('Too many password reset requests')) {
+                throw throttleError;
+            }
+        }
+
+        const saveResetAttempt = async () => {
+            const existing = await safeStorage.getItem(PENDING_PASSWORD_RESET_KEY);
+            let firstRequestedAt = now;
+            let requestCount = 1;
+
+            if (existing) {
+                try {
+                    const parsed = JSON.parse(existing);
+                    if (parsed?.email === sanitizedEmail && (now - Number(parsed.firstRequestedAt || parsed.timestamp || now)) < RESET_REQUEST_WINDOW) {
+                        firstRequestedAt = Number(parsed.firstRequestedAt || parsed.timestamp || now);
+                        requestCount = Number(parsed.requestCount || 0) + 1;
+                    }
+                } catch {
+                }
+            }
+
+            await safeStorage.setItem(PENDING_PASSWORD_RESET_KEY, JSON.stringify({
+                email: sanitizedEmail,
+                timestamp: now,
+                expiresAt: now + PASSWORD_RESET_TIMEOUT,
+                firstRequestedAt,
+                lastRequestedAt: now,
+                requestCount,
+            }));
+        };
         
         try {
-            const result = await account.createRecovery(sanitizedEmail, redirectUrl);
-            
-            // Store pending reset data
-            const pendingData = {
-                email: sanitizedEmail,
-                userId: userDoc.userID || userDoc.$id,
-                timestamp: Date.now(),
-                expiresAt: Date.now() + PASSWORD_RESET_TIMEOUT,
-            };
-            
-            await safeStorage.setItem(PENDING_PASSWORD_RESET_KEY, JSON.stringify(pendingData));
+            await account.createRecovery(sanitizedEmail, redirectUrl);
+
+            await saveResetAttempt();
             
             return {
                 success: true,
@@ -920,12 +1004,19 @@ export const sendPasswordResetOTP = async (email) => {
                 useDeepLink: true,
             };
         } catch (recoveryError) {
+            // Prevent account enumeration: treat unknown accounts as success.
+            if (recoveryError.code === 404 || recoveryError.message?.includes('User not found')) {
+                await saveResetAttempt();
+                return {
+                    success: true,
+                    email: sanitizedEmail,
+                    useDeepLink: true,
+                };
+            }
+
             // Throw a more descriptive error
             if (recoveryError.code === 501 || recoveryError.message?.includes('SMTP') || recoveryError.message?.includes('mail')) {
                 throw new Error('SMTP_NOT_CONFIGURED');
-            }
-            if (recoveryError.code === 404) {
-                throw new Error('User not found');
             }
             if (recoveryError.message?.includes('URL')) {
                 throw new Error('REDIRECT_URL_NOT_ALLOWED');

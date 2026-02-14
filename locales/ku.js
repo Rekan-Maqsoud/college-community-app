@@ -906,7 +906,9 @@ export default {
     errorCreatingChat: 'دروستکردنی گفتوگۆ سەرنەکەوت. دووبارە هەوڵ بدەوە.',
     // Forward message
     forwardTo: 'ناردن بۆ',
+    selectChatToForward: 'گفتوگۆیەک هەڵبژێرە بۆ ناردنی ئەم نامەیە',
     forwarded: 'نێردرا',
+    forwardedFromUser: 'نێردراوە لەلایەن {name}',
     messageForwarded: 'نامەکە بە سەرکەوتوویی نێردرا',
     forwardError: 'ناردنی نامە سەرنەکەوت',
     searchChats: 'گەڕان لە گفتوگۆکان...',
