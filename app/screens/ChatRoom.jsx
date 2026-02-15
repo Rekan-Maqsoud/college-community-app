@@ -5,7 +5,6 @@ import {
   FlatList,
   StatusBar,
   Platform,
-  ActivityIndicator,
   TouchableOpacity,
   Modal,
   Pressable,
@@ -21,7 +20,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AnimatedBackground from '../components/AnimatedBackground';
 import MessageBubble from '../components/MessageBubble';
 import MessageInput from '../components/MessageInput';
+import { MessageListSkeleton } from '../components/SkeletonLoader';
 import CustomAlert from '../components/CustomAlert';
+import UnifiedEmptyState from '../components/UnifiedEmptyState';
 import useCustomAlert from '../hooks/useCustomAlert';
 import { 
   wp, 
@@ -39,7 +40,7 @@ import { getUserById } from '../../database/users';
 
 const ChatRoom = ({ route, navigation }) => {
   const { chat } = route.params;
-  const { t, theme, isDarkMode, chatSettings, showActivityStatus } = useAppSettings();
+  const { t, theme, isDarkMode, chatSettings, showActivityStatus, triggerHaptic } = useAppSettings();
   const { user, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
@@ -331,13 +332,19 @@ const ChatRoom = ({ route, navigation }) => {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <TouchableOpacity
             style={{ marginRight: spacing.sm }}
-            onPress={openSearch}>
+            onPress={openSearch}
+            accessibilityRole="button"
+            accessibilityLabel={t('chats.searchInChat')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="search-outline" size={moderateScale(22)} color={theme.text} />
           </TouchableOpacity>
           {chat.type === 'custom_group' && (
             <TouchableOpacity
               style={{ marginRight: spacing.md }}
-              onPress={() => navigation.navigate('GroupSettings', { chat })}>
+              onPress={() => navigation.navigate('GroupSettings', { chat })}
+              accessibilityRole="button"
+              accessibilityLabel={t('chats.groupSettings')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="settings-outline" size={moderateScale(22)} color={theme.text} />
             </TouchableOpacity>
           )}
@@ -437,12 +444,18 @@ const ChatRoom = ({ route, navigation }) => {
         showAvatar={showAvatar}
         isRepresentative={isRepresentative}
         onCopy={() => handleCopyMessage(item)}
-        onDelete={isCurrentUser ? () => handleDeleteMessage(item) : null}
+        onDelete={isCurrentUser ? () => {
+          triggerHaptic('warning');
+          handleDeleteMessage(item);
+        } : null}
         onReply={() => handleReplyMessage(item)}
         onForward={() => handleForwardMessage(item)}
         onPin={canPin ? () => handlePinMessage(item) : null}
         onUnpin={canPin && item.isPinned ? () => handleUnpinMessage(item) : null}
-        onBookmark={() => handleBookmarkMessage(item)}
+        onBookmark={() => {
+          triggerHaptic('light');
+          handleBookmarkMessage(item);
+        }}
         onUnbookmark={isBookmarked ? () => handleUnbookmarkMessage(item) : null}
         isBookmarked={isBookmarked}
         onAvatarPress={handleAvatarPress}
@@ -478,40 +491,14 @@ const ChatRoom = ({ route, navigation }) => {
   const renderEmptyOverlay = () => {
     if (memoizedMessages.length > 0 || loading) return null;
 
-    const cardBackground = isDarkMode 
-      ? 'rgba(255, 255, 255, 0.05)' 
-      : 'rgba(255, 255, 255, 0.6)';
-
     return (
-      <View style={styles.emptyOverlay} pointerEvents="none">
-        <View 
-          style={[
-            styles.emptyCard,
-            { 
-              backgroundColor: cardBackground,
-              borderRadius: borderRadius.xl,
-              borderWidth: isDarkMode ? 0 : 1,
-              borderColor: 'rgba(0, 0, 0, 0.04)',
-            }
-          ]}>
-          <Ionicons 
-            name="chatbubbles-outline" 
-            size={moderateScale(60)} 
-            color={theme.textSecondary} 
-          />
-          <Text style={[
-            styles.emptyText, 
-            { fontSize: fontSize(16), color: theme.textSecondary, marginTop: spacing.md }
-          ]}>
-            {t('chats.noMessages')}
-          </Text>
-          <Text style={[
-            styles.emptySubtext, 
-            { fontSize: fontSize(13), color: theme.textSecondary, marginTop: spacing.xs }
-          ]}>
-            {t('chats.beFirstToMessage')}
-          </Text>
-        </View>
+      <View style={styles.emptyOverlay}>
+        <UnifiedEmptyState
+          iconName="chatbubbles-outline"
+          title={t('chats.noMessages')}
+          description={t('chats.beFirstToMessage')}
+          compact
+        />
       </View>
     );
   };
@@ -567,7 +554,7 @@ const ChatRoom = ({ route, navigation }) => {
           translucent
         />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.primary} />
+          <MessageListSkeleton count={8} />
         </View>
       </View>
     );
@@ -612,18 +599,24 @@ const ChatRoom = ({ route, navigation }) => {
           <TouchableOpacity 
             onPress={handleSearchPrev} 
             disabled={searchResults.length === 0}
-            style={[styles.searchNavBtn, searchResults.length === 0 && styles.searchNavBtnDisabled]}>
+            style={[styles.searchNavBtn, searchResults.length === 0 && styles.searchNavBtnDisabled]}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.previous')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="chevron-up" size={moderateScale(20)} color={searchResults.length > 0 ? theme.text : theme.textSecondary} />
           </TouchableOpacity>
           
           <TouchableOpacity 
             onPress={handleSearchNext} 
             disabled={searchResults.length === 0}
-            style={[styles.searchNavBtn, searchResults.length === 0 && styles.searchNavBtnDisabled]}>
+            style={[styles.searchNavBtn, searchResults.length === 0 && styles.searchNavBtnDisabled]}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.next')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="chevron-down" size={moderateScale(20)} color={searchResults.length > 0 ? theme.text : theme.textSecondary} />
           </TouchableOpacity>
           
-          <TouchableOpacity onPress={closeSearch} style={styles.searchCloseBtn}>
+          <TouchableOpacity onPress={closeSearch} style={styles.searchCloseBtn} accessibilityRole="button" accessibilityLabel={t('common.close')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={[styles.searchCloseText, { color: theme.primary, fontSize: fontSize(14) }]}>
               {t('common.close')}
             </Text>
@@ -662,9 +655,9 @@ const ChatRoom = ({ route, navigation }) => {
         ListEmptyComponent={renderEmpty}
         onScrollToIndexFailed={handleScrollToIndexFailed}
         removeClippedSubviews={Platform.OS === 'android'}
-        maxToRenderPerBatch={15}
-        windowSize={10}
-        initialNumToRender={20}
+        maxToRenderPerBatch={12}
+        windowSize={12}
+        initialNumToRender={16}
         inverted={true}
       />
 
@@ -738,7 +731,10 @@ const ChatRoom = ({ route, navigation }) => {
 
       {!selectionMode && !isBlockedChat && (
       <MessageInput 
-        onSend={handleSendMessage}
+        onSend={async (...args) => {
+          triggerHaptic('light');
+          return handleSendMessage(...args);
+        }}
         disabled={sending || !canSend}
         placeholder={
           canSend 
@@ -827,8 +823,14 @@ const ChatRoom = ({ route, navigation }) => {
           navigation.navigate('GroupSettings', { chat });
         }}
         onBlockUser={handleBlockUser}
-        onClearChat={handleClearChat}
-        onDeleteConversation={handleDeleteConversation}
+        onClearChat={() => {
+          triggerHaptic('warning');
+          handleClearChat();
+        }}
+        onDeleteConversation={() => {
+          triggerHaptic('warning');
+          handleDeleteConversation();
+        }}
         showAlert={showAlert}
         theme={theme}
         isDarkMode={isDarkMode}

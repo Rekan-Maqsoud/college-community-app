@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar, ActivityIndicator, Platform, Share, Modal, Linking } from 'react-native';
-import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { captureRef } from 'react-native-view-shot';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,6 +10,8 @@ import { GlassContainer } from '../components/GlassComponents';
 import AnimatedBackground from '../components/AnimatedBackground';
 import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
+import UnifiedEmptyState from '../components/UnifiedEmptyState';
+import { ProfileSkeleton, PostCardSkeleton } from '../components/SkeletonLoader';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { getPostsByUser, togglePostLike } from '../../database/posts';
 import { getUserById, followUser, unfollowUser, isFollowing as checkIsFollowing, blockUser, blockUserChatOnly } from '../../database/users';
@@ -22,7 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const UserProfile = ({ route, navigation }) => {
   const { userId, userData: initialUserData } = route.params;
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, triggerHaptic } = useAppSettings();
   const { user: currentUser, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
@@ -39,6 +41,7 @@ const UserProfile = ({ route, navigation }) => {
   const [blockLoading, setBlockLoading] = useState(false);
   const [messageLoading, setMessageLoading] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+  const qrShareCardRef = useRef(null);
   const displayName = userData?.fullName || userData?.name || t('errors.unknownUser');
 
   // Generate profile link for sharing
@@ -47,10 +50,7 @@ const UserProfile = ({ route, navigation }) => {
     return `collegecommunity://profile/${userId}`;
   };
 
-  const getQrImageUrl = () => {
-    const caption = (t('profile.qrShareCaption') || 'Scan to visit {name} profile').replace('{name}', displayName);
-    return `https://quickchart.io/qr?size=320&margin=2&text=${encodeURIComponent(getProfileLink())}&caption=${encodeURIComponent(caption)}&captionFontSize=15`;
-  };
+  const getQrImageUrl = () => `https://quickchart.io/qr?size=440&margin=2&ecLevel=Q&dark=0F172A&light=FFFFFF&text=${encodeURIComponent(getProfileLink())}`;
 
   const shareProfileText = async (fallbackUrl = null) => {
     const profileLink = getProfileLink();
@@ -78,21 +78,20 @@ const UserProfile = ({ route, navigation }) => {
     const qrUrl = getQrImageUrl();
 
     try {
-      const qrFile = new File(Paths.cache, `profile-qr-${userId}.png`);
+      await Image.prefetch(qrUrl);
 
-      if (qrFile.exists) {
-        qrFile.delete();
+      if (!qrShareCardRef.current) {
+        throw new Error('QR share card not ready');
       }
 
-      const downloadedFile = await File.downloadFileAsync(qrUrl, qrFile, { idempotent: true });
-
-      if (!downloadedFile.exists || downloadedFile.size < 100) {
-        throw new Error('QR file invalid');
-      }
+      const shareImageUri = await captureRef(qrShareCardRef, {
+        format: 'png',
+        quality: 1,
+      });
 
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
-        await Sharing.shareAsync(downloadedFile.uri, {
+        await Sharing.shareAsync(shareImageUri, {
           mimeType: 'image/png',
           dialogTitle: t('profile.shareProfile'),
           UTI: 'public.png',
@@ -106,7 +105,7 @@ const UserProfile = ({ route, navigation }) => {
       });
     }
 
-    await shareProfileText(qrUrl);
+    await shareProfileText();
   };
 
   // Smart realtime subscription for user profile updates (followers, etc.)
@@ -252,6 +251,7 @@ const UserProfile = ({ route, navigation }) => {
     const wasFollowing = isFollowing;
     
     try {
+      triggerHaptic('selection');
       // Optimistic update
       setIsFollowing(!wasFollowing);
       setUserData(prev => ({
@@ -354,6 +354,7 @@ const UserProfile = ({ route, navigation }) => {
     
     setMessageLoading(true);
     try {
+      triggerHaptic('light');
       const chat = await createPrivateChat(
         { $id: currentUser.$id, name: currentUser.fullName || currentUser.name },
         { $id: userId, name: userData?.fullName || userData?.name }
@@ -382,6 +383,7 @@ const UserProfile = ({ route, navigation }) => {
     if (!currentUser?.$id) return;
     
     try {
+      triggerHaptic('selection');
       const result = await togglePostLike(postId, currentUser.$id);
       
       setUserPosts(prevPosts => 
@@ -428,11 +430,11 @@ const UserProfile = ({ route, navigation }) => {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={[styles.loadingText, { color: theme.textSecondary, marginTop: spacing.md }]}>
-            {t('common.loading')}
-          </Text>
+        <View style={[styles.loadingContainer, { paddingHorizontal: wp(5) }]}>
+          <ProfileSkeleton />
+          <View style={{ width: '100%', marginTop: spacing.lg }}>
+            <PostCardSkeleton />
+          </View>
         </View>
       </View>
     );
@@ -595,12 +597,10 @@ const UserProfile = ({ route, navigation }) => {
       <View style={styles.sectionContainer}>
         <Text style={[styles.sectionHeader, { color: theme.text }]}>{t('profile.posts')}</Text>
         {loadingPosts ? (
-          <GlassContainer borderRadius={borderRadius.lg} style={styles.emptyCard}>
-            <ActivityIndicator size="large" color={theme.primary} />
-            <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
-              {t('common.loading')}
-            </Text>
-          </GlassContainer>
+          <View>
+            <PostCardSkeleton />
+            <PostCardSkeleton />
+          </View>
         ) : postsError ? (
           <GlassContainer borderRadius={borderRadius.lg} style={styles.emptyCard}>
             <Ionicons name="alert-circle-outline" size={moderateScale(40)} color={theme.error} />
@@ -612,12 +612,15 @@ const UserProfile = ({ route, navigation }) => {
             </TouchableOpacity>
           </GlassContainer>
         ) : !userPosts || userPosts.length === 0 ? (
-          <GlassContainer borderRadius={borderRadius.lg} style={styles.emptyCard}>
-            <Ionicons name="document-text-outline" size={moderateScale(40)} color={theme.textSecondary} />
-            <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
-              {t('profile.noPosts')}
-            </Text>
-          </GlassContainer>
+          <UnifiedEmptyState
+            iconName="document-text-outline"
+            title={t('profile.noPosts')}
+            description={t('home.publicFeedEmpty')}
+            actionLabel={t('common.retry')}
+            actionIconName="refresh-outline"
+            onAction={loadUserPosts}
+            compact
+          />
         ) : (
           <View>
             {userPosts.map((post, index) => (
@@ -657,12 +660,12 @@ const UserProfile = ({ route, navigation }) => {
             
             {/* Header Right Actions - Share & QR */}
             <View style={styles.headerRightActions}>
-              <TouchableOpacity style={styles.headerActionButton} onPress={handleShareProfile} activeOpacity={0.7}>
+              <TouchableOpacity style={styles.headerActionButton} onPress={handleShareProfile} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t('profile.shareProfile')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <GlassContainer borderRadius={borderRadius.round} style={styles.backButtonInner}>
                   <Ionicons name="share-outline" size={moderateScale(22)} color={isDarkMode ? "#FFFFFF" : "#1C1C1E"} />
                 </GlassContainer>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.headerActionButton} onPress={() => setShowQRModal(true)} activeOpacity={0.7}>
+              <TouchableOpacity style={styles.headerActionButton} onPress={() => setShowQRModal(true)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t('profile.scanToConnect')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <GlassContainer borderRadius={borderRadius.round} style={styles.backButtonInner}>
                   <Ionicons name="qr-code-outline" size={moderateScale(22)} color={isDarkMode ? "#FFFFFF" : "#1C1C1E"} />
                 </GlassContainer>
@@ -806,6 +809,25 @@ const UserProfile = ({ route, navigation }) => {
         </ScrollView>
       </LinearGradient>
 
+      <View style={styles.hiddenShareCardContainer} pointerEvents="none">
+        <View ref={qrShareCardRef} collapsable={false} style={styles.shareCardCaptureRoot}>
+          <View style={styles.shareCardHeaderRow}>
+            <Image source={require('../../assets/icon.png')} style={styles.shareCardLogo} resizeMode="contain" />
+          </View>
+          <Text style={styles.shareCardTitle}>{t('profile.scanToConnect')}</Text>
+          <Text style={styles.shareCardSubtitle}>
+            {t('profile.qrShareCaption').replace('{name}', displayName)}
+          </Text>
+          <View style={styles.shareCardQrFrame}>
+            <Image
+              source={{ uri: getQrImageUrl() }}
+              style={styles.shareCardQrImage}
+              resizeMode="contain"
+            />
+          </View>
+        </View>
+      </View>
+
       {/* QR Code Modal */}
       <Modal
         visible={showQRModal}
@@ -819,13 +841,14 @@ const UserProfile = ({ route, navigation }) => {
           <View style={[styles.qrModalContent, { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' }]}>
             <View style={styles.qrModalHeader}>
               <Text style={[styles.qrModalTitle, { color: theme.text }]}>
-                {t('profile.scanToConnect') || 'Scan to Connect'}
+                {t('profile.scanToConnect')}
               </Text>
               <TouchableOpacity onPress={() => setShowQRModal(false)}>
                 <Ionicons name="close" size={moderateScale(24)} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
             <View style={styles.qrCodeContainer}>
+              <Image source={require('../../assets/icon.png')} style={styles.qrModalLogo} resizeMode="contain" />
               <Image
                 source={{ uri: getQrImageUrl() }}
                 style={styles.qrCodeImage}
@@ -1048,14 +1071,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: borderRadius.lg,
     marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+  },
+  qrModalLogo: {
+    width: moderateScale(48),
+    height: moderateScale(48),
+    marginBottom: spacing.xs,
   },
   qrCodeImage: {
     width: moderateScale(200),
     height: moderateScale(200),
   },
   qrModalName: {
-    fontSize: fontSize(16),
-    fontWeight: '600',
+    fontSize: fontSize(17),
+    fontWeight: '700',
+    letterSpacing: 0.2,
     marginBottom: spacing.xs,
   },
   qrModalHint: {
@@ -1087,6 +1119,60 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  hiddenShareCardContainer: {
+    position: 'absolute',
+    left: -9999,
+    top: -9999,
+    opacity: 0,
+  },
+  shareCardCaptureRoot: {
+    width: 760,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 36,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    paddingHorizontal: 48,
+    paddingVertical: 44,
+    alignItems: 'center',
+  },
+  shareCardHeaderRow: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  shareCardLogo: {
+    width: 96,
+    height: 96,
+  },
+  shareCardTitle: {
+    color: '#0F172A',
+    fontSize: 42,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  shareCardSubtitle: {
+    color: '#475569',
+    fontSize: 24,
+    fontWeight: '600',
+    marginTop: 8,
+    marginBottom: 26,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+  },
+  shareCardQrFrame: {
+    width: 500,
+    height: 500,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  shareCardQrImage: {
+    width: 440,
+    height: 440,
   },
 });
 

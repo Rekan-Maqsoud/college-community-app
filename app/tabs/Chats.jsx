@@ -6,7 +6,6 @@ import {
   StatusBar,
   Platform,
   FlatList,
-  ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
   SectionList,
@@ -21,6 +20,8 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import AnimatedBackground from '../components/AnimatedBackground';
 import ChatListItem from '../components/ChatListItem';
+import UnifiedEmptyState from '../components/UnifiedEmptyState';
+import { ChatListSkeleton } from '../components/SkeletonLoader';
 import { 
   initializeUserGroups,
   getAllUserChats,
@@ -298,44 +299,51 @@ const Chats = ({ navigation }) => {
         ...(chats.customGroups || []),
         ...filteredPrivateChats,
       ];
-      loadUnreadCounts(allChats);
-      loadClearedAtTimestamps(allChats);
+      setLoading(false);
 
-      if (user?.$id) {
-        const muteMap = {};
-        const archivedMap = {};
+      const loadAuxiliaryData = async () => {
+        await Promise.all([
+          loadUnreadCounts(allChats),
+          loadClearedAtTimestamps(allChats),
+        ]);
 
-        await Promise.all(
-          allChats.map(async (chat) => {
-            try {
-              const settings = await getUserChatSettings(user.$id, chat.$id);
+        if (user?.$id) {
+          const muteMap = {};
+          const archivedMap = {};
 
-              let isMuted = Boolean(settings?.isMuted);
-              if (isMuted && settings?.muteExpiresAt) {
-                const expiresAt = new Date(settings.muteExpiresAt);
-                if (expiresAt <= new Date()) {
-                  await unmuteChat(user.$id, chat.$id);
-                  isMuted = false;
+          await Promise.all(
+            allChats.map(async (chat) => {
+              try {
+                const settings = await getUserChatSettings(user.$id, chat.$id);
+
+                let isMuted = Boolean(settings?.isMuted);
+                if (isMuted && settings?.muteExpiresAt) {
+                  const expiresAt = new Date(settings.muteExpiresAt);
+                  if (expiresAt <= new Date()) {
+                    await unmuteChat(user.$id, chat.$id);
+                    isMuted = false;
+                  }
                 }
+
+                muteMap[chat.$id] = isMuted;
+                archivedMap[chat.$id] = Boolean(settings?.isArchived);
+              } catch {
+                muteMap[chat.$id] = false;
+                archivedMap[chat.$id] = false;
               }
+            })
+          );
 
-              muteMap[chat.$id] = isMuted;
-              archivedMap[chat.$id] = Boolean(settings?.isArchived);
-            } catch {
-              muteMap[chat.$id] = false;
-              archivedMap[chat.$id] = false;
-            }
-          })
-        );
+          setMuteStatusMap(muteMap);
+          setArchivedChatMap(archivedMap);
+        }
+      };
 
-        setMuteStatusMap(muteMap);
-        setArchivedChatMap(archivedMap);
-      }
+      loadAuxiliaryData();
     } catch (error) {
       setDefaultGroups([]);
       setCustomGroups([]);
       setPrivateChats([]);
-    } finally {
       setLoading(false);
     }
   };
@@ -689,52 +697,26 @@ const Chats = ({ navigation }) => {
 
     if (showArchivedChats) {
       return (
-        <View style={styles.emptyContainer}>
-          <View style={[styles.emptyCard, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.8)' }]}>
-            <View style={[styles.emptyIconContainer, { backgroundColor: isDarkMode ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.12)' }]}>
-              <Ionicons name="archive-outline" size={moderateScale(42)} color="#F59E0B" />
-            </View>
-            <Text style={[styles.emptyTitle, { fontSize: fontSize(20), color: theme.text }]}>
-              {t('chats.noArchivedChatsTitle')}
-            </Text>
-            <Text style={[styles.emptyMessage, { fontSize: fontSize(14), color: theme.textSecondary }]}>
-              {t('chats.noArchivedChatsMessage')}
-            </Text>
-            <TouchableOpacity
-              style={[styles.emptyActionButton, { backgroundColor: theme.primary }]}
-              onPress={() => setShowArchivedChats(false)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="arrow-back" size={moderateScale(18)} color="#FFFFFF" />
-              <Text style={styles.emptyActionButtonText}>{t('common.goBack')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <UnifiedEmptyState
+          iconName="archive-outline"
+          title={t('chats.noArchivedChatsTitle')}
+          description={t('chats.noArchivedChatsMessage')}
+          actionLabel={t('common.goBack')}
+          actionIconName="arrow-back"
+          onAction={() => setShowArchivedChats(false)}
+        />
       );
     }
     
     return (
-      <View style={styles.emptyContainer}>
-        <View style={[styles.emptyCard, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.8)' }]}>
-          <View style={[styles.emptyIconContainer, { backgroundColor: isDarkMode ? 'rgba(10, 132, 255, 0.15)' : 'rgba(0, 122, 255, 0.08)' }]}>
-            <Ionicons name="chatbubbles" size={moderateScale(48)} color={theme.primary} />
-          </View>
-          <Text style={[styles.emptyTitle, { fontSize: fontSize(20), color: theme.text }]}>
-            {t('chats.emptyTitle')}
-          </Text>
-          <Text style={[styles.emptyMessage, { fontSize: fontSize(14), color: theme.textSecondary }]}>
-            {t('chats.emptyMessage')}
-          </Text>
-          <TouchableOpacity
-            style={[styles.emptyActionButton, { backgroundColor: theme.primary }]}
-            onPress={() => navigation.navigate('UserSearch')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="search" size={moderateScale(18)} color="#FFFFFF" />
-            <Text style={styles.emptyActionButtonText}>{t('chats.startNewChat')}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <UnifiedEmptyState
+        iconName="chatbubbles-outline"
+        title={t('chats.emptyTitle')}
+        description={t('chats.emptyMessage')}
+        actionLabel={t('chats.startNewChat')}
+        actionIconName="search"
+        onAction={() => navigation.navigate('UserSearch')}
+      />
     );
   };
 
@@ -754,6 +736,9 @@ const Chats = ({ navigation }) => {
               style={[styles.backButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)' }]}
               activeOpacity={0.7}
               onPress={() => setShowArchivedChats(false)}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.goBack')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons name="arrow-back" size={moderateScale(16)} color={theme.text} />
             </TouchableOpacity>
@@ -766,7 +751,10 @@ const Chats = ({ navigation }) => {
           <TouchableOpacity
             style={[styles.iconButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)' }]}
             activeOpacity={0.7}
-            onPress={() => navigation.navigate('UserSearch')}>
+            onPress={() => navigation.navigate('UserSearch')}
+            accessibilityRole="button"
+            accessibilityLabel={t('chats.startNewChat')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="search" size={moderateScale(18)} color={theme.primary} />
           </TouchableOpacity>
           <TouchableOpacity
@@ -780,6 +768,9 @@ const Chats = ({ navigation }) => {
             ]}
             activeOpacity={0.7}
             onPress={() => setShowArchivedChats((prev) => !prev)}
+            accessibilityRole="button"
+            accessibilityLabel={t('chats.archivedChats')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Ionicons name="archive-outline" size={moderateScale(17)} color="#F59E0B" />
             {archivedUnreadChatsCount > 0 && (
@@ -791,7 +782,10 @@ const Chats = ({ navigation }) => {
           <TouchableOpacity
             style={[styles.iconButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)' }]}
             activeOpacity={0.7}
-            onPress={() => navigation.navigate('CreateGroup')}>
+            onPress={() => navigation.navigate('CreateGroup')}
+            accessibilityRole="button"
+            accessibilityLabel={t('chats.createGroup')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="add" size={moderateScale(18)} color="#F59E0B" />
           </TouchableOpacity>
         </View>
@@ -811,7 +805,10 @@ const Chats = ({ navigation }) => {
                 }
               ]}
               activeOpacity={0.7}
-              onPress={() => setActiveFilter(filter.key)}>
+              onPress={() => setActiveFilter(filter.key)}
+              accessibilityRole="button"
+              accessibilityLabel={filter.label}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={[
                 styles.filterPillText,
                 { 
@@ -844,10 +841,7 @@ const Chats = ({ navigation }) => {
           style={styles.gradient}>
           <AnimatedBackground particleCount={18} />
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.primary} />
-            <Text style={[styles.loadingText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
-              {t('chats.settingUpGroups')}
-            </Text>
+            <ChatListSkeleton count={6} />
           </View>
         </LinearGradient>
       </View>
@@ -870,10 +864,7 @@ const Chats = ({ navigation }) => {
           style={styles.gradient}>
           <AnimatedBackground particleCount={18} />
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.primary} />
-            <Text style={[styles.loadingText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
-              {t('chats.loadingChats')}
-            </Text>
+            <ChatListSkeleton count={7} />
           </View>
         </LinearGradient>
       </View>
@@ -881,235 +872,256 @@ const Chats = ({ navigation }) => {
   }
 
   const sections = getSectionData();
-  const hasContent = sections.length > 0;
+  const hasContent = sections.some((section) => section.data.length > 0);
 
-  return (
-    <View style={styles.container}>
-      <StatusBar 
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'} 
-        backgroundColor="transparent"
-        translucent
-      />
+      return (
+        <View style={styles.container}>
+          <StatusBar 
+            barStyle={isDarkMode ? 'light-content' : 'dark-content'} 
+            backgroundColor="transparent"
+            translucent
+          />
       
-      <LinearGradient
-        colors={isDarkMode 
-          ? ['#1a1a2e', '#16213e', '#0f3460'] 
-          : ['#f0f4ff', '#d8e7ff', '#c0deff']
-        }
-        style={styles.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}>
+          <LinearGradient
+            colors={isDarkMode 
+              ? ['#1a1a2e', '#16213e', '#0f3460'] 
+              : ['#f0f4ff', '#d8e7ff', '#c0deff']
+            }
+            style={styles.gradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}>
         
-        <AnimatedBackground particleCount={18} />
+            <AnimatedBackground particleCount={18} />
         
-        <View style={[styles.content, { paddingTop: insets.top + spacing.sm }]}>
-          {hasContent ? (
-            <SectionList
-              sections={sections}
-              renderItem={renderChatItem}
-              renderSectionHeader={renderSectionHeader}
-              keyExtractor={(item) => item.$id}
-              contentContainerStyle={styles.listContent}
-              ListHeaderComponent={renderHeader}
-              stickySectionHeadersEnabled={false}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={handleRefresh}
-                  tintColor={theme.primary}
-                  colors={[theme.primary]}
+            <View style={[styles.content, { paddingTop: insets.top + spacing.sm }]}> 
+              {hasContent ? (
+                <SectionList
+                  sections={sections}
+                  renderItem={renderChatItem}
+                  renderSectionHeader={renderSectionHeader}
+                  keyExtractor={(item) => item.$id}
+                  contentContainerStyle={styles.listContent}
+                  ListHeaderComponent={renderHeader}
+                  stickySectionHeadersEnabled={false}
+                  windowSize={11}
+                  maxToRenderPerBatch={10}
+                  initialNumToRender={12}
+                  removeClippedSubviews={Platform.OS === 'android'}
+                  refreshControl={
+                    <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={handleRefresh}
+                      tintColor={theme.primary}
+                      colors={[theme.primary]}
+                    />
+                  }
                 />
-              }
-            />
-          ) : (
-            <FlatList
-              data={[]}
-              renderItem={() => null}
-              ListHeaderComponent={renderHeader}
-              ListEmptyComponent={renderEmpty}
-              contentContainerStyle={styles.listContent}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={handleRefresh}
-                  tintColor={theme.primary}
-                  colors={[theme.primary]}
+              ) : (
+                <FlatList
+                  data={[]}
+                  renderItem={() => null}
+                  ListHeaderComponent={renderHeader}
+                  ListEmptyComponent={renderEmpty}
+                  contentContainerStyle={styles.listContent}
+                  windowSize={8}
+                  maxToRenderPerBatch={8}
+                  initialNumToRender={1}
+                  removeClippedSubviews={Platform.OS === 'android'}
+                  refreshControl={
+                    <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={handleRefresh}
+                      tintColor={theme.primary}
+                      colors={[theme.primary]}
+                    />
+                  }
                 />
-              }
-            />
-          )}
+              )}
+            </View>
+
+            <Modal
+              visible={chatMenuVisible}
+              transparent
+              animationType="fade"
+              onRequestClose={closeChatMenu}
+            >
+              <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeChatMenu}>
+                <View
+                  style={[
+                    styles.menuCard,
+                    { backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF' },
+                  ]}
+                >
+                  <Text style={[styles.menuTitle, { color: theme.text, fontSize: fontSize(15) }]} numberOfLines={1}>
+                    {getSelectedChatMenuTitle()}
+                  </Text>
+
+                  {selectedChat?.type === 'private' && (
+                    <TouchableOpacity style={styles.menuItem} onPress={handleVisitSelectedProfile}>
+                      <Ionicons name="person-outline" size={moderateScale(18)} color={theme.primary} />
+                      <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                        {t('chats.visitProfile')}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {selectedChat?.type === 'custom_group' && (
+                    <TouchableOpacity style={styles.menuItem} onPress={handleOpenGroupSettings}>
+                      <Ionicons name="settings-outline" size={moderateScale(18)} color={theme.primary} />
+                      <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                        {t('chats.groupSettings')}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity style={styles.menuItem} onPress={openMuteOptions}>
+                    <Ionicons
+                      name={muteStatusMap[selectedChat?.$id] ? 'notifications-outline' : 'notifications-off-outline'}
+                      size={moderateScale(18)}
+                      color={theme.primary}
+                    />
+                    <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                      {muteStatusMap[selectedChat?.$id] ? t('chats.unmute') : t('chats.mute')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={async () => {
+                      const isArchived = Boolean(archivedChatMap[selectedChat?.$id]);
+                      await handleArchiveChat(selectedChat, !isArchived);
+                      closeChatMenu();
+                    }}
+                  >
+                    <Ionicons name="archive-outline" size={moderateScale(18)} color="#F59E0B" />
+                    <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                      {archivedChatMap[selectedChat?.$id] ? t('chats.unarchive') : t('chats.archive')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => {
+                      setChatMenuVisible(false);
+                      Alert.alert(t('common.info'), t('chats.searchComingSoon'));
+                    }}
+                  >
+                    <Ionicons name="search-outline" size={moderateScale(18)} color={theme.primary} />
+                    <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                      {t('chats.searchInChat')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.menuItem} onPress={handleClearSelectedChat}>
+                    <Ionicons name="trash-outline" size={moderateScale(18)} color={theme.primary} />
+                    <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                      {t('chats.clearChat')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {selectedChat?.type === 'private' && (
+                    <TouchableOpacity style={styles.menuItem} onPress={handleBlockSelectedUser}>
+                      <Ionicons name="ban-outline" size={moderateScale(18)} color="#EF4444" />
+                      <Text style={[styles.menuItemText, { color: '#EF4444', fontSize: fontSize(14) }]}>
+                        {t('chats.blockUser')}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {selectedChat?.type === 'private' && (
+                    <TouchableOpacity style={styles.menuItem} onPress={handleDeleteSelectedConversation}>
+                      <Ionicons name="trash" size={moderateScale(18)} color="#EF4444" />
+                      <Text style={[styles.menuItemText, { color: '#EF4444', fontSize: fontSize(14) }]}>
+                        {t('chats.deleteConversation')}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {selectedChat?.type !== 'private' && (
+                    <TouchableOpacity style={styles.menuItem} onPress={handleLeaveSelectedGroup}>
+                      <Ionicons name="exit-outline" size={moderateScale(18)} color="#EF4444" />
+                      <Text style={[styles.menuItemText, { color: '#EF4444', fontSize: fontSize(14) }]}>
+                        {t('chats.leaveGroup')}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </TouchableOpacity>
+            </Modal>
+
+            <Modal
+              visible={muteModalVisible}
+              transparent
+              animationType="slide"
+              onRequestClose={closeMuteOptions}
+            >
+              <View style={styles.modalOverlay}>
+                <View
+                  style={[
+                    styles.muteModalCard,
+                    { backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF' },
+                  ]}
+                >
+                  <Text style={[styles.menuTitle, { color: theme.text, fontSize: fontSize(16) }]}> 
+                    {t('chats.muteOptions')}
+                  </Text>
+
+                  {muteStatusMap[selectedChat?.$id] && (
+                    <TouchableOpacity style={styles.menuItem} onPress={handleChatUnmute}>
+                      <Ionicons name="notifications-outline" size={moderateScale(18)} color="#10B981" />
+                      <Text style={[styles.menuItemText, { color: '#10B981', fontSize: fontSize(14) }]}>
+                        {t('chats.unmute')}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity style={styles.menuItem} onPress={() => handleChatMute(MUTE_DURATIONS.ONE_HOUR)}>
+                    <Ionicons name="time-outline" size={moderateScale(18)} color={theme.primary} />
+                    <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                      {t('chats.muteFor1Hour')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.menuItem} onPress={() => handleChatMute(MUTE_DURATIONS.EIGHT_HOURS)}>
+                    <Ionicons name="time-outline" size={moderateScale(18)} color={theme.primary} />
+                    <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                      {t('chats.muteFor8Hours')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.menuItem} onPress={() => handleChatMute(MUTE_DURATIONS.ONE_DAY)}>
+                    <Ionicons name="today-outline" size={moderateScale(18)} color={theme.primary} />
+                    <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                      {t('chats.muteFor1Day')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.menuItem} onPress={() => handleChatMute(MUTE_DURATIONS.ONE_WEEK)}>
+                    <Ionicons name="calendar-outline" size={moderateScale(18)} color={theme.primary} />
+                    <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                      {t('chats.muteFor1Week')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.menuItem} onPress={() => handleChatMute(MUTE_DURATIONS.FOREVER)}>
+                    <Ionicons name="notifications-off-outline" size={moderateScale(18)} color="#F59E0B" />
+                    <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                      {t('chats.muteForever')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.modalCancelButton} onPress={closeMuteOptions}>
+                    <Text style={[styles.modalCancelText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
+                      {t('common.cancel')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
+          </LinearGradient>
         </View>
-
-        <Modal
-          visible={chatMenuVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={closeChatMenu}
-        >
-          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeChatMenu}>
-            <View
-              style={[
-                styles.menuCard,
-                { backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF' },
-              ]}
-            >
-              <Text style={[styles.menuTitle, { color: theme.text, fontSize: fontSize(15) }]} numberOfLines={1}>
-                {getSelectedChatMenuTitle()}
-              </Text>
-
-              {selectedChat?.type === 'private' && (
-                <TouchableOpacity style={styles.menuItem} onPress={handleVisitSelectedProfile}>
-                  <Ionicons name="person-outline" size={moderateScale(18)} color={theme.primary} />
-                  <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
-                    {t('chats.visitProfile')}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {selectedChat?.type !== 'private' && (
-                <TouchableOpacity style={styles.menuItem} onPress={handleOpenGroupSettings}>
-                  <Ionicons name="settings-outline" size={moderateScale(18)} color={theme.primary} />
-                  <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
-                    {t('chats.groupSettings')}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity style={styles.menuItem} onPress={openMuteOptions}>
-                <Ionicons
-                  name={muteStatusMap[selectedChat?.$id] ? 'notifications-outline' : 'notifications-off-outline'}
-                  size={moderateScale(18)}
-                  color={theme.primary}
-                />
-                <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
-                  {muteStatusMap[selectedChat?.$id] ? t('chats.unmute') : t('chats.mute')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={async () => {
-                  const isArchived = Boolean(archivedChatMap[selectedChat?.$id]);
-                  await handleArchiveChat(selectedChat, !isArchived);
-                  closeChatMenu();
-                }}
-              >
-                <Ionicons name="archive-outline" size={moderateScale(18)} color="#F59E0B" />
-                <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
-                  {archivedChatMap[selectedChat?.$id] ? t('chats.unarchive') : t('chats.archive')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.menuItem} onPress={handleClearSelectedChat}>
-                <Ionicons name="trash-outline" size={moderateScale(18)} color={theme.primary} />
-                <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
-                  {t('chats.clearChat')}
-                </Text>
-              </TouchableOpacity>
-
-              {selectedChat?.type === 'private' && (
-                <TouchableOpacity style={styles.menuItem} onPress={handleBlockSelectedUser}>
-                  <Ionicons name="ban-outline" size={moderateScale(18)} color="#EF4444" />
-                  <Text style={[styles.menuItemText, { color: '#EF4444', fontSize: fontSize(14) }]}>
-                    {t('chats.blockUser')}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {selectedChat?.type === 'private' && (
-                <TouchableOpacity style={styles.menuItem} onPress={handleDeleteSelectedConversation}>
-                  <Ionicons name="trash" size={moderateScale(18)} color="#EF4444" />
-                  <Text style={[styles.menuItemText, { color: '#EF4444', fontSize: fontSize(14) }]}>
-                    {t('chats.deleteConversation')}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {selectedChat?.type !== 'private' && (
-                <TouchableOpacity style={styles.menuItem} onPress={handleLeaveSelectedGroup}>
-                  <Ionicons name="exit-outline" size={moderateScale(18)} color="#EF4444" />
-                  <Text style={[styles.menuItemText, { color: '#EF4444', fontSize: fontSize(14) }]}>
-                    {t('chats.leaveGroup')}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </TouchableOpacity>
-        </Modal>
-
-        <Modal
-          visible={muteModalVisible}
-          transparent
-          animationType="slide"
-          onRequestClose={closeMuteOptions}
-        >
-          <View style={styles.modalOverlay}>
-            <View
-              style={[
-                styles.muteModalCard,
-                { backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF' },
-              ]}
-            >
-              <Text style={[styles.menuTitle, { color: theme.text, fontSize: fontSize(16) }]}> 
-                {t('chats.muteOptions')}
-              </Text>
-
-              {muteStatusMap[selectedChat?.$id] && (
-                <TouchableOpacity style={styles.menuItem} onPress={handleChatUnmute}>
-                  <Ionicons name="notifications-outline" size={moderateScale(18)} color="#10B981" />
-                  <Text style={[styles.menuItemText, { color: '#10B981', fontSize: fontSize(14) }]}>
-                    {t('chats.unmute')}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity style={styles.menuItem} onPress={() => handleChatMute(MUTE_DURATIONS.ONE_HOUR)}>
-                <Ionicons name="time-outline" size={moderateScale(18)} color={theme.primary} />
-                <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
-                  {t('chats.muteFor1Hour')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.menuItem} onPress={() => handleChatMute(MUTE_DURATIONS.EIGHT_HOURS)}>
-                <Ionicons name="time-outline" size={moderateScale(18)} color={theme.primary} />
-                <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
-                  {t('chats.muteFor8Hours')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.menuItem} onPress={() => handleChatMute(MUTE_DURATIONS.ONE_DAY)}>
-                <Ionicons name="today-outline" size={moderateScale(18)} color={theme.primary} />
-                <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
-                  {t('chats.muteFor1Day')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.menuItem} onPress={() => handleChatMute(MUTE_DURATIONS.ONE_WEEK)}>
-                <Ionicons name="calendar-outline" size={moderateScale(18)} color={theme.primary} />
-                <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
-                  {t('chats.muteFor1Week')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.menuItem} onPress={() => handleChatMute(MUTE_DURATIONS.FOREVER)}>
-                <Ionicons name="notifications-off-outline" size={moderateScale(18)} color="#F59E0B" />
-                <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
-                  {t('chats.muteForever')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.modalCancelButton} onPress={closeMuteOptions}>
-                <Text style={[styles.modalCancelText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
-                  {t('common.cancel')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      </LinearGradient>
-    </View>
-  );
-};
+      );
+    };
 
 const styles = StyleSheet.create({
   container: {
@@ -1121,8 +1133,8 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.md,
+    alignItems: 'stretch',
+    paddingHorizontal: wp(4),
   },
   loadingText: {
     marginTop: spacing.sm,

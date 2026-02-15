@@ -165,6 +165,231 @@ export const ProfileSkeleton = () => {
   );
 };
 
+export const ChatListSkeleton = ({ count = 6 }) => {
+  const { isDarkMode } = useAppSettings();
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [pulseAnim]);
+
+  const opacity = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  const skeletonColor = isDarkMode
+    ? 'rgba(255, 255, 255, 0.1)'
+    : 'rgba(0, 0, 0, 0.08)';
+
+  const cardBackground = isDarkMode
+    ? 'rgba(255, 255, 255, 0.04)'
+    : 'rgba(255, 255, 255, 0.85)';
+
+  return (
+    <View>
+      {Array.from({ length: count }).map((_, index) => (
+        <View
+          key={`chat-skeleton-${index}`}
+          style={[
+            styles.listSkeletonCard,
+            {
+              backgroundColor: cardBackground,
+              borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+            },
+          ]}
+        >
+          <Animated.View
+            style={[
+              styles.listSkeletonAvatar,
+              { backgroundColor: skeletonColor, opacity },
+            ]}
+          />
+          <View style={styles.listSkeletonContent}>
+            <Animated.View
+              style={[
+                styles.listSkeletonTitle,
+                { backgroundColor: skeletonColor, opacity },
+              ]}
+            />
+            <Animated.View
+              style={[
+                styles.listSkeletonSubtitle,
+                { backgroundColor: skeletonColor, opacity },
+              ]}
+            />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+};
+
+export const NotificationSkeleton = ({ count = 6 }) => {
+  const { isDarkMode } = useAppSettings();
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [pulseAnim]);
+
+  const opacity = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  const skeletonColor = isDarkMode
+    ? 'rgba(255, 255, 255, 0.1)'
+    : 'rgba(0, 0, 0, 0.08)';
+
+  const cardBackground = isDarkMode
+    ? 'rgba(255, 255, 255, 0.04)'
+    : 'rgba(255, 255, 255, 0.85)';
+
+  return (
+    <View>
+      {Array.from({ length: count }).map((_, index) => (
+        <View
+          key={`notif-skeleton-${index}`}
+          style={[
+            styles.listSkeletonCard,
+            {
+              backgroundColor: cardBackground,
+              borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+            },
+          ]}
+        >
+          <Animated.View
+            style={[
+              styles.listSkeletonAvatar,
+              { backgroundColor: skeletonColor, opacity },
+            ]}
+          />
+          <View style={styles.listSkeletonContent}>
+            <Animated.View
+              style={[
+                styles.listSkeletonTitle,
+                { backgroundColor: skeletonColor, opacity },
+              ]}
+            />
+            <Animated.View
+              style={[
+                styles.listSkeletonSubtitle,
+                { backgroundColor: skeletonColor, opacity, width: '80%' },
+              ]}
+            />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+};
+
+export const MessageListSkeleton = ({ count = 8 }) => {
+  const { isDarkMode } = useAppSettings();
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [pulseAnim]);
+
+  const opacity = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  const skeletonColor = isDarkMode
+    ? 'rgba(255, 255, 255, 0.12)'
+    : 'rgba(0, 0, 0, 0.08)';
+
+  return (
+    <View>
+      {Array.from({ length: count }).map((_, index) => {
+        const isMine = index % 3 === 0;
+        const width = isMine ? '62%' : index % 2 === 0 ? '74%' : '56%';
+
+        return (
+          <View
+            key={`message-skeleton-${index}`}
+            style={[
+              styles.messageSkeletonRow,
+              { justifyContent: isMine ? 'flex-end' : 'flex-start' },
+            ]}
+          >
+            <Animated.View
+              style={[
+                styles.messageSkeletonBubble,
+                {
+                  backgroundColor: skeletonColor,
+                  opacity,
+                  width,
+                },
+              ]}
+            />
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
+export const SavedPostSkeleton = ({ count = 3 }) => {
+  return (
+    <View>
+      {Array.from({ length: count }).map((_, index) => (
+        <View key={`saved-post-skeleton-${index}`} style={styles.postContainer}>
+          <PostCardSkeleton />
+        </View>
+      ))}
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
   container: {
     padding: spacing.md,
@@ -245,5 +470,45 @@ const styles = StyleSheet.create({
     height: 16,
     width: '70%',
     borderRadius: 4,
+  },
+  listSkeletonCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  listSkeletonAvatar: {
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(22),
+    marginRight: spacing.sm,
+  },
+  listSkeletonContent: {
+    flex: 1,
+  },
+  listSkeletonTitle: {
+    height: moderateScale(14),
+    borderRadius: 4,
+    width: '55%',
+    marginBottom: spacing.xs,
+  },
+  listSkeletonSubtitle: {
+    height: moderateScale(12),
+    borderRadius: 4,
+    width: '40%',
+  },
+  messageSkeletonRow: {
+    width: '100%',
+    marginBottom: spacing.sm,
+  },
+  messageSkeletonBubble: {
+    height: moderateScale(48),
+    borderRadius: borderRadius.lg,
+  },
+  postContainer: {
+    marginBottom: spacing.md,
   },
 });

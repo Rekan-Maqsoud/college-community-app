@@ -758,6 +758,8 @@ export default {
     departmentFeedEmpty: 'No posts from your department yet. Be the first to share!',
     majorFeedEmpty: 'No posts from your major yet. Start the conversation!',
     publicFeedEmpty: 'No public posts yet. Share something with everyone!',
+    filterSort: 'Filter and sort feed',
+    scrollToTop: 'Scroll to top',
   },
   
   // Chats Screen
@@ -1605,6 +1607,10 @@ export default {
     seeLess: 'See less',
     you: 'You',
     clear: 'Clear',
+    close: 'Close',
+    more: 'More options',
+    previous: 'Previous',
+    next: 'Next',
     updates: {
       title: 'Update available',
       availableBody: 'A new update is ready to download.',

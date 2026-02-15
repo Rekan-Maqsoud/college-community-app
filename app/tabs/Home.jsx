@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   StatusBar,
+  Platform,
   FlatList,
   ActivityIndicator,
   RefreshControl,
@@ -27,6 +28,7 @@ import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
 import GreetingBanner from '../components/GreetingBanner';
 import { PostCardSkeleton } from '../components/SkeletonLoader';
+import UnifiedEmptyState from '../components/UnifiedEmptyState';
 import {
   wp,
   hp,
@@ -49,7 +51,7 @@ const POSTS_PER_PAGE = 15;
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
 const Home = ({ navigation, route }) => {
-  const { t, theme, isDarkMode, compactMode } = useAppSettings();
+  const { t, theme, isDarkMode, compactMode, triggerHaptic } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
@@ -555,6 +557,7 @@ const Home = ({ navigation, route }) => {
     if (!user?.$id) return;
 
     try {
+      triggerHaptic('selection');
       const result = await togglePostLike(postId, user.$id);
 
       setPosts(prevPosts =>
@@ -645,6 +648,7 @@ const Home = ({ navigation, route }) => {
           style: 'destructive',
           onPress: async () => {
             try {
+              triggerHaptic('warning');
               await deletePost(post.$id, post.imageDeleteUrls);
               setPosts(prevPosts => prevPosts.filter(p => p.$id !== post.$id));
               showAlert({ type: 'success', title: t('common.success'), message: t('post.postDeleted') });
@@ -720,6 +724,7 @@ const Home = ({ navigation, route }) => {
     if (!user?.$id || !post?.$id) return;
 
     try {
+      triggerHaptic('light');
       const result = await createRepost(post.$id, user.$id, {
         userName: user.fullName || user.name,
         profilePicture: user.profilePicture || null,
@@ -779,64 +784,27 @@ const Home = ({ navigation, route }) => {
     }
 
     if (posts.length === 0) {
-      const cardBackground = isDarkMode 
-        ? 'rgba(255, 255, 255, 0.08)' 
-        : 'rgba(255, 255, 255, 0.6)';
-
       return (
-        <View style={styles.centerContainer}>
-          <View
-            style={[
-              styles.emptyStateCard,
-              {
-                backgroundColor: cardBackground,
-                borderRadius: borderRadius.xl,
-                borderWidth: isDarkMode ? 0 : 1,
-                borderColor: 'rgba(0, 0, 0, 0.04)',
-              }
-            ]}>
-            <View style={[
-              styles.emptyIconContainer,
-              {
-                backgroundColor: isDarkMode
-                  ? 'rgba(255,255,255,0.15)'
-                  : 'rgba(0, 0, 0, 0.05)'
-              }
-            ]}>
-              <Ionicons
-                name={
-                  selectedFeed === FEED_TYPES.DEPARTMENT
-                    ? 'people-outline'
-                    : selectedFeed === FEED_TYPES.MAJOR
-                      ? 'school-outline'
-                      : 'globe-outline'
-                }
-                size={moderateScale(64)}
-                color={isDarkMode ? 'rgba(255,255,255,0.7)' : 'rgba(0, 0, 0, 0.4)'}
-              />
-            </View>
-            <Text style={[
-              styles.emptyTitle,
-              {
-                fontSize: fontSize(20),
-                color: theme.text
-              }
-            ]}>
-              {t('feed.noPosts')}
-            </Text>
-            <Text style={[
-              styles.emptyMessage,
-              {
-                fontSize: fontSize(14),
-                color: theme.subText
-              }
-            ]}>
-              {selectedFeed === FEED_TYPES.DEPARTMENT && t('home.departmentFeedEmpty')}
-              {selectedFeed === FEED_TYPES.MAJOR && t('home.majorFeedEmpty')}
-              {selectedFeed === FEED_TYPES.PUBLIC && t('home.publicFeedEmpty')}
-            </Text>
-          </View>
-        </View>
+        <UnifiedEmptyState
+          iconName={
+            selectedFeed === FEED_TYPES.DEPARTMENT
+              ? 'people-outline'
+              : selectedFeed === FEED_TYPES.MAJOR
+                ? 'school-outline'
+                : 'globe-outline'
+          }
+          title={t('feed.noPosts')}
+          description={
+            selectedFeed === FEED_TYPES.DEPARTMENT
+              ? t('home.departmentFeedEmpty')
+              : selectedFeed === FEED_TYPES.MAJOR
+                ? t('home.majorFeedEmpty')
+                : t('home.publicFeedEmpty')
+          }
+          actionLabel={t('common.retry')}
+          actionIconName="refresh-outline"
+          onAction={handleRefresh}
+        />
       );
     }
 
@@ -892,6 +860,10 @@ const Home = ({ navigation, route }) => {
         scrollEventThrottle={16}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
+        windowSize={11}
+        maxToRenderPerBatch={10}
+        initialNumToRender={8}
+        removeClippedSubviews={Platform.OS === 'android'}
       />
     );
   };
@@ -949,6 +921,9 @@ const Home = ({ navigation, route }) => {
               style={[styles.sortButton, { height: actionButtonSize, width: actionButtonSize }]}
               onPress={() => setShowFilterSortModal(true)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={t('home.filterSort')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <View
                 style={[
@@ -980,6 +955,9 @@ const Home = ({ navigation, route }) => {
               style={[styles.notificationButton, { height: actionButtonSize, width: actionButtonSize }]}
               onPress={() => navigation.navigate('Notifications')}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={t('notifications.title')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <View
                 style={[
@@ -1055,6 +1033,9 @@ const Home = ({ navigation, route }) => {
                 }}
                 style={styles.reportModalCloseBtn}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.close')}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Ionicons name="close" size={moderateScale(18)} color={theme.textSecondary} />
               </TouchableOpacity>
@@ -1122,6 +1103,9 @@ const Home = ({ navigation, route }) => {
               backgroundColor: theme.primary,
             }
           ]}
+          accessibilityRole="button"
+          accessibilityLabel={t('home.scrollToTop') || t('common.goBack')}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Ionicons name="arrow-up" size={moderateScale(22)} color="#FFFFFF" />
         </TouchableOpacity>

@@ -757,6 +757,8 @@ export default {
     departmentFeedEmpty: 'لا توجد منشورات من قسمك حتى الآن. كن أول من يشارك!',
     majorFeedEmpty: 'لا توجد منشورات من تخصصك حتى الآن. ابدأ المحادثة!',
     publicFeedEmpty: 'لا توجد منشورات عامة حتى الآن. شارك شيئاً مع الجميع!',
+    filterSort: 'تصفية وترتيب الخلاصة',
+    scrollToTop: 'التمرير إلى الأعلى',
   },
   
   // Chats Screen
@@ -1603,6 +1605,10 @@ export default {
     seeLess: 'عرض أقل',
     you: 'أنت',
     clear: 'مسح',
+    close: 'إغلاق',
+    more: 'خيارات إضافية',
+    previous: 'السابق',
+    next: 'التالي',
     updates: {
       title: 'تحديث متاح',
       availableBody: 'يوجد تحديث جديد جاهز للتنزيل.',

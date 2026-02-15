@@ -15,6 +15,8 @@ import { useUser } from '../../context/UserContext';
 import { getBookmarkedPostIds } from '../../utils/bookmarkService';
 import PostCard from '../../components/PostCard';
 import CustomAlert from '../../components/CustomAlert';
+import UnifiedEmptyState from '../../components/UnifiedEmptyState';
+import { SavedPostSkeleton } from '../../components/SkeletonLoader';
 import useCustomAlert from '../../hooks/useCustomAlert';
 import { getPost } from '../../../database/posts';
 import { togglePostLike } from '../../../database/posts';
@@ -24,7 +26,7 @@ import { borderRadius } from '../../theme/designTokens';
 
 
 const SavedPosts = ({ navigation }) => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, triggerHaptic } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
@@ -72,6 +74,7 @@ const SavedPosts = ({ navigation }) => {
   const handleLike = async (postId) => {
     if (!user?.$id) return;
     try {
+      triggerHaptic('selection');
       await togglePostLike(postId, user.$id);
     } catch {
       // Silent fail
@@ -104,27 +107,15 @@ const SavedPosts = ({ navigation }) => {
   };
 
   const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <View style={[
-        styles.emptyCard,
-        {
-          backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.8)',
-          borderRadius: borderRadius.xl,
-        }
-      ]}>
-        <Ionicons
-          name="bookmark-outline"
-          size={moderateScale(60)}
-          color={theme.textSecondary}
-        />
-        <Text style={[styles.emptyTitle, { color: theme.text, fontSize: fontSize(18) }]}>
-          {t('settings.noSavedPosts')}
-        </Text>
-        <Text style={[styles.emptySubtext, { color: theme.textSecondary, fontSize: fontSize(13) }]}>
-          {t('settings.savedPostsHint')}
-        </Text>
-      </View>
-    </View>
+    <UnifiedEmptyState
+      iconName="bookmark-outline"
+      title={t('settings.noSavedPosts')}
+      description={t('settings.savedPostsHint')}
+      actionLabel={t('common.goBack')}
+      actionIconName="arrow-back"
+      onAction={() => navigation.goBack()}
+      compact
+    />
   );
 
   return (
@@ -141,6 +132,8 @@ const SavedPosts = ({ navigation }) => {
             color={theme.text}
             onPress={() => navigation.goBack()}
             style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.goBack')}
           />
           <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(20) }]}>
             {t('settings.savedPosts')}
@@ -150,7 +143,7 @@ const SavedPosts = ({ navigation }) => {
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.primary} />
+            <SavedPostSkeleton count={4} />
           </View>
         ) : (
           <FlatList
@@ -159,6 +152,10 @@ const SavedPosts = ({ navigation }) => {
             keyExtractor={(item) => item.$id}
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={renderEmpty}
+            windowSize={9}
+            maxToRenderPerBatch={8}
+            initialNumToRender={6}
+            removeClippedSubviews={Platform.OS === 'android'}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}

@@ -29,7 +29,7 @@ import ReplyInputSection from './postDetails/ReplyInputSection';
 import { postDetailsStyles as styles } from './postDetails/styles';
 
 const PostDetails = ({ navigation, route }) => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, triggerHaptic } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
@@ -319,6 +319,7 @@ const PostDetails = ({ navigation, route }) => {
     }
 
     setIsSubmitting(true);
+    triggerHaptic('light');
 
     try {
       let uploadedImageUrls = [];
@@ -446,6 +447,7 @@ const PostDetails = ({ navigation, route }) => {
           style: 'destructive',
           onPress: async () => {
             try {
+              triggerHaptic('warning');
               await deleteReply(reply.$id, post.$id, reply.imageDeleteUrls);
               await loadReplies();
               showAlert({ type: 'success', title: t('common.success'), message: t('post.replyDeleted') });
@@ -478,6 +480,7 @@ const PostDetails = ({ navigation, route }) => {
     }
     
     try {
+      triggerHaptic('selection');
       const upvotedBy = reply.upvotedBy || [];
       const downvotedBy = reply.downvotedBy || [];
       
@@ -514,6 +517,7 @@ const PostDetails = ({ navigation, route }) => {
     }
     
     try {
+      triggerHaptic('selection');
       const upvotedBy = reply.upvotedBy || [];
       const downvotedBy = reply.downvotedBy || [];
       
@@ -716,7 +720,7 @@ const PostDetails = ({ navigation, route }) => {
       <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
         <View style={[styles.header, { backgroundColor: theme.background, borderBottomColor: theme.border }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} accessibilityRole="button" accessibilityLabel={t('common.goBack')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.replies')}</Text>
@@ -736,7 +740,7 @@ const PostDetails = ({ navigation, route }) => {
       <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
         <View style={[styles.header, { backgroundColor: theme.background, borderBottomColor: theme.border }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} accessibilityRole="button" accessibilityLabel={t('common.goBack')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.replies')}</Text>
@@ -755,7 +759,7 @@ const PostDetails = ({ navigation, route }) => {
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       
       <View style={[styles.header, { backgroundColor: theme.background, borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
+        <TouchableOpacity onPress={handleGoBack} style={styles.backButton} accessibilityRole="button" accessibilityLabel={t('common.goBack')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.replies')}</Text>
@@ -785,6 +789,9 @@ const PostDetails = ({ navigation, route }) => {
                   onPress={() => setReplySortOrder(prev => prev === 'top' ? 'newest' : 'top')}
                   style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: moderateScale(4) }}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={replySortOrder === 'newest' ? t('post.sortNewest') : t('post.sortTop')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Ionicons
                     name={replySortOrder === 'newest' ? 'time-outline' : 'arrow-up-outline'}

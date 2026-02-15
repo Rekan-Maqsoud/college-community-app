@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar, ActivityIndicator, Platform, FlatList, RefreshControl, Linking, Share, Modal } from 'react-native';
-import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
@@ -27,16 +27,13 @@ const Profile = ({ navigation, route }) => {
   const [postsLoaded, setPostsLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+  const qrShareCardRef = useRef(null);
 
   const getProfileLink = () => {
     return `collegecommunity://profile/${user?.$id}`;
   };
 
-  const getQrImageUrl = () => {
-    const displayName = user?.fullName || t('common.user');
-    const caption = (t('profile.qrShareCaption') || 'Scan to visit {name} profile').replace('{name}', displayName);
-    return `https://quickchart.io/qr?size=320&margin=2&text=${encodeURIComponent(getProfileLink())}&caption=${encodeURIComponent(caption)}&captionFontSize=15`;
-  };
+  const getQrImageUrl = () => `https://quickchart.io/qr?size=440&margin=2&ecLevel=Q&dark=0F172A&light=FFFFFF&text=${encodeURIComponent(getProfileLink())}`;
 
   const shareProfileText = async (fallbackUrl = null) => {
     const profileLink = getProfileLink();
@@ -64,21 +61,20 @@ const Profile = ({ navigation, route }) => {
     const qrUrl = getQrImageUrl();
 
     try {
-      const qrFile = new File(Paths.cache, `profile-qr-${user?.$id || 'user'}.png`);
+      await Image.prefetch(qrUrl);
 
-      if (qrFile.exists) {
-        qrFile.delete();
+      if (!qrShareCardRef.current) {
+        throw new Error('QR share card not ready');
       }
 
-      const downloadedFile = await File.downloadFileAsync(qrUrl, qrFile, { idempotent: true });
-
-      if (!downloadedFile.exists || downloadedFile.size < 100) {
-        throw new Error('QR file invalid');
-      }
+      const shareImageUri = await captureRef(qrShareCardRef, {
+        format: 'png',
+        quality: 1,
+      });
 
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
-        await Sharing.shareAsync(downloadedFile.uri, {
+        await Sharing.shareAsync(shareImageUri, {
           mimeType: 'image/png',
           dialogTitle: t('profile.shareProfile'),
           UTI: 'public.png',
@@ -92,8 +88,58 @@ const Profile = ({ navigation, route }) => {
       });
     }
 
-    await shareProfileText(qrUrl);
+    await shareProfileText();
   };
+
+  const qrBorderMarkers = [
+    { key: 'tl', name: 'school-outline', position: styles.qrMarkerTopLeft },
+    { key: 'tm', name: 'book-outline', position: styles.qrMarkerTopMid },
+    { key: 'tr', name: 'library-outline', position: styles.qrMarkerTopRight },
+    { key: 'rm', name: 'calculator-outline', position: styles.qrMarkerRightMid },
+    { key: 'br', name: 'flask-outline', position: styles.qrMarkerBottomRight },
+    { key: 'bm', name: 'document-text-outline', position: styles.qrMarkerBottomMid },
+    { key: 'bl', name: 'chatbubbles-outline', position: styles.qrMarkerBottomLeft },
+    { key: 'lm', name: 'bulb-outline', position: styles.qrMarkerLeftMid },
+  ];
+
+  const renderQrDecorativeFrame = ({ compact = false } = {}) => (
+    <View style={[styles.qrDecorativeFrame, compact ? styles.qrDecorativeFrameCompact : styles.qrDecorativeFrameShare]}>
+      <Text style={[styles.qrFrameTitle, compact && styles.qrFrameTitleCompact]}>
+        {t('profile.scanToConnect')}
+      </Text>
+
+      <Text style={[styles.qrFrameSubtitle, compact && styles.qrFrameSubtitleCompact]}>
+        {t('profile.qrShareCaption').replace('{name}', user?.fullName || t('common.user'))}
+      </Text>
+
+      <View style={[styles.qrFrameInnerCard, compact ? styles.qrFrameInnerCompact : styles.qrFrameInnerShare]}>
+        {qrBorderMarkers.map((item, index) => (
+          <View key={item.key} style={[styles.qrBorderIcon, item.position]}>
+            <Ionicons
+              name={item.name}
+              size={compact ? moderateScale(12) : moderateScale(18)}
+              color={index % 2 === 0 ? '#1E3A8A' : '#2563EB'}
+            />
+          </View>
+        ))}
+
+        <Image
+          source={{ uri: getQrImageUrl() }}
+          style={[styles.qrFrameImage, compact ? styles.qrFrameImageCompact : styles.qrFrameImageShare]}
+          resizeMode="contain"
+        />
+        <View style={[styles.qrCenterLogoWrap, compact ? styles.qrCenterLogoWrapCompact : styles.qrCenterLogoWrapShare]}>
+          <View style={[styles.qrCenterLogoViewport, compact ? styles.qrCenterLogoViewportCompact : styles.qrCenterLogoViewportShare]}>
+            <Image
+              source={require('../../assets/icon.png')}
+              style={[styles.qrCenterLogo, compact && styles.qrCenterLogoCompact]}
+              resizeMode="contain"
+            />
+          </View>
+        </View>
+      </View>
+    </View>
+  );
 
   const loadUserPosts = useCallback(async (useCache = true) => {
     if (!user?.$id) return;
@@ -699,6 +745,11 @@ const Profile = ({ navigation, route }) => {
           </View>
         </ScrollView>
       </LinearGradient>
+      <View style={styles.hiddenShareCardContainer} pointerEvents="none">
+        <View ref={qrShareCardRef} collapsable={false} style={styles.shareCardCaptureRoot}>
+          {renderQrDecorativeFrame({ compact: false })}
+        </View>
+      </View>
       {/* QR Code Modal */}
       <Modal
         visible={showQRModal}
@@ -711,23 +762,14 @@ const Profile = ({ navigation, route }) => {
           onPress={() => setShowQRModal(false)}>
           <View style={[styles.qrModalContent, { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' }]}>
             <View style={styles.qrModalHeader}>
-              <Text style={[styles.qrModalTitle, { color: theme.text }]}>
-                {t('profile.scanToConnect')}
-              </Text>
+              <View style={styles.qrModalHeaderSpacer} />
               <TouchableOpacity onPress={() => setShowQRModal(false)}>
                 <Ionicons name="close" size={moderateScale(24)} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
             <View style={styles.qrCodeContainer}>
-              <Image
-                source={{ uri: getQrImageUrl() }}
-                style={styles.qrCodeImage}
-                resizeMode="contain"
-              />
+              {renderQrDecorativeFrame({ compact: true })}
             </View>
-            <Text style={[styles.qrModalName, { color: theme.text }]}>
-              {user?.fullName || t('common.user')}
-            </Text>
             <Text style={[styles.qrModalHint, { color: theme.textSecondary }]}>
               {t('profile.qrHint')}
             </Text>
@@ -874,10 +916,11 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   qrModalContent: {
-    width: '85%',
-    maxWidth: 320,
+    width: '88%',
+    maxWidth: 340,
     borderRadius: borderRadius.xl,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     alignItems: 'center',
   },
   qrModalHeader: {
@@ -887,35 +930,23 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: spacing.md,
   },
-  qrModalTitle: {
-    fontSize: fontSize(18),
-    fontWeight: '700',
+  qrModalHeaderSpacer: {
+    flex: 1,
   },
   qrCodeContainer: {
-    padding: spacing.md,
-    backgroundColor: '#FFFFFF',
-    borderRadius: borderRadius.lg,
-    marginBottom: spacing.md,
-  },
-  qrCodeImage: {
-    width: moderateScale(200),
-    height: moderateScale(200),
-  },
-  qrModalName: {
-    fontSize: fontSize(16),
-    fontWeight: '600',
-    marginBottom: spacing.xs,
+    alignItems: 'center',
+    marginBottom: spacing.sm,
   },
   qrModalHint: {
     fontSize: fontSize(12),
     textAlign: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   shareButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
     borderRadius: borderRadius.lg,
     gap: spacing.xs,
   },
@@ -923,6 +954,187 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: fontSize(14),
     fontWeight: '600',
+  },
+  hiddenShareCardContainer: {
+    position: 'absolute',
+    left: -9999,
+    top: -9999,
+    opacity: 0,
+  },
+  shareCardCaptureRoot: {
+    width: 760,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 36,
+    borderWidth: 0,
+    paddingHorizontal: 42,
+    paddingVertical: 36,
+    alignItems: 'center',
+  },
+  qrDecorativeFrame: {
+    borderRadius: 28,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingTop: 18,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+  },
+  qrDecorativeFrameShare: {
+    width: 560,
+  },
+  qrDecorativeFrameCompact: {
+    width: moderateScale(252),
+  },
+  qrFrameTitle: {
+    color: '#0F172A',
+    fontSize: 34,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  qrFrameTitleCompact: {
+    fontSize: fontSize(21),
+  },
+  qrFrameSubtitle: {
+    color: '#475569',
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 6,
+    marginBottom: 12,
+    textAlign: 'center',
+    paddingHorizontal: 12,
+  },
+  qrFrameSubtitleCompact: {
+    fontSize: fontSize(11),
+    marginBottom: spacing.sm,
+  },
+  qrFrameInnerCard: {
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+    position: 'relative',
+  },
+  qrFrameInnerShare: {
+    width: 492,
+    height: 492,
+  },
+  qrFrameInnerCompact: {
+    width: moderateScale(212),
+    height: moderateScale(212),
+    borderRadius: borderRadius.lg,
+    padding: moderateScale(10),
+  },
+  qrFrameImage: {
+    borderRadius: 18,
+  },
+  qrFrameImageShare: {
+    width: 440,
+    height: 440,
+  },
+  qrFrameImageCompact: {
+    width: moderateScale(185),
+    height: moderateScale(185),
+    borderRadius: borderRadius.md,
+  },
+  qrCenterLogoWrap: {
+    position: 'absolute',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  qrCenterLogoWrapShare: {
+    width: 126,
+    height: 126,
+    borderRadius: 63,
+  },
+  qrCenterLogoWrapCompact: {
+    width: moderateScale(52),
+    height: moderateScale(52),
+    borderRadius: borderRadius.round,
+    borderWidth: 2,
+  },
+  qrCenterLogoViewport: {
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qrCenterLogoViewportShare: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+  },
+  qrCenterLogoViewportCompact: {
+    width: moderateScale(38),
+    height: moderateScale(38),
+    borderRadius: borderRadius.round,
+  },
+  qrCenterLogo: {
+    width: 168,
+    height: 168,
+    transform: [{ scale: 1 }],
+  },
+  qrCenterLogoCompact: {
+    width: moderateScale(66),
+    height: moderateScale(66),
+  },
+  qrBorderIcon: {
+    position: 'absolute',
+    zIndex: 5,
+    width: moderateScale(24),
+    height: moderateScale(24),
+    borderRadius: borderRadius.round,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qrMarkerTopLeft: {
+    top: -12,
+    left: -12,
+  },
+  qrMarkerTopMid: {
+    top: -12,
+    left: '50%',
+    marginLeft: -12,
+  },
+  qrMarkerTopRight: {
+    top: -12,
+    right: -12,
+  },
+  qrMarkerRightMid: {
+    top: '50%',
+    right: -12,
+    marginTop: -12,
+  },
+  qrMarkerBottomRight: {
+    bottom: -12,
+    right: -12,
+  },
+  qrMarkerBottomMid: {
+    bottom: -12,
+    left: '50%',
+    marginLeft: -12,
+  },
+  qrMarkerBottomLeft: {
+    bottom: -12,
+    left: -12,
+  },
+  qrMarkerLeftMid: {
+    top: '50%',
+    left: -12,
+    marginTop: -12,
   },
 });
 

@@ -17,6 +17,8 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import ProfilePicture from '../components/ProfilePicture';
 import CustomAlert from '../components/CustomAlert';
+import UnifiedEmptyState from '../components/UnifiedEmptyState';
+import { NotificationSkeleton } from '../components/SkeletonLoader';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
@@ -210,6 +212,8 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
         onLongPress={() => onLongPress && onLongPress(notification)}
         delayLongPress={500}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`${senderName} ${message}`}
       >
         <View style={styles.notificationContent}>
           <View style={styles.avatarContainer}>
@@ -265,6 +269,8 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
               style={styles.deleteButton}
               onPress={() => setMenuVisible(!menuVisible)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.more')}
             >
               <Ionicons name="ellipsis-vertical" size={moderateScale(16)} color={theme.textSecondary} />
             </TouchableOpacity>
@@ -438,7 +444,7 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
 };
 
 const Notifications = ({ navigation }) => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, triggerHaptic } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
@@ -579,6 +585,7 @@ const Notifications = ({ navigation }) => {
     
     // Mark as read (optimistic update)
     if (!notification.isRead) {
+      triggerHaptic('selection');
       // Update UI immediately
       setNotifications(prev =>
         prev.map(n =>
@@ -632,6 +639,7 @@ const Notifications = ({ navigation }) => {
     if (!user?.$id) return;
     
     try {
+      triggerHaptic('light');
       await markAllNotificationsAsRead(user.$id);
       setNotifications(prev =>
         prev.map(n => ({ ...n, isRead: true }))
@@ -658,6 +666,7 @@ const Notifications = ({ navigation }) => {
 
   const handleDeleteNotification = async (notification) => {
     try {
+      triggerHaptic('warning');
       await deleteNotification(notification.$id);
       setNotifications(prev => prev.filter(n => n.$id !== notification.$id));
     } catch (error) {
@@ -713,6 +722,7 @@ const Notifications = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
+              triggerHaptic('warning');
               await deleteAllNotifications(user.$id);
               setNotifications([]);
             } catch (error) {
@@ -773,27 +783,14 @@ const Notifications = ({ navigation }) => {
   };
 
   const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <View style={[styles.emptyIconContainer, { backgroundColor: isDarkMode ? 'rgba(255, 149, 0, 0.15)' : 'rgba(255, 149, 0, 0.1)' }]}>
-        <Ionicons
-          name="notifications-outline"
-          size={moderateScale(48)}
-          color={theme.warning}
-        />
-      </View>
-      <Text style={[styles.emptyTitle, { color: theme.text }]}>
-        {t('notifications.noNotifications') || 'No notifications yet'}
-      </Text>
-      <Text style={[styles.emptySubtitle, { color: theme.subText }]}>
-        {t('notifications.noNotificationsDesc') || 'When you get notifications, they will appear here'}
-      </Text>
-      <View style={[styles.emptyHintContainer, { borderTopColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
-        <Ionicons name="bulb-outline" size={moderateScale(16)} color={theme.textSecondary} />
-        <Text style={[styles.emptyHint, { color: theme.textSecondary }]}>
-          {t('notifications.hintText') || 'Follow users and interact with posts to receive updates'}
-        </Text>
-      </View>
-    </View>
+    <UnifiedEmptyState
+      iconName="notifications-outline"
+      title={t('notifications.noNotifications')}
+      description={t('notifications.noNotificationsDesc')}
+      actionLabel={t('common.retry')}
+      actionIconName="refresh-outline"
+      onAction={handleRefresh}
+    />
   );
 
   return (
@@ -811,6 +808,9 @@ const Notifications = ({ navigation }) => {
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.goBack')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.text} />
           </TouchableOpacity>
@@ -823,6 +823,9 @@ const Notifications = ({ navigation }) => {
             <TouchableOpacity
               style={styles.markAllButton}
               onPress={handleMarkAllAsRead}
+              accessibilityRole="button"
+              accessibilityLabel={t('notifications.markAllRead')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Text style={[styles.markAllText, { color: theme.primary }]}>
                 {t('notifications.markAllRead') || 'Mark all read'}
@@ -832,6 +835,9 @@ const Notifications = ({ navigation }) => {
             <TouchableOpacity
               style={styles.markAllButton}
               onPress={handleClearAll}
+              accessibilityRole="button"
+              accessibilityLabel={t('notifications.clearAll')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Text style={[styles.markAllText, { color: '#FF3B30' }]}>
                 {t('notifications.clearAll') || 'Clear all'}
@@ -844,7 +850,7 @@ const Notifications = ({ navigation }) => {
 
         {isLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.primary} />
+            <NotificationSkeleton count={7} />
           </View>
         ) : (
           <FlatList
@@ -892,6 +898,10 @@ const Notifications = ({ navigation }) => {
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.5}
             ListEmptyComponent={renderEmptyState}
+            windowSize={11}
+            maxToRenderPerBatch={10}
+            initialNumToRender={12}
+            removeClippedSubviews={Platform.OS === 'android'}
           />
         )}
       </LinearGradient>
@@ -955,7 +965,8 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'stretch',
+    paddingHorizontal: spacing.sm,
   },
   listContent: {
     paddingHorizontal: spacing.sm,

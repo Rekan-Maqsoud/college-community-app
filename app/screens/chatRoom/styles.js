@@ -24,7 +24,8 @@ export const chatRoomStyles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'stretch',
+    paddingHorizontal: spacing.md,
   },
   warningBanner: {
     flexDirection: 'row',

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import safeStorage from '../utils/safeStorage';
 import { getLocales } from 'expo-localization';
+import * as Haptics from 'expo-haptics';
 import i18n from '../../locales/i18n';
 import { I18nManager, Appearance, View, ActivityIndicator, StyleSheet } from 'react-native';
 import { setGlobalFontScale } from '../utils/responsive';
@@ -540,6 +541,31 @@ export const AppSettingsProvider = ({ children }) => {
     }
   };
 
+  const triggerHaptic = (type = 'light') => {
+    if (!hapticEnabled) return;
+
+    try {
+      if (type === 'success') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        return;
+      }
+
+      if (type === 'warning' || type === 'error') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+        return;
+      }
+
+      if (type === 'selection') {
+        Haptics.selectionAsync().catch(() => {});
+        return;
+      }
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    } catch (error) {
+      // Silent fail: haptics should never block UI
+    }
+  };
+
   const updateShowActivityStatus = async (value) => {
     try {
       setShowActivityStatus(value);
@@ -700,6 +726,7 @@ export const AppSettingsProvider = ({ children }) => {
     
     hapticEnabled,
     updateHapticEnabled,
+    triggerHaptic,
     
     showActivityStatus,
     updateShowActivityStatus,
