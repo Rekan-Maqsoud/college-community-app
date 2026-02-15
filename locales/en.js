@@ -774,6 +774,8 @@ export default {
     emptyTitle: 'Welcome to Messages',
     emptyMessage: 'Connect with classmates in your stage and department groups, or start a new conversation',
     startNewChat: 'Start a Chat',
+    noArchivedChatsTitle: 'No Archived Chats',
+    noArchivedChatsMessage: 'No archived chat, go back.',
     emptySearchTitle: 'No Users Found',
     emptySearchMessage: 'Try searching with a different name or email',
     noMessages: 'No messages yet',
@@ -917,6 +919,7 @@ export default {
     // Mute options
     mute: 'Mute',
     unmute: 'Unmute',
+    chatOptions: 'Chat Options',
     muteChat: 'Mute Chat',
     muteOptions: 'Mute Options',
     muteForever: 'Mute Forever',
@@ -931,6 +934,10 @@ export default {
     chatUnmuted: 'Chat unmuted',
     muteError: 'Failed to mute chat',
     unmuteError: 'Failed to unmute chat',
+    archive: 'Archive',
+    unarchive: 'Unarchive',
+    archivedChats: 'Archived Chats',
+    archiveError: 'Failed to update archive state',
     mutedUntil: 'Muted until {time}',
     mutedForever: 'Muted forever',
     // Pin messages

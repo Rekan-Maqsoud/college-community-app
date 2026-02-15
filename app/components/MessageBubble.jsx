@@ -85,8 +85,10 @@ const normalizeWaveformSamples = (samples, bars = VOICE_VISUAL_BARS, seedText = 
     const start = Math.floor((index * source.length) / bars);
     const end = Math.max(start + 1, Math.floor(((index + 1) * source.length) / bars));
     const segment = source.slice(start, end);
+    const peak = Math.max(...segment);
     const average = segment.reduce((sum, value) => sum + value, 0) / Math.max(1, segment.length);
-    return Number(average.toFixed(3));
+    const signal = Math.max(0.08, Math.min(1, (peak * 0.78) + (average * 0.22)));
+    return Number(signal.toFixed(3));
   });
 };
 
@@ -727,7 +729,7 @@ const MessageBubble = ({
 
       const player = createAudioPlayer(
         { uri: playableUri },
-        { updateInterval: 200, downloadFirst: true }
+        { updateInterval: 80, downloadFirst: true }
       );
 
       voicePlayerRef.current = player;
@@ -1261,7 +1263,7 @@ const MessageBubble = ({
                     )
                   );
                   const totalBars = Math.max(1, voiceData.waveform?.length || VOICE_VISUAL_BARS);
-                  const activeBars = Math.max(1, Math.round(progressRatio * totalBars));
+                  const activeBars = Math.floor(progressRatio * totalBars);
                   const isActive = index < activeBars;
                   const visualSample = Math.pow(Math.max(0.08, Math.min(1, sample)), 0.65);
                   const barHeight = moderateScale(2) + visualSample * moderateScale(13.5);

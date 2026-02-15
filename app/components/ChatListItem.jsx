@@ -1,5 +1,5 @@
-import React, { memo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { memo, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, PanResponder } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ProfilePicture from './ProfilePicture';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -18,8 +18,81 @@ const CHAT_TYPES = {
   CUSTOM_GROUP: 'custom_group',
 };
 
-const ChatListItem = ({ chat, onPress, currentUserId, unreadCount = 0, clearedAt = null }) => {
+const ARCHIVE_SWIPE_TRIGGER = 76;
+const ARCHIVE_SWIPE_MAX = 110;
+const ARCHIVE_DISMISS_OFFSET = -420;
+
+const ChatListItem = ({
+  chat,
+  onPress,
+  onLongPress,
+  onArchive,
+  swipeActionLabel,
+  currentUserId,
+  unreadCount = 0,
+  clearedAt = null,
+}) => {
   const { theme, isDarkMode, t, showActivityStatus } = useAppSettings();
+  const translateX = useRef(new Animated.Value(0)).current;
+  const archiveActionOpacity = translateX.interpolate({
+    inputRange: [-ARCHIVE_SWIPE_TRIGGER, -12, 0],
+    outputRange: [1, 0, 0],
+    extrapolate: 'clamp',
+  });
+  const archiveActionScale = translateX.interpolate({
+    inputRange: [-ARCHIVE_SWIPE_TRIGGER, -12, 0],
+    outputRange: [1, 0.92, 0.92],
+    extrapolate: 'clamp',
+  });
+
+  const resetSwipePosition = useCallback(() => {
+    Animated.spring(translateX, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 90,
+      friction: 11,
+    }).start();
+  }, [translateX]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        if (!onArchive) return false;
+        const absDx = Math.abs(gestureState.dx);
+        const absDy = Math.abs(gestureState.dy);
+        return gestureState.dx < -10 && absDx > absDy;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (!onArchive) return;
+        const nextX = Math.max(-ARCHIVE_SWIPE_MAX, Math.min(0, gestureState.dx));
+        translateX.setValue(nextX);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (!onArchive) {
+          resetSwipePosition();
+          return;
+        }
+
+        if (gestureState.dx <= -ARCHIVE_SWIPE_TRIGGER) {
+          Animated.timing(translateX, {
+            toValue: ARCHIVE_DISMISS_OFFSET,
+            duration: 170,
+            useNativeDriver: true,
+          }).start(({ finished }) => {
+            if (finished) {
+              onArchive();
+            }
+            translateX.setValue(0);
+          });
+          return;
+        }
+
+        resetSwipePosition();
+      },
+      onPanResponderTerminate: resetSwipePosition,
+    })
+  ).current;
 
   const getChatIcon = () => {
     switch (chat.type) {
@@ -149,16 +222,44 @@ const ChatListItem = ({ chat, onPress, currentUserId, unreadCount = 0, clearedAt
     : chat.groupPhoto;
 
   return (
-    <TouchableOpacity 
-      onPress={onPress} 
-      activeOpacity={0.7}
-      style={[
-        styles.container,
-        { 
-          backgroundColor: cardBackground,
-          borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
-        }
-      ]}>
+    <View style={styles.swipeContainer}>
+      {!!onArchive && (
+        <Animated.View
+          style={[
+            styles.archiveAction,
+            {
+              backgroundColor: isDarkMode ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.14)',
+              borderColor: isDarkMode ? 'rgba(245,158,11,0.4)' : 'rgba(245,158,11,0.28)',
+              opacity: archiveActionOpacity,
+              transform: [{ scale: archiveActionScale }],
+            },
+          ]}
+        >
+          <Ionicons name="archive-outline" size={moderateScale(14)} color="#F59E0B" />
+          <Text style={[styles.archiveText, { color: '#F59E0B', fontSize: fontSize(10) }]}>
+            {swipeActionLabel || t('chats.archive')}
+          </Text>
+        </Animated.View>
+      )}
+
+      <Animated.View
+        style={[
+          styles.container,
+          {
+            backgroundColor: cardBackground,
+            borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+            transform: [{ translateX }],
+          },
+        ]}
+        {...(onArchive ? panResponder.panHandlers : {})}
+      >
+        <TouchableOpacity
+          onPress={onPress}
+          onLongPress={onLongPress}
+          delayLongPress={180}
+          activeOpacity={0.7}
+          style={styles.touchContent}
+        >
       
       {isPrivateChat && chat.otherUser ? (
         <View style={styles.avatarWrapper}>
@@ -236,24 +337,51 @@ const ChatListItem = ({ chat, onPress, currentUserId, unreadCount = 0, clearedAt
         )}
       </View>
 
-      <Ionicons 
-        name="chevron-forward" 
-        size={moderateScale(18)} 
-        color={theme.textSecondary}
-        style={styles.chevron}
-      />
-    </TouchableOpacity>
+          <Ionicons 
+            name="chevron-forward" 
+            size={moderateScale(18)} 
+            color={theme.textSecondary}
+            style={styles.chevron}
+          />
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    padding: spacing.sm,
+  swipeContainer: {
     marginBottom: spacing.xs,
+    position: 'relative',
+  },
+  archiveAction: {
+    position: 'absolute',
+    right: spacing.xs,
+    top: '50%',
+    marginTop: -moderateScale(16),
+    height: moderateScale(32),
+    width: moderateScale(78),
+    borderRadius: moderateScale(16),
+    borderWidth: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+    flexDirection: 'row',
+    gap: 3,
+    paddingHorizontal: spacing.xs,
+    zIndex: 0,
+  },
+  archiveText: {
+    fontWeight: '600',
+  },
+  container: {
     borderRadius: borderRadius.md,
     borderWidth: 1,
+  },
+  touchContent: {
+    flexDirection: 'row',
+    padding: spacing.sm,
+    alignItems: 'center',
+    zIndex: 1,
   },
   avatarWrapper: {
     position: 'relative',

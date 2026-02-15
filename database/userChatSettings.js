@@ -86,11 +86,39 @@ const getDefaultSettings = (userId, chatId) => ({
     isMuted: false,
     muteExpiresAt: null,
     muteType: MUTE_TYPES.NONE,
+    isArchived: false,
+    archivedAt: null,
     bookmarkedMsgs: [],
     notifyOnMention: true,
     notifyOnAll: true,
     reactionDefaults: DEFAULT_REACTION_SET,
 });
+
+/**
+ * Archive or unarchive a chat for a specific user
+ */
+export const setChatArchived = async (userId, chatId, isArchived = true) => {
+    try {
+        return await updateUserChatSettings(userId, chatId, {
+            isArchived,
+            archivedAt: isArchived ? new Date().toISOString() : null,
+        });
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Check if a chat is archived for a specific user
+ */
+export const isChatArchived = async (userId, chatId) => {
+    try {
+        const settings = await getUserChatSettings(userId, chatId);
+        return Boolean(settings?.isArchived);
+    } catch (error) {
+        return false;
+    }
+};
 
 export const getReactionDefaults = async (userId, chatId) => {
     try {

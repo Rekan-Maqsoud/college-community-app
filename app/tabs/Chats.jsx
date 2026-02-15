@@ -10,6 +10,8 @@ import {
   RefreshControl,
   TouchableOpacity,
   SectionList,
+  Modal,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,10 +24,27 @@ import ChatListItem from '../components/ChatListItem';
 import { 
   initializeUserGroups,
   getAllUserChats,
+  leaveGroup,
 } from '../../database/chatHelpers';
 import { getUserById } from '../../database/users';
-import { getUnreadCount, decryptChatPreview, isChatRemovedByUser } from '../../database/chats';
-import { getChatClearedAt } from '../../database/userChatSettings';
+import {
+  getUnreadCount,
+  decryptChatPreview,
+  isChatRemovedByUser,
+  removePrivateChatForUser,
+  deleteChat,
+} from '../../database/chats';
+import { blockUser, blockUserChatOnly } from '../../database/users';
+import {
+  getChatClearedAt,
+  getUserChatSettings,
+  muteChat,
+  unmuteChat,
+  setChatArchived,
+  setChatClearedAt,
+  MUTE_DURATIONS,
+  MUTE_TYPES,
+} from '../../database/userChatSettings';
 import { chatsCacheManager } from '../utils/cacheManager';
 import { 
   wp, 
@@ -39,7 +58,7 @@ import { useChatList } from '../hooks/useRealtimeSubscription';
 
 const Chats = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
-  const { user } = useUser();
+  const { user, refreshUser } = useUser();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,6 +69,20 @@ const Chats = ({ navigation }) => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [unreadCounts, setUnreadCounts] = useState({});
   const [clearedAtMap, setClearedAtMap] = useState({});
+  const [muteStatusMap, setMuteStatusMap] = useState({});
+  const [archivedChatMap, setArchivedChatMap] = useState({});
+  const [showArchivedChats, setShowArchivedChats] = useState(false);
+  const [selectedChat, setSelectedChat] = useState(null);
+  const [chatMenuVisible, setChatMenuVisible] = useState(false);
+  const [muteModalVisible, setMuteModalVisible] = useState(false);
+
+  const sortChatsByActivity = useCallback((chats = []) => {
+    return [...chats].sort((a, b) => {
+      const dateA = new Date(a.lastMessageAt || a.$createdAt || 0);
+      const dateB = new Date(b.lastMessageAt || b.$createdAt || 0);
+      return dateB - dateA;
+    });
+  }, []);
 
   const stageToValue = (stage) => {
     if (!stage) return null;
@@ -263,10 +296,41 @@ const Chats = ({ navigation }) => {
       const allChats = [
         ...(chats.defaultGroups || []),
         ...(chats.customGroups || []),
-        ...(chats.privateChats || []),
+        ...filteredPrivateChats,
       ];
       loadUnreadCounts(allChats);
       loadClearedAtTimestamps(allChats);
+
+      if (user?.$id) {
+        const muteMap = {};
+        const archivedMap = {};
+
+        await Promise.all(
+          allChats.map(async (chat) => {
+            try {
+              const settings = await getUserChatSettings(user.$id, chat.$id);
+
+              let isMuted = Boolean(settings?.isMuted);
+              if (isMuted && settings?.muteExpiresAt) {
+                const expiresAt = new Date(settings.muteExpiresAt);
+                if (expiresAt <= new Date()) {
+                  await unmuteChat(user.$id, chat.$id);
+                  isMuted = false;
+                }
+              }
+
+              muteMap[chat.$id] = isMuted;
+              archivedMap[chat.$id] = Boolean(settings?.isArchived);
+            } catch {
+              muteMap[chat.$id] = false;
+              archivedMap[chat.$id] = false;
+            }
+          })
+        );
+
+        setMuteStatusMap(muteMap);
+        setArchivedChatMap(archivedMap);
+      }
     } catch (error) {
       setDefaultGroups([]);
       setCustomGroups([]);
@@ -295,44 +359,287 @@ const Chats = ({ navigation }) => {
     navigation.navigate('ChatRoom', { chat });
   };
 
+  const openChatMenu = (chat) => {
+    setSelectedChat(chat);
+    setChatMenuVisible(true);
+  };
+
+  const closeChatMenu = () => {
+    setChatMenuVisible(false);
+  };
+
+  const openMuteOptions = () => {
+    setChatMenuVisible(false);
+    setMuteModalVisible(true);
+  };
+
+  const closeMuteOptions = () => {
+    setMuteModalVisible(false);
+  };
+
+  const getSelectedChatMenuTitle = () => {
+    if (!selectedChat) return t('chats.chatOptions');
+
+    if (selectedChat.type !== 'private') {
+      return selectedChat.name || t('chats.chatOptions');
+    }
+
+    const otherUserName = selectedChat.otherUser?.name || selectedChat.otherUser?.fullName;
+    if (otherUserName) return otherUserName;
+
+    const currentName = (user?.name || user?.fullName || '').trim().toLowerCase();
+    const parts = (selectedChat.name || '')
+      .split('&')
+      .map(part => part.trim())
+      .filter(Boolean);
+
+    if (parts.length > 0) {
+      const match = parts.find(namePart => namePart.toLowerCase() !== currentName);
+      return match || parts[0];
+    }
+
+    return selectedChat.name || t('chats.chatOptions');
+  };
+
+  const handleArchiveChat = async (chat, archive = true) => {
+    if (!chat?.$id || !user?.$id) return;
+    try {
+      await setChatArchived(user.$id, chat.$id, archive);
+      setArchivedChatMap((prev) => ({ ...prev, [chat.$id]: archive }));
+    } catch {
+      Alert.alert(t('common.error'), t('chats.archiveError'));
+    }
+  };
+
+  const handleVisitSelectedProfile = () => {
+    const targetUserId = selectedChat?.otherUser?.$id || selectedChat?.otherUser?.id;
+    if (!targetUserId) return;
+    setChatMenuVisible(false);
+    navigation.navigate('UserProfile', { userId: targetUserId });
+  };
+
+  const handleClearSelectedChat = () => {
+    if (!selectedChat?.$id || !user?.$id) return;
+
+    Alert.alert(
+      t('chats.clearChat'),
+      t('chats.clearChatLocalConfirm'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('chats.clearChat'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const clearedAt = await setChatClearedAt(user.$id, selectedChat.$id);
+              setClearedAtMap((prev) => ({ ...prev, [selectedChat.$id]: clearedAt }));
+              setChatMenuVisible(false);
+            } catch {
+              Alert.alert(t('common.error'), t('chats.clearChatError'));
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteSelectedConversation = () => {
+    if (!selectedChat?.$id || selectedChat?.type !== 'private' || !user?.$id) return;
+
+    Alert.alert(
+      t('chats.deleteConversation'),
+      t('chats.deleteConversationConfirm'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteChat(selectedChat.$id, user.$id);
+              setChatMenuVisible(false);
+              await loadChats(false);
+            } catch {
+              Alert.alert(t('common.error'), t('chats.deleteConversationError'));
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleBlockSelectedUser = () => {
+    if (selectedChat?.type !== 'private' || !user?.$id) return;
+
+    const otherUserId = selectedChat.otherUser?.$id || selectedChat.otherUser?.id;
+    const otherUserName = selectedChat.otherUser?.name || selectedChat.otherUser?.fullName || getSelectedChatMenuTitle();
+
+    if (!otherUserId) {
+      Alert.alert(t('common.error'), t('chats.blockError'));
+      return;
+    }
+
+    Alert.alert(
+      t('common.blockOptionsTitle'),
+      t('common.blockOptionsMessage').replace('{name}', otherUserName),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.blockMessagesOnly'),
+          onPress: async () => {
+            try {
+              await blockUserChatOnly(user.$id, otherUserId);
+              await removePrivateChatForUser(selectedChat.$id, user.$id);
+              await refreshUser?.();
+              setChatMenuVisible(false);
+              await loadChats(false);
+            } catch (error) {
+              if (error?.code === 'CHAT_BLOCK_COLUMN_MISSING') {
+                Alert.alert(t('common.error'), t('chats.chatBlockNeedsColumn'));
+                return;
+              }
+              Alert.alert(t('common.error'), t('chats.blockError'));
+            }
+          },
+        },
+        {
+          text: t('common.blockEverything'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await blockUser(user.$id, otherUserId);
+              await refreshUser?.();
+              setChatMenuVisible(false);
+              await loadChats(false);
+            } catch {
+              Alert.alert(t('common.error'), t('chats.blockError'));
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleChatMute = async (duration) => {
+    if (!selectedChat?.$id || !user?.$id) return;
+
+    try {
+      await muteChat(user.$id, selectedChat.$id, MUTE_TYPES.ALL, duration);
+      setMuteStatusMap((prev) => ({ ...prev, [selectedChat.$id]: true }));
+      setMuteModalVisible(false);
+    } catch {
+      Alert.alert(t('common.error'), t('chats.muteError'));
+    }
+  };
+
+  const handleChatUnmute = async () => {
+    if (!selectedChat?.$id || !user?.$id) return;
+
+    try {
+      await unmuteChat(user.$id, selectedChat.$id);
+      setMuteStatusMap((prev) => ({ ...prev, [selectedChat.$id]: false }));
+      setMuteModalVisible(false);
+    } catch {
+      Alert.alert(t('common.error'), t('chats.unmuteError'));
+    }
+  };
+
+  const handleLeaveSelectedGroup = () => {
+    if (!selectedChat?.$id || !user?.$id) return;
+
+    Alert.alert(
+      t('chats.leaveGroup'),
+      t('chats.leaveGroupConfirm'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('chats.leave'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await leaveGroup(selectedChat.$id, user.$id);
+              setChatMenuVisible(false);
+              await loadChats(false);
+            } catch {
+              Alert.alert(t('common.error'), t('chats.leaveGroupError'));
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleOpenGroupSettings = () => {
+    if (!selectedChat) return;
+    setChatMenuVisible(false);
+    navigation.navigate('GroupSettings', { chat: selectedChat });
+  };
+
   const getSectionData = () => {
     const sections = [];
+    const shouldIncludeByFilter = (filterKey) => activeFilter === 'all' || activeFilter === filterKey;
+    const isArchived = (chat) => Boolean(archivedChatMap[chat.$id]);
 
-    if ((activeFilter === 'all' || activeFilter === 'class') && defaultGroups.length > 0) {
+    const blockedSet = new Set([...(user?.blockedUsers || []), ...(user?.chatBlockedUsers || [])]);
+    const visiblePrivateChats = blockedSet.size > 0
+      ? privateChats.filter(c => {
+          const otherUserId = c.participants?.find(id => id !== user?.$id);
+          return !blockedSet.has(otherUserId);
+        })
+      : privateChats;
+
+    const activeDefaultGroups = defaultGroups.filter((chat) => !isArchived(chat));
+    const activeCustomGroups = customGroups.filter((chat) => !isArchived(chat));
+    const activePrivateChats = visiblePrivateChats.filter((chat) => !isArchived(chat));
+
+    const archivedChats = sortChatsByActivity([
+      ...defaultGroups,
+      ...customGroups,
+      ...visiblePrivateChats,
+    ].filter((chat) => isArchived(chat)));
+
+    if (showArchivedChats) {
+      if (archivedChats.length > 0) {
+        sections.push({
+          key: 'archived',
+          title: t('chats.archivedChats'),
+          data: archivedChats,
+          icon: 'archive',
+          color: '#F59E0B',
+        });
+      }
+
+      return sections;
+    }
+
+    if (shouldIncludeByFilter('class') && activeDefaultGroups.length > 0) {
       sections.push({
+        key: 'class',
         title: t('chats.classLabel'),
-        data: defaultGroups,
+        data: sortChatsByActivity(activeDefaultGroups),
         icon: 'school',
         color: '#3B82F6',
       });
     }
 
-    if ((activeFilter === 'all' || activeFilter === 'groups') && customGroups.length > 0) {
+    if (shouldIncludeByFilter('groups') && activeCustomGroups.length > 0) {
       sections.push({
+        key: 'groups',
         title: t('chats.groupsLabel'),
-        data: customGroups,
+        data: sortChatsByActivity(activeCustomGroups),
         icon: 'people',
         color: '#F59E0B',
       });
     }
 
-    if ((activeFilter === 'all' || activeFilter === 'direct') && privateChats.length > 0) {
-      const blockedSet = new Set([...(user?.blockedUsers || []), ...(user?.chatBlockedUsers || [])]);
-      const visiblePrivateChats = blockedSet.size > 0
-        ? privateChats.filter(c => {
-            const otherUserId = c.participants?.find(id => id !== user?.$id);
-            return !blockedSet.has(otherUserId);
-          })
-        : privateChats;
-
-      if (visiblePrivateChats.length > 0) {
+    if (shouldIncludeByFilter('direct') && activePrivateChats.length > 0) {
         sections.push({
+          key: 'direct',
           title: t('chats.directLabel'),
-          data: visiblePrivateChats,
+          data: sortChatsByActivity(activePrivateChats),
           icon: 'chatbubble',
           color: '#10B981',
         });
-      }
     }
 
     return sections;
@@ -350,19 +657,60 @@ const Chats = ({ navigation }) => {
     </View>
   );
 
-  const renderChatItem = ({ item }) => (
-    <ChatListItem 
-      chat={item} 
-      onPress={() => handleChatPress(item)}
-      currentUserId={user?.$id}
-      unreadCount={unreadCounts[item.$id] || 0}
-      clearedAt={clearedAtMap[item.$id] || null}
-    />
-  );
+  const renderChatItem = ({ item, section }) => {
+    const isArchivedSection = section?.key === 'archived';
+
+    return (
+      <ChatListItem 
+        chat={item}
+        onPress={() => handleChatPress(item)}
+        onLongPress={() => openChatMenu(item)}
+        onArchive={() => handleArchiveChat(item, !isArchivedSection)}
+        swipeActionLabel={isArchivedSection ? t('chats.unarchive') : t('chats.archive')}
+        currentUserId={user?.$id}
+        unreadCount={unreadCounts[item.$id] || 0}
+        clearedAt={clearedAtMap[item.$id] || null}
+      />
+    );
+  };
+
+  const archivedUnreadChatsCount = [
+    ...defaultGroups,
+    ...customGroups,
+    ...privateChats,
+  ].filter((chat) => archivedChatMap[chat.$id] && (unreadCounts[chat.$id] || 0) > 0).length;
+
+  const renderArchivedAccess = () => null;
 
   const renderEmpty = () => {
     if (loading || initializing) {
       return null;
+    }
+
+    if (showArchivedChats) {
+      return (
+        <View style={styles.emptyContainer}>
+          <View style={[styles.emptyCard, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.8)' }]}>
+            <View style={[styles.emptyIconContainer, { backgroundColor: isDarkMode ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.12)' }]}>
+              <Ionicons name="archive-outline" size={moderateScale(42)} color="#F59E0B" />
+            </View>
+            <Text style={[styles.emptyTitle, { fontSize: fontSize(20), color: theme.text }]}>
+              {t('chats.noArchivedChatsTitle')}
+            </Text>
+            <Text style={[styles.emptyMessage, { fontSize: fontSize(14), color: theme.textSecondary }]}>
+              {t('chats.noArchivedChatsMessage')}
+            </Text>
+            <TouchableOpacity
+              style={[styles.emptyActionButton, { backgroundColor: theme.primary }]}
+              onPress={() => setShowArchivedChats(false)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-back" size={moderateScale(18)} color="#FFFFFF" />
+              <Text style={styles.emptyActionButtonText}>{t('common.goBack')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
     }
     
     return (
@@ -400,15 +748,45 @@ const Chats = ({ navigation }) => {
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       <View style={styles.headerTop}>
-        <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(22) }]}>
-          {t('chats.title')}
-        </Text>
+        <View style={styles.titleRow}>
+          {showArchivedChats && (
+            <TouchableOpacity
+              style={[styles.backButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)' }]}
+              activeOpacity={0.7}
+              onPress={() => setShowArchivedChats(false)}
+            >
+              <Ionicons name="arrow-back" size={moderateScale(16)} color={theme.text} />
+            </TouchableOpacity>
+          )}
+          <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(22) }]}>
+            {showArchivedChats ? t('chats.archivedChats') : t('chats.title')}
+          </Text>
+        </View>
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={[styles.iconButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)' }]}
             activeOpacity={0.7}
             onPress={() => navigation.navigate('UserSearch')}>
             <Ionicons name="search" size={moderateScale(18)} color={theme.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: showArchivedChats
+                  ? (isDarkMode ? 'rgba(245,158,11,0.22)' : 'rgba(245,158,11,0.16)')
+                  : (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'),
+              },
+            ]}
+            activeOpacity={0.7}
+            onPress={() => setShowArchivedChats((prev) => !prev)}
+          >
+            <Ionicons name="archive-outline" size={moderateScale(17)} color="#F59E0B" />
+            {archivedUnreadChatsCount > 0 && (
+              <View style={[styles.archiveCountBadge, { backgroundColor: isDarkMode ? 'rgba(59,130,246,0.92)' : '#3B82F6' }]}>
+                <Text style={styles.archiveCountBadgeText}>{archivedUnreadChatsCount > 99 ? '99+' : archivedUnreadChatsCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.iconButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)' }]}
@@ -419,32 +797,34 @@ const Chats = ({ navigation }) => {
         </View>
       </View>
       
-      <View style={styles.filterContainer}>
-        {filterOptions.map((filter) => (
-          <TouchableOpacity
-            key={filter.key}
-            style={[
-              styles.filterPill,
-              { 
-                backgroundColor: activeFilter === filter.key 
-                  ? theme.primary 
-                  : isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' 
-              }
-            ]}
-            activeOpacity={0.7}
-            onPress={() => setActiveFilter(filter.key)}>
-            <Text style={[
-              styles.filterPillText,
-              { 
-                color: activeFilter === filter.key ? '#FFFFFF' : theme.textSecondary,
-                fontSize: fontSize(11)
-              }
-            ]}>
-              {filter.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {!showArchivedChats && (
+        <View style={styles.filterContainer}>
+          {filterOptions.map((filter) => (
+            <TouchableOpacity
+              key={filter.key}
+              style={[
+                styles.filterPill,
+                { 
+                  backgroundColor: activeFilter === filter.key 
+                    ? theme.primary 
+                    : isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' 
+                }
+              ]}
+              activeOpacity={0.7}
+              onPress={() => setActiveFilter(filter.key)}>
+              <Text style={[
+                styles.filterPillText,
+                { 
+                  color: activeFilter === filter.key ? '#FFFFFF' : theme.textSecondary,
+                  fontSize: fontSize(11)
+                }
+              ]}>
+                {filter.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
     </View>
   );
 
@@ -559,6 +939,173 @@ const Chats = ({ navigation }) => {
             />
           )}
         </View>
+
+        <Modal
+          visible={chatMenuVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={closeChatMenu}
+        >
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeChatMenu}>
+            <View
+              style={[
+                styles.menuCard,
+                { backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF' },
+              ]}
+            >
+              <Text style={[styles.menuTitle, { color: theme.text, fontSize: fontSize(15) }]} numberOfLines={1}>
+                {getSelectedChatMenuTitle()}
+              </Text>
+
+              {selectedChat?.type === 'private' && (
+                <TouchableOpacity style={styles.menuItem} onPress={handleVisitSelectedProfile}>
+                  <Ionicons name="person-outline" size={moderateScale(18)} color={theme.primary} />
+                  <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                    {t('chats.visitProfile')}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {selectedChat?.type !== 'private' && (
+                <TouchableOpacity style={styles.menuItem} onPress={handleOpenGroupSettings}>
+                  <Ionicons name="settings-outline" size={moderateScale(18)} color={theme.primary} />
+                  <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                    {t('chats.groupSettings')}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity style={styles.menuItem} onPress={openMuteOptions}>
+                <Ionicons
+                  name={muteStatusMap[selectedChat?.$id] ? 'notifications-outline' : 'notifications-off-outline'}
+                  size={moderateScale(18)}
+                  color={theme.primary}
+                />
+                <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                  {muteStatusMap[selectedChat?.$id] ? t('chats.unmute') : t('chats.mute')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={async () => {
+                  const isArchived = Boolean(archivedChatMap[selectedChat?.$id]);
+                  await handleArchiveChat(selectedChat, !isArchived);
+                  closeChatMenu();
+                }}
+              >
+                <Ionicons name="archive-outline" size={moderateScale(18)} color="#F59E0B" />
+                <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                  {archivedChatMap[selectedChat?.$id] ? t('chats.unarchive') : t('chats.archive')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.menuItem} onPress={handleClearSelectedChat}>
+                <Ionicons name="trash-outline" size={moderateScale(18)} color={theme.primary} />
+                <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                  {t('chats.clearChat')}
+                </Text>
+              </TouchableOpacity>
+
+              {selectedChat?.type === 'private' && (
+                <TouchableOpacity style={styles.menuItem} onPress={handleBlockSelectedUser}>
+                  <Ionicons name="ban-outline" size={moderateScale(18)} color="#EF4444" />
+                  <Text style={[styles.menuItemText, { color: '#EF4444', fontSize: fontSize(14) }]}>
+                    {t('chats.blockUser')}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {selectedChat?.type === 'private' && (
+                <TouchableOpacity style={styles.menuItem} onPress={handleDeleteSelectedConversation}>
+                  <Ionicons name="trash" size={moderateScale(18)} color="#EF4444" />
+                  <Text style={[styles.menuItemText, { color: '#EF4444', fontSize: fontSize(14) }]}>
+                    {t('chats.deleteConversation')}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {selectedChat?.type !== 'private' && (
+                <TouchableOpacity style={styles.menuItem} onPress={handleLeaveSelectedGroup}>
+                  <Ionicons name="exit-outline" size={moderateScale(18)} color="#EF4444" />
+                  <Text style={[styles.menuItemText, { color: '#EF4444', fontSize: fontSize(14) }]}>
+                    {t('chats.leaveGroup')}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        <Modal
+          visible={muteModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={closeMuteOptions}
+        >
+          <View style={styles.modalOverlay}>
+            <View
+              style={[
+                styles.muteModalCard,
+                { backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF' },
+              ]}
+            >
+              <Text style={[styles.menuTitle, { color: theme.text, fontSize: fontSize(16) }]}> 
+                {t('chats.muteOptions')}
+              </Text>
+
+              {muteStatusMap[selectedChat?.$id] && (
+                <TouchableOpacity style={styles.menuItem} onPress={handleChatUnmute}>
+                  <Ionicons name="notifications-outline" size={moderateScale(18)} color="#10B981" />
+                  <Text style={[styles.menuItemText, { color: '#10B981', fontSize: fontSize(14) }]}>
+                    {t('chats.unmute')}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity style={styles.menuItem} onPress={() => handleChatMute(MUTE_DURATIONS.ONE_HOUR)}>
+                <Ionicons name="time-outline" size={moderateScale(18)} color={theme.primary} />
+                <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                  {t('chats.muteFor1Hour')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.menuItem} onPress={() => handleChatMute(MUTE_DURATIONS.EIGHT_HOURS)}>
+                <Ionicons name="time-outline" size={moderateScale(18)} color={theme.primary} />
+                <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                  {t('chats.muteFor8Hours')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.menuItem} onPress={() => handleChatMute(MUTE_DURATIONS.ONE_DAY)}>
+                <Ionicons name="today-outline" size={moderateScale(18)} color={theme.primary} />
+                <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                  {t('chats.muteFor1Day')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.menuItem} onPress={() => handleChatMute(MUTE_DURATIONS.ONE_WEEK)}>
+                <Ionicons name="calendar-outline" size={moderateScale(18)} color={theme.primary} />
+                <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                  {t('chats.muteFor1Week')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.menuItem} onPress={() => handleChatMute(MUTE_DURATIONS.FOREVER)}>
+                <Ionicons name="notifications-off-outline" size={moderateScale(18)} color="#F59E0B" />
+                <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
+                  {t('chats.muteForever')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalCancelButton} onPress={closeMuteOptions}>
+                <Text style={[styles.modalCancelText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
+                  {t('common.cancel')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </LinearGradient>
     </View>
   );
@@ -598,6 +1145,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flexShrink: 1,
+  },
+  backButton: {
+    width: moderateScale(30),
+    height: moderateScale(30),
+    borderRadius: moderateScale(15),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   headerTitle: {
     fontWeight: '700',
     letterSpacing: -0.3,
@@ -612,6 +1172,24 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(18),
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
+  },
+  archiveCountBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: moderateScale(15),
+    height: moderateScale(15),
+    borderRadius: moderateScale(7.5),
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  archiveCountBadgeText: {
+    color: '#FFFFFF',
+    fontSize: fontSize(8),
+    fontWeight: '700',
   },
   filterContainer: {
     flexDirection: 'row',
@@ -715,6 +1293,50 @@ const styles = StyleSheet.create({
     fontSize: fontSize(14),
     fontWeight: '600',
     writingDirection: 'auto',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  menuCard: {
+    width: '100%',
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+  },
+  muteModalCard: {
+    width: '100%',
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+  },
+  menuTitle: {
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+    paddingHorizontal: spacing.xs,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    borderRadius: borderRadius.sm,
+  },
+  menuItemText: {
+    fontWeight: '500',
+  },
+  modalCancelButton: {
+    marginTop: spacing.xs,
+    alignSelf: 'flex-end',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  modalCancelText: {
+    fontWeight: '600',
   },
 });
 
