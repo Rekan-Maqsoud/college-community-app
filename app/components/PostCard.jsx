@@ -13,9 +13,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
-import { createRepost, requestPostReview } from '../../database/posts';
+import { createRepost, requestPostReview, voteOnPostPoll } from '../../database/posts';
 import { moderateScale, fontSize, getResponsiveSize } from '../utils/responsive';
 import { POST_COLORS, POST_ICONS } from '../constants/postConstants';
+import {
+  parsePollPayload,
+  applyPollVote,
+  getPollVoteCounts,
+  getUserPollSelection,
+  isUserPollAnswerCorrect,
+} from '../utils/pollUtils';
 import PostCardImageGallery from './postCard/PostCardImageGallery';
 import PostCardMenu from './postCard/PostCardMenu';
 import ImageWithPlaceholder from './ImageWithPlaceholder';
@@ -64,6 +71,8 @@ const PostCard = ({
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showShareToChat, setShowShareToChat] = useState(false);
   const [showLikesModal, setShowLikesModal] = useState(false);
+  const [pollData, setPollData] = useState(parsePollPayload(post.pollData));
+  const [pollSubmitting, setPollSubmitting] = useState(false);
   const likeLongPressRef = useRef(false);
 
 
@@ -120,6 +129,10 @@ const PostCard = ({
   useEffect(() => {
     setResolved(post.isResolved || false);
   }, [post.isResolved]);
+
+  useEffect(() => {
+    setPollData(parsePollPayload(post.pollData));
+  }, [post.pollData]);
 
   // Check if post is bookmarked on mount
   useEffect(() => {
@@ -256,6 +269,111 @@ const PostCard = ({
         : t('post.reviewRequestError');
       showAlert(t('common.error'), message, 'error');
     }
+  };
+
+  const handleVotePollOption = async (optionId) => {
+    if (!user?.$id || !post?.$id || !pollData || pollSubmitting) {
+      return;
+    }
+
+    const previousPollData = pollData;
+    const currentSelections = getUserPollSelection(pollData, user.$id);
+    let nextSelections = [];
+
+    if (pollData.allowMultiple) {
+      const isSelected = currentSelections.includes(optionId);
+      nextSelections = isSelected
+        ? currentSelections.filter((selectionId) => selectionId !== optionId)
+        : [...currentSelections, optionId];
+
+      if (nextSelections.length > pollData.maxSelections) {
+        return;
+      }
+
+      if (nextSelections.length === 0) {
+        nextSelections = [optionId];
+      }
+    } else {
+      nextSelections = [optionId];
+    }
+
+    try {
+      const optimisticPoll = applyPollVote(pollData, user.$id, nextSelections);
+      setPollData(optimisticPoll);
+      setPollSubmitting(true);
+
+      const updatedPost = await voteOnPostPoll(post.$id, user.$id, nextSelections);
+      setPollData(parsePollPayload(updatedPost.pollData));
+    } catch (error) {
+      setPollData(previousPollData);
+      showAlert(t('common.error'), t('post.poll.voteError'), 'error');
+    } finally {
+      setPollSubmitting(false);
+    }
+  };
+
+  const renderPollBlock = () => {
+    if (!pollData || compact) {
+      return null;
+    }
+
+    const voteCounts = getPollVoteCounts(pollData);
+    const totalVotes = Object.values(voteCounts).reduce((sum, value) => sum + value, 0);
+    const mySelections = getUserPollSelection(pollData, user?.$id);
+    const hasAnswered = mySelections.length > 0;
+    const answerIsCorrect = isUserPollAnswerCorrect(pollData, user?.$id);
+
+    return (
+      <View style={[styles.pollContainer, { borderColor: theme.border, backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }]}>
+        {pollData.question && pollData.question !== post.topic && (
+          <Text style={[styles.pollQuestion, { color: theme.text }]}>{pollData.question}</Text>
+        )}
+
+        {pollData.options.map((option) => {
+          const optionVotes = voteCounts[option.id] || 0;
+          const percentage = totalVotes > 0 ? Math.round((optionVotes / totalVotes) * 100) : 0;
+          const isSelected = mySelections.includes(option.id);
+          const isCorrectOption = pollData.isQuiz && pollData.correctOptionId === option.id;
+          const showCorrectness = pollData.isQuiz && hasAnswered && isSelected;
+          const selectionColor = showCorrectness
+            ? (isCorrectOption ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.22)')
+            : (isSelected ? (isDarkMode ? 'rgba(102,126,234,0.25)' : 'rgba(102,126,234,0.16)') : 'transparent');
+
+          return (
+            <TouchableOpacity
+              key={option.id}
+              style={[styles.pollOptionButton, { borderColor: theme.border, backgroundColor: selectionColor }]}
+              activeOpacity={0.8}
+              onPress={() => handleVotePollOption(option.id)}
+              disabled={pollSubmitting}
+            >
+              <View style={styles.pollOptionRow}>
+                <View style={styles.pollOptionLeft}>
+                  <Ionicons
+                    name={pollData.allowMultiple ? (isSelected ? 'checkbox' : 'square-outline') : (isSelected ? 'radio-button-on' : 'radio-button-off')}
+                    size={16}
+                    color={isSelected ? theme.primary : theme.textSecondary}
+                  />
+                  <Text style={[styles.pollOptionText, { color: theme.text }]}>{option.text}</Text>
+                </View>
+                <Text style={[styles.pollOptionPercent, { color: theme.textSecondary }]}>{percentage}%</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+
+        <View style={styles.pollFooterRow}>
+          <Text style={[styles.pollMetaText, { color: theme.textSecondary }]}>
+            {t('post.poll.totalVotes').replace('{count}', String(totalVotes))}
+          </Text>
+          {pollData.isQuiz && hasAnswered && answerIsCorrect !== null && (
+            <Text style={[styles.pollMetaText, { color: answerIsCorrect ? '#10B981' : '#EF4444' }]}>
+              {answerIsCorrect ? t('post.poll.correct') : t('post.poll.incorrect')}
+            </Text>
+          )}
+        </View>
+      </View>
+    );
   };
 
 
@@ -461,6 +579,8 @@ const PostCard = ({
             {post.text}
           </Text>
         )}
+
+        {renderPollBlock()}
 
         {post.links && post.links.length > 0 && (
           <View style={styles.linksContainer}>

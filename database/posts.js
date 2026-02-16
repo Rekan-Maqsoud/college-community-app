@@ -2,6 +2,7 @@ import { account, databases, storage, config } from './config';
 import { ID, Query, Permission, Role } from 'appwrite';
 import { handleNetworkError } from '../app/utils/networkErrorHandler';
 import { postsCacheManager } from '../app/utils/cacheManager';
+import { parsePollPayload, applyPollVote } from '../app/utils/pollUtils';
 import { getUserById } from './users';
 import { notifyDepartmentPost, notifyPostHiddenByReports } from './notifications';
 
@@ -114,6 +115,10 @@ export const createPost = async (postData) => {
         
         // Extract notification-only fields before creating document
         const { userName, fullName, profilePicture: posterPhoto, ...documentData } = postData;
+
+        if (documentData.pollData && typeof documentData.pollData !== 'string') {
+            documentData.pollData = JSON.stringify(documentData.pollData);
+        }
 
         const currentUserId = await getAuthenticatedUserId();
         if (postData.userId !== currentUserId) {
@@ -756,6 +761,10 @@ export const updatePost = async (postId, postData) => {
         delete updateData.likedBy;
         delete updateData.viewedBy;
         delete updateData.$id;
+
+        if (updateData.pollData && typeof updateData.pollData !== 'string') {
+            updateData.pollData = JSON.stringify(updateData.pollData);
+        }
         
         const post = await databases.updateDocument(
             config.databaseId,
@@ -768,6 +777,51 @@ export const updatePost = async (postId, postData) => {
         await postsCacheManager.invalidateSinglePost(postId);
         
         return post;
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const voteOnPostPoll = async (postId, userId, selectedOptionIds) => {
+    try {
+        if (!postId || typeof postId !== 'string') {
+            throw new Error('Invalid post ID');
+        }
+
+        if (!userId || typeof userId !== 'string') {
+            throw new Error('User ID is required');
+        }
+
+        const currentUserId = await getAuthenticatedUserId();
+        if (currentUserId !== userId) {
+            throw new Error('User identity mismatch');
+        }
+
+        const post = await databases.getDocument(
+            config.databaseId,
+            config.postsCollectionId,
+            postId
+        );
+
+        const parsedPoll = parsePollPayload(post.pollData);
+        if (!parsedPoll) {
+            throw new Error('This post does not contain a valid poll');
+        }
+
+        const nextPoll = applyPollVote(parsedPoll, userId, selectedOptionIds);
+
+        const updatedPost = await databases.updateDocument(
+            config.databaseId,
+            config.postsCollectionId,
+            postId,
+            {
+                pollData: JSON.stringify(nextPoll),
+            }
+        );
+
+        await postsCacheManager.invalidateSinglePost(postId);
+
+        return updatedPost;
     } catch (error) {
         throw error;
     }

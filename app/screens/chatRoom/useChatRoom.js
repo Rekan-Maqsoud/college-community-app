@@ -18,7 +18,9 @@ import {
   toggleMessageReaction,
   deleteChat,
   removePrivateChatForUser,
+  voteOnMessagePoll,
 } from '../../../database/chats';
+import { parsePollPayload, applyPollVote } from '../../utils/pollUtils';
 import { getUserById, blockUser, blockUserChatOnly, getFriends } from '../../../database/users';
 import { 
   muteChat, 
@@ -735,7 +737,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   const handleBatchCopy = useCallback(async () => {
     const selected = messages.filter(m => selectedMessageIds.includes(m.$id));
     const textParts = selected
-      .filter(m => m.content && m.content.trim().length > 0 && m.type !== 'post_share' && m.type !== 'location' && m.type !== 'voice')
+      .filter(m => m.content && m.content.trim().length > 0 && m.type !== 'post_share' && m.type !== 'location' && m.type !== 'voice' && m.type !== 'poll')
       .map(m => m.content);
     if (textParts.length > 0) {
       await Clipboard.setStringAsync(textParts.join('\n'));
@@ -805,6 +807,11 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       optimisticMessage.type = 'voice';
       optimisticMessage.content = JSON.stringify(messageMetadata);
     }
+
+    if (messageType === 'poll' && messageMetadata) {
+      optimisticMessage.type = 'poll';
+      optimisticMessage.content = JSON.stringify(messageMetadata);
+    }
     
     if (imageUrl && typeof imageUrl === 'string') {
       optimisticMessage.images = [imageUrl];
@@ -840,6 +847,8 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
         notifyBody = '\uD83D\uDCF7 ' + (t('chats.sentImage') || 'Sent an image');
       } else if (messageType === 'location') {
         notifyBody = '\uD83D\uDCCD ' + (t('chats.sharedLocation') || 'Shared a location');
+      } else if (messageType === 'poll') {
+        notifyBody = '\uD83D\uDCCA ' + (t('chats.sharedPoll') || 'Shared a poll');
       } else if (messageType === 'post_share') {
         notifyBody = '\uD83D\uDD17 ' + (t('chats.sharedPost') || 'Shared a post');
       } else if (content && content.trim().length > 0) {
@@ -853,6 +862,10 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       }
 
       if (messageType === 'voice' && messageMetadata) {
+        messageData.metadata = messageMetadata;
+      }
+
+      if (messageType === 'poll' && messageMetadata) {
         messageData.metadata = messageMetadata;
       }
 
@@ -910,7 +923,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     const retryType = failedMessage.type || null;
     let retryMetadata = null;
 
-    if (retryType === 'gif' || retryType === 'voice' || retryType === 'post_share') {
+    if (retryType === 'gif' || retryType === 'voice' || retryType === 'post_share' || retryType === 'poll') {
       try {
         retryMetadata = typeof failedMessage.content === 'string'
           ? JSON.parse(failedMessage.content)
@@ -921,7 +934,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     }
 
     await handleSendMessage(
-      retryType === 'gif' || retryType === 'voice' || retryType === 'post_share'
+      retryType === 'gif' || retryType === 'voice' || retryType === 'post_share' || retryType === 'poll'
         ? ''
         : (failedMessage.content || ''),
       failedMessage.images?.[0] || failedMessage.imageUrl,
@@ -929,6 +942,45 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       retryMetadata
     );
   };
+
+  const handleVotePollMessage = useCallback(async (message, selectedOptionIds = []) => {
+    if (!message?.$id || !user?.$id || message.type !== 'poll') {
+      return;
+    }
+
+    const previousContent = message.content;
+
+    try {
+      const parsedPoll = parsePollPayload(message.content);
+      if (!parsedPoll) {
+        return;
+      }
+
+      const nextPoll = applyPollVote(parsedPoll, user.$id, selectedOptionIds);
+      const optimisticContent = JSON.stringify(nextPoll);
+
+      setMessages(prev => prev.map(item => (
+        item.$id === message.$id
+          ? { ...item, content: optimisticContent }
+          : item
+      )));
+
+      const updatedMessage = await voteOnMessagePoll(chat.$id, message.$id, user.$id, selectedOptionIds);
+
+      setMessages(prev => prev.map(item => (
+        item.$id === message.$id
+          ? { ...item, content: updatedMessage.content, $updatedAt: updatedMessage.$updatedAt }
+          : item
+      )));
+    } catch (error) {
+      setMessages(prev => prev.map(item => (
+        item.$id === message.$id
+          ? { ...item, content: previousContent }
+          : item
+      )));
+      triggerAlert(t('common.error'), t('chats.pollVoteError'));
+    }
+  }, [chat.$id, t, user?.$id]);
 
   const handleVisitProfile = () => {
     setShowChatOptionsModal(false);
@@ -1117,6 +1169,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     cancelReply,
     handleSendMessage,
     handleRetryMessage,
+    handleVotePollMessage,
     handleToggleReaction,
     handleUpdateReactionDefaults,
     handleVisitProfile,

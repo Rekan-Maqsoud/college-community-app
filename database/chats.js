@@ -8,6 +8,7 @@ import { messagesCacheManager } from '../app/utils/cacheManager';
 import { sendChatPushNotification } from '../services/pushNotificationService';
 import { getUserById, updateUserPublicKey } from './users';
 import { uploadImage } from '../services/imgbbService';
+import { parsePollPayload, applyPollVote } from '../app/utils/pollUtils';
 
 export const CHAT_TYPES = {
     STAGE_GROUP: 'stage_group',
@@ -1197,6 +1198,8 @@ export const sendMessage = async (chatId, messageData) => {
             lastMessagePreview = '\uD83C\uDFA4 Voice message';
         } else if (messageData.type === 'location') {
             lastMessagePreview = '\uD83D\uDCCD Location';
+        } else if (messageData.type === 'poll') {
+            lastMessagePreview = '\uD83D\uDCCA Poll';
         } else if (messageData.type === 'post_share') {
             lastMessagePreview = '\uD83D\uDCDD Shared Post';
         } else if (hasContent) {
@@ -1321,6 +1324,73 @@ export const getMessages = async (chatId, userIdOrLimit = 50, limitOrOffset = 0,
                 return cached.value;
             }
         }
+        throw error;
+    }
+};
+
+export const voteOnMessagePoll = async (chatId, messageId, userId, selectedOptionIds) => {
+    try {
+        if (!chatId || typeof chatId !== 'string') {
+            throw new Error('Invalid chat ID');
+        }
+
+        if (!messageId || typeof messageId !== 'string') {
+            throw new Error('Invalid message ID');
+        }
+
+        if (!userId || typeof userId !== 'string') {
+            throw new Error('User ID is required');
+        }
+
+        const currentUserId = await getAuthenticatedUserId();
+        if (currentUserId !== userId) {
+            throw new Error('User identity mismatch');
+        }
+
+        const chat = await ensureChatParticipant(chatId, userId);
+        const chatKey = await resolveChatKey(chat, userId);
+        const message = await databases.getDocument(
+            config.databaseId,
+            config.messagesCollectionId,
+            messageId
+        );
+
+        if (message.chatId !== chatId) {
+            throw new Error('Message does not belong to this chat');
+        }
+
+        if (message.type !== 'poll') {
+            throw new Error('Message is not a poll');
+        }
+
+        const rawContent = chatKey ? decryptContent(message.content, chatKey) : message.content;
+        const parsedPoll = parsePollPayload(rawContent);
+        if (!parsedPoll) {
+            throw new Error('Invalid poll payload');
+        }
+
+        const nextPoll = applyPollVote(parsedPoll, userId, selectedOptionIds);
+        const serializedPoll = JSON.stringify(nextPoll);
+        const shouldEncrypt = chatKey && isEncryptedContent(message.content);
+        const contentToSave = shouldEncrypt ? encryptContent(serializedPoll, chatKey) : serializedPoll;
+
+        const updatedMessage = await databases.updateDocument(
+            config.databaseId,
+            config.messagesCollectionId,
+            messageId,
+            {
+                content: contentToSave,
+            }
+        );
+
+        await messagesCacheManager.invalidateChatMessages(chatId);
+
+        if (chatKey) {
+            return decryptMessageFields(updatedMessage, chatKey);
+        }
+
+        return updatedMessage;
+    } catch (error) {
         throw error;
     }
 };

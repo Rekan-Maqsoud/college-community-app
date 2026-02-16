@@ -40,6 +40,12 @@ import {
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { config, storage } from '../../database/config';
+import {
+  parsePollPayload,
+  getPollVoteCounts,
+  getUserPollSelection,
+  isUserPollAnswerCorrect,
+} from '../utils/pollUtils';
 
 const ReanimatedView = ReanimatedModule?.View || View;
 
@@ -313,6 +319,7 @@ const MessageBubble = ({
   reactionDefaults = [],
   onToggleReaction,
   onEditReactions,
+  onPollVote,
 }) => {
   const { theme, isDarkMode, t, chatSettings } = useAppSettings();
   const [imageModalVisible, setImageModalVisible] = useState(false);
@@ -405,6 +412,7 @@ const MessageBubble = ({
   const isLocation = message.type === 'location';
   const isGif = message.type === 'gif';
   const isVoice = message.type === 'voice';
+  const isPoll = message.type === 'poll';
   const hasText = !isVoice && message.content && message.content.trim().length > 0;
   const isSticker = isGif && (() => {
     try {
@@ -494,6 +502,41 @@ const MessageBubble = ({
       return null;
     }
   }, [isVoice, message.content]);
+
+  const pollData = React.useMemo(() => {
+    if (!isPoll) return null;
+    return parsePollPayload(message.content);
+  }, [isPoll, message.content]);
+
+  const pollVoteCounts = React.useMemo(() => getPollVoteCounts(pollData), [pollData]);
+  const pollUserSelections = React.useMemo(() => getUserPollSelection(pollData, currentUserId), [pollData, currentUserId]);
+  const pollAnswerCorrect = React.useMemo(() => isUserPollAnswerCorrect(pollData, currentUserId), [pollData, currentUserId]);
+
+  const handlePollOptionPress = async (optionId) => {
+    if (!pollData || !onPollVote || !currentUserId || selectionMode) {
+      return;
+    }
+
+    let nextSelections = [];
+    if (pollData.allowMultiple) {
+      const alreadySelected = pollUserSelections.includes(optionId);
+      nextSelections = alreadySelected
+        ? pollUserSelections.filter((selectedId) => selectedId !== optionId)
+        : [...pollUserSelections, optionId];
+
+      if (nextSelections.length > pollData.maxSelections) {
+        return;
+      }
+
+      if (nextSelections.length === 0) {
+        nextSelections = [optionId];
+      }
+    } else {
+      nextSelections = [optionId];
+    }
+
+    await onPollVote(message, nextSelections);
+  };
 
   const disposeVoicePlayer = useCallback(() => {
     if (voicePlayerListenerRef.current?.remove) {
@@ -1013,7 +1056,7 @@ const MessageBubble = ({
   };
 
   const actionButtons = [
-    { icon: 'copy-outline', label: t('chats.copy'), action: onCopy, show: hasText && !isVoice },
+    { icon: 'copy-outline', label: t('chats.copy'), action: onCopy, show: hasText && !isVoice && !isPoll },
     { icon: 'arrow-undo-outline', label: t('chats.reply'), action: onReply, show: true },
     { icon: 'arrow-redo-outline', label: t('chats.forward'), action: onForward, show: true },
     { icon: isPinned ? 'pin' : 'pin-outline', label: isPinned ? t('chats.unpin') : t('chats.pin'), action: isPinned ? onUnpin : onPin, show: onPin || onUnpin },
@@ -1289,7 +1332,74 @@ const MessageBubble = ({
         </TouchableOpacity>
       )}
 
-      {!isPostShare && !isLocation && !isGif && !isVoice && hasImage && (
+      {isPoll && pollData && (
+        <View
+          style={[
+            styles.pollCard,
+            {
+              backgroundColor: isCurrentUser
+                ? 'rgba(255,255,255,0.12)'
+                : (isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+              borderColor: isCurrentUser
+                ? 'rgba(255,255,255,0.15)'
+                : (isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
+            },
+          ]}
+        >
+          <Text style={[styles.pollQuestion, { color: isCurrentUser ? '#FFFFFF' : theme.text }]}>
+            {pollData.question}
+          </Text>
+
+          {pollData.options.map((option) => {
+            const voteCount = pollVoteCounts[option.id] || 0;
+            const totalVotes = Object.values(pollVoteCounts).reduce((sum, count) => sum + count, 0);
+            const percent = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+            const isSelected = pollUserSelections.includes(option.id);
+            const isCorrectOption = pollData.isQuiz && pollData.correctOptionId === option.id;
+            const showCorrectness = pollData.isQuiz && pollUserSelections.length > 0 && isSelected;
+            const optionBg = showCorrectness
+              ? (isCorrectOption ? 'rgba(16,185,129,0.22)' : 'rgba(239,68,68,0.2)')
+              : (isSelected ? (isCurrentUser ? 'rgba(255,255,255,0.2)' : (isDarkMode ? 'rgba(102,126,234,0.24)' : 'rgba(102,126,234,0.16)')) : 'transparent');
+
+            return (
+              <TouchableOpacity
+                key={`${message.$id}_${option.id}`}
+                style={[styles.pollOption, { borderColor: isCurrentUser ? 'rgba(255,255,255,0.16)' : theme.border, backgroundColor: optionBg }]}
+                onPress={() => handlePollOptionPress(option.id)}
+                disabled={selectionMode}
+                activeOpacity={0.75}
+              >
+                <View style={styles.pollOptionLeft}>
+                  <Ionicons
+                    name={pollData.allowMultiple ? (isSelected ? 'checkbox' : 'square-outline') : (isSelected ? 'radio-button-on' : 'radio-button-off')}
+                    size={15}
+                    color={isSelected ? (isCurrentUser ? '#FFFFFF' : theme.primary) : (isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.textSecondary)}
+                  />
+                  <Text style={[styles.pollOptionText, { color: isCurrentUser ? '#FFFFFF' : theme.text }]} numberOfLines={2}>
+                    {option.text}
+                  </Text>
+                </View>
+                <Text style={[styles.pollOptionPercent, { color: isCurrentUser ? 'rgba(255,255,255,0.75)' : theme.textSecondary }]}>
+                  {percent}%
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+
+          <View style={styles.pollFooter}>
+            <Text style={[styles.pollMetaText, { color: isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.textSecondary }]}>
+              {t('post.poll.totalVotes').replace('{count}', String(Object.values(pollVoteCounts).reduce((sum, count) => sum + count, 0)))}
+            </Text>
+            {pollData.isQuiz && pollUserSelections.length > 0 && pollAnswerCorrect !== null && (
+              <Text style={[styles.pollMetaText, { color: pollAnswerCorrect ? '#10B981' : '#EF4444' }]}>
+                {pollAnswerCorrect ? t('post.poll.correct') : t('post.poll.incorrect')}
+              </Text>
+            )}
+          </View>
+        </View>
+      )}
+
+      {!isPostShare && !isLocation && !isGif && !isVoice && !isPoll && hasImage && (
         <TouchableOpacity 
           onPress={() => setImageModalVisible(true)}
           disabled={selectionMode}
@@ -1305,7 +1415,7 @@ const MessageBubble = ({
         </TouchableOpacity>
       )}
 
-      {!isPostShare && !isLocation && !isGif && !isVoice && renderMessageContent()}
+      {!isPostShare && !isLocation && !isGif && !isVoice && !isPoll && renderMessageContent()}
       
       <View style={styles.timeStatusRow}>
         <Text style={[
@@ -2257,6 +2367,54 @@ const styles = StyleSheet.create({
   voiceProgressFill: {
     height: '100%',
     borderRadius: moderateScale(2),
+  },
+  pollCard: {
+    width: moderateScale(220),
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+  },
+  pollQuestion: {
+    fontWeight: '700',
+    fontSize: fontSize(12),
+    marginBottom: spacing.xs / 2,
+  },
+  pollOption: {
+    borderWidth: 1,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.xs,
+  },
+  pollOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flex: 1,
+  },
+  pollOptionText: {
+    fontSize: fontSize(12),
+    fontWeight: '500',
+    flex: 1,
+  },
+  pollOptionPercent: {
+    fontSize: fontSize(11),
+    fontWeight: '600',
+  },
+  pollFooter: {
+    marginTop: spacing.xs / 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pollMetaText: {
+    fontSize: fontSize(10),
+    fontWeight: '500',
   },
   // GIF / Sticker styles
   gifContainer: {

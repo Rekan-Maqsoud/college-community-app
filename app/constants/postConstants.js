@@ -3,6 +3,7 @@ export const POST_TYPES = {
   DISCUSSION: 'discussion',
   NOTE: 'note',
   ANNOUNCEMENT: 'announcement',
+  POLL: 'poll',
 };
 
 export const POST_TYPE_OPTIONS = [
@@ -108,6 +109,7 @@ export const POST_ICONS = {
   [POST_TYPES.DISCUSSION]: 'chatbubbles-outline',
   [POST_TYPES.NOTE]: 'document-text-outline',
   [POST_TYPES.ANNOUNCEMENT]: 'megaphone-outline',
+  [POST_TYPES.POLL]: 'bar-chart-outline',
 };
 
 export const POST_COLORS = {
@@ -115,4 +117,5 @@ export const POST_COLORS = {
   [POST_TYPES.DISCUSSION]: '#8B5CF6',
   [POST_TYPES.NOTE]: '#10B981',
   [POST_TYPES.ANNOUNCEMENT]: '#F59E0B',
+  [POST_TYPES.POLL]: '#EC4899',
 };

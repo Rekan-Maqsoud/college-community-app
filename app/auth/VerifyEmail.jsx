@@ -216,6 +216,7 @@ const VerifyEmail = ({ route, navigation }) => {
           college: completeUserData.major || '',
           department: completeUserData.department || '',
           stage: completeUserData.year || '',
+          role: completeUserData.role || 'student',
           postsCount: completeUserData.postsCount || 0,
           followersCount: completeUserData.followersCount || 0,
           followingCount: completeUserData.followingCount || 0,

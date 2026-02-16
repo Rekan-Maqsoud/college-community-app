@@ -88,6 +88,7 @@ const ChatRoom = ({ route, navigation }) => {
     cancelReply,
     handleSendMessage,
     handleRetryMessage,
+    handleVotePollMessage,
     handleToggleReaction,
     handleVisitProfile,
     handleBlockUser,
@@ -481,6 +482,7 @@ const ChatRoom = ({ route, navigation }) => {
         currentUserId={user?.$id}
         reactionDefaults={reactionDefaults}
         onToggleReaction={handleToggleReaction}
+        onPollVote={handleVotePollMessage}
         onEditReactions={handleOpenReactionSettings}
       />
     );

@@ -22,9 +22,8 @@ import LanguageDropdown from '../components/LanguageDropdown';
 import SearchableDropdown from '../components/SearchableDropdownNew';
 import AnimatedBackground from '../components/AnimatedBackground';
 import { GlassContainer, GlassInput } from '../components/GlassComponents';
-import { getUniversityKeys, getCollegesForUniversity, getDepartmentsForCollege } from '../data/universitiesData';
+import { getUniversityKeys, getCollegesForUniversity, getDepartmentsForCollege, getStagesForDepartment } from '../data/universitiesData';
 import { initiateSignup, getCompleteUserData, isEducationalEmail, completeOAuthSignup, getPendingOAuthSignup, clearPendingOAuthSignup } from '../../database/auth';
-import { isExtendedStageDepartment } from '../constants/postConstants';
 import { 
   wp, 
   hp, 
@@ -53,6 +52,8 @@ const SignUp = ({ navigation, route }) => {
   const [college, setCollege] = useState(preservedData?.college || '');
   const [department, setDepartment] = useState(preservedData?.department || '');
   const [stage, setStage] = useState(preservedData?.stage || '');
+  const [accountRole, setAccountRole] = useState(preservedData?.accountRole || 'student');
+  const [currentStep, setCurrentStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -141,11 +142,11 @@ const SignUp = ({ navigation, route }) => {
   }, [college]);
 
   useEffect(() => {
-    const allowExtendedStages = isExtendedStageDepartment(department);
-    if (!allowExtendedStages && (stage === 'fifthYear' || stage === 'sixthYear')) {
+    const availableStageKeys = getStagesForDepartment(university, college, department);
+    if (stage && !availableStageKeys.includes(stage)) {
       setStage('');
     }
-  }, [department, stage]);
+  }, [university, college, department, stage]);
 
   const getPasswordStrength = (pwd) => {
     if (!pwd || pwd.length < 8) return 'weak';
@@ -242,6 +243,81 @@ const SignUp = ({ navigation, route }) => {
     return true;
   };
 
+  const validateStepOne = () => {
+    if (!fullName.trim()) {
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.fullNameRequired') });
+      return false;
+    }
+
+    if (fullName.trim().length < 2 || fullName.trim().length > 100) {
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.nameLengthError') });
+      return false;
+    }
+
+    if (!email.trim() || !email.includes('@')) {
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.validEmailRequired') });
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.validEmailRequired') });
+      return false;
+    }
+
+    if (!age || parseInt(age) < 16 || parseInt(age) > 100) {
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.validAgeRequired') });
+      return false;
+    }
+
+    if (!oauthMode) {
+      if (password.length < 8) {
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.passwordTooShort') });
+        return false;
+      }
+      if (passwordStrength === 'weak') {
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.passwordGuideWeak') });
+        return false;
+      }
+      if (password !== confirmPassword) {
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.passwordMismatch') });
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const validateStepTwo = () => {
+    if (!university) {
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.universityRequired') });
+      return false;
+    }
+    if (!college) {
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.collegeRequired') });
+      return false;
+    }
+    if (!department) {
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.departmentRequired') });
+      return false;
+    }
+    if (!stage) {
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.stageRequired') });
+      return false;
+    }
+    return true;
+  };
+
+  const handleNextStep = () => {
+    if (currentStep === 1 && !validateStepOne()) return;
+    if (currentStep === 2 && !validateStepTwo()) return;
+    setCurrentStep(prev => Math.min(prev + 1, 3));
+  };
+
+  const handlePreviousStep = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
+
   const isFormValid = () => {
     const baseValid = (
       fullName.trim() !== '' &&
@@ -292,6 +368,7 @@ const SignUp = ({ navigation, route }) => {
         college,
         department,
         stage: stageYear,
+        role: accountRole,
       };
 
       if (oauthMode && oauthUserId) {
@@ -310,6 +387,7 @@ const SignUp = ({ navigation, route }) => {
             college: result.userDoc.major || '',
             department: result.userDoc.department || '',
             stage: result.userDoc.year || '',
+            role: result.userDoc.role || 'student',
             postsCount: result.userDoc.postsCount || 0,
             followersCount: result.userDoc.followersCount || 0,
             followingCount: result.userDoc.followingCount || 0,
@@ -339,6 +417,7 @@ const SignUp = ({ navigation, route }) => {
             college,
             department,
             stage,
+            accountRole,
           }
         });
       }
@@ -389,22 +468,10 @@ const SignUp = ({ navigation, route }) => {
 
   const departments = getAvailableDepartments();
 
-  const allowExtendedStages = isExtendedStageDepartment(department);
-  const stages = allowExtendedStages
-    ? [
-        { key: 'firstYear', label: t('stages.firstYear') },
-        { key: 'secondYear', label: t('stages.secondYear') },
-        { key: 'thirdYear', label: t('stages.thirdYear') },
-        { key: 'fourthYear', label: t('stages.fourthYear') },
-        { key: 'fifthYear', label: t('stages.fifthYear') },
-        { key: 'sixthYear', label: t('stages.sixthYear') },
-      ]
-    : [
-        { key: 'firstYear', label: t('stages.firstYear') },
-        { key: 'secondYear', label: t('stages.secondYear') },
-        { key: 'thirdYear', label: t('stages.thirdYear') },
-        { key: 'fourthYear', label: t('stages.fourthYear') },
-      ];
+  const stages = getStagesForDepartment(university, college, department).map(stageKey => ({
+    key: stageKey,
+    label: t(`stages.${stageKey}`),
+  }));
 
   const ageOptions = Array.from({ length: 28 }, (_, i) => ({
     key: String(17 + i),
@@ -467,6 +534,11 @@ const SignUp = ({ navigation, route }) => {
   };
 
   const isTabletDevice = isTablet();
+  const stepTitleByIndex = {
+    1: t('auth.signupStep1Title'),
+    2: t('auth.signupStep2Title'),
+    3: t('auth.signupStep3Title'),
+  };
 
   return (
     <View style={styles.container}>
@@ -521,303 +593,405 @@ const SignUp = ({ navigation, route }) => {
               intensity={isTablet() ? 30 : 25}
               borderRadius={borderRadius.xl}
             >
-              <GlassInput focused={nameFocused}>
-                <View style={styles.inputWrapper}>
-                  <Ionicons 
-                    name="person-outline" 
-                    size={moderateScale(20)} 
-                    color={nameFocused ? theme.primary : theme.textSecondary} 
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={[styles.input, { 
-                      color: theme.text,
-                      fontSize: fontSize(15),
-                    }]}
-                    placeholder={t('auth.fullName')}
-                    placeholderTextColor={theme.input.placeholder}
-                    value={fullName}
-                    onChangeText={setFullName}
-                    onFocus={() => setNameFocused(true)}
-                    onBlur={() => setNameFocused(false)}
-                    autoCorrect={false}
-                    contextMenuHidden={false}
-                    selectTextOnFocus={false}
-                    textContentType="name"
-                  />
-                </View>
-              </GlassInput>
-
-              <GlassInput focused={emailFocused} style={{ marginTop: spacing.md }}>
-                <View style={styles.inputWrapper}>
-                  <Ionicons 
-                    name="mail-outline" 
-                    size={moderateScale(20)} 
-                    color={emailFocused ? theme.primary : theme.textSecondary} 
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={[styles.input, { 
-                      color: oauthMode ? theme.textSecondary : theme.text,
-                      fontSize: fontSize(15),
-                      textAlign: 'left',
-                    }]}
-                    placeholder={oauthMode ? t('auth.emailFromGoogle') : t('auth.collegeEmail')}
-                    placeholderTextColor={theme.input.placeholder}
-                    value={email}
-                    onChangeText={oauthMode ? null : handleEmailChange}
-                    onFocus={() => setEmailFocused(true)}
-                    onBlur={() => {
-                      setEmailFocused(false);
-                      setTimeout(() => setShowEmailSuggestion(false), 200);
-                    }}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={!oauthMode}
-                    contextMenuHidden={false}
-                    selectTextOnFocus={false}
-                    textContentType="emailAddress"
-                  />
-                  {!oauthMode && showEmailSuggestion && (
-                    <TouchableOpacity 
-                      onPress={applyEmailSuggestion}
-                      style={[styles.emailSuggestion, { backgroundColor: theme.primary }]}
-                      activeOpacity={0.7}
+              <View style={styles.stepIndicatorRow}>
+                {[1, 2, 3].map((step) => (
+                  <View key={step} style={styles.stepIndicatorItem}>
+                    <View
+                      style={[
+                        styles.stepIndicatorCircle,
+                        {
+                          backgroundColor: step <= currentStep ? theme.primary : 'rgba(255,255,255,0.2)',
+                        },
+                      ]}
                     >
-                      <Text style={styles.emailSuggestionText}>{t('auth.epuEmailDomain')}</Text>
-                    </TouchableOpacity>
-                  )}
-                  {oauthMode ? (
-                    <Ionicons 
-                      name="lock-closed" 
-                      size={moderateScale(18)} 
-                      color={theme.textSecondary} 
-                    />
-                  ) : (
-                    !showEmailSuggestion && email.length > 0 && (
-                      <Ionicons 
-                        name={isEducationalEmail(email) ? "checkmark-circle" : "close-circle"} 
-                        size={moderateScale(20)} 
-                        color={isEducationalEmail(email) ? "#10B981" : "#EF4444"} 
+                      <Text style={styles.stepIndicatorText}>{step}</Text>
+                    </View>
+                    {step < 3 && (
+                      <View
+                        style={[
+                          styles.stepIndicatorLine,
+                          { backgroundColor: step < currentStep ? theme.primary : 'rgba(255,255,255,0.2)' },
+                        ]}
                       />
-                    )
-                  )}
-                </View>
-              </GlassInput>
-              {!oauthMode && email.length > 0 && !isEducationalEmail(email) && (
-                <Text style={[styles.emailWarning, { color: '#EF4444' }]}>
-                  {t('auth.useEducationalEmail')}
-                </Text>
-              )}
+                    )}
+                  </View>
+                ))}
+              </View>
 
-              <SearchableDropdown
-                items={ageOptions}
-                value={age}
-                onSelect={setAge}
-                placeholder={t('auth.age')}
-                icon="calendar-outline"
-                style={{ marginTop: spacing.md }}
-              />
+              <Text style={[styles.stepTitle, { color: theme.text }]}>{stepTitleByIndex[currentStep]}</Text>
 
-              <SearchableDropdown
-                items={universities}
-                value={university}
-                onSelect={setUniversity}
-                placeholder={t('auth.selectUniversity')}
-                icon="school-outline"
-                style={{ marginTop: spacing.md }}
-              />
-
-              <SearchableDropdown
-                items={colleges}
-                value={college}
-                onSelect={setCollege}
-                placeholder={t('auth.selectCollege')}
-                icon="book-outline"
-                disabled={!university}
-                style={{ marginTop: spacing.md }}
-              />
-
-              <SearchableDropdown
-                items={departments}
-                value={department}
-                onSelect={setDepartment}
-                placeholder={t('auth.selectDepartment')}
-                icon="school-outline"
-                disabled={!college}
-                style={{ marginTop: spacing.md }}
-              />
-
-              <SearchableDropdown
-                items={stages}
-                value={stage}
-                onSelect={setStage}
-                placeholder={t('auth.selectStage')}
-                icon="library-outline"
-                style={{ marginTop: spacing.md }}
-              />
-
-              {!oauthMode && (
+              {currentStep === 1 && (
                 <>
-                  <GlassInput focused={passwordFocused} style={{ marginTop: spacing.md }}>
+                  <GlassInput focused={nameFocused}>
                     <View style={styles.inputWrapper}>
-                      <Ionicons 
-                        name="lock-closed-outline" 
-                        size={moderateScale(20)} 
-                        color={passwordFocused ? theme.primary : theme.textSecondary} 
+                      <Ionicons
+                        name="person-outline"
+                        size={moderateScale(20)}
+                        color={nameFocused ? theme.primary : theme.textSecondary}
                         style={styles.inputIcon}
                       />
                       <TextInput
-                        style={[styles.input, { 
+                        style={[styles.input, {
                           color: theme.text,
                           fontSize: fontSize(15),
                         }]}
-                        placeholder={t('auth.password')}
+                        placeholder={t('auth.fullName')}
                         placeholderTextColor={theme.input.placeholder}
-                        value={password}
-                        onChangeText={setPassword}
-                        onFocus={() => setPasswordFocused(true)}
-                        onBlur={() => setPasswordFocused(false)}
-                        secureTextEntry={!showPassword}
-                        autoCapitalize="none"
+                        value={fullName}
+                        onChangeText={setFullName}
+                        onFocus={() => setNameFocused(true)}
+                        onBlur={() => setNameFocused(false)}
                         autoCorrect={false}
                         contextMenuHidden={false}
                         selectTextOnFocus={false}
-                        textContentType="newPassword"
+                        textContentType="name"
                       />
-                      <TouchableOpacity 
-                        onPress={() => setShowPassword(!showPassword)}
-                        style={styles.eyeIcon}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons 
-                          name={showPassword ? "eye-off-outline" : "eye-outline"} 
-                          size={moderateScale(20)} 
-                          color={theme.textSecondary} 
-                        />
-                      </TouchableOpacity>
                     </View>
                   </GlassInput>
 
-                  {password.length > 0 && (
-                    <View style={styles.passwordStrengthContainer}>
-                      <View style={styles.strengthBarContainer}>
-                        <View 
-                          style={[
-                            styles.strengthBar,
-                            { 
-                              width: getStrengthWidth(),
-                              backgroundColor: getStrengthColor(),
-                            }
-                          ]} 
-                        />
-                      </View>
-                      <Text 
-                        style={[
-                          styles.strengthText,
-                          { 
-                            color: getStrengthColor(),
-                            fontSize: fontSize(12),
-                          }
-                        ]}>
-                        {t('auth.passwordStrength')}: {t(`auth.${passwordStrength}`)}
-                      </Text>
-                    </View>
-                  )}
-
-                  <GlassInput focused={confirmPasswordFocused} style={{ marginTop: spacing.md }}>
+                  <GlassInput focused={emailFocused} style={{ marginTop: spacing.md }}>
                     <View style={styles.inputWrapper}>
-                      <Ionicons 
-                        name="lock-closed-outline" 
-                        size={moderateScale(20)} 
-                        color={confirmPasswordFocused ? theme.primary : theme.textSecondary} 
+                      <Ionicons
+                        name="mail-outline"
+                        size={moderateScale(20)}
+                        color={emailFocused ? theme.primary : theme.textSecondary}
                         style={styles.inputIcon}
                       />
                       <TextInput
-                        style={[styles.input, { 
-                          color: theme.text,
+                        style={[styles.input, {
+                          color: oauthMode ? theme.textSecondary : theme.text,
                           fontSize: fontSize(15),
+                          textAlign: 'left',
                         }]}
-                        placeholder={t('auth.confirmPassword')}
+                        placeholder={oauthMode ? t('auth.emailFromGoogle') : t('auth.collegeEmail')}
                         placeholderTextColor={theme.input.placeholder}
-                        value={confirmPassword}
-                        onChangeText={setConfirmPassword}
-                        onFocus={() => setConfirmPasswordFocused(true)}
-                        onBlur={() => setConfirmPasswordFocused(false)}
-                        secureTextEntry={!showConfirmPassword}
+                        value={email}
+                        onChangeText={oauthMode ? null : handleEmailChange}
+                        onFocus={() => setEmailFocused(true)}
+                        onBlur={() => {
+                          setEmailFocused(false);
+                          setTimeout(() => setShowEmailSuggestion(false), 200);
+                        }}
+                        keyboardType="email-address"
                         autoCapitalize="none"
                         autoCorrect={false}
+                        editable={!oauthMode}
                         contextMenuHidden={false}
                         selectTextOnFocus={false}
-                        textContentType="newPassword"
+                        textContentType="emailAddress"
                       />
-                      <TouchableOpacity 
-                        onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                        style={styles.eyeIcon}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons 
-                          name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} 
-                          size={moderateScale(20)} 
-                          color={theme.textSecondary} 
+                      {!oauthMode && showEmailSuggestion && (
+                        <TouchableOpacity
+                          onPress={applyEmailSuggestion}
+                          style={[styles.emailSuggestion, { backgroundColor: theme.primary }]}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.emailSuggestionText}>{t('auth.epuEmailDomain')}</Text>
+                        </TouchableOpacity>
+                      )}
+                      {oauthMode ? (
+                        <Ionicons
+                          name="lock-closed"
+                          size={moderateScale(18)}
+                          color={theme.textSecondary}
                         />
-                      </TouchableOpacity>
-                      {confirmPassword.length > 0 && passwordsMatch && (
-                        <Ionicons 
-                          name="checkmark-circle" 
-                          size={moderateScale(20)} 
-                          color={theme.success} 
-                          style={styles.checkIcon}
-                        />
+                      ) : (
+                        !showEmailSuggestion && email.length > 0 && (
+                          <Ionicons
+                            name={isEducationalEmail(email) ? 'checkmark-circle' : 'close-circle'}
+                            size={moderateScale(20)}
+                            color={isEducationalEmail(email) ? '#10B981' : '#EF4444'}
+                          />
+                        )
                       )}
                     </View>
                   </GlassInput>
 
-                  {confirmPassword.length > 0 && !passwordsMatch && (
-                    <Text style={[
-                      styles.errorText, 
-                      { 
-                        color: theme.danger,
-                        fontSize: fontSize(12),
-                      }
-                    ]}>
-                      {t('auth.passwordMismatch')}
+                  {!oauthMode && email.length > 0 && !isEducationalEmail(email) && (
+                    <Text style={[styles.emailWarning, { color: '#EF4444' }]}>
+                      {t('auth.useEducationalEmail')}
                     </Text>
+                  )}
+
+                  <SearchableDropdown
+                    items={ageOptions}
+                    value={age}
+                    onSelect={setAge}
+                    placeholder={t('auth.age')}
+                    icon="calendar-outline"
+                    style={{ marginTop: spacing.md }}
+                  />
+
+                  {!oauthMode && (
+                    <>
+                      <GlassInput focused={passwordFocused} style={{ marginTop: spacing.md }}>
+                        <View style={styles.inputWrapper}>
+                          <Ionicons
+                            name="lock-closed-outline"
+                            size={moderateScale(20)}
+                            color={passwordFocused ? theme.primary : theme.textSecondary}
+                            style={styles.inputIcon}
+                          />
+                          <TextInput
+                            style={[styles.input, {
+                              color: theme.text,
+                              fontSize: fontSize(15),
+                            }]}
+                            placeholder={t('auth.password')}
+                            placeholderTextColor={theme.input.placeholder}
+                            value={password}
+                            onChangeText={setPassword}
+                            onFocus={() => setPasswordFocused(true)}
+                            onBlur={() => setPasswordFocused(false)}
+                            secureTextEntry={!showPassword}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            contextMenuHidden={false}
+                            selectTextOnFocus={false}
+                            textContentType="newPassword"
+                          />
+                          <TouchableOpacity
+                            onPress={() => setShowPassword(!showPassword)}
+                            style={styles.eyeIcon}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons
+                              name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                              size={moderateScale(20)}
+                              color={theme.textSecondary}
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      </GlassInput>
+
+                      {password.length > 0 && (
+                        <View style={styles.passwordStrengthContainer}>
+                          <View style={styles.strengthBarContainer}>
+                            <View
+                              style={[
+                                styles.strengthBar,
+                                {
+                                  width: getStrengthWidth(),
+                                  backgroundColor: getStrengthColor(),
+                                },
+                              ]}
+                            />
+                          </View>
+                          <Text
+                            style={[
+                              styles.strengthText,
+                              {
+                                color: getStrengthColor(),
+                                fontSize: fontSize(12),
+                              },
+                            ]}
+                          >
+                            {t('auth.passwordStrength')}: {t(`auth.${passwordStrength}`)}
+                          </Text>
+                        </View>
+                      )}
+
+                      <GlassInput focused={confirmPasswordFocused} style={{ marginTop: spacing.md }}>
+                        <View style={styles.inputWrapper}>
+                          <Ionicons
+                            name="lock-closed-outline"
+                            size={moderateScale(20)}
+                            color={confirmPasswordFocused ? theme.primary : theme.textSecondary}
+                            style={styles.inputIcon}
+                          />
+                          <TextInput
+                            style={[styles.input, {
+                              color: theme.text,
+                              fontSize: fontSize(15),
+                            }]}
+                            placeholder={t('auth.confirmPassword')}
+                            placeholderTextColor={theme.input.placeholder}
+                            value={confirmPassword}
+                            onChangeText={setConfirmPassword}
+                            onFocus={() => setConfirmPasswordFocused(true)}
+                            onBlur={() => setConfirmPasswordFocused(false)}
+                            secureTextEntry={!showConfirmPassword}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            contextMenuHidden={false}
+                            selectTextOnFocus={false}
+                            textContentType="newPassword"
+                          />
+                          <TouchableOpacity
+                            onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                            style={styles.eyeIcon}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons
+                              name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                              size={moderateScale(20)}
+                              color={theme.textSecondary}
+                            />
+                          </TouchableOpacity>
+                          {confirmPassword.length > 0 && passwordsMatch && (
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={moderateScale(20)}
+                              color={theme.success}
+                              style={styles.checkIcon}
+                            />
+                          )}
+                        </View>
+                      </GlassInput>
+
+                      {confirmPassword.length > 0 && !passwordsMatch && (
+                        <Text style={[
+                          styles.errorText,
+                          {
+                            color: theme.danger,
+                            fontSize: fontSize(12),
+                          },
+                        ]}>
+                          {t('auth.passwordMismatch')}
+                        </Text>
+                      )}
+                    </>
                   )}
                 </>
               )}
 
-              <TouchableOpacity
-                style={[styles.signUpButton, shadows.large]}
-                onPress={handleSignUp}
-                disabled={isLoading || !isFormValid()}
-                activeOpacity={0.85}>
-                <LinearGradient
-                  colors={!isFormValid() ? ['#999', '#666'] : theme.gradient}
-                  style={styles.buttonGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}>
-                  {isLoading ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  ) : (
-                    <>
-                      <Text style={[
-                        styles.signUpButtonText,
-                        { fontSize: fontSize(17), opacity: !isFormValid() ? 0.6 : 1 }
-                      ]}>
-                        {oauthMode ? t('common.continue') : t('auth.createAccount')}
-                      </Text>
-                      <Ionicons 
-                        name="arrow-forward" 
-                        size={moderateScale(20)} 
-                        color="#FFFFFF" 
-                        style={[styles.buttonIcon, { opacity: !isFormValid() ? 0.6 : 1 }]}
-                      />
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
+              {currentStep === 2 && (
+                <>
+                  <SearchableDropdown
+                    items={universities}
+                    value={university}
+                    onSelect={setUniversity}
+                    placeholder={t('auth.selectUniversity')}
+                    icon="school-outline"
+                    style={{ marginTop: spacing.md }}
+                  />
+
+                  <SearchableDropdown
+                    items={colleges}
+                    value={college}
+                    onSelect={setCollege}
+                    placeholder={t('auth.selectCollege')}
+                    icon="book-outline"
+                    disabled={!university}
+                    style={{ marginTop: spacing.md }}
+                  />
+
+                  <SearchableDropdown
+                    items={departments}
+                    value={department}
+                    onSelect={setDepartment}
+                    placeholder={t('auth.selectDepartment')}
+                    icon="school-outline"
+                    disabled={!college}
+                    style={{ marginTop: spacing.md }}
+                  />
+
+                  <SearchableDropdown
+                    items={stages}
+                    value={stage}
+                    onSelect={setStage}
+                    placeholder={t('auth.selectStage')}
+                    icon="library-outline"
+                    style={{ marginTop: spacing.md }}
+                  />
+                </>
+              )}
+
+              {currentStep === 3 && (
+                <>
+                  <Text style={[styles.roleLabel, { color: theme.text }]}>{t('auth.chooseAccountType')}</Text>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.roleOption,
+                      {
+                        borderColor: accountRole === 'student' ? theme.primary : theme.border,
+                      },
+                    ]}
+                    onPress={() => setAccountRole('student')}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.roleOptionContent}>
+                      <Ionicons name="school-outline" size={moderateScale(20)} color={theme.text} />
+                      <Text style={[styles.roleOptionText, { color: theme.text }]}>{t('auth.studentRole')}</Text>
+                    </View>
+                    {accountRole === 'student' && (
+                      <Ionicons name="checkmark-circle" size={moderateScale(20)} color={theme.primary} />
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.roleOption,
+                      {
+                        borderColor: accountRole === 'teacher' ? theme.primary : theme.border,
+                      },
+                    ]}
+                    onPress={() => setAccountRole('teacher')}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.roleOptionContent}>
+                      <Ionicons name="book-outline" size={moderateScale(20)} color={theme.text} />
+                      <Text style={[styles.roleOptionText, { color: theme.text }]}>{t('auth.teacherRole')}</Text>
+                    </View>
+                    {accountRole === 'teacher' && (
+                      <Ionicons name="checkmark-circle" size={moderateScale(20)} color={theme.primary} />
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
+
+              <View style={styles.navigationButtonsRow}>
+                {currentStep > 1 && (
+                  <TouchableOpacity
+                    style={[styles.secondaryButton, { borderColor: 'rgba(255,255,255,0.3)' }]}
+                    onPress={handlePreviousStep}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.secondaryButtonText, { color: '#FFFFFF' }]}>{t('common.previous')}</Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  style={[styles.signUpButton, shadows.large, { flex: 1 }]}
+                  onPress={currentStep < 3 ? handleNextStep : handleSignUp}
+                  disabled={isLoading || (currentStep === 3 && !isFormValid())}
+                  activeOpacity={0.85}
+                >
+                  <LinearGradient
+                    colors={(currentStep === 3 && !isFormValid()) ? ['#999', '#666'] : theme.gradient}
+                    style={styles.buttonGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <>
+                        <Text
+                          style={[
+                            styles.signUpButtonText,
+                            {
+                              fontSize: fontSize(17),
+                              opacity: (currentStep === 3 && !isFormValid()) ? 0.6 : 1,
+                            },
+                          ]}
+                        >
+                          {currentStep < 3
+                            ? t('common.next')
+                            : (oauthMode ? t('common.next') : t('auth.createAccount'))}
+                        </Text>
+                        <Ionicons
+                          name="arrow-forward"
+                          size={moderateScale(20)}
+                          color="#FFFFFF"
+                          style={[styles.buttonIcon, { opacity: (currentStep === 3 && !isFormValid()) ? 0.6 : 1 }]}
+                        />
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
             </GlassContainer>
 
             <View style={styles.footer}>
@@ -909,6 +1083,39 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
   },
+  stepIndicatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  stepIndicatorItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stepIndicatorCircle: {
+    width: moderateScale(28),
+    height: moderateScale(28),
+    borderRadius: moderateScale(14),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepIndicatorText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: fontSize(12),
+  },
+  stepIndicatorLine: {
+    width: moderateScale(32),
+    height: moderateScale(2),
+    marginHorizontal: spacing.xs,
+  },
+  stepTitle: {
+    fontSize: fontSize(14),
+    fontWeight: '700',
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -973,32 +1180,86 @@ const styles = StyleSheet.create({
   signUpButton: {
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
+  },
+  navigationButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
     marginTop: spacing.lg,
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md + spacing.xs,
+    minWidth: moderateScale(96),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryButtonText: {
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    fontSize: fontSize(15),
+    textAlign: 'center',
   },
   buttonGradient: {
     paddingVertical: spacing.md + spacing.xs,
+    paddingHorizontal: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
   },
+  roleLabel: {
+    fontSize: fontSize(14),
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+  },
+  roleOption: {
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  roleOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
+  roleOptionText: {
+    fontSize: fontSize(15),
+    fontWeight: '600',
+    flexShrink: 1,
+  },
   signUpButtonText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
     letterSpacing: 0.5,
+    textAlign: 'center',
+    flexShrink: 1,
   },
   buttonIcon: {
-    marginLeft: spacing.xs,
+    marginLeft: 0,
+    flexShrink: 0,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: spacing.xs,
     marginTop: spacing.xl,
+    paddingHorizontal: spacing.sm,
   },
   footerText: {
     color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
   },
   signInText: {
     fontWeight: 'bold',

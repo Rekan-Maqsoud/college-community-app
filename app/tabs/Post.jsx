@@ -25,6 +25,7 @@ import { uploadImage } from '../../services/imgbbService';
 import { createPost } from '../../database/posts';
 import { notifyFriendPost } from '../../database/notifications';
 import { compressImage } from '../utils/imageCompression';
+import { createPollPayload } from '../utils/pollUtils';
 import {
   POST_TYPES,
   DEPARTMENTS,
@@ -65,13 +66,19 @@ const Post = () => {
   const [isPublic, setIsPublic] = useState(false);
   const [canOthersRepost, setCanOthersRepost] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(null);
+  const [pollChoices, setPollChoices] = useState(['', '']);
+  const [isQuizPoll, setIsQuizPoll] = useState(false);
+  const [correctPollOptionId, setCorrectPollOptionId] = useState('');
   
   const POST_TYPE_OPTIONS = [
     { value: POST_TYPES.QUESTION, label: t('post.types.question'), icon: 'help-circle-outline', color: '#3B82F6' },
     { value: POST_TYPES.DISCUSSION, label: t('post.types.discussion'), icon: 'chatbubbles-outline', color: '#8B5CF6' },
     { value: POST_TYPES.NOTE, label: t('post.types.note'), icon: 'document-text-outline', color: '#10B981' },
     { value: POST_TYPES.ANNOUNCEMENT, label: t('post.types.announcement'), icon: 'megaphone-outline', color: '#F59E0B' },
+    { value: POST_TYPES.POLL, label: t('post.types.poll'), icon: 'bar-chart-outline', color: '#EC4899' },
   ];
+  const firstRowPostTypes = POST_TYPE_OPTIONS.slice(0, 2);
+  const secondRowPostTypes = POST_TYPE_OPTIONS.slice(2);
 
   useEffect(() => {
     if (user?.stage && !stage) {
@@ -145,7 +152,51 @@ const Post = () => {
       showAlert({ type: 'error', title: t('common.error'), message: t('post.stageRequired') });
       return false;
     }
+
+    if (postType === POST_TYPES.POLL) {
+      const validChoices = pollChoices.map(choice => choice.trim()).filter(Boolean);
+      if (validChoices.length < 2) {
+        showAlert({ type: 'error', title: t('common.error'), message: t('post.poll.minChoicesError') });
+        return false;
+      }
+
+      if (isQuizPoll && !correctPollOptionId) {
+        showAlert({ type: 'error', title: t('common.error'), message: t('post.poll.correctAnswerRequired') });
+        return false;
+      }
+    }
+
     return true;
+  };
+
+  const handlePollChoiceChange = (index, value) => {
+    setPollChoices((prevChoices) => {
+      const nextChoices = [...prevChoices];
+      nextChoices[index] = value;
+      return nextChoices;
+    });
+  };
+
+  const handleAddPollChoice = () => {
+    if (pollChoices.length >= 8) {
+      showAlert({ type: 'warning', title: t('common.warning'), message: t('post.poll.maxChoicesError') });
+      return;
+    }
+    setPollChoices((prevChoices) => [...prevChoices, '']);
+  };
+
+  const handleRemovePollChoice = (index) => {
+    if (pollChoices.length <= 2) {
+      return;
+    }
+
+    const removedChoiceId = `opt_${index + 1}`;
+    const nextChoices = pollChoices.filter((_, choiceIndex) => choiceIndex !== index);
+    setPollChoices(nextChoices);
+
+    if (correctPollOptionId === removedChoiceId) {
+      setCorrectPollOptionId('');
+    }
   };
 
   const handleCreatePost = async () => {
@@ -170,6 +221,17 @@ const Post = () => {
 
       const tagsArray = tags.filter(tag => tag.length > 0);
       const linksArray = links.filter(link => link.length > 0);
+      const isPollPost = postType === POST_TYPES.POLL;
+      const pollData = isPollPost
+        ? createPollPayload({
+            question: topic.trim() || text.trim() || t('post.poll.defaultQuestion'),
+            options: pollChoices,
+            allowMultiple: false,
+            maxSelections: 1,
+            isQuiz: isQuizPoll,
+            correctOptionId: correctPollOptionId,
+          })
+        : null;
       
       const postDepartment = isPublic ? 'public' : (user?.department || '');
 
@@ -187,6 +249,7 @@ const Post = () => {
         tags: tagsArray,
         links: linksArray,
         canOthersRepost,
+        pollData,
       });
 
       // Notify followers about the new post (non-blocking)
@@ -217,6 +280,9 @@ const Post = () => {
       setImages([]);
       setPostType(POST_TYPES.DISCUSSION);
       setCanOthersRepost(true);
+      setPollChoices(['', '']);
+      setIsQuizPoll(false);
+      setCorrectPollOptionId('');
     } catch (error) {
       showAlert({ type: 'error', title: t('common.error'), message: t('post.createError') });
     } finally {
@@ -251,14 +317,46 @@ const Post = () => {
           
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, { color: theme.text }]}>{t('post.postType')}</Text>
-            <View style={styles.postTypeGrid}>
-              {POST_TYPE_OPTIONS.map((type) => {
+            <View style={styles.postTypeGridRow}>
+              {firstRowPostTypes.map((type) => {
                 const isSelected = postType === type.value;
                 return (
                   <TouchableOpacity
                     key={type.value}
                     style={[
                       styles.postTypeButton,
+                      styles.postTypeButtonTwoPerRow,
+                      { borderColor: theme.border, backgroundColor: theme.card },
+                      isSelected && { backgroundColor: type.color, borderColor: type.color },
+                    ]}
+                    onPress={() => setPostType(type.value)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={type.icon}
+                      size={22}
+                      color={isSelected ? '#fff' : theme.textSecondary}
+                    />
+                    <Text style={[
+                      styles.postTypeText,
+                      { color: theme.textSecondary },
+                      isSelected && styles.postTypeTextSelected
+                    ]}>
+                      {type.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <View style={[styles.postTypeGridRow, styles.postTypeGridRowSecond]}>
+              {secondRowPostTypes.map((type) => {
+                const isSelected = postType === type.value;
+                return (
+                  <TouchableOpacity
+                    key={type.value}
+                    style={[
+                      styles.postTypeButton,
+                      styles.postTypeButtonThreePerRow,
                       { borderColor: theme.border, backgroundColor: theme.card },
                       isSelected && { backgroundColor: type.color, borderColor: type.color },
                     ]}
@@ -328,6 +426,110 @@ const Post = () => {
               {text.length}/5000
             </Text>
           </View>
+
+          {postType === POST_TYPES.POLL && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionLabel, { color: theme.text }]}>{t('post.poll.choicesLabel')}</Text>
+              <Text style={[styles.helperText, { color: theme.textSecondary }]}>{t('post.poll.choicesHelper')}</Text>
+
+              {pollChoices.map((choice, index) => (
+                <View key={`poll-choice-${index}`} style={styles.pollChoiceRow}>
+                  <TextInput
+                    style={[
+                      styles.pollChoiceInput,
+                      {
+                        backgroundColor: theme.inputBackground,
+                        borderColor: theme.border,
+                        color: theme.text,
+                      },
+                    ]}
+                    value={choice}
+                    onChangeText={(value) => handlePollChoiceChange(index, value)}
+                    placeholder={t('post.poll.choicePlaceholder').replace('{number}', String(index + 1))}
+                    placeholderTextColor={theme.textSecondary}
+                    editable={!loading}
+                    maxLength={120}
+                  />
+                  <TouchableOpacity
+                    style={[styles.pollChoiceRemoveButton, { borderColor: theme.border }]}
+                    onPress={() => handleRemovePollChoice(index)}
+                    disabled={loading || pollChoices.length <= 2}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={theme.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              <TouchableOpacity
+                style={[styles.pollAddChoiceButton, { borderColor: theme.border, backgroundColor: theme.card }]}
+                onPress={handleAddPollChoice}
+                disabled={loading}
+              >
+                <Ionicons name="add-circle-outline" size={18} color={theme.primary} />
+                <Text style={[styles.pollAddChoiceText, { color: theme.primary }]}>{t('post.poll.addChoice')}</Text>
+              </TouchableOpacity>
+
+              <View style={styles.pollModeRow}>
+                <TouchableOpacity
+                  style={styles.pollModeItem}
+                  onPress={() => {
+                    setIsQuizPoll(false);
+                    setCorrectPollOptionId('');
+                  }}
+                >
+                  <Ionicons
+                    name={!isQuizPoll ? 'checkbox' : 'square-outline'}
+                    size={20}
+                    color={!isQuizPoll ? theme.primary : theme.textSecondary}
+                  />
+                  <Text style={[styles.pollModeText, { color: theme.text }]}>{t('post.poll.modePoll')}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.pollModeItem}
+                  onPress={() => setIsQuizPoll(true)}
+                >
+                  <Ionicons
+                    name={isQuizPoll ? 'checkbox' : 'square-outline'}
+                    size={20}
+                    color={isQuizPoll ? theme.primary : theme.textSecondary}
+                  />
+                  <Text style={[styles.pollModeText, { color: theme.text }]}>{t('post.poll.modeQuestion')}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {isQuizPoll && (
+                <View style={styles.pollCorrectAnswerWrap}>
+                  <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>{t('post.poll.correctAnswerLabel')}</Text>
+                  {pollChoices.map((choice, index) => {
+                    const optionId = `opt_${index + 1}`;
+                    const choiceLabel = choice.trim();
+                    if (!choiceLabel) {
+                      return null;
+                    }
+
+                    const isSelected = correctPollOptionId === optionId;
+                    return (
+                      <TouchableOpacity
+                        key={`poll-correct-${optionId}`}
+                        style={styles.pollCorrectAnswerItem}
+                        onPress={() => setCorrectPollOptionId(optionId)}
+                      >
+                        <Ionicons
+                          name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                          size={18}
+                          color={isSelected ? theme.primary : theme.textSecondary}
+                        />
+                        <Text style={[styles.pollCorrectAnswerText, { color: theme.text }]} numberOfLines={1}>
+                          {choiceLabel}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          )}
 
           <View style={styles.section}>
             <View style={styles.optionsRow}>
@@ -694,14 +896,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '400',
   },
+  postTypeGridRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  postTypeGridRowSecond: {
+    marginTop: 10,
+  },
   postTypeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
   },
   postTypeButton: {
-    flex: 1,
-    minWidth: '47%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -710,6 +917,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1.5,
     gap: 6,
+  },
+  postTypeButtonTwoPerRow: {
+    flex: 1,
+  },
+  postTypeButtonThreePerRow: {
+    flex: 1,
   },
   postTypeText: {
     fontSize: 13,
@@ -886,6 +1099,70 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  pollChoiceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+  },
+  pollChoiceInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  pollChoiceRemoveButton: {
+    width: 40,
+    height: 40,
+    borderWidth: 1,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pollAddChoiceButton: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  pollAddChoiceText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  pollModeRow: {
+    marginTop: 14,
+    flexDirection: 'row',
+    gap: 18,
+  },
+  pollModeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pollModeText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  pollCorrectAnswerWrap: {
+    marginTop: 12,
+  },
+  pollCorrectAnswerItem: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pollCorrectAnswerText: {
+    flex: 1,
+    fontSize: 14,
   },
   modalContainer: {
     flex: 1,

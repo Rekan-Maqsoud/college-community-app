@@ -62,6 +62,7 @@ const FilterSortModal = ({
     { key: POST_TYPES.DISCUSSION, label: t('post.types.discussion'), icon: 'chatbubbles-outline' },
     { key: POST_TYPES.NOTE, label: t('post.types.note'), icon: 'document-text-outline' },
     { key: POST_TYPES.ANNOUNCEMENT, label: t('post.types.announcement'), icon: 'megaphone-outline' },
+    { key: POST_TYPES.POLL, label: t('post.types.poll'), icon: 'bar-chart-outline' },
   ];
 
   const answerOptions = [

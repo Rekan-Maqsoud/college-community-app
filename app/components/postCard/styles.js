@@ -125,6 +125,55 @@ export const postCardStyles = StyleSheet.create({
     lineHeight: fontSize(13) * 1.5,
     marginBottom: moderateScale(8),
   },
+  pollContainer: {
+    marginTop: spacing.xs,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    gap: spacing.xs,
+  },
+  pollQuestion: {
+    fontSize: fontSize(12),
+    fontWeight: '600',
+    marginBottom: spacing.xs / 2,
+  },
+  pollOptionButton: {
+    borderWidth: 1,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  pollOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.xs,
+  },
+  pollOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flex: 1,
+  },
+  pollOptionText: {
+    fontSize: fontSize(12),
+    fontWeight: '500',
+    flex: 1,
+  },
+  pollOptionPercent: {
+    fontSize: fontSize(11),
+    fontWeight: '600',
+  },
+  pollFooterRow: {
+    marginTop: spacing.xs / 2,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  pollMetaText: {
+    fontSize: fontSize(10),
+    fontWeight: '500',
+  },
   linksContainer: {
     marginTop: spacing.sm,
     marginBottom: moderateScale(4),

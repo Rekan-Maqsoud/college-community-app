@@ -25,7 +25,7 @@ import { syncUserNameInChats, syncUserProfilePicture } from '../../../database/u
 import SearchableDropdownNew from '../../components/SearchableDropdownNew';
 import CustomAlert from '../../components/CustomAlert';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
-import { getUniversityKeys, getCollegesForUniversity, getDepartmentsForCollege } from '../../data/universitiesData';
+import { getUniversityKeys, getCollegesForUniversity, getDepartmentsForCollege, getStagesForDepartment } from '../../data/universitiesData';
 
 const COOLDOWN_DAYS = 30;
 
@@ -280,6 +280,7 @@ const ProfileSettings = ({ navigation }) => {
       ...prev,
       college: value,
       department: '',
+      stage: '',
     }));
   };
 
@@ -288,6 +289,7 @@ const ProfileSettings = ({ navigation }) => {
     setProfileData(prev => ({
       ...prev,
       department: value,
+      stage: '',
     }));
   };
 
@@ -348,15 +350,26 @@ const ProfileSettings = ({ navigation }) => {
   }, [profileData.university, t]);
 
   const stageOptions = useMemo(() => {
-    return [
-      { key: 'firstYear', label: t('stages.firstYear') },
-      { key: 'secondYear', label: t('stages.secondYear') },
-      { key: 'thirdYear', label: t('stages.thirdYear') },
-      { key: 'fourthYear', label: t('stages.fourthYear') },
-      { key: 'fifthYear', label: t('stages.fifthYear') },
-      { key: 'sixthYear', label: t('stages.sixthYear') },
-    ];
-  }, [t]);
+    const stageKeys = getStagesForDepartment(
+      profileData.university,
+      profileData.college,
+      profileData.department,
+    );
+
+    return stageKeys.map(key => ({
+      key,
+      label: t(`stages.${key}`),
+    }));
+  }, [profileData.university, profileData.college, profileData.department, t]);
+
+  useEffect(() => {
+    if (!profileData.stage) return;
+    const allowedStageKeys = stageOptions.map(option => option.key);
+    if (!allowedStageKeys.includes(profileData.stage)) {
+      setProfileData(prev => ({ ...prev, stage: '' }));
+      setHasChanges(true);
+    }
+  }, [profileData.stage, stageOptions]);
 
   const genderOptions = useMemo(() => {
     return [

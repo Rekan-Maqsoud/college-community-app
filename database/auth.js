@@ -665,36 +665,64 @@ const createUserDocument = async (userId, name, email, additionalData = {}) => {
     try {
         const sanitizedName = sanitizeInput(name);
         const sanitizedEmail = sanitizeInput(email);
+        const sanitizedRole = sanitizeInput(additionalData.role || 'student') || 'student';
         
         if (!sanitizedName || !sanitizedEmail) {
             throw new Error('Invalid user data');
         }
         
-        const userDoc = await databases.createDocument(
-            config.databaseId,
-            config.usersCollectionId || '68fc7b42001bf7efbba3',
-            userId,
-            {
-                userID: userId,
-                name: sanitizedName,
-                email: sanitizedEmail,
-                bio: '',
-                profilePicture: '',
-                isEmailVerified: true,
-                university: sanitizeInput(additionalData.university || ''),
-                major: sanitizeInput(additionalData.college || ''),
-                department: sanitizeInput(additionalData.department || ''),
-                year: parseInt(additionalData.stage) || 1,
-                followersCount: 0,
-                followingCount: 0,
-                postsCount: 0
-            },
-            [
-                Permission.read(Role.user(userId)),
-                Permission.update(Role.user(userId)),
-                Permission.delete(Role.user(userId)),
-            ]
-        );
+        const basePayload = {
+            userID: userId,
+            name: sanitizedName,
+            email: sanitizedEmail,
+            bio: '',
+            profilePicture: '',
+            isEmailVerified: true,
+            university: sanitizeInput(additionalData.university || ''),
+            major: sanitizeInput(additionalData.college || ''),
+            department: sanitizeInput(additionalData.department || ''),
+            year: parseInt(additionalData.stage) || 1,
+            followersCount: 0,
+            followingCount: 0,
+            postsCount: 0,
+        };
+
+        const payloadWithRole = {
+            ...basePayload,
+            role: sanitizedRole,
+        };
+
+        let userDoc;
+        try {
+            userDoc = await databases.createDocument(
+                config.databaseId,
+                config.usersCollectionId || '68fc7b42001bf7efbba3',
+                userId,
+                payloadWithRole,
+                [
+                    Permission.read(Role.user(userId)),
+                    Permission.update(Role.user(userId)),
+                    Permission.delete(Role.user(userId)),
+                ]
+            );
+        } catch (createError) {
+            if (createError?.message?.includes('Unknown attribute') && createError?.message?.includes('role')) {
+                userDoc = await databases.createDocument(
+                    config.databaseId,
+                    config.usersCollectionId || '68fc7b42001bf7efbba3',
+                    userId,
+                    basePayload,
+                    [
+                        Permission.read(Role.user(userId)),
+                        Permission.update(Role.user(userId)),
+                        Permission.delete(Role.user(userId)),
+                    ]
+                );
+            } else {
+                throw createError;
+            }
+        }
+
         return userDoc;
     } catch (error) {
         throw error;

@@ -38,6 +38,7 @@ import {
 import { borderRadius } from '../theme/designTokens';
 import { pickAndCompressImages, takePictureAndCompress } from '../utils/imageCompression';
 import { uploadChatImage, uploadChatVoiceMessage } from '../../database/chats';
+import { createPollPayload } from '../utils/pollUtils';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -77,6 +78,13 @@ const MessageInput = ({
   const [showLocationPreview, setShowLocationPreview] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [showGiphyPicker, setShowGiphyPicker] = useState(false);
+  const [showPollComposer, setShowPollComposer] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
+  const [pollAllowMultiple, setPollAllowMultiple] = useState(false);
+  const [pollMaxSelections, setPollMaxSelections] = useState('2');
+  const [pollIsQuiz, setPollIsQuiz] = useState(false);
+  const [pollCorrectOptionId, setPollCorrectOptionId] = useState('');
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionStartIndex, setMentionStartIndex] = useState(-1);
@@ -674,6 +682,81 @@ const MessageInput = ({
     setTimeout(() => setShowGiphyPicker(true), 200);
   };
 
+  const resetPollComposer = () => {
+    setPollQuestion('');
+    setPollOptions(['', '']);
+    setPollAllowMultiple(false);
+    setPollMaxSelections('2');
+    setPollIsQuiz(false);
+    setPollCorrectOptionId('');
+  };
+
+  const handleOpenPollComposer = () => {
+    closeActionSheet();
+    Keyboard.dismiss();
+    setShowPollComposer(true);
+  };
+
+  const handleClosePollComposer = () => {
+    setShowPollComposer(false);
+    resetPollComposer();
+  };
+
+  const handlePollOptionChange = (index, value) => {
+    setPollOptions((prevOptions) => {
+      const nextOptions = [...prevOptions];
+      nextOptions[index] = value;
+      return nextOptions;
+    });
+  };
+
+  const handleAddPollOption = () => {
+    if (pollOptions.length >= 8) {
+      triggerAlert(t('common.error'), t('chats.pollMaxOptionsError'));
+      return;
+    }
+    setPollOptions((prevOptions) => [...prevOptions, '']);
+  };
+
+  const handleRemovePollOption = (index) => {
+    if (pollOptions.length <= 2) {
+      return;
+    }
+
+    const removedOptionId = `opt_${index + 1}`;
+    const nextOptions = pollOptions.filter((_, optionIndex) => optionIndex !== index);
+    setPollOptions(nextOptions);
+
+    if (pollCorrectOptionId === removedOptionId) {
+      setPollCorrectOptionId('');
+    }
+  };
+
+  const handleSendPoll = async () => {
+    if (!onSend) {
+      return;
+    }
+
+    try {
+      const payload = createPollPayload({
+        question: pollQuestion,
+        options: pollOptions,
+        allowMultiple: pollAllowMultiple && !pollIsQuiz,
+        maxSelections: pollAllowMultiple && !pollIsQuiz
+          ? Math.max(1, Number(pollMaxSelections) || 1)
+          : 1,
+        isQuiz: pollIsQuiz,
+        correctOptionId: pollCorrectOptionId,
+      });
+
+      await onSend('', null, 'poll', payload);
+      setShowPollComposer(false);
+      resetPollComposer();
+    } catch (error) {
+      triggerAlert(t('common.error'), error?.message || t('chats.pollSendError'));
+    }
+  };
+
   const handleGifSelected = async (gifData) => {
     if (!onSend) return false;
     const now = Date.now();
@@ -803,6 +886,13 @@ const MessageInput = ({
       color: '#EC4899',
       label: t('chats.gifSticker') || 'GIF',
       onPress: handleOpenGiphy,
+    },
+    {
+      key: 'poll',
+      icon: 'bar-chart',
+      color: '#6366F1',
+      label: t('chats.poll'),
+      onPress: handleOpenPollComposer,
     },
   ].filter((item) => !item.hidden);
 
@@ -1255,6 +1345,187 @@ const MessageInput = ({
         </Animated.View>
       )}
 
+      <Modal
+        visible={showPollComposer}
+        transparent
+        animationType="slide"
+        onRequestClose={handleClosePollComposer}
+      >
+        <Pressable style={styles.pollComposerOverlay} onPress={handleClosePollComposer}>
+          <Pressable
+            style={[
+              styles.pollComposerCard,
+              { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' },
+            ]}
+            onPress={(event) => event.stopPropagation()}
+          >
+            <Text style={[styles.pollComposerTitle, { color: theme.text }]}>
+              {t('chats.createPoll')}
+            </Text>
+
+            <TextInput
+              style={[
+                styles.pollComposerInput,
+                {
+                  borderColor: borderColor,
+                  color: theme.text,
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                },
+              ]}
+              value={pollQuestion}
+              onChangeText={setPollQuestion}
+              placeholder={t('chats.pollQuestionPlaceholder')}
+              placeholderTextColor={theme.textSecondary}
+              maxLength={200}
+            />
+
+            {pollOptions.map((option, index) => (
+              <View key={`chat-poll-option-${index}`} style={styles.pollComposerOptionRow}>
+                <TextInput
+                  style={[
+                    styles.pollComposerInput,
+                    styles.pollComposerOptionInput,
+                    {
+                      borderColor: borderColor,
+                      color: theme.text,
+                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                    },
+                  ]}
+                  value={option}
+                  onChangeText={(value) => handlePollOptionChange(index, value)}
+                  placeholder={t('chats.pollOptionPlaceholder').replace('{number}', String(index + 1))}
+                  placeholderTextColor={theme.textSecondary}
+                  maxLength={120}
+                />
+                <TouchableOpacity
+                  style={[styles.pollComposerRemoveButton, { borderColor }]}
+                  disabled={pollOptions.length <= 2}
+                  onPress={() => handleRemovePollOption(index)}
+                >
+                  <Ionicons name="trash-outline" size={16} color={theme.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            <TouchableOpacity style={styles.pollComposerInlineAction} onPress={handleAddPollOption}>
+              <Ionicons name="add-circle-outline" size={18} color={theme.primary} />
+              <Text style={[styles.pollComposerInlineActionText, { color: theme.primary }]}>{t('chats.addOption')}</Text>
+            </TouchableOpacity>
+
+            <View style={styles.pollComposerModeRow}>
+              <TouchableOpacity
+                style={styles.pollComposerModeItem}
+                onPress={() => {
+                  setPollIsQuiz(false);
+                  setPollCorrectOptionId('');
+                }}
+              >
+                <Ionicons
+                  name={!pollIsQuiz ? 'checkbox' : 'square-outline'}
+                  size={20}
+                  color={!pollIsQuiz ? theme.primary : theme.textSecondary}
+                />
+                <Text style={[styles.pollComposerModeText, { color: theme.text }]}>{t('chats.pollModePoll')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.pollComposerModeItem}
+                onPress={() => {
+                  setPollIsQuiz(true);
+                  setPollAllowMultiple(false);
+                }}
+              >
+                <Ionicons
+                  name={pollIsQuiz ? 'checkbox' : 'square-outline'}
+                  size={20}
+                  color={pollIsQuiz ? theme.primary : theme.textSecondary}
+                />
+                <Text style={[styles.pollComposerModeText, { color: theme.text }]}>{t('chats.pollModeQuestion')}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {!pollIsQuiz && (
+              <>
+                <TouchableOpacity
+                  style={styles.pollComposerModeItem}
+                  onPress={() => setPollAllowMultiple((prev) => !prev)}
+                >
+                  <Ionicons
+                    name={pollAllowMultiple ? 'checkbox' : 'square-outline'}
+                    size={20}
+                    color={pollAllowMultiple ? theme.primary : theme.textSecondary}
+                  />
+                  <Text style={[styles.pollComposerModeText, { color: theme.text }]}>{t('chats.allowMultiple')}</Text>
+                </TouchableOpacity>
+
+                {pollAllowMultiple && (
+                  <View style={styles.pollComposerMaxRow}>
+                    <Text style={[styles.pollComposerMaxLabel, { color: theme.textSecondary }]}>{t('chats.maxChoicesPerUser')}</Text>
+                    <TextInput
+                      style={[
+                        styles.pollComposerMaxInput,
+                        {
+                          borderColor: borderColor,
+                          color: theme.text,
+                          backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                        },
+                      ]}
+                      value={pollMaxSelections}
+                      onChangeText={setPollMaxSelections}
+                      keyboardType="number-pad"
+                      maxLength={2}
+                    />
+                  </View>
+                )}
+              </>
+            )}
+
+            {pollIsQuiz && (
+              <View style={styles.pollComposerCorrectWrap}>
+                <Text style={[styles.pollComposerMaxLabel, { color: theme.textSecondary }]}>{t('chats.correctAnswer')}</Text>
+                {pollOptions.map((option, index) => {
+                  const optionLabel = option.trim();
+                  if (!optionLabel) {
+                    return null;
+                  }
+
+                  const optionId = `opt_${index + 1}`;
+                  return (
+                    <TouchableOpacity
+                      key={`chat-poll-correct-${optionId}`}
+                      style={styles.pollComposerModeItem}
+                      onPress={() => setPollCorrectOptionId(optionId)}
+                    >
+                      <Ionicons
+                        name={pollCorrectOptionId === optionId ? 'radio-button-on' : 'radio-button-off'}
+                        size={18}
+                        color={pollCorrectOptionId === optionId ? theme.primary : theme.textSecondary}
+                      />
+                      <Text style={[styles.pollComposerModeText, { color: theme.text }]} numberOfLines={1}>{optionLabel}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            <View style={styles.pollComposerActions}>
+              <TouchableOpacity
+                style={[styles.pollComposerActionButton, { borderColor }]}
+                onPress={handleClosePollComposer}
+              >
+                <Text style={[styles.pollComposerActionText, { color: theme.textSecondary }]}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.pollComposerActionButton, { backgroundColor: theme.primary, borderColor: theme.primary }]}
+                onPress={handleSendPoll}
+              >
+                <Text style={[styles.pollComposerActionText, { color: '#FFFFFF' }]}>{t('common.send')}</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Giphy Picker Modal */}
       <GiphyPickerModal
         visible={showGiphyPicker}
@@ -1380,6 +1651,117 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingHorizontal: spacing.sm,
     paddingTop: spacing.xs,
+  },
+
+  pollComposerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  pollComposerCard: {
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    maxHeight: '82%',
+  },
+  pollComposerTitle: {
+    fontSize: fontSize(18),
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+  },
+  pollComposerInput: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    fontSize: fontSize(14),
+    marginBottom: spacing.xs,
+  },
+  pollComposerOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  pollComposerOptionInput: {
+    flex: 1,
+    marginBottom: spacing.xs,
+  },
+  pollComposerRemoveButton: {
+    width: moderateScale(34),
+    height: moderateScale(34),
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  pollComposerInlineAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  pollComposerInlineActionText: {
+    fontSize: fontSize(13),
+    fontWeight: '600',
+  },
+  pollComposerModeRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  pollComposerModeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  pollComposerModeText: {
+    fontSize: fontSize(13),
+    fontWeight: '500',
+    flexShrink: 1,
+  },
+  pollComposerMaxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  pollComposerMaxLabel: {
+    fontSize: fontSize(12),
+    fontWeight: '500',
+  },
+  pollComposerMaxInput: {
+    width: moderateScale(54),
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.xs,
+    textAlign: 'center',
+    fontSize: fontSize(13),
+    fontWeight: '600',
+  },
+  pollComposerCorrectWrap: {
+    marginTop: spacing.xs,
+  },
+  pollComposerActions: {
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  pollComposerActionButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+  },
+  pollComposerActionText: {
+    fontSize: fontSize(14),
+    fontWeight: '600',
   },
 
   // Reply preview
