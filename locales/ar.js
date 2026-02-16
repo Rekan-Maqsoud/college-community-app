@@ -1279,6 +1279,10 @@ export default {
     sendLocation: 'إرسال الموقع',
     sendFile: 'إرسال ملف',
     comingSoon: 'هذه الميزة قادمة قريباً!',
+    fileTooLarge: 'حجم الملف كبير جداً. الحد الأقصى المسموح هو {size}.',
+    filePickError: 'فشل اختيار الملف',
+    fileUploadError: 'فشل رفع الملف',
+    fileOpenError: 'فشل فتح الملف',
     tagUser: 'إشارة',
     gifSticker: 'GIF',
     gifs: 'صور متحركة',
@@ -1323,6 +1327,7 @@ export default {
     messageRead: 'تمت القراءة',
     // Smart message previews
     sentImage: 'أرسل صورة',
+    sentFile: 'أرسل ملفاً',
     sharedLocation: 'شارك موقعاً',
     sharedAPost: 'شارك منشوراً',
     // Location preview

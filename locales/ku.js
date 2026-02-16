@@ -1279,6 +1279,10 @@ export default {
     sendLocation: 'ناردنی شوێن',
     sendFile: 'ناردنی فایل',
     comingSoon: 'ئەم تایبەتمەندییە بەم زووانە دێت!',
+    fileTooLarge: 'قەبارەی فایلەکە زۆرە. زۆرترین ڕێگەپێدراو {size} ـە.',
+    filePickError: 'هەڵبژاردنی فایل سەرکەوتوو نەبوو',
+    fileUploadError: 'بارکردنی فایل سەرکەوتوو نەبوو',
+    fileOpenError: 'کردنەوەی فایل سەرکەوتوو نەبوو',
     tagUser: 'تاگ',
     gifSticker: 'GIF',
     gifs: 'وێنە جوڵاوەکان',
@@ -1323,6 +1327,7 @@ export default {
     messageRead: 'خوێندرایەوە',
     // Smart message previews
     sentImage: 'وێنەیەکی نارد',
+    sentFile: 'فایلێکی نارد',
     sharedLocation: 'شوێنێکی هاوبەشکرد',
     sharedAPost: 'بابەتێکی هاوبەشکرد',
     // Location preview

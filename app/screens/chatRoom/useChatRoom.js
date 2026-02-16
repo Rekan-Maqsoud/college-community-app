@@ -737,7 +737,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   const handleBatchCopy = useCallback(async () => {
     const selected = messages.filter(m => selectedMessageIds.includes(m.$id));
     const textParts = selected
-      .filter(m => m.content && m.content.trim().length > 0 && m.type !== 'post_share' && m.type !== 'location' && m.type !== 'voice' && m.type !== 'poll')
+      .filter(m => m.content && m.content.trim().length > 0 && m.type !== 'post_share' && m.type !== 'location' && m.type !== 'voice' && m.type !== 'poll' && m.type !== 'file')
       .map(m => m.content);
     if (textParts.length > 0) {
       await Clipboard.setStringAsync(textParts.join('\n'));
@@ -812,6 +812,11 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       optimisticMessage.type = 'poll';
       optimisticMessage.content = JSON.stringify(messageMetadata);
     }
+
+    if (messageType === 'file' && messageMetadata) {
+      optimisticMessage.type = 'file';
+      optimisticMessage.content = JSON.stringify(messageMetadata);
+    }
     
     if (imageUrl && typeof imageUrl === 'string') {
       optimisticMessage.images = [imageUrl];
@@ -841,6 +846,8 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       let notifyBody = t('chats.newMessage');
       if (messageType === 'gif') {
         notifyBody = 'GIF';
+      } else if (messageType === 'file') {
+        notifyBody = '\uD83D\uDCCE ' + t('chats.sentFile');
       } else if (messageType === 'voice') {
         notifyBody = '\uD83C\uDFA4 ' + t('chats.sentVoiceMessage');
       } else if (messageType === 'image' || (imageUrl && !content)) {
@@ -866,6 +873,10 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       }
 
       if (messageType === 'poll' && messageMetadata) {
+        messageData.metadata = messageMetadata;
+      }
+
+      if (messageType === 'file' && messageMetadata) {
         messageData.metadata = messageMetadata;
       }
 
@@ -923,7 +934,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     const retryType = failedMessage.type || null;
     let retryMetadata = null;
 
-    if (retryType === 'gif' || retryType === 'voice' || retryType === 'post_share' || retryType === 'poll') {
+    if (retryType === 'gif' || retryType === 'voice' || retryType === 'post_share' || retryType === 'poll' || retryType === 'file') {
       try {
         retryMetadata = typeof failedMessage.content === 'string'
           ? JSON.parse(failedMessage.content)
@@ -934,7 +945,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     }
 
     await handleSendMessage(
-      retryType === 'gif' || retryType === 'voice' || retryType === 'post_share' || retryType === 'poll'
+      retryType === 'gif' || retryType === 'voice' || retryType === 'post_share' || retryType === 'poll' || retryType === 'file'
         ? ''
         : (failedMessage.content || ''),
       failedMessage.images?.[0] || failedMessage.imageUrl,

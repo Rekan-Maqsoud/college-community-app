@@ -11,6 +11,7 @@
     "test": "jest",
     "test:core-utils": "jest --runInBand __tests__/networkErrorHandler.test.js __tests__/onlineStatus.test.js __tests__/safeStorage.test.js __tests__/cacheManager.test.js __tests__/postRanking.test.js __tests__/feedCategories.test.js",
     "test:realtime": "jest --runInBand __tests__/realtimeEvents.test.js __tests__/chatRealtimeMessages.test.js",
+    "test:chat-files": "jest --runInBand __tests__/chatFileUtils.test.js",
     "test:moderation": "jest --runInBand __tests__/postsModerationRepost.test.js",
     "test:critical": "jest --runInBand __tests__/realtimeEvents.test.js __tests__/chatRealtimeMessages.test.js __tests__/postsModerationRepost.test.js __tests__/networkErrorHandler.test.js __tests__/onlineStatus.test.js __tests__/safeStorage.test.js __tests__/cacheManager.test.js __tests__/postRanking.test.js __tests__/feedCategories.test.js",
     "publish:prod": "eas update --branch native-app --channel production"
@@ -34,6 +35,7 @@
     "expo-crypto": "~15.0.8",
     "expo-dev-client": "~6.0.20",
     "expo-device": "~8.0.10",
+    "expo-document-picker": "^14.0.8",
     "expo-file-system": "~19.0.21",
     "expo-font": "~14.0.11",
     "expo-haptics": "^15.0.8",

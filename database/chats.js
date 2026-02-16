@@ -8,6 +8,7 @@ import { messagesCacheManager } from '../app/utils/cacheManager';
 import { sendChatPushNotification } from '../services/pushNotificationService';
 import { getUserById, updateUserPublicKey } from './users';
 import { uploadImage } from '../services/imgbbService';
+import { uploadFileToAppwrite } from '../services/appwriteFileUpload';
 import { parsePollPayload, applyPollVote } from '../app/utils/pollUtils';
 
 export const CHAT_TYPES = {
@@ -136,6 +137,28 @@ export const uploadChatVoiceMessage = async (file) => {
             mimeType,
             size: file.size || uploadFile?.size || responseData?.sizeOriginal || 0,
         };
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const uploadChatFile = async (file) => {
+    try {
+        if (!config.storageId) {
+            throw new Error('File storage bucket is not configured');
+        }
+
+        const normalizedFile = {
+            uri: file?.uri,
+            name: file?.name || `file_${Date.now()}`,
+            type: file?.type || file?.mimeType || 'application/octet-stream',
+            size: file?.size,
+        };
+
+        return await uploadFileToAppwrite({
+            file: normalizedFile,
+            bucketId: config.storageId,
+        });
     } catch (error) {
         throw error;
     }
@@ -1194,6 +1217,8 @@ export const sendMessage = async (chatId, messageData) => {
             lastMessagePreview = '\uD83D\uDCF7 Image';
         } else if (messageData.type === 'gif') {
             lastMessagePreview = 'GIF';
+        } else if (messageData.type === 'file') {
+            lastMessagePreview = '\uD83D\uDCCE File';
         } else if (messageData.type === 'voice') {
             lastMessagePreview = '\uD83C\uDFA4 Voice message';
         } else if (messageData.type === 'location') {

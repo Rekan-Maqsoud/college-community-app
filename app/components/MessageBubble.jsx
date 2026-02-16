@@ -39,6 +39,7 @@ import {
   wp,
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { formatFileSize, getFilePreviewDescriptor } from '../utils/fileTypes';
 import { config, storage } from '../../database/config';
 import {
   parsePollPayload,
@@ -413,7 +414,8 @@ const MessageBubble = ({
   const isGif = message.type === 'gif';
   const isVoice = message.type === 'voice';
   const isPoll = message.type === 'poll';
-  const hasText = !isVoice && message.content && message.content.trim().length > 0;
+  const isFile = message.type === 'file';
+  const hasText = !isVoice && !isFile && message.content && message.content.trim().length > 0;
   const isSticker = isGif && (() => {
     try {
       const parsed = typeof message.content === 'string' ? JSON.parse(message.content) : message.content;
@@ -507,6 +509,31 @@ const MessageBubble = ({
     if (!isPoll) return null;
     return parsePollPayload(message.content);
   }, [isPoll, message.content]);
+
+  const fileData = React.useMemo(() => {
+    if (!isFile) return null;
+    try {
+      const parsed = typeof message.content === 'string'
+        ? JSON.parse(message.content)
+        : message.content;
+      const descriptor = getFilePreviewDescriptor({
+        name: parsed?.file_name,
+        mimeType: parsed?.file_mime_type,
+      });
+
+      return {
+        url: parsed?.file_url || '',
+        fileId: parsed?.file_id || '',
+        name: parsed?.file_name || t('chats.file'),
+        size: Number(parsed?.file_size || 0),
+        mimeType: parsed?.file_mime_type || '',
+        caption: parsed?.file_caption || '',
+        descriptor,
+      };
+    } catch {
+      return null;
+    }
+  }, [isFile, message.content, t]);
 
   const pollVoteCounts = React.useMemo(() => getPollVoteCounts(pollData), [pollData]);
   const pollUserSelections = React.useMemo(() => getUserPollSelection(pollData, currentUserId), [pollData, currentUserId]);
@@ -1056,7 +1083,7 @@ const MessageBubble = ({
   };
 
   const actionButtons = [
-    { icon: 'copy-outline', label: t('chats.copy'), action: onCopy, show: hasText && !isVoice && !isPoll },
+    { icon: 'copy-outline', label: t('chats.copy'), action: onCopy, show: hasText && !isVoice && !isPoll && !isFile },
     { icon: 'arrow-undo-outline', label: t('chats.reply'), action: onReply, show: true },
     { icon: 'arrow-redo-outline', label: t('chats.forward'), action: onForward, show: true },
     { icon: isPinned ? 'pin' : 'pin-outline', label: isPinned ? t('chats.unpin') : t('chats.pin'), action: isPinned ? onUnpin : onPin, show: onPin || onUnpin },
@@ -1332,6 +1359,115 @@ const MessageBubble = ({
         </TouchableOpacity>
       )}
 
+      {isFile && fileData && (
+        <TouchableOpacity
+          activeOpacity={0.82}
+          disabled={selectionMode || !fileData.url}
+          onPress={() => {
+            if (!fileData.url) {
+              return;
+            }
+
+            Linking.openURL(fileData.url).catch(() => {
+              if (showAlert) {
+                showAlert({
+                  type: 'error',
+                  title: t('common.error'),
+                  message: t('chats.fileOpenError'),
+                });
+              }
+            });
+          }}
+          style={[
+            styles.fileCard,
+            {
+              backgroundColor: isCurrentUser
+                ? 'rgba(255,255,255,0.12)'
+                : (isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+              borderColor: isCurrentUser
+                ? 'rgba(255,255,255,0.16)'
+                : (isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'),
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.fileIconWrap,
+              {
+                backgroundColor: isCurrentUser
+                  ? 'rgba(255,255,255,0.18)'
+                  : `${theme.primary}22`,
+              },
+            ]}
+          >
+            <Ionicons
+              name={fileData.descriptor.iconName}
+              size={moderateScale(18)}
+              color={isCurrentUser ? '#FFFFFF' : theme.primary}
+            />
+          </View>
+
+          <View style={styles.fileInfoWrap}>
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.fileName,
+                {
+                  color: isCurrentUser ? '#FFFFFF' : theme.text,
+                  fontSize: fontSize(13),
+                },
+              ]}
+            >
+              {fileData.name}
+            </Text>
+            <Text
+              style={[
+                styles.fileMeta,
+                {
+                  color: isCurrentUser ? 'rgba(255,255,255,0.72)' : theme.textSecondary,
+                  fontSize: fontSize(10),
+                },
+              ]}
+            >
+              {`${fileData.descriptor.extensionLabel || t('chats.file').toUpperCase()} • ${formatFileSize(fileData.size)}`}
+            </Text>
+            {!!fileData.caption && (
+              <Text
+                numberOfLines={2}
+                style={[
+                  styles.fileCaption,
+                  {
+                    color: isCurrentUser ? 'rgba(255,255,255,0.86)' : theme.text,
+                    fontSize: fontSize(12),
+                  },
+                ]}
+              >
+                {fileData.caption}
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.fileRightWrap}>
+            <Text
+              style={[
+                styles.fileTypeBadge,
+                {
+                  color: isCurrentUser ? '#FFFFFF' : theme.primary,
+                  borderColor: isCurrentUser ? 'rgba(255,255,255,0.3)' : `${theme.primary}55`,
+                },
+              ]}
+            >
+              {fileData.descriptor.extensionLabel || t('chats.file').toUpperCase()}
+            </Text>
+            <Ionicons
+              name="open-outline"
+              size={moderateScale(14)}
+              color={isCurrentUser ? 'rgba(255,255,255,0.78)' : theme.textSecondary}
+            />
+          </View>
+        </TouchableOpacity>
+      )}
+
       {isPoll && pollData && (
         <View
           style={[
@@ -1399,7 +1535,7 @@ const MessageBubble = ({
         </View>
       )}
 
-      {!isPostShare && !isLocation && !isGif && !isVoice && !isPoll && hasImage && (
+      {!isPostShare && !isLocation && !isGif && !isVoice && !isPoll && !isFile && hasImage && (
         <TouchableOpacity 
           onPress={() => setImageModalVisible(true)}
           disabled={selectionMode}
@@ -1415,7 +1551,7 @@ const MessageBubble = ({
         </TouchableOpacity>
       )}
 
-      {!isPostShare && !isLocation && !isGif && !isVoice && !isPoll && renderMessageContent()}
+      {!isPostShare && !isLocation && !isGif && !isVoice && !isPoll && !isFile && renderMessageContent()}
       
       <View style={styles.timeStatusRow}>
         <Text style={[
@@ -2367,6 +2503,51 @@ const styles = StyleSheet.create({
   voiceProgressFill: {
     height: '100%',
     borderRadius: moderateScale(2),
+  },
+  fileCard: {
+    width: moderateScale(232),
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  fileIconWrap: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fileInfoWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  fileName: {
+    fontWeight: '700',
+  },
+  fileMeta: {
+    marginTop: 1,
+    fontWeight: '500',
+  },
+  fileCaption: {
+    marginTop: spacing.xs / 2,
+    fontWeight: '400',
+  },
+  fileRightWrap: {
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  fileTypeBadge: {
+    borderWidth: 1,
+    borderRadius: borderRadius.xs,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    fontSize: fontSize(9),
+    fontWeight: '700',
+    overflow: 'hidden',
   },
   pollCard: {
     width: moderateScale(220),

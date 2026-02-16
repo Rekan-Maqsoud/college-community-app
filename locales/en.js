@@ -1281,6 +1281,10 @@ export default {
     sendLocation: 'Send Location',
     sendFile: 'Send File',
     comingSoon: 'This feature is coming soon!',
+    fileTooLarge: 'File is too large. Maximum allowed size is {size}.',
+    filePickError: 'Failed to pick file',
+    fileUploadError: 'Failed to upload file',
+    fileOpenError: 'Failed to open file',
     tagUser: 'Tag',
     gifSticker: 'GIF',
     gifs: 'GIFs',
@@ -1325,6 +1329,7 @@ export default {
     messageRead: 'Read',
     // Smart message previews
     sentImage: 'Sent an image',
+    sentFile: 'Sent a file',
     sharedLocation: 'Shared a location',
     sharedAPost: 'Shared a post',
     // Location preview

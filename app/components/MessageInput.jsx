@@ -26,6 +26,7 @@ import {
   RecordingPresets,
 } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as DocumentPicker from 'expo-document-picker';
 import LeafletMap from './LeafletMap';
 import GiphyPickerModal from './GiphyPickerModal';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -37,8 +38,10 @@ import {
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { pickAndCompressImages, takePictureAndCompress } from '../utils/imageCompression';
-import { uploadChatImage, uploadChatVoiceMessage } from '../../database/chats';
+import { uploadChatImage, uploadChatVoiceMessage, uploadChatFile } from '../../database/chats';
 import { createPollPayload } from '../utils/pollUtils';
+import { formatFileSize, getFilePreviewDescriptor } from '../utils/fileTypes';
+import { MAX_FILE_UPLOAD_BYTES, validateFileUploadSize } from '../utils/fileUploadUtils';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -72,6 +75,7 @@ const MessageInput = ({
   const { height: screenHeight } = useWindowDimensions();
   const [message, setMessage] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [pendingLocation, setPendingLocation] = useState(null);
@@ -586,6 +590,7 @@ const MessageInput = ({
         quality: 'medium',
       });
       if (result && result.length > 0) {
+        setSelectedFile(null);
         setSelectedImage(result[0]);
       }
     } catch (error) {
@@ -617,6 +622,7 @@ const MessageInput = ({
 
       const result = await takePictureAndCompress({ quality: 'medium' });
       if (result) {
+        setSelectedFile(null);
         setSelectedImage(result);
       }
     } catch (error) {
@@ -671,9 +677,42 @@ const MessageInput = ({
     setPendingLocation(null);
   };
 
-  const handleSendFile = () => {
+  const handleSendFile = async () => {
+    if (disabled || uploading) return;
     closeActionSheet();
-    triggerAlert(t('chats.sendFile') || 'File', t('chats.comingSoon') || 'Coming soon', 'info');
+
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        multiple: false,
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets?.length) {
+        return;
+      }
+
+      const pickedFile = result.assets[0];
+      validateFileUploadSize(pickedFile.size, MAX_FILE_UPLOAD_BYTES);
+
+      setSelectedImage(null);
+      setSelectedFile({
+        uri: pickedFile.uri,
+        name: pickedFile.name,
+        size: pickedFile.size || 0,
+        mimeType: pickedFile.mimeType || 'application/octet-stream',
+      });
+    } catch (error) {
+      if (error?.code === 'FILE_TOO_LARGE') {
+        triggerAlert(
+          t('common.error'),
+          t('chats.fileTooLarge').replace('{size}', formatFileSize(MAX_FILE_UPLOAD_BYTES))
+        );
+        return;
+      }
+
+      triggerAlert(t('common.error'), t('chats.filePickError'));
+    }
   };
 
   const handleOpenGiphy = () => {
@@ -799,6 +838,10 @@ const MessageInput = ({
     setSelectedImage(null);
   };
 
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+  };
+
   const uploadImage = async (imageAsset) => {
     try {
       if (!imageAsset?.uri) {
@@ -817,15 +860,46 @@ const MessageInput = ({
 
   const handleSend = async () => {
     const trimmedMessage = message.trim();
-    if (!trimmedMessage && !selectedImage) return;
+    if (!trimmedMessage && !selectedImage && !selectedFile) return;
     if (!onSend) return;
 
     const messageToSend = trimmedMessage;
     const imageToSend = selectedImage;
+    const fileToSend = selectedFile;
     setMessage('');
     if (inputRef.current) inputRef.current.focus();
 
     try {
+      if (fileToSend) {
+        setUploading(true);
+        setSelectedFile(null);
+
+        const uploadedFile = await uploadChatFile({
+          uri: fileToSend.uri,
+          name: fileToSend.name,
+          type: fileToSend.mimeType || 'application/octet-stream',
+          size: Number(fileToSend.size || 0),
+        });
+
+        const descriptor = getFilePreviewDescriptor({
+          name: fileToSend.name,
+          mimeType: uploadedFile.mimeType || fileToSend.mimeType,
+        });
+
+        await onSend('', null, 'file', {
+          file_url: uploadedFile.viewUrl,
+          file_id: uploadedFile.fileId,
+          file_name: uploadedFile.name || fileToSend.name,
+          file_size: Number(uploadedFile.size || fileToSend.size || 0),
+          file_mime_type: uploadedFile.mimeType || fileToSend.mimeType || 'application/octet-stream',
+          file_kind: descriptor.kind,
+          file_extension: descriptor.extension,
+          file_caption: messageToSend,
+        });
+
+        return;
+      }
+
       let imageUrl = null;
       if (imageToSend) {
         setUploading(true);
@@ -835,7 +909,13 @@ const MessageInput = ({
       await onSend(messageToSend, imageUrl);
     } catch (error) {
       setMessage(messageToSend);
-      triggerAlert(t('common.error'), error.message || t('chats.sendError'));
+      if (error?.code === 'FILE_TOO_LARGE') {
+        triggerAlert(t('common.error'), t('chats.fileTooLarge').replace('{size}', formatFileSize(MAX_FILE_UPLOAD_BYTES)));
+      } else if (fileToSend) {
+        triggerAlert(t('common.error'), t('chats.fileUploadError'));
+      } else {
+        triggerAlert(t('common.error'), error.message || t('chats.sendError'));
+      }
     } finally {
       setUploading(false);
     }
@@ -896,8 +976,11 @@ const MessageInput = ({
     },
   ].filter((item) => !item.hidden);
 
-  const canSendMessage = (message.trim() || selectedImage) && !disabled && !uploading;
-  const shouldShowSendButton = !!(message.trim() || selectedImage);
+  const canSendMessage = (message.trim() || selectedImage || selectedFile) && !disabled && !uploading;
+  const shouldShowSendButton = !!(message.trim() || selectedImage || selectedFile);
+  const selectedFileDescriptor = selectedFile
+    ? getFilePreviewDescriptor({ name: selectedFile.name, mimeType: selectedFile.mimeType })
+    : null;
   const isSmallDevice = screenHeight < 750;
   const baseBottomPadding = Platform.OS === 'ios' ? spacing.xs : spacing.sm;
   const extraBottomPadding = moderateScale(isSmallDevice ? 8 : 5);
@@ -937,6 +1020,8 @@ const MessageInput = ({
             >
               {replyingTo.type === 'voice'
                 ? t('chats.voiceMessage')
+                : replyingTo.type === 'file'
+                  ? t('chats.file')
                 : (replyingTo.content || t('chats.image'))}
             </Text>
           </View>
@@ -973,6 +1058,54 @@ const MessageInput = ({
             {uploading && (
               <View style={styles.uploadingOverlay}>
                 <ActivityIndicator size="small" color="#FFFFFF" />
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+
+      {selectedFile && selectedFileDescriptor && (
+        <View style={styles.filePreviewRow}>
+          <View
+            style={[
+              styles.filePreviewCard,
+              {
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : '#FFFFFF',
+                borderColor: borderColor,
+              },
+            ]}
+          >
+            <View style={[styles.filePreviewIconWrap, { backgroundColor: theme.primary + '22' }]}>
+              <Ionicons name={selectedFileDescriptor.iconName} size={moderateScale(18)} color={theme.primary} />
+            </View>
+
+            <View style={styles.filePreviewInfo}>
+              <Text
+                numberOfLines={1}
+                style={[styles.filePreviewName, { color: theme.text, fontSize: fontSize(12) }]}
+              >
+                {selectedFile.name}
+              </Text>
+              <Text
+                style={[styles.filePreviewMeta, { color: theme.textSecondary, fontSize: fontSize(10) }]}
+              >
+                {`${selectedFileDescriptor.extensionLabel || t('chats.file').toUpperCase()} • ${formatFileSize(selectedFile.size)}`}
+              </Text>
+            </View>
+
+            {!uploading && (
+              <TouchableOpacity
+                style={styles.removeFileBtn}
+                onPress={handleRemoveFile}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close-circle" size={moderateScale(18)} color={theme.textSecondary} />
+              </TouchableOpacity>
+            )}
+
+            {uploading && (
+              <View style={styles.fileUploadingWrap}>
+                <ActivityIndicator size="small" color={theme.primary} />
               </View>
             )}
           </View>
@@ -1813,6 +1946,44 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: borderRadius.lg,
+  },
+  filePreviewRow: {
+    marginBottom: spacing.xs,
+    paddingHorizontal: spacing.xs,
+  },
+  filePreviewCard: {
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  filePreviewIconWrap: {
+    width: moderateScale(34),
+    height: moderateScale(34),
+    borderRadius: moderateScale(17),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filePreviewInfo: {
+    flex: 1,
+  },
+  filePreviewName: {
+    fontWeight: '600',
+  },
+  filePreviewMeta: {
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  removeFileBtn: {
+    padding: 2,
+  },
+  fileUploadingWrap: {
+    minWidth: moderateScale(20),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Mention suggestions
