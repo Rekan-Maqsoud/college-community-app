@@ -693,13 +693,14 @@ const MessageInput = ({
       }
 
       const pickedFile = result.assets[0];
-      validateFileUploadSize(pickedFile.size, MAX_FILE_UPLOAD_BYTES);
+      const resolvedSize = await resolveSelectedFileSize(pickedFile);
+      validateFileUploadSize(resolvedSize, MAX_FILE_UPLOAD_BYTES);
 
       setSelectedImage(null);
       setSelectedFile({
         uri: pickedFile.uri,
         name: pickedFile.name,
-        size: pickedFile.size || 0,
+        size: resolvedSize,
         mimeType: pickedFile.mimeType || 'application/octet-stream',
       });
     } catch (error) {
@@ -842,6 +843,21 @@ const MessageInput = ({
     setSelectedFile(null);
   };
 
+  const resolveSelectedFileSize = async (fileAsset) => {
+    const pickedSize = Number(fileAsset?.size || 0);
+    if (Number.isFinite(pickedSize) && pickedSize > 0) {
+      return pickedSize;
+    }
+
+    try {
+      const info = await FileSystem.getInfoAsync(fileAsset?.uri || '', { size: true });
+      const fallbackSize = Number(info?.size || 0);
+      return Number.isFinite(fallbackSize) ? fallbackSize : 0;
+    } catch {
+      return 0;
+    }
+  };
+
   const uploadImage = async (imageAsset) => {
     try {
       if (!imageAsset?.uri) {
@@ -873,12 +889,20 @@ const MessageInput = ({
       if (fileToSend) {
         setUploading(true);
         setSelectedFile(null);
+        const resolvedFileSize = await resolveSelectedFileSize(fileToSend);
+        validateFileUploadSize(resolvedFileSize, MAX_FILE_UPLOAD_BYTES);
+
+        console.log('[MessageInput] sending file', {
+          name: fileToSend.name,
+          mimeType: fileToSend.mimeType,
+          size: resolvedFileSize,
+        });
 
         const uploadedFile = await uploadChatFile({
           uri: fileToSend.uri,
           name: fileToSend.name,
           type: fileToSend.mimeType || 'application/octet-stream',
-          size: Number(fileToSend.size || 0),
+          size: resolvedFileSize,
         });
 
         const descriptor = getFilePreviewDescriptor({
@@ -890,7 +914,7 @@ const MessageInput = ({
           file_url: uploadedFile.viewUrl,
           file_id: uploadedFile.fileId,
           file_name: uploadedFile.name || fileToSend.name,
-          file_size: Number(uploadedFile.size || fileToSend.size || 0),
+          file_size: Number(uploadedFile.size || resolvedFileSize || 0),
           file_mime_type: uploadedFile.mimeType || fileToSend.mimeType || 'application/octet-stream',
           file_kind: descriptor.kind,
           file_extension: descriptor.extension,
@@ -908,6 +932,13 @@ const MessageInput = ({
       }
       await onSend(messageToSend, imageUrl);
     } catch (error) {
+      console.error('[MessageInput] send failed', {
+        isFile: !!fileToSend,
+        code: error?.code,
+        status: error?.status,
+        message: error?.message,
+      });
+
       setMessage(messageToSend);
       if (error?.code === 'FILE_TOO_LARGE') {
         triggerAlert(t('common.error'), t('chats.fileTooLarge').replace('{size}', formatFileSize(MAX_FILE_UPLOAD_BYTES)));

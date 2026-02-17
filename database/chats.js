@@ -160,6 +160,13 @@ export const uploadChatFile = async (file) => {
             bucketId: config.storageId,
         });
     } catch (error) {
+        console.error('[chats.uploadChatFile] failed', {
+            bucketId: config.storageId,
+            fileName: file?.name,
+            code: error?.code,
+            status: error?.status,
+            message: error?.message,
+        });
         throw error;
     }
 };

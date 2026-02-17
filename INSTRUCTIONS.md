@@ -60,12 +60,12 @@ This file reflects the current codebase and gives implementation guidance for fu
    Extend posts with poll options and vote tracking (single vote per user, editable by owner pre-close).  
    **Files:** `app/tabs/Post.jsx`, `app/components/PostCard.jsx`, `database/posts.js`, `locales/*`.  
    **Acceptance:** poll creation/voting/results work in feed and post details.
-
+✅✅
 7. **Anonymous Ask Mode (Scoped)**  
    Add optional anonymous posting for question-type posts with abuse guardrails.  
    **Files:** `app/tabs/Post.jsx`, `database/posts.js`, moderation flow in `database/posts.js`.  
    **Acceptance:** anonymous question hides author identity from peers while preserving moderation controls.
-
+✅✅
 8. **Opportunity Board**  
    Add internships/scholarships/campus jobs section with deadline metadata and saved alerts.  
    **Files:** `app/screens/opportunities/*` (new), `database/opportunities.js` (new), notifications integration.  
@@ -87,27 +87,27 @@ This file reflects the current codebase and gives implementation guidance for fu
     Add skeleton states to Chats, Notifications, UserProfile, SavedPosts.  
     **Files:** `app/components/SkeletonLoader.jsx`, corresponding screens.  
     **Acceptance:** no blank content flashes on initial load for these screens.
-
+✅✅
 12. **Unified Empty-State System**  
     Standardize empty-state visuals/copy/actions across feed, chats, notifications, saved posts.  
     **Files:** shared component in `app/components/` (new), target screens.  
     **Acceptance:** every major list has consistent actionable empty states.
-
+✅✅
 13. **Wire Real Haptics**  
     Current setting exists; implement tactile feedback on key actions (like, send, save, destructive confirm).  
     **Files:** action handlers in `Home.jsx`, `PostDetails.jsx`, `ChatRoom.jsx`, settings context hook.  
     **Acceptance:** haptic fires only when enabled and never blocks interactions.
-
+✅✅
 14. **Accessibility Pass (A11y Labels + HitSlop)**  
     Add accessibility labels/roles and minimum touch targets on icon-heavy actions.  
     **Files:** `app/components/*`, `app/screens/*`, `app/tabs/*`.  
     **Acceptance:** VoiceOver/TalkBack can identify and trigger all primary actions.
-
+✅✅
 15. **Virtualization Tuning for Long Lists**  
     Tune `FlatList` props (`windowSize`, `maxToRenderPerBatch`, `removeClippedSubviews`, key extractor consistency).  
     **Files:** `Home.jsx`, `Chats.jsx`, `Notifications.jsx`, `ChatRoom.jsx`.  
     **Acceptance:** smooth scrolling under large datasets on low-end Android.
-
+✅✅
 16. **Composer Draft Restore in Chat**  
     Persist unsent message drafts per chat and restore on reopen.  
     **Files:** `app/components/MessageInput.jsx`, `app/utils/safeStorage.js`.  
