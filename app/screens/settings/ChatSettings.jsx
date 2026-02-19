@@ -12,6 +12,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import Slider from '@react-native-community/slider';
 import * as ImagePicker from 'expo-image-picker';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
@@ -20,13 +21,8 @@ import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getReactionDefaults, updateReactionDefaults, DEFAULT_REACTION_SET } from '../../../database/userChatSettings';
 
-const BUBBLE_STYLES = [
-  { key: 'modern', labelKey: 'settings.bubbleStyleModern', icon: 'chatbubble', descKey: 'settings.bubbleStyleModernDesc' },
-  { key: 'classic', labelKey: 'settings.bubbleStyleClassic', icon: 'chatbubble-outline', descKey: 'settings.bubbleStyleClassicDesc' },
-  { key: 'minimal', labelKey: 'settings.bubbleStyleMinimal', icon: 'remove-outline', descKey: 'settings.bubbleStyleMinimalDesc' },
-  { key: 'bubble', labelKey: 'settings.bubbleStyleBubble', icon: 'ellipse-outline', descKey: 'settings.bubbleStyleBubbleDesc' },
-  { key: 'sharp', labelKey: 'settings.bubbleStyleSharp', icon: 'square-outline', descKey: 'settings.bubbleStyleSharpDesc' },
-];
+const MIN_BUBBLE_RADIUS = 4;
+const MAX_BUBBLE_RADIUS = 28;
 
 // Solid colors
 const BUBBLE_COLORS_SOLID = [
@@ -137,8 +133,8 @@ const ChatSettings = ({ navigation, route }) => {
     </BlurView>
   );
 
-  const handleBubbleStyleChange = (style) => {
-    updateChatSetting('bubbleStyle', style);
+  const handleBubbleRoundnessChange = (radius) => {
+    updateChatSetting('bubbleRadius', Math.round(radius));
   };
 
   const handleBubbleColorChange = (color) => {
@@ -174,18 +170,9 @@ const ChatSettings = ({ navigation, route }) => {
   };
 
   const getBubbleRadius = () => {
-    switch (chatSettings.bubbleStyle) {
-      case 'minimal':
-        return borderRadius.sm;
-      case 'sharp':
-        return borderRadius.xs;
-      case 'bubble':
-        return borderRadius.xxl || 24;
-      case 'classic':
-        return borderRadius.md;
-      default: // modern
-        return borderRadius.lg;
-    }
+    const parsedRadius = Number(chatSettings?.bubbleRadius);
+    if (!Number.isFinite(parsedRadius)) return borderRadius.lg;
+    return Math.max(MIN_BUBBLE_RADIUS, Math.min(MAX_BUBBLE_RADIUS, parsedRadius));
   };
 
   const pickCustomBackground = async () => {
@@ -330,48 +317,36 @@ const ChatSettings = ({ navigation, route }) => {
           </GlassCard>
         </View>
 
-        {/* Bubble Style */}
+        {/* Bubble Roundness */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
-            {t('settings.bubbleStyle') || 'Bubble Style'}
+            {t('settings.bubbleRoundness') || 'Bubble Roundness'}
           </Text>
           <GlassCard>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.stylesScrollContent}>
-              {BUBBLE_STYLES.map((style) => (
-                <TouchableOpacity
-                  key={style.key}
-                  style={[
-                    styles.styleOption,
-                    chatSettings.bubbleStyle === style.key && styles.styleOptionSelected,
-                    chatSettings.bubbleStyle === style.key && { borderColor: theme.primary },
-                  ]}
-                  onPress={() => handleBubbleStyleChange(style.key)}>
-                  <Ionicons 
-                    name={style.icon} 
-                    size={moderateScale(24)} 
-                    color={chatSettings.bubbleStyle === style.key ? theme.primary : theme.textSecondary} 
-                  />
-                  <Text style={[
-                    styles.styleLabel,
-                    { 
-                      color: chatSettings.bubbleStyle === style.key ? theme.primary : theme.text,
-                      fontSize: responsiveFontSize(12),
-                    }
-                  ]}>
-                    {t(style.labelKey)}
-                  </Text>
-                  <Text style={[
-                    styles.styleDescription,
-                    { color: theme.textSecondary, fontSize: responsiveFontSize(9) }
-                  ]} numberOfLines={1}>
-                    {t(style.descKey)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <View style={styles.sliderSection}>
+              <View style={styles.sliderHeaderRow}>
+                <Text style={[styles.sliderHint, { color: theme.textSecondary }]}>
+                  {t('settings.bubbleLessRound') || 'Less round'}
+                </Text>
+                <Text style={[styles.sliderValue, { color: theme.primary }]}>
+                  {Math.round(getBubbleRadius())}
+                </Text>
+                <Text style={[styles.sliderHint, { color: theme.textSecondary }]}>
+                  {t('settings.bubbleMoreRound') || 'More round'}
+                </Text>
+              </View>
+              <Slider
+                style={styles.sliderControl}
+                minimumValue={MIN_BUBBLE_RADIUS}
+                maximumValue={MAX_BUBBLE_RADIUS}
+                step={1}
+                value={getBubbleRadius()}
+                minimumTrackTintColor={theme.primary}
+                maximumTrackTintColor={isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'}
+                thumbTintColor={theme.primary}
+                onValueChange={handleBubbleRoundnessChange}
+              />
+            </View>
           </GlassCard>
         </View>
 
@@ -708,24 +683,27 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     ...shadows.small,
   },
-  optionsRow: {
+  sliderSection: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  sliderHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  styleOption: {
     alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    minWidth: moderateScale(80),
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
   },
-  styleOptionSelected: {
-    backgroundColor: 'rgba(102, 126, 234, 0.1)',
-  },
-  styleLabel: {
-    marginTop: spacing.xs,
+  sliderHint: {
+    fontSize: responsiveFontSize(11),
     fontWeight: '500',
+  },
+  sliderValue: {
+    fontSize: responsiveFontSize(14),
+    fontWeight: '700',
+  },
+  sliderControl: {
+    width: '100%',
+    height: moderateScale(34),
   },
   colorsGrid: {
     flexDirection: 'row',
@@ -879,14 +857,6 @@ const styles = StyleSheet.create({
   sentBubble: {
     alignSelf: 'flex-end',
     borderBottomRightRadius: spacing.xs / 2,
-  },
-  stylesScrollContent: {
-    paddingHorizontal: spacing.xs,
-    gap: spacing.sm,
-  },
-  styleDescription: {
-    marginTop: 2,
-    textAlign: 'center',
   },
   bottomPadding: {
     height: hp(5),

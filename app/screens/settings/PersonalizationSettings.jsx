@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,16 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import Slider from '@react-native-community/slider';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import CustomAlert from '../../components/CustomAlert';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const MIN_FONT_SCALE = 0.85;
+const MAX_FONT_SCALE = 1.3;
 
 const PersonalizationSettings = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -53,6 +57,12 @@ const PersonalizationSettings = ({ navigation }) => {
   const [timePickerType, setTimePickerType] = useState('start'); // 'start' or 'end'
   const [tempTime, setTempTime] = useState('');
 
+  useEffect(() => {
+    setSliderFontScale(fontScale);
+  }, [fontScale]);
+
+  const [sliderFontScale, setSliderFontScale] = useState(fontScale);
+
   const openTimePicker = (type) => {
     setTimePickerType(type);
     setTempTime(type === 'start' ? darkModeSchedule.startTime : darkModeSchedule.endTime);
@@ -75,13 +85,6 @@ const PersonalizationSettings = ({ navigation }) => {
     { value: 'dark', label: t('settings.darkMode'), icon: 'moon-outline' },
     { value: 'system', label: t('settings.systemDefault'), icon: 'phone-portrait-outline' },
     { value: 'scheduled', label: t('settings.scheduled') || 'Scheduled', icon: 'time-outline' },
-  ];
-
-  const fontSizeOptions = [
-    { value: 0.85, label: t('settings.fontSmall') || 'Small', icon: 'text-outline' },
-    { value: 1.0, label: t('settings.fontNormal') || 'Normal', icon: 'text-outline' },
-    { value: 1.15, label: t('settings.fontLarge') || 'Large', icon: 'text-outline' },
-    { value: 1.3, label: t('settings.fontExtraLarge') || 'Extra Large', icon: 'text-outline' },
   ];
 
   const languages = [
@@ -309,43 +312,54 @@ const PersonalizationSettings = ({ navigation }) => {
             {t('settings.fontSize') || 'Font Size'}
           </Text>
           <GlassCard>
-            {fontSizeOptions.map((option, index) => (
-              <View key={option.value}>
-                <TouchableOpacity
-                  style={styles.optionItem}
-                  onPress={() => updateFontScale(option.value)}
-                  activeOpacity={0.7}>
-                  <View style={[
-                    styles.iconContainer,
-                    {
-                      backgroundColor: fontScale === option.value
-                        ? isDarkMode ? 'rgba(10, 132, 255, 0.2)' : 'rgba(0, 122, 255, 0.15)'
-                        : isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
-                    },
-                  ]}>
-                    <Text style={{
-                      fontSize: 14 * option.value,
-                      fontWeight: '600',
-                      color: fontScale === option.value ? theme.primary : theme.textSecondary,
-                    }}>
-                      Aa
-                    </Text>
-                  </View>
-                  <Text style={[
-                    styles.optionLabel,
-                    { color: fontScale === option.value ? theme.text : theme.textSecondary },
-                  ]}>
-                    {option.label}
-                  </Text>
-                  {fontScale === option.value && (
-                    <Ionicons name="checkmark-circle" size={moderateScale(20)} color={theme.primary} />
-                  )}
-                </TouchableOpacity>
-                {index < fontSizeOptions.length - 1 && (
-                  <View style={[styles.divider, { backgroundColor: theme.border }]} />
-                )}
+            <View style={styles.fontSliderContainer}>
+              <View style={styles.sliderHeaderRow}>
+                <Text style={[styles.sliderHint, { color: theme.textSecondary }]}>
+                  {t('settings.fontSmall') || 'Small'}
+                </Text>
+                <Text style={[styles.sliderValue, { color: theme.primary }]}>
+                  {Math.round(sliderFontScale * 100)}%
+                </Text>
+                <Text style={[styles.sliderHint, { color: theme.textSecondary }]}>
+                  {t('settings.fontExtraLarge') || 'Extra Large'}
+                </Text>
               </View>
-            ))}
+              <Slider
+                style={styles.sliderControl}
+                minimumValue={MIN_FONT_SCALE}
+                maximumValue={MAX_FONT_SCALE}
+                step={0.01}
+                value={sliderFontScale}
+                minimumTrackTintColor={theme.primary}
+                maximumTrackTintColor={isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'}
+                thumbTintColor={theme.primary}
+                onValueChange={(value) => {
+                  setSliderFontScale(value);
+                  updateFontScale(value);
+                }}
+              />
+              <View
+                style={[
+                  styles.fontPreviewCard,
+                  {
+                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                    borderColor: theme.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.fontPreviewText,
+                    {
+                      color: theme.text,
+                      fontSize: responsiveFontSize(15) * sliderFontScale,
+                    },
+                  ]}
+                >
+                  {t('settings.fontSizePreviewSample') || t('settings.previewText')}
+                </Text>
+              </View>
+            </View>
           </GlassCard>
           <Text style={[styles.sectionNote, { color: theme.textSecondary }]}>
             {t('settings.fontSizeNote') || 'Adjusts text size throughout the app'}
@@ -868,6 +882,38 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 3,
+  },
+  fontSliderContainer: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  sliderHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  sliderHint: {
+    fontSize: responsiveFontSize(11),
+    fontWeight: '500',
+  },
+  sliderValue: {
+    fontSize: responsiveFontSize(14),
+    fontWeight: '700',
+  },
+  sliderControl: {
+    width: '100%',
+    height: moderateScale(34),
+  },
+  fontPreviewCard: {
+    marginTop: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  fontPreviewText: {
+    fontWeight: '500',
   },
   bottomPadding: {
     height: hp(5),

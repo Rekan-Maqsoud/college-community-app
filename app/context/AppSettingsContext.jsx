@@ -115,6 +115,41 @@ const hexToRgba = (hex, alpha) => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
+const getBubbleRadiusFromStyle = (bubbleStyle) => {
+  switch (bubbleStyle) {
+    case 'minimal':
+      return 8;
+    case 'sharp':
+      return 4;
+    case 'bubble':
+      return 24;
+    case 'classic':
+      return 12;
+    default:
+      return 16;
+  }
+};
+
+const sanitizeBubbleRadius = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 16;
+  return Math.max(4, Math.min(28, parsed));
+};
+
+const normalizeChatSettings = (settings = {}) => {
+  const radiusFromStyle = getBubbleRadiusFromStyle(settings.bubbleStyle);
+  const resolvedBubbleRadius = settings.bubbleRadius !== undefined
+    ? sanitizeBubbleRadius(settings.bubbleRadius)
+    : radiusFromStyle;
+
+  return {
+    bubbleStyle: settings.bubbleStyle || 'modern',
+    bubbleRadius: resolvedBubbleRadius,
+    bubbleColor: settings.bubbleColor || '#667eea',
+    backgroundImage: settings.backgroundImage || null,
+  };
+};
+
 export const AppSettingsProvider = ({ children }) => {
   const [currentLanguage, setCurrentLanguage] = useState('en');
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -132,6 +167,7 @@ export const AppSettingsProvider = ({ children }) => {
   // Chat customization settings
   const [chatSettings, setChatSettings] = useState({
     bubbleStyle: 'modern', // 'modern', 'classic', 'minimal'
+    bubbleRadius: 16, // 4-28, controls how rounded chat bubbles are
     bubbleColor: '#667eea', // Primary bubble color for sent messages
     backgroundImage: null, // URL or null for default
   });
@@ -305,7 +341,7 @@ export const AppSettingsProvider = ({ children }) => {
       if (savedChatSettings) {
         try {
           const parsed = JSON.parse(savedChatSettings);
-          setChatSettings(prev => ({ ...prev, ...parsed }));
+          setChatSettings(normalizeChatSettings(parsed));
         } catch (e) {
           // Invalid JSON, use defaults
         }
@@ -473,7 +509,8 @@ export const AppSettingsProvider = ({ children }) => {
 
   const updateChatSetting = async (key, value, userId = null) => {
     try {
-      const newSettings = { ...chatSettings, [key]: value };
+      const mergedSettings = { ...chatSettings, [key]: value };
+      const newSettings = normalizeChatSettings(mergedSettings);
       setChatSettings(newSettings);
       // Save with user-specific key if userId is provided
       const storageKey = userId ? `chatSettings_${userId}` : (currentUserId ? `chatSettings_${currentUserId}` : 'chatSettings');
@@ -488,25 +525,17 @@ export const AppSettingsProvider = ({ children }) => {
     try {
       setCurrentUserId(userId);
       if (!userId) {
-        setChatSettings({
-          bubbleStyle: 'modern',
-          bubbleColor: '#667eea',
-          backgroundImage: null,
-        });
+        setChatSettings(normalizeChatSettings());
         return;
       }
       
       const savedChatSettings = await safeStorage.getItem(`chatSettings_${userId}`);
       if (savedChatSettings) {
         const parsed = JSON.parse(savedChatSettings);
-        setChatSettings(prev => ({ ...prev, ...parsed }));
+        setChatSettings(normalizeChatSettings(parsed));
       } else {
         // Reset to defaults for new user
-        setChatSettings({
-          bubbleStyle: 'modern',
-          bubbleColor: '#667eea',
-          backgroundImage: null,
-        });
+        setChatSettings(normalizeChatSettings());
       }
     } catch (error) {
       // Failed to load user chat settings

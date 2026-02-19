@@ -4,7 +4,6 @@ import {
   TextInput,
   TouchableOpacity,
   PanResponder,
-  StyleSheet,
   Platform,
   Image,
   ActivityIndicator,
@@ -34,9 +33,7 @@ import {
   fontSize,
   spacing,
   moderateScale,
-  wp,
 } from '../utils/responsive';
-import { borderRadius } from '../theme/designTokens';
 import { pickAndCompressImages, takePictureAndCompress } from '../utils/imageCompression';
 import { uploadChatImage, uploadChatVoiceMessage, uploadChatFile } from '../../database/chats';
 import { createPollPayload } from '../utils/pollUtils';
@@ -44,19 +41,25 @@ import { formatFileSize, getFilePreviewDescriptor } from '../utils/fileTypes';
 import { MAX_FILE_UPLOAD_BYTES, validateFileUploadSize } from '../utils/fileUploadUtils';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
-
-const MAX_INPUT_LINES = 5;
-const LINE_HEIGHT = moderateScale(20);
-const MAX_INPUT_HEIGHT = LINE_HEIGHT * MAX_INPUT_LINES;
-const GIF_SEND_COOLDOWN_MS = 300;
-const VOICE_LOCK_THRESHOLD = moderateScale(70);
-const VOICE_CANCEL_THRESHOLD = moderateScale(90);
-const VOICE_LOCK_HORIZONTAL_TOLERANCE = moderateScale(58);
-const VOICE_PRESS_RETENTION = moderateScale(120);
-const MIN_VOICE_DURATION_MS = 500;
-const VOICE_WAVE_BARS = 16;
-const VOICE_WAVE_PAYLOAD_BARS = 24;
-const VOICE_WAVE_HISTORY_LIMIT = 600;
+import styles from './messageInput/styles';
+import {
+  MAX_INPUT_HEIGHT,
+  GIF_SEND_COOLDOWN_MS,
+  VOICE_LOCK_THRESHOLD,
+  VOICE_CANCEL_THRESHOLD,
+  VOICE_LOCK_HORIZONTAL_TOLERANCE,
+  VOICE_PRESS_RETENTION,
+  MIN_VOICE_DURATION_MS,
+  VOICE_WAVE_BARS,
+  VOICE_WAVE_PAYLOAD_BARS,
+  VOICE_WAVE_HISTORY_LIMIT,
+} from './messageInput/constants';
+import {
+  formatVoiceDuration,
+  serializeVoiceWaveform,
+  buildMentionSuggestions,
+} from './messageInput/helpers';
+import { getMessageInputActionItems } from './messageInput/actionItems';
 
 const MessageInput = ({
   onSend,
@@ -160,13 +163,6 @@ const MessageInput = ({
     };
   }, [audioRecorder]);
 
-  const formatVoiceDuration = (durationMs) => {
-    const totalSeconds = Math.max(0, Math.floor((durationMs || 0) / 1000));
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  };
-
   const clearRecordingTicker = () => {
     if (recordingDurationIntervalRef.current) {
       clearInterval(recordingDurationIntervalRef.current);
@@ -197,30 +193,6 @@ const MessageInput = ({
       const next = prev.slice(-VOICE_WAVE_BARS + 1);
       next.push(normalized);
       return next;
-    });
-  };
-
-  const serializeVoiceWaveform = (samples, targetBars = VOICE_WAVE_PAYLOAD_BARS) => {
-    const sanitized = (Array.isArray(samples) ? samples : [])
-      .map((sample) => Number(sample))
-      .filter((sample) => Number.isFinite(sample))
-      .map((sample) => Math.max(0.08, Math.min(1, sample)));
-
-    if (sanitized.length === 0) {
-      return Array(targetBars).fill(0.15);
-    }
-
-    return Array.from({ length: targetBars }, (_, index) => {
-      const segmentStart = Math.floor((index * sanitized.length) / targetBars);
-      const segmentEnd = Math.max(
-        segmentStart + 1,
-        Math.floor(((index + 1) * sanitized.length) / targetBars)
-      );
-      const segment = sanitized.slice(segmentStart, segmentEnd);
-      const peak = Math.max(...segment);
-      const average = segment.reduce((sum, value) => sum + value, 0) / Math.max(1, segment.length);
-      const signal = Math.max(0.08, Math.min(1, (peak * 0.78) + (average * 0.22)));
-      return Number(signal.toFixed(3));
     });
   };
 
@@ -468,39 +440,6 @@ const MessageInput = ({
   ).current;
 
   // --- Mention logic ---
-  const getMentionSuggestions = () => {
-    const suggestions = [];
-    if (canMentionEveryone) {
-      suggestions.push({
-        id: 'everyone',
-        name: 'everyone',
-        displayName: t('chats.mentionEveryone') || 'Everyone',
-        isSpecial: true,
-      });
-    }
-    const allUsers = [...groupMembers];
-    friends.forEach((friend) => {
-      if (!allUsers.find((u) => u.$id === friend.$id)) {
-        allUsers.push(friend);
-      }
-    });
-    const q = mentionQuery.toLowerCase();
-    const filtered = allUsers.filter((user) => {
-      const name = (user.name || user.fullName || '').toLowerCase();
-      return name.includes(q);
-    });
-    filtered.slice(0, 3).forEach((user) => {
-      suggestions.push({
-        id: user.$id,
-        name: user.name || user.fullName,
-        displayName: user.name || user.fullName,
-        profilePicture: user.profilePicture,
-        isSpecial: false,
-      });
-    });
-    return suggestions.slice(0, 4);
-  };
-
   const handleTextChange = (text) => {
     setMessage(text);
     const lastAtIndex = text.lastIndexOf('@');
@@ -952,60 +891,28 @@ const MessageInput = ({
     }
   };
 
-  // --- Action sheet items ---
-  const actionItems = [
-    {
-      key: 'gallery',
-      icon: 'images',
-      color: '#8B5CF6',
-      label: t('chats.gallery') || 'Gallery',
-      onPress: handlePickImage,
+  const actionItems = getMessageInputActionItems({
+    t,
+    locationLoading,
+    showMentionButton,
+    handlers: {
+      handlePickImage,
+      handleTakePicture,
+      handleSendLocation,
+      handleTagUser,
+      handleSendFile,
+      handleOpenGiphy,
+      handleOpenPollComposer,
     },
-    {
-      key: 'camera',
-      icon: 'camera',
-      color: '#10B981',
-      label: t('chats.camera') || 'Camera',
-      onPress: handleTakePicture,
-    },
-    {
-      key: 'location',
-      icon: 'location',
-      color: '#F59E0B',
-      label: t('chats.location') || 'Location',
-      onPress: handleSendLocation,
-      loading: locationLoading,
-    },
-    {
-      key: 'tag',
-      icon: 'at',
-      color: '#6366F1',
-      label: t('chats.tagUser') || 'Tag',
-      onPress: handleTagUser,
-      hidden: !showMentionButton,
-    },
-    {
-      key: 'file',
-      icon: 'document',
-      color: '#3B82F6',
-      label: t('chats.file') || 'File',
-      onPress: handleSendFile,
-    },
-    {
-      key: 'gif',
-      icon: 'happy',
-      color: '#EC4899',
-      label: t('chats.gifSticker') || 'GIF',
-      onPress: handleOpenGiphy,
-    },
-    {
-      key: 'poll',
-      icon: 'bar-chart',
-      color: '#6366F1',
-      label: t('chats.poll'),
-      onPress: handleOpenPollComposer,
-    },
-  ].filter((item) => !item.hidden);
+  });
+
+  const mentionSuggestions = buildMentionSuggestions({
+    canMentionEveryone,
+    t,
+    groupMembers,
+    friends,
+    mentionQuery,
+  });
 
   const canSendMessage = (message.trim() || selectedImage || selectedFile) && !disabled && !uploading;
   const shouldShowSendButton = !!(message.trim() || selectedImage || selectedFile);
@@ -1152,7 +1059,7 @@ const MessageInput = ({
               { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' },
             ]}
           >
-            {getMentionSuggestions().map((suggestion) => (
+            {mentionSuggestions.map((suggestion) => (
               <TouchableOpacity
                 key={suggestion.id}
                 style={styles.mentionItem}
@@ -1809,467 +1716,5 @@ const MessageInput = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  wrapper: {
-    borderTopWidth: 1,
-    paddingHorizontal: spacing.sm,
-    paddingTop: spacing.xs,
-  },
-
-  pollComposerOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-  pollComposerCard: {
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.lg,
-    maxHeight: '82%',
-  },
-  pollComposerTitle: {
-    fontSize: fontSize(18),
-    fontWeight: '700',
-    marginBottom: spacing.sm,
-  },
-  pollComposerInput: {
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    fontSize: fontSize(14),
-    marginBottom: spacing.xs,
-  },
-  pollComposerOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  pollComposerOptionInput: {
-    flex: 1,
-    marginBottom: spacing.xs,
-  },
-  pollComposerRemoveButton: {
-    width: moderateScale(34),
-    height: moderateScale(34),
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-  },
-  pollComposerInlineAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  pollComposerInlineActionText: {
-    fontSize: fontSize(13),
-    fontWeight: '600',
-  },
-  pollComposerModeRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.xs,
-  },
-  pollComposerModeItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  pollComposerModeText: {
-    fontSize: fontSize(13),
-    fontWeight: '500',
-    flexShrink: 1,
-  },
-  pollComposerMaxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
-  },
-  pollComposerMaxLabel: {
-    fontSize: fontSize(12),
-    fontWeight: '500',
-  },
-  pollComposerMaxInput: {
-    width: moderateScale(54),
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.xs,
-    textAlign: 'center',
-    fontSize: fontSize(13),
-    fontWeight: '600',
-  },
-  pollComposerCorrectWrap: {
-    marginTop: spacing.xs,
-  },
-  pollComposerActions: {
-    marginTop: spacing.sm,
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  pollComposerActionButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.sm,
-  },
-  pollComposerActionText: {
-    fontSize: fontSize(14),
-    fontWeight: '600',
-  },
-
-  // Reply preview
-  replyPreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    marginBottom: spacing.xs,
-    borderRadius: borderRadius.md,
-    borderLeftWidth: 3,
-  },
-  replyContent: { flex: 1 },
-  replyLabel: { fontWeight: '600', marginBottom: 2 },
-  replyText: { fontWeight: '400' },
-  cancelReplyBtn: { padding: spacing.xs },
-
-  // Image preview
-  imagePreviewRow: {
-    marginBottom: spacing.xs,
-    paddingHorizontal: spacing.xs,
-  },
-  imagePreviewWrap: {
-    width: moderateScale(80),
-    height: moderateScale(80),
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-  },
-  imagePreview: {
-    width: '100%',
-    height: '100%',
-  },
-  removeImageBtn: {
-    position: 'absolute',
-    top: moderateScale(4),
-    right: moderateScale(4),
-  },
-  removeImageCircle: {
-    width: moderateScale(22),
-    height: moderateScale(22),
-    borderRadius: moderateScale(11),
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  uploadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: borderRadius.lg,
-  },
-  filePreviewRow: {
-    marginBottom: spacing.xs,
-    paddingHorizontal: spacing.xs,
-  },
-  filePreviewCard: {
-    borderWidth: 1,
-    borderRadius: borderRadius.lg,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  filePreviewIconWrap: {
-    width: moderateScale(34),
-    height: moderateScale(34),
-    borderRadius: moderateScale(17),
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filePreviewInfo: {
-    flex: 1,
-  },
-  filePreviewName: {
-    fontWeight: '600',
-  },
-  filePreviewMeta: {
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  removeFileBtn: {
-    padding: 2,
-  },
-  fileUploadingWrap: {
-    minWidth: moderateScale(20),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Mention suggestions
-  mentionBox: {
-    position: 'absolute',
-    bottom: moderateScale(60),
-    left: spacing.sm,
-    right: spacing.sm,
-    borderRadius: borderRadius.lg,
-    padding: spacing.xs,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-    zIndex: 10,
-    maxHeight: moderateScale(180),
-  },
-  mentionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-  },
-  mentionAvatar: {
-    width: moderateScale(30),
-    height: moderateScale(30),
-    borderRadius: moderateScale(15),
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mentionAvatarImg: {
-    width: moderateScale(30),
-    height: moderateScale(30),
-    borderRadius: moderateScale(15),
-  },
-  mentionName: { fontWeight: '500', flex: 1 },
-
-  // Input row
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: spacing.xs,
-  },
-  plusButton: {
-    width: moderateScale(38),
-    height: moderateScale(38),
-    borderRadius: moderateScale(19),
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: moderateScale(1),
-  },
-  inputContainer: {
-    flex: 1,
-    borderRadius: borderRadius.xl,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: Platform.OS === 'ios' ? spacing.sm : spacing.xs,
-    justifyContent: 'center',
-  },
-  textInput: {
-    lineHeight: LINE_HEIGHT,
-    minHeight: moderateScale(22),
-    textAlignVertical: 'center',
-  },
-  sendButton: {
-    width: moderateScale(38),
-    height: moderateScale(38),
-    borderRadius: moderateScale(19),
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: moderateScale(1),
-  },
-  voiceButtonWrap: {
-    position: 'relative',
-  },
-  voiceLockPopup: {
-    position: 'absolute',
-    left: '50%',
-    top: -VOICE_LOCK_THRESHOLD,
-    marginLeft: moderateScale(-16),
-    width: moderateScale(32),
-    height: moderateScale(32),
-    borderRadius: moderateScale(16),
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  voiceLockPopupActive: {
-    backgroundColor: '#EF4444',
-    borderColor: '#EF4444',
-  },
-  voiceRecordingBar: {
-    marginTop: spacing.xs,
-    borderWidth: 1,
-    borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    gap: spacing.xs,
-  },
-  voiceRecordingInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  voiceRecordingTime: {
-    fontWeight: '700',
-    fontSize: fontSize(13),
-  },
-  voiceRecordingHint: {
-    fontWeight: '500',
-    fontSize: fontSize(12),
-  },
-  voiceHintsContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.xs,
-  },
-  slideCancelPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.xs / 2,
-    paddingHorizontal: spacing.xs,
-    gap: spacing.xs / 2,
-  },
-  slideCancelText: {
-    fontWeight: '600',
-    fontSize: fontSize(11),
-  },
-  voiceWaveformRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs / 2,
-    minHeight: moderateScale(20),
-  },
-  voiceWaveBar: {
-    width: moderateScale(3),
-    borderRadius: moderateScale(2),
-  },
-  voiceRecordingActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: spacing.sm,
-  },
-  voiceActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  voiceActionText: {
-    fontWeight: '600',
-    fontSize: fontSize(12),
-  },
-
-  // Action sheet
-  actionSheet: {
-    marginTop: spacing.sm,
-    borderRadius: borderRadius.xl,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-  },
-  actionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-around',
-  },
-  actionItem: {
-    alignItems: 'center',
-    width: wp(18),
-    marginBottom: spacing.sm,
-  },
-  actionIconCircle: {
-    width: moderateScale(50),
-    height: moderateScale(50),
-    borderRadius: moderateScale(25),
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  actionLabel: {
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-
-  // Location modal
-  locationOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  locationModal: {
-    width: '100%',
-    borderRadius: borderRadius.xl,
-    padding: spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  locationTitle: {
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: spacing.md,
-  },
-  locationMapWrap: {
-    width: '100%',
-    height: moderateScale(180),
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    marginBottom: spacing.md,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-  },
-  locationMap: { width: '100%', height: '100%' },
-  locationCoords: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  locationCoordsText: { fontWeight: '500' },
-  locationConfirm: { textAlign: 'center', marginBottom: spacing.lg },
-  locationBtns: { flexDirection: 'row', gap: spacing.md },
-  locationCancelBtn: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  locationCancelText: { fontWeight: '600' },
-  locationSendBtn: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-  },
-  locationSendText: { fontWeight: '600', color: '#FFFFFF' },
-});
 
 export default MessageInput;
