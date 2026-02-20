@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
@@ -199,11 +198,6 @@ const Chats = ({ navigation }) => {
       await addChatToList();
     }
 
-    // Refresh unread count for this chat
-    if (user?.$id) {
-      const count = await getUnreadCount(resolvedPayload.$id, user.$id);
-      setUnreadCounts(prev => ({ ...prev, [resolvedPayload.$id]: count }));
-    }
   }, [defaultGroups, customGroups, privateChats, user?.$id]);
 
   // Subscribe to chat list updates
@@ -226,20 +220,25 @@ const Chats = ({ navigation }) => {
       await initializeUserGroups(user.department, stageValue, user.$id);
       
       setInitializing(false);
-      await loadChats(false);
+      await loadChats(true);
     } catch (error) {
       setInitializing(false);
       setLoading(false);
     }
   };
 
-  const loadUnreadCounts = async (allChats) => {
+  const loadUnreadCounts = async (allChats, options = {}) => {
     if (!user?.$id || allChats.length === 0) return;
+
+    const { forceNetwork = false } = options;
     
     const counts = {};
     await Promise.all(
       allChats.map(async (chat) => {
-        const count = await getUnreadCount(chat.$id, user.$id);
+        const count = await getUnreadCount(chat.$id, user.$id, {
+          useCache: true,
+          cacheOnly: !forceNetwork,
+        });
         counts[chat.$id] = count;
       })
     );
@@ -261,11 +260,13 @@ const Chats = ({ navigation }) => {
     setClearedAtMap(timestamps);
   };
 
-  const loadChats = async (useCache = true) => {
+  const loadChats = async (useCache = true, options = {}) => {
     if (!user?.department) {
       setLoading(false);
       return;
     }
+
+    const { forceUnreadNetwork = false } = options;
 
     try {
       setLoading(true);
@@ -303,7 +304,7 @@ const Chats = ({ navigation }) => {
 
       const loadAuxiliaryData = async () => {
         await Promise.all([
-          loadUnreadCounts(allChats),
+          loadUnreadCounts(allChats, { forceNetwork: forceUnreadNetwork }),
           loadClearedAtTimestamps(allChats),
         ]);
 
@@ -350,18 +351,9 @@ const Chats = ({ navigation }) => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadChats(false);
+    await loadChats(false, { forceUnreadNetwork: true });
     setRefreshing(false);
   };
-
-  // Reload chats when screen comes into focus (e.g., returning from ChatRoom)
-  useFocusEffect(
-    useCallback(() => {
-      if (user?.department && !initializing) {
-        loadChats(false);
-      }
-    }, [user?.department, initializing])
-  );
 
   const handleChatPress = (chat) => {
     navigation.navigate('ChatRoom', { chat });

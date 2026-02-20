@@ -165,7 +165,6 @@ const Profile = ({ navigation, route }) => {
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      refreshUser();
       setImageKey(Date.now());
       
       // Check if there's a post that needs to be refreshed
@@ -200,12 +199,10 @@ const Profile = ({ navigation, route }) => {
 
       if (Object.keys(paramsToClear).length > 0) {
         navigation.setParams(paramsToClear);
-      } else {
-        setPostsLoaded(false);
       }
     });
     return unsubscribe;
-  }, [navigation, refreshUser, route?.params?.updatedPostId, route?.params?.updatedReplyCount]);
+  }, [navigation, route?.params?.updatedPostId, route?.params?.updatedReplyCount]);
 
   // Posts are always visible, so load them when user is available
   useEffect(() => {

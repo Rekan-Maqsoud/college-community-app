@@ -172,7 +172,10 @@ const TabNavigator = () => {
         ...(chats.privateChats || []),
       ];
       const chatIds = allChats.map(c => c.$id);
-      const total = await getTotalUnreadCount(user.$id, chatIds);
+      const total = await getTotalUnreadCount(user.$id, chatIds, {
+        useCache: true,
+        cacheOnly: true,
+      });
       setUnreadCount(total);
     } catch (error) {
       // Silently fail
@@ -181,8 +184,6 @@ const TabNavigator = () => {
 
   useEffect(() => {
     fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
   }, [fetchUnreadCount]);
   
   return (
@@ -947,15 +948,16 @@ const DeepLinkHandler = ({ navigationRef, pendingRouteRef }) => {
         }
 
         // Handle lecture channel deep link
-        // collegecommunity://lecture-channel/{channelId}
+        // collegecommunity://lecture-channel/{channelId}?assetId={assetId}
+        const lectureAssetId = parsed?.queryParams?.assetId || '';
         if (parsedPath && parsedPath.startsWith('lecture-channel/')) {
           const lectureChannelId = parsedPath.replace('lecture-channel/', '');
           if (lectureChannelId) {
-            navigateSafe('LectureChannel', { channelId: lectureChannelId });
+            navigateSafe('LectureChannel', { channelId: lectureChannelId, assetId: lectureAssetId });
           }
         } else if (parsedHost === 'lecture-channel' && parsedPath) {
           const lectureChannelId = parsedPath;
-          navigateSafe('LectureChannel', { channelId: lectureChannelId });
+          navigateSafe('LectureChannel', { channelId: lectureChannelId, assetId: lectureAssetId });
         }
       } catch (error) {
         // Silent fail for deep link parsing errors

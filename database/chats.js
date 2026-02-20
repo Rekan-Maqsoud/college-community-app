@@ -4,7 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as Random from 'expo-random';
 import nacl from 'tweetnacl';
 import { encodeBase64, decodeBase64, encodeUTF8, decodeUTF8 } from 'tweetnacl-util';
-import { messagesCacheManager } from '../app/utils/cacheManager';
+import { messagesCacheManager, unreadCountCacheManager } from '../app/utils/cacheManager';
 import { sendChatPushNotification } from '../services/pushNotificationService';
 import { getUserById, updateUserPublicKey } from './users';
 import { uploadImage } from '../services/imgbbService';
@@ -1234,6 +1234,8 @@ export const sendMessage = async (chatId, messageData) => {
             lastMessagePreview = '\uD83D\uDCCA Poll';
         } else if (messageData.type === 'post_share') {
             lastMessagePreview = '\uD83D\uDCDD Shared Post';
+        } else if (messageData.type === 'lecture_asset_banner') {
+            lastMessagePreview = '\uD83D\uDCDA New lecture file';
         } else if (hasContent) {
             lastMessagePreview = encryptedContent;
         }
@@ -1714,6 +1716,7 @@ export const markAllMessagesAsRead = async (chatId, userId) => {
             .map(msg => markMessageAsRead(msg.$id, userId));
         
         await Promise.all(updatePromises);
+        await unreadCountCacheManager.cacheChatUnreadCount(chatId, userId, 0);
     } catch (error) {
         // Silently fail
     }
@@ -2065,9 +2068,22 @@ export const getChatSettings = async (chatId) => {
 /**
  * Get unread message count for a specific chat
  */
-export const getUnreadCount = async (chatId, userId) => {
+export const getUnreadCount = async (chatId, userId, options = {}) => {
     try {
         if (!chatId || !userId) {
+            return 0;
+        }
+
+        const { useCache = true, cacheOnly = false } = options;
+
+        if (useCache) {
+            const cached = await unreadCountCacheManager.getCachedChatUnreadCount(chatId, userId);
+            if (cached && typeof cached.value === 'number') {
+                return cached.value;
+            }
+        }
+
+        if (cacheOnly) {
             return 0;
         }
 
@@ -2092,6 +2108,8 @@ export const getUnreadCount = async (chatId, userId) => {
                 }
             }
         }
+
+        await unreadCountCacheManager.cacheChatUnreadCount(chatId, userId, unreadCount);
 
         return unreadCount;
     } catch (error) {
@@ -2134,6 +2152,7 @@ export const markChatAsRead = async (chatId, userId) => {
             });
 
         await Promise.all(updatePromises);
+        await unreadCountCacheManager.cacheChatUnreadCount(chatId, userId, 0);
     } catch (error) {
         // Silently fail - reading messages is not critical
     }
@@ -2142,15 +2161,17 @@ export const markChatAsRead = async (chatId, userId) => {
 /**
  * Get total unread count across all user chats
  */
-export const getTotalUnreadCount = async (userId, chatIds) => {
+export const getTotalUnreadCount = async (userId, chatIds, options = {}) => {
     try {
         if (!userId || !chatIds || chatIds.length === 0) {
             return 0;
         }
 
+        const { useCache = true, cacheOnly = false } = options;
+
         let totalUnread = 0;
         for (const chatId of chatIds) {
-            const count = await getUnreadCount(chatId, userId);
+            const count = await getUnreadCount(chatId, userId, { useCache, cacheOnly });
             totalUnread += count;
         }
 

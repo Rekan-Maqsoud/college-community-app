@@ -201,6 +201,7 @@ const MessageBubble = ({
   const isVoice = message.type === 'voice';
   const isPoll = message.type === 'poll';
   const isFile = message.type === 'file';
+  const isLectureAssetBanner = message.type === 'lecture_asset_banner';
   const hasText = !isVoice && !isFile && message.content && message.content.trim().length > 0;
   const isSticker = isGif && (() => {
     try {
@@ -320,6 +321,24 @@ const MessageBubble = ({
       return null;
     }
   }, [isFile, message.content, t]);
+
+  const lectureBannerData = React.useMemo(() => {
+    if (!isLectureAssetBanner) return null;
+    try {
+      const parsed = typeof message.content === 'string'
+        ? JSON.parse(message.content)
+        : message.content;
+
+      return {
+        channelName: parsed?.channelName || t('lectures.channel'),
+        fileName: parsed?.fileName || t('lectures.file'),
+        deeplink: parsed?.deeplink || '',
+        uploadType: parsed?.uploadType || '',
+      };
+    } catch {
+      return null;
+    }
+  }, [isLectureAssetBanner, message.content, t]);
 
   const pollVoteCounts = React.useMemo(() => getPollVoteCounts(pollData), [pollData]);
   const pollUserSelections = React.useMemo(() => getUserPollSelection(pollData, currentUserId), [pollData, currentUserId]);
@@ -659,6 +678,23 @@ const MessageBubble = ({
     }
   };
 
+  const handleLectureBannerPress = () => {
+    const target = lectureBannerData?.deeplink || '';
+    if (!target || selectionMode) {
+      return;
+    }
+
+    Linking.openURL(target).catch(() => {
+      if (showAlert) {
+        showAlert({
+          type: 'error',
+          title: t('common.error'),
+          message: t('lectures.openChannelError'),
+        });
+      }
+    });
+  };
+
   const reactionsMap = parseMessageReactions(message.reactions);
   const reactionEntries = Object.entries(reactionsMap)
     .filter(([, users]) => Array.isArray(users) && users.length > 0);
@@ -909,6 +945,40 @@ const MessageBubble = ({
       )}
 
       {/* Shared Post Card */}
+      {isLectureAssetBanner && lectureBannerData && (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          disabled={selectionMode || !lectureBannerData.deeplink}
+          onPress={handleLectureBannerPress}
+          style={[
+            styles.lectureBannerCard,
+            {
+              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.92)',
+              borderColor: isDarkMode ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)',
+            },
+          ]}
+        >
+          <View style={styles.lectureBannerLeft}>
+            <Ionicons name="document-text-outline" size={moderateScale(14)} color={theme.primary} />
+            <View style={styles.lectureBannerTextWrap}>
+              <Text style={[styles.lectureBannerTitle, { color: theme.text }]} numberOfLines={1}>
+                {t('chats.lectureBannerTitle')}
+              </Text>
+              <Text style={[styles.lectureBannerLine, { color: theme.textSecondary }]} numberOfLines={1}>
+                {t('chats.lectureBannerLine')
+                  .replace('{fileName}', lectureBannerData.fileName)
+                  .replace('{channelName}', lectureBannerData.channelName)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.lectureBannerRight}>
+            <Text style={[styles.lectureBannerHint, { color: theme.primary }]}>{t('chats.tapToOpen')}</Text>
+            <Ionicons name="chevron-forward" size={moderateScale(12)} color={theme.primary} />
+          </View>
+        </TouchableOpacity>
+      )}
+
       {isPostShare && postShareData && (
         <TouchableOpacity
           activeOpacity={0.8}
@@ -1307,7 +1377,7 @@ const MessageBubble = ({
         </View>
       )}
 
-      {!isPostShare && !isLocation && !isGif && !isVoice && !isPoll && !isFile && hasImage && (
+      {!isLectureAssetBanner && !isPostShare && !isLocation && !isGif && !isVoice && !isPoll && !isFile && hasImage && (
         <TouchableOpacity 
           onPress={() => setImageModalVisible(true)}
           disabled={selectionMode}
@@ -1323,7 +1393,7 @@ const MessageBubble = ({
         </TouchableOpacity>
       )}
 
-      {!isPostShare && !isLocation && !isGif && !isVoice && !isPoll && !isFile && renderMessageContent()}
+      {!isLectureAssetBanner && !isPostShare && !isLocation && !isGif && !isVoice && !isPoll && !isFile && renderMessageContent()}
       
       <View style={styles.timeStatusRow}>
         <Text style={[
@@ -1371,7 +1441,9 @@ const MessageBubble = ({
   return (
     <ReanimatedView style={[
       styles.container,
-      isCurrentUser ? styles.currentUserContainer : styles.otherUserContainer,
+      isLectureAssetBanner
+        ? styles.lectureBannerContainer
+        : (isCurrentUser ? styles.currentUserContainer : styles.otherUserContainer),
       isCurrentSearchResult && styles.currentSearchResultContainer,
       highlightAnimatedStyle,
     ]}>
@@ -1390,7 +1462,7 @@ const MessageBubble = ({
       )}
 
       {/* Show sender name for other users */}
-      {!isCurrentUser && senderName && (
+      {!isCurrentUser && senderName && !isLectureAssetBanner && (
         <View style={[styles.senderNameRow, styles.senderNameWithAvatar]}>
           <Text style={[
             styles.senderName, 
@@ -1407,9 +1479,9 @@ const MessageBubble = ({
         </View>
       )}
       
-      <View style={styles.messageRow}>
+      <View style={[styles.messageRow, isLectureAssetBanner && styles.lectureBannerRow]}>
         {/* Show avatar for other users - always reserve space for consistent alignment */}
-        {!isCurrentUser && (
+        {!isCurrentUser && !isLectureAssetBanner && (
           <View style={styles.avatarContainer}>
             {showAvatar ? (
               <TouchableOpacity 
@@ -1432,6 +1504,7 @@ const MessageBubble = ({
           style={[
             { transform: [{ translateX }] },
             styles.bubbleWrapper,
+            isLectureAssetBanner && styles.lectureBannerBubbleWrapper,
           ]}
           {...panResponder.panHandlers}>
           {/* Render bubble with gradient or solid color based on chatSettings */}
@@ -1468,6 +1541,7 @@ const MessageBubble = ({
               style={[
                 isSticker ? styles.stickerBubble : styles.bubble,
                 !isSticker && (isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble),
+                !isSticker && isLectureAssetBanner && styles.lectureBannerBubble,
                 !isSticker && getBubbleStyleRadius(chatSettings),
                 !isSticker && {
                   backgroundColor: isCurrentUser 
@@ -1481,7 +1555,7 @@ const MessageBubble = ({
             </Pressable>
           )}
 
-          {showCornerReactionAdd && (
+          {showCornerReactionAdd && !isLectureAssetBanner && (
             <TouchableOpacity
               style={styles.reactionAddCorner}
               onPress={() => setReactionPickerVisible(true)}
@@ -1493,7 +1567,7 @@ const MessageBubble = ({
         </Animated.View>
       </View>
 
-      {reactionEntries.length > 0 && (
+      {!isLectureAssetBanner && reactionEntries.length > 0 && (
         <View style={[
           styles.reactionsRow,
           isCurrentUser ? styles.reactionsRowRight : styles.reactionsRowLeft,

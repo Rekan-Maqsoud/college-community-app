@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { AppState } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { 
   getMessages, 
@@ -41,8 +40,6 @@ import {
 import { useChatMessages } from '../../hooks/useRealtimeSubscription';
 import { messagesCacheManager } from '../../utils/cacheManager';
 import { normalizeRealtimeMessage } from '../../utils/realtimeHelpers';
-
-const SMART_POLL_INTERVAL = 10000;
 
 export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, refreshUser }) => {
   // Deep-clone chat once to avoid mutating the frozen route.params object
@@ -86,8 +83,6 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   const [chatSettingsLoaded, setChatSettingsLoaded] = useState(false);
   
   const flatListRef = useRef(null);
-  const pollingInterval = useRef(null);
-  const appState = useRef(AppState.currentState);
   const lastMessageId = useRef(null);
   const userCacheRef = useRef({});
   const isRealtimeActive = useRef(false);
@@ -172,103 +167,6 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     handleRealtimeMessageDeleted,
     !!chat.$id && !!user?.$id
   );
-
-  const pollMessages = useCallback(async () => {
-    if (!chatSettingsLoaded) {
-      return;
-    }
-
-    try {
-      const fetchedMessages = await getMessages(chat.$id, user?.$id, 100, 0, false);
-      let chronological = fetchedMessages.reverse(); // oldest first
-
-      // Filter out messages deleted via realtime to prevent ghost re-appearance
-      if (deletedMessageIds.current.size > 0) {
-        chronological = chronological.filter(m => !deletedMessageIds.current.has(m.$id));
-      }
-
-      // Filter by clearedAt if set (non-destructive clear)
-      if (clearedAt) {
-        const clearedDate = new Date(clearedAt);
-        chronological = chronological.filter(m => {
-          const msgDate = new Date(m.$createdAt || m.createdAt);
-          return msgDate > clearedDate;
-        });
-      }
-
-      // Filter by hidden message IDs
-      if (hiddenMessageIds.length > 0) {
-        chronological = chronological.filter(m => !hiddenMessageIds.includes(m.$id));
-      }
-      
-      const newLastId = chronological.length > 0 ? chronological[chronological.length - 1].$id : null;
-
-      // Reverse for inverted FlatList (newest first)
-      const inverted = chronological.slice().reverse();
-      
-      setMessages(prev => {
-        // Keep ALL optimistic messages (both sending and recently sent)
-        const optimisticMessages = prev.filter(m => m._isOptimistic);
-        
-        // Merge: use server messages but update with any local status
-        const mergedMessages = inverted.map(serverMsg => {
-          const localMsg = prev.find(m => m.$id === serverMsg.$id);
-          if (localMsg && localMsg._status === 'sent') {
-            return { ...serverMsg, _status: localMsg._status, _isOptimistic: false };
-          }
-          return serverMsg;
-        });
-        
-        // Filter out optimistic messages that now exist on server (by content match)
-        const remainingOptimistic = optimisticMessages.filter(opt => 
-          !inverted.some(m => 
-            m.senderId === opt.senderId && 
-            m.content === opt.content &&
-            Math.abs(new Date(m.$createdAt) - new Date(opt.$createdAt)) < 30000
-          )
-        );
-        
-        // Only update if there are actual changes
-        const newMessages = [...remainingOptimistic, ...mergedMessages];
-        const prevIds = prev.map(m => m.$id).join(',');
-        const newIds = newMessages.map(m => m.$id).join(',');
-        
-        if (prevIds === newIds && prev.length === newMessages.length) {
-          // Check for content updates (like readBy, status)
-          const hasUpdates = newMessages.some((newMsg, idx) => {
-            const oldMsg = prev[idx];
-            return oldMsg && (
-              (newMsg.readBy?.length || 0) !== (oldMsg.readBy?.length || 0) ||
-              newMsg.status !== oldMsg.status
-            );
-          });
-          if (!hasUpdates) return prev;
-        }
-        
-        lastMessageId.current = newLastId;
-        return newMessages;
-      });
-      
-      const uniqueSenderIds = [...new Set(inverted.map(m => m.senderId))];
-      const newUsers = uniqueSenderIds.filter(id => !userCacheRef.current[id]);
-      
-      if (newUsers.length > 0) {
-        const newUserCache = { ...userCacheRef.current };
-        for (const senderId of newUsers) {
-          try {
-            const userData = await getUserById(senderId);
-            newUserCache[senderId] = userData;
-          } catch (error) {
-            newUserCache[senderId] = { name: 'Unknown User' };
-          }
-        }
-        userCacheRef.current = newUserCache;
-        setUserCache(newUserCache);
-      }
-    } catch (error) {
-      // Silent fail for polling
-    }
-  }, [chat.$id, chatSettingsLoaded, clearedAt, hiddenMessageIds]);
 
   const loadChatSettings = async () => {
     try {
@@ -552,35 +450,10 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     checkPermissions();
     checkIfBlockedByOther();
     loadMembersAndFriends();
-    
-    pollingInterval.current = setInterval(pollMessages, SMART_POLL_INTERVAL);
-    
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-        pollMessages();
-        // Mark messages as read when returning to app
-        if (user?.$id) {
-          markAllMessagesAsRead(chat.$id, user.$id);
-        }
-        if (!pollingInterval.current) {
-          pollingInterval.current = setInterval(pollMessages, SMART_POLL_INTERVAL);
-        }
-      } else if (nextAppState.match(/inactive|background/)) {
-        if (pollingInterval.current) {
-          clearInterval(pollingInterval.current);
-          pollingInterval.current = null;
-        }
-      }
-      appState.current = nextAppState;
-    });
-    
+
     return () => {
-      if (pollingInterval.current) {
-        clearInterval(pollingInterval.current);
-      }
-      subscription.remove();
     };
-  }, [chat.$id, chatSettingsLoaded, pollMessages]);
+  }, [chat.$id, chatSettingsLoaded]);
 
   useEffect(() => {
     let isMounted = true;
@@ -737,7 +610,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   const handleBatchCopy = useCallback(async () => {
     const selected = messages.filter(m => selectedMessageIds.includes(m.$id));
     const textParts = selected
-      .filter(m => m.content && m.content.trim().length > 0 && m.type !== 'post_share' && m.type !== 'location' && m.type !== 'voice' && m.type !== 'poll' && m.type !== 'file')
+      .filter(m => m.content && m.content.trim().length > 0 && m.type !== 'post_share' && m.type !== 'location' && m.type !== 'voice' && m.type !== 'poll' && m.type !== 'file' && m.type !== 'lecture_asset_banner')
       .map(m => m.content);
     if (textParts.length > 0) {
       await Clipboard.setStringAsync(textParts.join('\n'));
@@ -934,7 +807,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     const retryType = failedMessage.type || null;
     let retryMetadata = null;
 
-    if (retryType === 'gif' || retryType === 'voice' || retryType === 'post_share' || retryType === 'poll' || retryType === 'file') {
+    if (retryType === 'gif' || retryType === 'voice' || retryType === 'post_share' || retryType === 'poll' || retryType === 'file' || retryType === 'lecture_asset_banner') {
       try {
         retryMetadata = typeof failedMessage.content === 'string'
           ? JSON.parse(failedMessage.content)
@@ -945,7 +818,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     }
 
     await handleSendMessage(
-      retryType === 'gif' || retryType === 'voice' || retryType === 'post_share' || retryType === 'poll' || retryType === 'file'
+      retryType === 'gif' || retryType === 'voice' || retryType === 'post_share' || retryType === 'poll' || retryType === 'file' || retryType === 'lecture_asset_banner'
         ? ''
         : (failedMessage.content || ''),
       failedMessage.images?.[0] || failedMessage.imageUrl,
@@ -1130,6 +1003,10 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     setShowChatOptionsModal(true);
   }, []);
 
+  const handleManualRefresh = useCallback(async () => {
+    await loadMessages();
+  }, [loadMessages]);
+
   return {
     // State
     messages,
@@ -1191,5 +1068,6 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     toggleMessageSelection,
     handleBatchCopy,
     handleBatchDeleteForMe,
+    handleManualRefresh,
   };
 };

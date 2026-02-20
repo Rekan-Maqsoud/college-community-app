@@ -162,7 +162,19 @@ export const uploadFileToAppwrite = async ({
   });
 
   try {
-    let uploadResult = await uploadWithSdk({ bucketId, fileId, file });
+    let uploadResult = null;
+    let sdkUploadError = null;
+
+    try {
+      uploadResult = await uploadWithSdk({ bucketId, fileId, file });
+    } catch (sdkError) {
+      sdkUploadError = sdkError;
+      console.warn('[appwriteFileUpload] sdk upload failed, falling back to fetch', {
+        bucketId,
+        fileName: file.name,
+        message: sdkError?.message,
+      });
+    }
 
     if (!uploadResult) {
       try {
@@ -186,6 +198,10 @@ export const uploadFileToAppwrite = async ({
           throw fetchError;
         }
       }
+    }
+
+    if (!uploadResult && sdkUploadError) {
+      throw sdkUploadError;
     }
 
     const uploadedFileId = uploadResult?.$id || fileId;

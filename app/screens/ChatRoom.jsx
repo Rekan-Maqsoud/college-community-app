@@ -98,6 +98,7 @@ const ChatRoom = ({ route, navigation }) => {
     toggleMessageSelection,
     handleBatchCopy,
     handleBatchDeleteForMe,
+    handleManualRefresh,
     isBlockedByOtherUser,
     isChatBlockedByOtherUser,
   } = useChatRoom({ chat, user, t, navigation, showAlert, refreshUser });
@@ -150,7 +151,7 @@ const ChatRoom = ({ route, navigation }) => {
     if (!otherUserId) return;
 
     let active = true;
-    const poll = async () => {
+    const fetchLastSeen = async () => {
       try {
         const freshUser = await getUserById(otherUserId, true);
         if (active && freshUser?.lastSeen) {
@@ -158,9 +159,8 @@ const ChatRoom = ({ route, navigation }) => {
         }
       } catch (_) {}
     };
-    poll();
-    const interval = setInterval(poll, 30000); // refresh every 30s
-    return () => { active = false; clearInterval(interval); };
+    fetchLastSeen();
+    return () => { active = false; };
   }, [chat.type, chat.otherUser?.$id, showActivityStatus]);
 
   const formattedChatTitle = useMemo(() => {
@@ -333,6 +333,14 @@ const ChatRoom = ({ route, navigation }) => {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <TouchableOpacity
             style={{ marginRight: spacing.sm }}
+            onPress={handleManualRefresh}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.refresh')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="refresh-outline" size={moderateScale(22)} color={theme.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{ marginRight: spacing.sm }}
             onPress={openSearch}
             accessibilityRole="button"
             accessibilityLabel={t('chats.searchInChat')}
@@ -352,7 +360,7 @@ const ChatRoom = ({ route, navigation }) => {
         </View>
       ),
     });
-  }, [chat, isDarkMode, theme, muteStatus, chatSettings, openSearch, formattedChatTitle, handleChatHeaderPress, navigation, t, otherUserOnline, otherUserLastSeen, showActivityStatus]);
+  }, [chat, isDarkMode, theme, muteStatus, chatSettings, openSearch, formattedChatTitle, handleChatHeaderPress, navigation, t, otherUserOnline, otherUserLastSeen, showActivityStatus, handleManualRefresh]);
 
   const memoizedMessages = useMemo(() => {
     let filtered = messages;

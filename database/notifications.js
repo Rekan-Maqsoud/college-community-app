@@ -1,6 +1,7 @@
 import { databases, config } from './config';
 import { ID, Query } from 'appwrite';
 import { sendGeneralPushNotification } from '../services/pushNotificationService';
+import { unreadCountCacheManager, notificationsCacheManager } from '../app/utils/cacheManager';
 
 /**
  * Notification Types:
@@ -75,6 +76,9 @@ export const createNotification = async (notificationData) => {
             notificationDoc
         );
 
+        await unreadCountCacheManager.invalidateNotificationUnreadCount(notificationData.userId);
+        await notificationsCacheManager.invalidateUserNotifications(notificationData.userId);
+
         return notification;
     } catch (error) {
         return null;
@@ -88,10 +92,19 @@ export const createNotification = async (notificationData) => {
  * @param {number} offset - Offset for pagination
  * @returns {Promise<Array>} List of notifications
  */
-export const getNotifications = async (userId, limit = 20, offset = 0) => {
+export const getNotifications = async (userId, limit = 20, offset = 0, options = {}) => {
     try {
         if (!userId || typeof userId !== 'string') {
             return [];
+        }
+
+        const { useCache = true } = options;
+
+        if (useCache) {
+            const cached = await notificationsCacheManager.getCachedNotifications(userId, limit, offset);
+            if (cached?.value && Array.isArray(cached.value)) {
+                return cached.value;
+            }
         }
 
         if (!config.notificationsCollectionId || !config.databaseId) {
@@ -109,8 +122,14 @@ export const getNotifications = async (userId, limit = 20, offset = 0) => {
             ]
         );
 
-        return notifications.documents || [];
+        const docs = notifications.documents || [];
+        await notificationsCacheManager.cacheNotifications(userId, docs, limit, offset);
+        return docs;
     } catch (error) {
+        const cached = await notificationsCacheManager.getCachedNotifications(userId, limit, offset);
+        if (cached?.value && Array.isArray(cached.value)) {
+            return cached.value;
+        }
         return [];
     }
 };
@@ -120,10 +139,19 @@ export const getNotifications = async (userId, limit = 20, offset = 0) => {
  * @param {string} userId - User ID
  * @returns {Promise<number>} Unread count
  */
-export const getUnreadNotificationCount = async (userId) => {
+export const getUnreadNotificationCount = async (userId, options = {}) => {
     try {
         if (!userId || typeof userId !== 'string') {
             return 0;
+        }
+
+        const { useCache = true } = options;
+
+        if (useCache) {
+            const cached = await unreadCountCacheManager.getCachedNotificationUnreadCount(userId);
+            if (cached && typeof cached.value === 'number') {
+                return cached.value;
+            }
         }
 
         if (!config.notificationsCollectionId) {
@@ -139,6 +167,8 @@ export const getUnreadNotificationCount = async (userId) => {
                 Query.limit(100),
             ]
         );
+
+        await unreadCountCacheManager.cacheNotificationUnreadCount(userId, notifications.total);
 
         return notifications.total;
     } catch (error) {
@@ -163,6 +193,9 @@ export const markNotificationAsRead = async (notificationId) => {
             notificationId,
             { isRead: true }
         );
+
+        await unreadCountCacheManager.invalidateNotificationUnreadCount(notification?.userId);
+        await notificationsCacheManager.invalidateUserNotifications(notification?.userId);
 
         return notification;
     } catch (error) {
@@ -208,6 +241,9 @@ export const markAllNotificationsAsRead = async (userId) => {
 
         await Promise.all(updatePromises);
 
+        await unreadCountCacheManager.invalidateNotificationUnreadCount(userId);
+        await notificationsCacheManager.invalidateUserNotifications(userId);
+
         return true;
     } catch (error) {
         throw error;
@@ -225,11 +261,20 @@ export const deleteNotification = async (notificationId) => {
             throw new Error('Invalid notification ID');
         }
 
+        const existing = await databases.getDocument(
+            config.databaseId,
+            config.notificationsCollectionId,
+            notificationId
+        );
+
         await databases.deleteDocument(
             config.databaseId,
             config.notificationsCollectionId,
             notificationId
         );
+
+        await unreadCountCacheManager.invalidateNotificationUnreadCount(existing?.userId);
+        await notificationsCacheManager.invalidateUserNotifications(existing?.userId);
 
         return true;
     } catch (error) {
@@ -272,6 +317,9 @@ export const deleteAllNotifications = async (userId) => {
         );
 
         await Promise.all(deletePromises);
+
+        await unreadCountCacheManager.invalidateNotificationUnreadCount(userId);
+        await notificationsCacheManager.invalidateUserNotifications(userId);
 
         return true;
     } catch (error) {

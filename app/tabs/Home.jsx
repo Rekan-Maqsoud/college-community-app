@@ -148,7 +148,7 @@ const Home = ({ navigation, route }) => {
 
   useEffect(() => {
     if (user && user.department) {
-      loadPosts(true, { forceNetwork: true });
+      loadPosts(true);
     }
   }, [selectedFeed, selectedStage, sortBy, filterType, answerStatus, user]);
 
@@ -165,13 +165,7 @@ const Home = ({ navigation, route }) => {
       }
     };
     loadUnreadCount();
-    
-    // Set up periodic refresh every 5 minutes as fallback for realtime
-    // This is battery-efficient as it only runs when app is in foreground
-    const intervalId = setInterval(() => {
-      loadUnreadCount();
-    }, 5 * 60 * 1000); // 5 minutes
-    
+
     // Refresh count and check for post updates when screen is focused
     const unsubscribe = navigation.addListener('focus', async () => {
       loadUnreadCount();
@@ -213,9 +207,8 @@ const Home = ({ navigation, route }) => {
     
     return () => {
       unsubscribe();
-      clearInterval(intervalId);
     };
-  }, [user?.$id, navigation, route?.params?.updatedPostId, route?.params?.updatedReplyCount]);
+  }, [user?.$id, navigation, route]);
 
   // Real-time notification subscription for badge updates
   const handleNewNotification = useCallback((notification) => {

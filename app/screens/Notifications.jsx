@@ -489,16 +489,20 @@ const Notifications = ({ navigation }) => {
     };
   }, []);
 
-  const loadNotifications = useCallback(async (reset = false) => {
+  const loadNotifications = useCallback(async (reset = false, options = {}) => {
     if (!user?.$id) {
       setIsLoading(false);
       return;
     }
 
+    const { forceNetwork = false } = options;
+
     const currentPage = reset ? 0 : page;
     
     try {
-      const fetchedNotifications = await getNotifications(user.$id, 20, currentPage * 20);
+      const fetchedNotifications = await getNotifications(user.$id, 20, currentPage * 20, {
+        useCache: !forceNetwork,
+      });
       
       const sanitized = (fetchedNotifications || [])
         .map(sanitizeNotification)
@@ -566,19 +570,9 @@ const Notifications = ({ navigation }) => {
     }
   }, [user?.$id]);
 
-  // Reload notifications when screen is focused
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      if (user?.$id) {
-        loadNotifications(true);
-      }
-    });
-    return unsubscribe;
-  }, [navigation, user?.$id]);
-
   const handleRefresh = () => {
     setIsRefreshing(true);
-    loadNotifications(true);
+    loadNotifications(true, { forceNetwork: true });
   };
 
   const handleLoadMore = () => {

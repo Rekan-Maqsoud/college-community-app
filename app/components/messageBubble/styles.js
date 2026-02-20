@@ -14,9 +14,15 @@ const styles = StyleSheet.create({
   otherUserContainer: {
     alignItems: 'flex-start',
   },
+  lectureBannerContainer: {
+    alignItems: 'center',
+  },
   messageRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
+  },
+  lectureBannerRow: {
+    justifyContent: 'center',
   },
   avatarContainer: {
     width: moderateScale(32),
@@ -32,6 +38,10 @@ const styles = StyleSheet.create({
   bubbleWrapper: {
     maxWidth: '80%',
     position: 'relative',
+  },
+  lectureBannerBubbleWrapper: {
+    width: '100%',
+    maxWidth: moderateScale(360),
   },
   senderName: {
     fontWeight: '600',
@@ -66,6 +76,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
+  },
+  lectureBannerBubble: {
+    width: '100%',
+    maxWidth: moderateScale(360),
+    minWidth: moderateScale(160),
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.md,
+    borderBottomLeftRadius: borderRadius.md,
+    borderBottomRightRadius: borderRadius.md,
   },
   imageBubble: {
     padding: spacing.xs / 2,
@@ -591,6 +611,46 @@ const styles = StyleSheet.create({
     fontSize: fontSize(9),
     fontWeight: '700',
     overflow: 'hidden',
+  },
+  lectureBannerCard: {
+    width: '100%',
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.xs,
+  },
+  lectureBannerLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    minWidth: 0,
+  },
+  lectureBannerTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  lectureBannerTitle: {
+    fontSize: fontSize(11),
+    fontWeight: '700',
+  },
+  lectureBannerLine: {
+    marginTop: 2,
+    fontSize: fontSize(11),
+    fontWeight: '500',
+  },
+  lectureBannerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs / 2,
+  },
+  lectureBannerHint: {
+    fontSize: fontSize(10),
+    fontWeight: '700',
   },
   pollCard: {
     width: moderateScale(220),

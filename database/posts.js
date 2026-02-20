@@ -191,7 +191,7 @@ export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = 
         // Try to get cached data first
         if (useCache && offset === 0) {
             const cached = await postsCacheManager.getCachedPosts(cacheKey);
-            if (cached?.value && !cached.isStale) {
+            if (cached?.value) {
                 const visibleCached = filterPostsByVisibility(cached.value, currentUserId);
                 // Filter blocked users from cached results
                 if (blockedUserIds.length > 0) {
@@ -273,7 +273,7 @@ export const getPostsByDepartments = async (departments = [], stage = 'all', lim
         // Try to get cached data first
         if (useCache && offset === 0) {
             const cached = await postsCacheManager.getCachedPosts(cacheKey);
-            if (cached?.value && !cached.isStale) {
+            if (cached?.value) {
                 return filterPostsByVisibility(cached.value, currentUserId);
             }
         }
@@ -343,7 +343,7 @@ export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, u
         // Try to get cached data first
         if (useCache && offset === 0) {
             const cached = await postsCacheManager.getCachedPosts(cacheKey);
-            if (cached?.value && !cached.isStale) {
+            if (cached?.value) {
                 return filterPostsByVisibility(cached.value, currentUserId);
             }
         }

@@ -307,7 +307,7 @@ export const getAllUserChats = async (userId, department, stage, useCache = true
         // Try to get cached data first
         if (useCache) {
             const cached = await chatsCacheManager.getCachedChats(cacheKey);
-            if (cached?.value && !cached.isStale) {
+            if (cached?.value) {
                 return cached.value;
             }
         }

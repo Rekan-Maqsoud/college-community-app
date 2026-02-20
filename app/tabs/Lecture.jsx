@@ -11,11 +11,14 @@ import {
   RefreshControl,
   Share,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { useTranslation } from '../hooks/useTranslation';
+import AnimatedBackground from '../components/AnimatedBackground';
 import { useLectureChannelsRealtime } from '../hooks/useRealtimeSubscription';
 import {
   createLectureChannel,
@@ -40,6 +43,8 @@ const LECTURE_WINDOWS = {
   DISCOVER: 'discover',
   MY: 'my',
 };
+
+const getPinnedChannelsStorageKey = (userId = '') => `lecture_pinned_channels_${userId}`;
 
 const logLectureTab = (event, payload = {}) => {
   console.log('[LectureTab]', event, payload);
@@ -281,8 +286,13 @@ const Lecture = ({ navigation }) => {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
+  const [showDiscoverTools, setShowDiscoverTools] = useState(false);
+  const [channelMenuOpen, setChannelMenuOpen] = useState(false);
+  const [channelMenuTarget, setChannelMenuTarget] = useState(null);
+  const [pinnedChannelIds, setPinnedChannelIds] = useState([]);
 
   const myChannelIds = useMemo(() => new Set((myChannels || []).map(channel => channel.$id)), [myChannels]);
+  const pinnedChannelIdSet = useMemo(() => new Set((pinnedChannelIds || []).filter(Boolean)), [pinnedChannelIds]);
 
   const suggestedChannels = useMemo(() => {
     if (!Array.isArray(allChannels) || !allChannels.length) {
@@ -309,6 +319,22 @@ const Lecture = ({ navigation }) => {
       return departmentMatch || stageMatch;
     });
   }, [allChannels, user?.department, user?.stage, user?.year]);
+
+  const sortChannelsWithPins = useCallback((channels = []) => {
+    const list = Array.isArray(channels) ? [...channels] : [];
+    return list.sort((first, second) => {
+      const firstPinned = pinnedChannelIdSet.has(first?.$id) ? 1 : 0;
+      const secondPinned = pinnedChannelIdSet.has(second?.$id) ? 1 : 0;
+
+      if (firstPinned !== secondPinned) {
+        return secondPinned - firstPinned;
+      }
+
+      const firstDate = new Date(first?.$updatedAt || first?.$createdAt || 0).getTime();
+      const secondDate = new Date(second?.$updatedAt || second?.$createdAt || 0).getTime();
+      return secondDate - firstDate;
+    });
+  }, [pinnedChannelIdSet]);
 
   const channelAccessLabel = (channel) => {
     if (!channel) {
@@ -339,6 +365,45 @@ const Lecture = ({ navigation }) => {
       setAvailableGroups([]);
     }
   }, [user?.$id]);
+
+  const loadPinnedChannels = useCallback(async () => {
+    if (!user?.$id) {
+      setPinnedChannelIds([]);
+      return;
+    }
+
+    try {
+      const raw = await AsyncStorage.getItem(getPinnedChannelsStorageKey(user.$id));
+      const parsed = raw ? JSON.parse(raw) : [];
+      const normalized = Array.isArray(parsed) ? parsed.filter(Boolean).map(id => String(id)) : [];
+      setPinnedChannelIds(normalized);
+    } catch {
+      setPinnedChannelIds([]);
+    }
+  }, [user?.$id]);
+
+  const persistPinnedChannels = useCallback(async (nextIds = []) => {
+    if (!user?.$id) {
+      return;
+    }
+
+    const normalized = [...new Set((Array.isArray(nextIds) ? nextIds : []).filter(Boolean).map(id => String(id)))];
+    setPinnedChannelIds(normalized);
+    await AsyncStorage.setItem(getPinnedChannelsStorageKey(user.$id), JSON.stringify(normalized));
+  }, [user?.$id]);
+
+  const handleTogglePinChannel = useCallback(async (channelId) => {
+    if (!channelId) {
+      return;
+    }
+
+    const isPinned = pinnedChannelIdSet.has(channelId);
+    const next = isPinned
+      ? pinnedChannelIds.filter(id => id !== channelId)
+      : [...pinnedChannelIds, channelId];
+
+    await persistPinnedChannels(next);
+  }, [persistPinnedChannels, pinnedChannelIdSet, pinnedChannelIds]);
 
   const loadChannels = useCallback(async ({ showLoading = true } = {}) => {
     logLectureTab('loadChannels:start', {
@@ -384,7 +449,8 @@ const Lecture = ({ navigation }) => {
     logLectureTab('effect:initialLoad', {});
     loadChannels();
     loadAvailableGroups();
-  }, [loadChannels, loadAvailableGroups]);
+    loadPinnedChannels();
+  }, [loadChannels, loadAvailableGroups, loadPinnedChannels]);
 
   useLectureChannelsRealtime(() => {
     loadChannels({ showLoading: false });
@@ -460,16 +526,29 @@ const Lecture = ({ navigation }) => {
 
   const renderChannelCard = ({ item }) => {
     const joined = myChannelIds.has(item.$id);
+    const isPinned = pinnedChannelIdSet.has(item.$id);
 
     return (
       <TouchableOpacity
         style={[styles.channelCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-        onPress={() => openChannel(item)}>
+        onPress={() => openChannel(item)}
+        onLongPress={() => {
+          setChannelMenuTarget(item);
+          setChannelMenuOpen(true);
+        }}
+        delayLongPress={280}>
         <View style={styles.channelHeader}>
-          <Text style={[styles.channelName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
-          <Text style={[styles.channelTypeBadge, { color: colors.primary }]}>
-            {item.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? t('lectures.official') : t('lectures.community')}
-          </Text>
+          <View style={styles.channelHeaderLeft}>
+            {isPinned && <Ionicons name="pin" size={14} color={colors.primary} />}
+            <Text style={[styles.channelName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+          </View>
+
+          <View style={styles.channelHeaderRight}>
+            <Text style={[styles.channelTypeBadge, { color: colors.primary }]}>
+              {item.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? t('lectures.official') : t('lectures.community')}
+            </Text>
+            <Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} />
+          </View>
         </View>
 
         <Text style={[styles.channelDescription, { color: colors.textSecondary }]} numberOfLines={2}>
@@ -485,35 +564,35 @@ const Lecture = ({ navigation }) => {
           </Text>
         </View>
 
-        <View style={styles.cardActions}>
-          <TouchableOpacity
-            style={[styles.secondaryBtn, { borderColor: colors.border }]}
-            onPress={() => handleShareChannel(item.$id)}>
-            <Text style={[styles.secondaryBtnText, { color: colors.text }]}>{t('lectures.share')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.secondaryBtn, { borderColor: colors.border }]}
-            onPress={() => openChannel(item)}>
-            <Text style={[styles.secondaryBtnText, { color: colors.text }]}>{t('lectures.openChannel')}</Text>
-          </TouchableOpacity>
-
-          {!joined && (
+        {!joined && (
+          <View style={styles.cardActions}>
             <TouchableOpacity
               style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
               onPress={() => handleRequestJoin(item.$id)}>
               <Text style={styles.primaryBtnText}>{t('lectures.join')}</Text>
             </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
 
-  const listData = activeWindow === LECTURE_WINDOWS.DISCOVER ? allChannels : myChannels;
+  const listData = useMemo(() => {
+    const source = activeWindow === LECTURE_WINDOWS.DISCOVER ? allChannels : myChannels;
+    return sortChannelsWithPins(source);
+  }, [activeWindow, allChannels, myChannels, sortChannelsWithPins]);
+
+  const channelMenuTargetJoined = !!(channelMenuTarget?.$id && myChannelIds.has(channelMenuTarget.$id));
+  const channelMenuTargetPinned = !!(channelMenuTarget?.$id && pinnedChannelIdSet.has(channelMenuTarget.$id));
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
+      <AnimatedBackground particleCount={35} />
+      <LinearGradient
+        colors={isDarkMode ? ['#1a1a2e', '#16213e', '#0f3460'] : ['#e3f2fd', '#bbdefb', '#90caf9']}
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}>
       <StatusBar
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor="transparent"
@@ -560,61 +639,79 @@ const Lecture = ({ navigation }) => {
 
       {activeWindow === LECTURE_WINDOWS.DISCOVER && (
         <View style={styles.searchWrap}>
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            onSubmitEditing={() => loadChannels()}
-            placeholder={t('lectures.searchPlaceholder')}
-            placeholderTextColor={colors.textSecondary}
-            style={[styles.searchInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
-          />
+          <TouchableOpacity
+            style={[styles.toolsToggleBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
+            onPress={() => setShowDiscoverTools(prev => !prev)}>
+            <View style={styles.toolsToggleLeft}>
+              <Ionicons name="options-outline" size={16} color={colors.primary} />
+              <Text style={[styles.toolsToggleText, { color: colors.text }]}>{t('lectures.discoverTools')}</Text>
+            </View>
+            <Ionicons
+              name={showDiscoverTools ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color={colors.textSecondary}
+            />
+          </TouchableOpacity>
 
-          <View style={styles.filterRow}>
-            {[CHANNEL_FILTERS.ALL, CHANNEL_FILTERS.OFFICIAL, CHANNEL_FILTERS.COMMUNITY].map(item => (
-              <TouchableOpacity
-                key={item}
-                style={[
-                  styles.filterChip,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: filter === item ? colors.primary : 'transparent',
-                  },
-                ]}
-                onPress={() => setFilter(item)}>
-                <Text style={[styles.filterChipText, { color: filter === item ? '#FFFFFF' : colors.text }]}>
-                  {item === CHANNEL_FILTERS.ALL
-                    ? t('lectures.all')
-                    : item === CHANNEL_FILTERS.OFFICIAL
-                      ? t('lectures.official')
-                      : t('lectures.community')}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {showDiscoverTools && (
+            <>
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                onSubmitEditing={() => loadChannels()}
+                placeholder={t('lectures.searchPlaceholder')}
+                placeholderTextColor={colors.textSecondary}
+                style={[styles.searchInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+              />
 
-          <View style={styles.suggestedWrap}>
-            <Text style={[styles.suggestedTitle, { color: colors.text }]}>{t('lectures.suggestedChannels')}</Text>
-            {suggestedChannels.length > 0 ? (
-              <FlatList
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                data={suggestedChannels}
-                keyExtractor={(item) => item.$id}
-                renderItem={({ item }) => (
+              <View style={styles.filterRow}>
+                {[CHANNEL_FILTERS.ALL, CHANNEL_FILTERS.OFFICIAL, CHANNEL_FILTERS.COMMUNITY].map(item => (
                   <TouchableOpacity
-                    style={[styles.suggestedCard, { borderColor: colors.border, backgroundColor: colors.card }]}
-                    onPress={() => openChannel(item)}>
-                    <Text style={[styles.suggestedCardTitle, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
-                    <Text style={[styles.suggestedCardSub, { color: colors.textSecondary }]} numberOfLines={1}>
-                      {item.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? t('lectures.official') : t('lectures.community')}
+                    key={item}
+                    style={[
+                      styles.filterChip,
+                      {
+                        borderColor: colors.border,
+                        backgroundColor: filter === item ? colors.primary : 'transparent',
+                      },
+                    ]}
+                    onPress={() => setFilter(item)}>
+                    <Text style={[styles.filterChipText, { color: filter === item ? '#FFFFFF' : colors.text }]}> 
+                      {item === CHANNEL_FILTERS.ALL
+                        ? t('lectures.all')
+                        : item === CHANNEL_FILTERS.OFFICIAL
+                          ? t('lectures.official')
+                          : t('lectures.community')}
                     </Text>
                   </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.suggestedWrap}>
+                <Text style={[styles.suggestedTitle, { color: colors.text }]}>{t('lectures.suggestedChannels')}</Text>
+                {suggestedChannels.length > 0 ? (
+                  <FlatList
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    data={sortChannelsWithPins(suggestedChannels)}
+                    keyExtractor={(item) => item.$id}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={[styles.suggestedCard, { borderColor: colors.border, backgroundColor: colors.card }]}
+                        onPress={() => openChannel(item)}>
+                        <Text style={[styles.suggestedCardTitle, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+                        <Text style={[styles.suggestedCardSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                          {item.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? t('lectures.official') : t('lectures.community')}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  />
+                ) : (
+                  <Text style={[styles.suggestedEmpty, { color: colors.textSecondary }]}>{t('lectures.noSuggestedChannels')}</Text>
                 )}
-              />
-            ) : (
-              <Text style={[styles.suggestedEmpty, { color: colors.textSecondary }]}>{t('lectures.noSuggestedChannels')}</Text>
-            )}
-          </View>
+              </View>
+            </>
+          )}
         </View>
       )}
 
@@ -645,12 +742,88 @@ const Lecture = ({ navigation }) => {
         creating={createLoading}
         groups={availableGroups}
       />
+
+      <Modal
+        visible={channelMenuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setChannelMenuOpen(false)}>
+        <TouchableOpacity
+          activeOpacity={1}
+          style={[styles.menuBackdrop, { backgroundColor: colors.overlay }]}
+          onPress={() => setChannelMenuOpen(false)}>
+          <View style={[styles.channelMenuCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+            <Text style={[styles.channelMenuTitle, { color: colors.text }]} numberOfLines={1}>
+              {channelMenuTarget?.name || t('lectures.channel')}
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.channelMenuItem, { borderTopColor: colors.border }]}
+              onPress={() => {
+                setChannelMenuOpen(false);
+                if (channelMenuTarget) {
+                  openChannel(channelMenuTarget);
+                }
+              }}>
+              <Text style={[styles.channelMenuItemText, { color: colors.text }]}>{t('lectures.openChannel')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.channelMenuItem, { borderTopColor: colors.border }]}
+              onPress={() => {
+                const targetId = channelMenuTarget?.$id || '';
+                setChannelMenuOpen(false);
+                if (targetId) {
+                  handleShareChannel(targetId);
+                }
+              }}>
+              <Text style={[styles.channelMenuItemText, { color: colors.text }]}>{t('lectures.share')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.channelMenuItem, { borderTopColor: colors.border }]}
+              onPress={async () => {
+                const targetId = channelMenuTarget?.$id || '';
+                setChannelMenuOpen(false);
+                if (targetId) {
+                  await handleTogglePinChannel(targetId);
+                }
+              }}>
+              <Text style={[styles.channelMenuItemText, { color: colors.text }]}>
+                {channelMenuTargetPinned ? t('lectures.unpinChannel') : t('lectures.pinChannel')}
+              </Text>
+            </TouchableOpacity>
+
+            {!channelMenuTargetJoined && !!channelMenuTarget?.$id && (
+              <TouchableOpacity
+                style={[styles.channelMenuItem, { borderTopColor: colors.border }]}
+                onPress={() => {
+                  const targetId = channelMenuTarget.$id;
+                  setChannelMenuOpen(false);
+                  handleRequestJoin(targetId);
+                }}>
+                <Text style={[styles.channelMenuItemText, { color: colors.primary }]}>{t('lectures.join')}</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={[styles.channelMenuItem, { borderTopColor: colors.border }]}
+              onPress={() => setChannelMenuOpen(false)}>
+              <Text style={[styles.channelMenuItemText, { color: colors.textSecondary }]}>{t('common.cancel')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+      </LinearGradient>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  gradient: {
     flex: 1,
   },
   header: {
@@ -699,6 +872,25 @@ const styles = StyleSheet.create({
   searchWrap: {
     paddingHorizontal: wp(4),
     paddingBottom: spacing.sm,
+  },
+  toolsToggleBtn: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  toolsToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  toolsToggleText: {
+    fontSize: fontSize(12),
+    fontWeight: '700',
   },
   searchInput: {
     borderWidth: 1,
@@ -769,6 +961,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
     gap: spacing.sm,
   },
+  channelHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flex: 1,
+  },
+  channelHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   channelName: {
     flex: 1,
     fontSize: fontSize(14),
@@ -786,7 +989,7 @@ const styles = StyleSheet.create({
   channelMetaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     gap: spacing.sm,
   },
   metaText: {
@@ -797,6 +1000,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.xs,
     flexWrap: 'wrap',
+    marginTop: spacing.xs,
   },
   secondaryBtn: {
     borderWidth: 1,
@@ -935,6 +1139,32 @@ const styles = StyleSheet.create({
   modalBtnText: {
     fontSize: fontSize(12),
     fontWeight: '700',
+  },
+  menuBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingHorizontal: wp(5),
+    paddingBottom: spacing.xl,
+  },
+  channelMenuCard: {
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+  },
+  channelMenuTitle: {
+    fontSize: fontSize(14),
+    fontWeight: '700',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  channelMenuItem: {
+    borderTopWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  channelMenuItemText: {
+    fontSize: fontSize(13),
+    fontWeight: '600',
   },
 });
 

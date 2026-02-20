@@ -6,10 +6,12 @@ const CACHE_EXPIRY_TIME = 1000 * 60 * 60 * 24; // 24 hours
 // Cache durations for different data types
 const CACHE_DURATIONS = {
   user: 1000 * 60 * 60, // 1 hour for user data
-  posts: 1000 * 60 * 5, // 5 minutes for posts
-  chats: 1000 * 60 * 2, // 2 minutes for chats list
-  messages: 1000 * 60 * 1, // 1 minute for messages
-  replies: 1000 * 60 * 5, // 5 minutes for replies
+  posts: 1000 * 60 * 30, // 30 minutes for posts
+  chats: 1000 * 60 * 20, // 20 minutes for chats list
+  messages: 1000 * 60 * 5, // 5 minutes for messages
+  replies: 1000 * 60 * 20, // 20 minutes for replies
+  notifications: 1000 * 60 * 10, // 10 minutes for notifications
+  unreadCount: 1000 * 60 * 2, // 2 minutes for unread counters
   image: CACHE_EXPIRY_TIME * 7, // 7 days for images
 };
 
@@ -191,6 +193,74 @@ export const chatsCacheManager = {
       await cacheManager.removeByPrefix('chats_');
     }
   }
+};
+
+export const unreadCountCacheManager = {
+  getNotificationUnreadKey(userId) {
+    return `unread_notifications_${userId}`;
+  },
+
+  getChatUnreadKey(chatId, userId) {
+    return `unread_chat_${chatId}_${userId}`;
+  },
+
+  async cacheNotificationUnreadCount(userId, count) {
+    if (!userId) return;
+    await cacheManager.set(this.getNotificationUnreadKey(userId), Number(count) || 0, CACHE_DURATIONS.unreadCount);
+  },
+
+  async getCachedNotificationUnreadCount(userId) {
+    if (!userId) return null;
+    return await cacheManager.getWithMeta(this.getNotificationUnreadKey(userId));
+  },
+
+  async cacheChatUnreadCount(chatId, userId, count) {
+    if (!chatId || !userId) return;
+    await cacheManager.set(this.getChatUnreadKey(chatId, userId), Number(count) || 0, CACHE_DURATIONS.unreadCount);
+  },
+
+  async getCachedChatUnreadCount(chatId, userId) {
+    if (!chatId || !userId) return null;
+    return await cacheManager.getWithMeta(this.getChatUnreadKey(chatId, userId));
+  },
+
+  async invalidateNotificationUnreadCount(userId) {
+    if (!userId) return;
+    await cacheManager.remove(this.getNotificationUnreadKey(userId));
+  },
+
+  async invalidateChatUnreadCount(chatId, userId) {
+    if (!chatId || !userId) return;
+    await cacheManager.remove(this.getChatUnreadKey(chatId, userId));
+  },
+
+  async invalidateAllChatUnreadForUser(userId) {
+    if (!userId) return;
+    await cacheManager.removeByPrefix(`unread_chat_`);
+  },
+};
+
+export const notificationsCacheManager = {
+  generateCacheKey(userId, limit = 20, offset = 0) {
+    return `notifications_${userId}_l${limit}_o${offset}`;
+  },
+
+  async cacheNotifications(userId, notifications, limit = 20, offset = 0) {
+    if (!userId || !Array.isArray(notifications)) return;
+    const key = this.generateCacheKey(userId, limit, offset);
+    await cacheManager.set(key, notifications, CACHE_DURATIONS.notifications);
+  },
+
+  async getCachedNotifications(userId, limit = 20, offset = 0) {
+    if (!userId) return null;
+    const key = this.generateCacheKey(userId, limit, offset);
+    return await cacheManager.getWithMeta(key);
+  },
+
+  async invalidateUserNotifications(userId) {
+    if (!userId) return;
+    await cacheManager.removeByPrefix(`notifications_${userId}_`);
+  },
 };
 
 // Messages cache manager
