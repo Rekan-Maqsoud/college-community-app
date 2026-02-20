@@ -13,6 +13,8 @@
     "test:realtime": "jest --runInBand __tests__/realtimeEvents.test.js __tests__/chatRealtimeMessages.test.js",
     "test:chat-files": "jest --runInBand __tests__/chatFileUtils.test.js __tests__/appwriteFileUpload.test.js",
     "test:moderation": "jest --runInBand __tests__/postsModerationRepost.test.js",
+    "test:lectures": "jest --runInBand __tests__/lectureUtils.test.js",
+    "test:phase4": "jest --runInBand __tests__/lectureUtils.test.js __tests__/appwriteFileUpload.test.js __tests__/chatFileUtils.test.js",
     "test:critical": "jest --runInBand __tests__/realtimeEvents.test.js __tests__/chatRealtimeMessages.test.js __tests__/postsModerationRepost.test.js __tests__/networkErrorHandler.test.js __tests__/onlineStatus.test.js __tests__/safeStorage.test.js __tests__/cacheManager.test.js __tests__/postRanking.test.js __tests__/feedCategories.test.js",
     "publish:prod": "eas update --branch native-app --channel production"
   },
@@ -20,7 +22,7 @@
     "@expo/vector-icons": "^15.0.3",
     "@giphy/js-fetch-api": "^5.7.0",
     "@react-native-async-storage/async-storage": "^2.2.0",
-    "@react-native-community/slider": "^5.1.2",
+    "@react-native-community/slider": "5.0.1",
     "@react-native-picker/picker": "2.11.1",
     "@react-navigation/bottom-tabs": "^7.4.9",
     "@react-navigation/native": "^7.1.18",
@@ -64,6 +66,7 @@
     "react-native-view-shot": "^4.0.3",
     "react-native-webview": "13.15.0",
     "react-native-worklets": "0.5.1",
+    "react-native-youtube-iframe": "^2.4.1",
     "tweetnacl": "^1.0.3",
     "tweetnacl-util": "^0.15.1"
   },

@@ -5,4 +5,5 @@ export * from './chats';
 export * from './users';
 export * from './userChatSettings';
 export * from './notifications';
+export * from './lectures';
 export { config } from './config';

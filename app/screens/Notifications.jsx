@@ -35,6 +35,8 @@ const NOTIFICATION_TYPES = {
   FOLLOW: 'follow',
   DEPARTMENT_POST: 'department_post',
   POST_HIDDEN_REPORT: 'post_hidden_report',
+  LECTURE_UPLOAD: 'lecture_upload',
+  LECTURE_MENTION: 'lecture_mention',
 };
 
 // Group notifications by post and type
@@ -130,6 +132,10 @@ const getNotificationIcon = (type) => {
       return { name: 'school', color: '#8B5CF6' };
     case NOTIFICATION_TYPES.POST_HIDDEN_REPORT:
       return { name: 'warning', color: '#EF4444' };
+    case NOTIFICATION_TYPES.LECTURE_UPLOAD:
+      return { name: 'book', color: '#0EA5E9' };
+    case NOTIFICATION_TYPES.LECTURE_MENTION:
+      return { name: 'at', color: '#8B5CF6' };
     default:
       return { name: 'notifications', color: '#8E8E93' };
   }
@@ -185,6 +191,10 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
         return t('notifications.departmentPost') || 'posted in your department';
       case NOTIFICATION_TYPES.POST_HIDDEN_REPORT:
         return t('notifications.postHiddenByReports') || 'your post was hidden for review';
+      case NOTIFICATION_TYPES.LECTURE_UPLOAD:
+        return t('notifications.lectureUpload') || 'new lecture upload';
+      case NOTIFICATION_TYPES.LECTURE_MENTION:
+        return t('notifications.lectureMention') || 'mentioned you in lecture discussion';
       default:
         return '';
     }
@@ -612,6 +622,14 @@ const Notifications = ({ navigation }) => {
 
     // Navigate based on notification type
     if (notificationData.postId) {
+      if (notificationData.type === NOTIFICATION_TYPES.LECTURE_UPLOAD || notificationData.type === NOTIFICATION_TYPES.LECTURE_MENTION) {
+        navigation.navigate('LectureChannel', {
+          channelId: notificationData.postId,
+          source: `notification_${notificationData.type}`,
+        });
+        return;
+      }
+
       // For reply notifications, go directly to PostDetails with reply focus
       if (notificationData.type === NOTIFICATION_TYPES.POST_REPLY) {
         const navParams = {

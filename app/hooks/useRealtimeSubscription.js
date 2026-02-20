@@ -274,4 +274,84 @@ export const useNotifications = (userId, onNewNotification, onNotificationUpdate
   );
 };
 
+export const useLectureChannelsRealtime = (onChannelChange, enabled = true) => {
+  const handleUpdate = useCallback((payload, events) => {
+    onChannelChange?.(payload, events);
+  }, [onChannelChange]);
+
+  const handleDelete = useCallback((payload, events) => {
+    onChannelChange?.(payload, events);
+  }, [onChannelChange]);
+
+  useRealtimeSubscription(
+    config.lectureChannelsCollectionId,
+    handleUpdate,
+    handleDelete,
+    { enabled: enabled && !!config.lectureChannelsCollectionId }
+  );
+};
+
+export const useLectureAssetsRealtime = (channelId, onAssetChange, enabled = true) => {
+  const handleUpdate = useCallback((payload, events) => {
+    if (payload?.channelId === channelId) {
+      onAssetChange?.(payload, events);
+    }
+  }, [channelId, onAssetChange]);
+
+  const handleDelete = useCallback((payload, events) => {
+    if (payload?.channelId === channelId) {
+      onAssetChange?.(payload, events);
+    }
+  }, [channelId, onAssetChange]);
+
+  useRealtimeSubscription(
+    config.lectureAssetsCollectionId,
+    handleUpdate,
+    handleDelete,
+    { enabled: enabled && !!channelId && !!config.lectureAssetsCollectionId }
+  );
+};
+
+export const useLectureMembershipsRealtime = (channelId, onMembershipChange, enabled = true) => {
+  const handleUpdate = useCallback((payload, events) => {
+    if (payload?.channelId === channelId) {
+      onMembershipChange?.(payload, events);
+    }
+  }, [channelId, onMembershipChange]);
+
+  const handleDelete = useCallback((payload, events) => {
+    if (payload?.channelId === channelId) {
+      onMembershipChange?.(payload, events);
+    }
+  }, [channelId, onMembershipChange]);
+
+  useRealtimeSubscription(
+    config.lectureMembershipsCollectionId,
+    handleUpdate,
+    handleDelete,
+    { enabled: enabled && !!channelId && !!config.lectureMembershipsCollectionId }
+  );
+};
+
+export const useLectureCommentsRealtime = (assetId, onCommentChange, enabled = true) => {
+  const handleUpdate = useCallback((payload, events) => {
+    if (payload?.assetId === assetId) {
+      onCommentChange?.(payload, events);
+    }
+  }, [assetId, onCommentChange]);
+
+  const handleDelete = useCallback((payload, events) => {
+    if (payload?.assetId === assetId) {
+      onCommentChange?.(payload, events);
+    }
+  }, [assetId, onCommentChange]);
+
+  useRealtimeSubscription(
+    config.lectureCommentsCollectionId,
+    handleUpdate,
+    handleDelete,
+    { enabled: enabled && !!assetId && !!config.lectureCommentsCollectionId }
+  );
+};
+
 export default useRealtimeSubscription;

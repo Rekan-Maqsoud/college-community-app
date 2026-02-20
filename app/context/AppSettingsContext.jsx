@@ -737,6 +737,7 @@ export const AppSettingsProvider = ({ children }) => {
     themePreference,
     setThemeMode,
     theme: themedWithAccent,
+    colors: themedWithAccent,
 
     notificationsEnabled,
     toggleNotifications,

@@ -34,8 +34,9 @@ import {
   leaveGroup,
   deleteGroup,
 } from '../../../database/chatHelpers';
-import { getChat } from '../../../database/chats';
+import { CHAT_TYPES, getChat } from '../../../database/chats';
 import { getUserChatSettings, muteChat, unmuteChat } from '../../../database/userChatSettings';
+import { getLectureChannels, getMyLectureChannels, updateLectureChannelSettings } from '../../../database/lectures';
 import { 
   wp, 
   hp, 
@@ -69,6 +70,11 @@ const GroupSettings = ({ navigation, route }) => {
   
   // Per-user mute setting (separate from group settings)
   const [userMuted, setUserMuted] = useState(false);
+  const [lectureChannels, setLectureChannels] = useState([]);
+  const [selectedLectureChannelId, setSelectedLectureChannelId] = useState('');
+  const [currentLectureChannelId, setCurrentLectureChannelId] = useState('');
+  const [lectureLinkLoading, setLectureLinkLoading] = useState(false);
+  const [lectureLinkSaving, setLectureLinkSaving] = useState(false);
 
   const isAdmin = chat?.admins?.includes(currentUser?.$id) || 
                   chat?.representatives?.includes(currentUser?.$id);
@@ -162,7 +168,108 @@ const GroupSettings = ({ navigation, route }) => {
     loadMembers();
     loadFreshSettings();
     loadUserMuteSettings();
+    loadLectureLinkingData();
+  }, [loadLectureLinkingData]);
+
+  const getNormalizedManagerIds = useCallback((channel) => {
+    if (Array.isArray(channel?.managerIds)) {
+      return channel.managerIds.filter(Boolean);
+    }
+
+    const managerIdsText = String(channel?.managerIds || '').trim();
+    if (!managerIdsText) {
+      return [];
+    }
+
+    return managerIdsText
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean);
   }, []);
+
+  const loadLectureLinkingData = useCallback(async () => {
+    if (!chat?.$id || !currentUser?.$id) {
+      setLectureChannels([]);
+      setSelectedLectureChannelId('');
+      setCurrentLectureChannelId('');
+      return;
+    }
+
+    setLectureLinkLoading(true);
+    try {
+      const [myLectureChannels, allLectureChannels] = await Promise.all([
+        getMyLectureChannels(currentUser.$id),
+        getLectureChannels({ channelType: 'all', limit: 100, offset: 0 }),
+      ]);
+
+      const manageableChannels = (myLectureChannels || []).filter(channel => {
+        const managerIds = getNormalizedManagerIds(channel);
+        return channel?.ownerId === currentUser.$id || managerIds.includes(currentUser.$id);
+      });
+
+      const linkedChannel = (allLectureChannels || []).find(channel => channel?.linkedChatId === chat.$id);
+      const linkedChannelId = linkedChannel?.$id || '';
+
+      setLectureChannels(manageableChannels);
+      setCurrentLectureChannelId(linkedChannelId);
+      setSelectedLectureChannelId(linkedChannelId);
+    } catch {
+      setLectureChannels([]);
+      setCurrentLectureChannelId('');
+      setSelectedLectureChannelId('');
+    } finally {
+      setLectureLinkLoading(false);
+    }
+  }, [chat?.$id, currentUser?.$id, getNormalizedManagerIds]);
+
+  const handleSaveLectureLink = async () => {
+    if (!isAdmin || !chat?.$id || lectureLinkSaving) return;
+
+    if (chat.type === CHAT_TYPES.DEPARTMENT_GROUP) {
+      showAlert({
+        type: 'error',
+        title: t('common.error'),
+        message: t('chats.departmentGroupLectureLinkBlocked'),
+      });
+      return;
+    }
+
+    if (selectedLectureChannelId === currentLectureChannelId) {
+      return;
+    }
+
+    setLectureLinkSaving(true);
+    try {
+      if (currentLectureChannelId && currentLectureChannelId !== selectedLectureChannelId) {
+        await updateLectureChannelSettings(currentLectureChannelId, {
+          linkedChatId: '',
+        });
+      }
+
+      if (selectedLectureChannelId) {
+        await updateLectureChannelSettings(selectedLectureChannelId, {
+          linkedChatId: chat.$id,
+        });
+      }
+
+      setCurrentLectureChannelId(selectedLectureChannelId);
+
+      showAlert({
+        type: 'success',
+        title: t('common.success'),
+        message: t('chats.lectureLinkSaved'),
+      });
+    } catch {
+      showAlert({
+        type: 'error',
+        title: t('common.error'),
+        message: t('chats.lectureLinkError'),
+      });
+    } finally {
+      setLectureLinkSaving(false);
+      loadLectureLinkingData();
+    }
+  };
 
   const loadFreshSettings = async () => {
     try {
@@ -737,6 +844,93 @@ const GroupSettings = ({ navigation, route }) => {
             {/* Personal Notification Settings - Available to everyone */}
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
+                {t('chats.linkedLectureChannel')}
+              </Text>
+              <View style={[
+                styles.sectionCard,
+                {
+                  backgroundColor: isDarkMode
+                    ? 'rgba(255, 255, 255, 0.08)'
+                    : 'rgba(255, 255, 255, 0.7)',
+                  borderRadius: borderRadius.lg,
+                },
+              ]}>
+                {chat.type === CHAT_TYPES.DEPARTMENT_GROUP ? (
+                  <Text style={[styles.lectureLinkInfoText, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
+                    {t('chats.departmentGroupLectureLinkBlocked')}
+                  </Text>
+                ) : lectureLinkLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color={theme.primary} />
+                  </View>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={[
+                        styles.lectureOption,
+                        {
+                          borderColor: selectedLectureChannelId ? (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)') : theme.primary,
+                          backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                        },
+                      ]}
+                      onPress={() => setSelectedLectureChannelId('')}
+                      disabled={!isAdmin}>
+                      <Text style={[styles.lectureOptionText, { color: theme.text, fontSize: fontSize(13) }]}>
+                        {t('chats.noLinkedLectureChannel')}
+                      </Text>
+                      {!selectedLectureChannelId && <Ionicons name="checkmark-circle" size={moderateScale(18)} color={theme.primary} />}
+                    </TouchableOpacity>
+
+                    {lectureChannels.map(channel => (
+                      <TouchableOpacity
+                        key={channel.$id}
+                        style={[
+                          styles.lectureOption,
+                          {
+                            borderColor: selectedLectureChannelId === channel.$id ? theme.primary : (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)'),
+                            backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                          },
+                        ]}
+                        onPress={() => setSelectedLectureChannelId(channel.$id)}
+                        disabled={!isAdmin}>
+                        <View style={styles.lectureOptionMeta}>
+                          <Text style={[styles.lectureOptionText, { color: theme.text, fontSize: fontSize(13) }]} numberOfLines={1}>
+                            {channel.name}
+                          </Text>
+                          <Text style={[styles.lectureOptionSubtitle, { color: theme.textSecondary, fontSize: fontSize(11) }]} numberOfLines={1}>
+                            {channel.channelType === 'official' ? t('lectures.official') : t('lectures.community')}
+                          </Text>
+                        </View>
+                        {selectedLectureChannelId === channel.$id && <Ionicons name="checkmark-circle" size={moderateScale(18)} color={theme.primary} />}
+                      </TouchableOpacity>
+                    ))}
+
+                    {lectureChannels.length === 0 && (
+                      <Text style={[styles.lectureLinkInfoText, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
+                        {t('chats.noManageableLectureChannels')}
+                      </Text>
+                    )}
+
+                    {isAdmin && (
+                      <TouchableOpacity
+                        style={[
+                          styles.lectureLinkSaveButton,
+                          { backgroundColor: theme.primary },
+                        ]}
+                        onPress={handleSaveLectureLink}
+                        disabled={lectureLinkSaving}>
+                        <Text style={[styles.lectureLinkSaveText, { fontSize: fontSize(12) }]}>
+                          {lectureLinkSaving ? t('chats.savingLectureLink') : t('chats.saveLectureLink')}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
                 {t('chats.yourSettings') || 'Your Settings'}
               </Text>
               <View style={[
@@ -1016,6 +1210,40 @@ const styles = StyleSheet.create({
   },
   settingSubtitle: {
     marginTop: 2,
+  },
+  lectureOption: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  lectureOptionMeta: {
+    flex: 1,
+  },
+  lectureOptionText: {
+    fontWeight: '600',
+  },
+  lectureOptionSubtitle: {
+    marginTop: 2,
+  },
+  lectureLinkInfoText: {
+    marginTop: spacing.xs,
+  },
+  lectureLinkSaveButton: {
+    marginTop: spacing.sm,
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+  },
+  lectureLinkSaveText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   addButton: {
     flexDirection: 'row',

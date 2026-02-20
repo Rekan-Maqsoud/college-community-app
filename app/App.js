@@ -59,6 +59,7 @@ import UserProfile from './screens/UserProfile';
 import FollowList from './screens/FollowList';
 import ManageRepresentatives from './screens/ManageRepresentatives';
 import Notifications from './screens/Notifications';
+import LectureChannel from './screens/LectureChannel';
 import { NewChat, UserSearch, CreateGroup, GroupSettings, ForwardMessage, AddMembers } from './screens/chats';
 
 const shouldIgnoreAppwriteServerError = (args) => {
@@ -446,6 +447,11 @@ const MainStack = () => {
         component={Notifications}
         options={{ headerShown: false }}
       />
+      <Stack.Screen
+        name="LectureChannel"
+        component={LectureChannel}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 };
@@ -734,7 +740,9 @@ const NotificationSetup = ({ navigationRef }) => {
       
       // Navigate based on notification type
       if (navigationRef.current) {
-        if (data.postId) {
+        if ((type === 'lecture_upload' || type === 'lecture_mention') && data.postId) {
+          navigationRef.current.navigate('LectureChannel', { channelId: data.postId });
+        } else if (data.postId) {
           const navParams = { postId: data.postId };
           if (data.replyId && (type === 'post_reply')) {
             navParams.targetReplyId = data.replyId;
@@ -756,7 +764,9 @@ const NotificationSetup = ({ navigationRef }) => {
       if (data && navigationRef.current) {
         const type = data?.type || '';
         setTimeout(() => {
-          if (data.postId) {
+          if ((type === 'lecture_upload' || type === 'lecture_mention') && data.postId) {
+            navigationRef.current.navigate('LectureChannel', { channelId: data.postId });
+          } else if (data.postId) {
             const navParams = { postId: data.postId };
             if (data.replyId && type === 'post_reply') {
               navParams.targetReplyId = data.replyId;
@@ -934,6 +944,18 @@ const DeepLinkHandler = ({ navigationRef, pendingRouteRef }) => {
         } else if (parsedHost === 'profile' && parsedPath) {
           const profileUserId = parsedPath;
           navigateSafe('UserProfile', { userId: profileUserId });
+        }
+
+        // Handle lecture channel deep link
+        // collegecommunity://lecture-channel/{channelId}
+        if (parsedPath && parsedPath.startsWith('lecture-channel/')) {
+          const lectureChannelId = parsedPath.replace('lecture-channel/', '');
+          if (lectureChannelId) {
+            navigateSafe('LectureChannel', { channelId: lectureChannelId });
+          }
+        } else if (parsedHost === 'lecture-channel' && parsedPath) {
+          const lectureChannelId = parsedPath;
+          navigateSafe('LectureChannel', { channelId: lectureChannelId });
         }
       } catch (error) {
         // Silent fail for deep link parsing errors
