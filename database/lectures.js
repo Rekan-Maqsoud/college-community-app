@@ -34,6 +34,16 @@ const logLecturesDbError = (event, error, payload = {}) => {
   });
 };
 
+const isMissingDocumentError = (error) => {
+  const code = Number(error?.code || error?.status || 0);
+  if (code === 404) {
+    return true;
+  }
+
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('could not be found') || message.includes('document not found');
+};
+
 const assertLecturesConfigured = () => {
   if (!config.databaseId) {
     throw new Error('LECTURES_DATABASE_ID_MISSING');
@@ -142,6 +152,23 @@ const getManagerIds = (channel) => {
 
 const serializeManagerIds = (managerIds) => {
   return toUniqueList(Array.isArray(managerIds) ? managerIds : [managerIds]).join(',');
+};
+
+const parsePinnedChannelsJson = (value) => {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return toUniqueList(parsed);
+  } catch {
+    return [];
+  }
 };
 
 const invokeLectureGuard = async (action, payload = {}) => {
@@ -515,9 +542,15 @@ export const getLectureChannelById = async (channelId) => {
 
     return channel;
   } catch (error) {
-    logLecturesDbError('getLectureChannelById:error', error, {
-      channelId,
-    });
+    if (isMissingDocumentError(error)) {
+      logLecturesDb('getLectureChannelById:missing', {
+        channelId,
+      });
+    } else {
+      logLecturesDbError('getLectureChannelById:error', error, {
+        channelId,
+      });
+    }
     throw error;
   }
 };
@@ -620,6 +653,105 @@ export const getMyLectureChannels = async (userId) => {
   } catch (error) {
     logLecturesDbError('getMyLectureChannels:error', error, {
       userId: currentUserId,
+    });
+    throw error;
+  }
+};
+
+export const getLecturePinnedChannelIds = async (userId) => {
+  assertLecturesConfigured();
+
+  const currentUserId = userId || await getCurrentUserId();
+
+  logLecturesDb('getLecturePinnedChannelIds:start', {
+    userId: currentUserId,
+  });
+
+  try {
+    const memberships = await databases.listDocuments(
+      config.databaseId,
+      config.lectureMembershipsCollectionId,
+      [
+        Query.equal('userId', currentUserId),
+        Query.equal('joinStatus', 'approved'),
+        Query.limit(200),
+        Query.orderDesc('$updatedAt'),
+      ]
+    );
+
+    const documents = memberships.documents || [];
+    const fromAnyMembership = documents.find((membership) => sanitizeText(membership?.pinnedChannelsJson));
+    const pinnedChannelIds = parsePinnedChannelsJson(fromAnyMembership?.pinnedChannelsJson);
+
+    logLecturesDb('getLecturePinnedChannelIds:success', {
+      userId: currentUserId,
+      membershipCount: documents.length,
+      pinnedCount: pinnedChannelIds.length,
+    });
+
+    return pinnedChannelIds;
+  } catch (error) {
+    logLecturesDbError('getLecturePinnedChannelIds:error', error, {
+      userId: currentUserId,
+    });
+    throw error;
+  }
+};
+
+export const setLecturePinnedChannelIds = async (channelIds = [], userId) => {
+  assertLecturesConfigured();
+
+  const currentUserId = userId || await getCurrentUserId();
+  const pinnedChannelIds = toUniqueList(Array.isArray(channelIds) ? channelIds : []);
+  const pinnedChannelsJson = JSON.stringify(pinnedChannelIds);
+
+  logLecturesDb('setLecturePinnedChannelIds:start', {
+    userId: currentUserId,
+    pinnedCount: pinnedChannelIds.length,
+  });
+
+  try {
+    const memberships = await databases.listDocuments(
+      config.databaseId,
+      config.lectureMembershipsCollectionId,
+      [
+        Query.equal('userId', currentUserId),
+        Query.equal('joinStatus', 'approved'),
+        Query.limit(200),
+      ]
+    );
+
+    const approvedMemberships = memberships.documents || [];
+    if (!approvedMemberships.length) {
+      logLecturesDb('setLecturePinnedChannelIds:success_no_memberships', {
+        userId: currentUserId,
+        pinnedCount: pinnedChannelIds.length,
+      });
+      return pinnedChannelIds;
+    }
+
+    await Promise.all(
+      approvedMemberships.map((membership) => databases.updateDocument(
+        config.databaseId,
+        config.lectureMembershipsCollectionId,
+        membership.$id,
+        {
+          pinnedChannelsJson,
+        }
+      ))
+    );
+
+    logLecturesDb('setLecturePinnedChannelIds:success', {
+      userId: currentUserId,
+      membershipsUpdated: approvedMemberships.length,
+      pinnedCount: pinnedChannelIds.length,
+    });
+
+    return pinnedChannelIds;
+  } catch (error) {
+    logLecturesDbError('setLecturePinnedChannelIds:error', error, {
+      userId: currentUserId,
+      pinnedCount: pinnedChannelIds.length,
     });
     throw error;
   }
@@ -799,9 +931,15 @@ export const getLectureJoinRequests = async (channelId) => {
     });
     return requests;
   } catch (error) {
-    logLecturesDbError('getLectureJoinRequests:error', error, {
-      channelId,
-    });
+    if (isMissingDocumentError(error)) {
+      logLecturesDb('getLectureJoinRequests:missing_channel', {
+        channelId,
+      });
+    } else {
+      logLecturesDbError('getLectureJoinRequests:error', error, {
+        channelId,
+      });
+    }
     throw error;
   }
 };
@@ -962,6 +1100,13 @@ export const removeLectureManager = async (channelId, managerUserId) => {
     managerUserId,
   });
 
+  const channel = await getLectureChannelById(channelId);
+  const currentUserId = await getCurrentUserId();
+
+  if (sanitizeText(channel?.ownerId) !== sanitizeText(currentUserId)) {
+    throw new Error('Only channel owner can remove managers');
+  }
+
   const secureResult = await tryInvokeLectureGuard('remove_manager', {
     channelId,
     managerUserId,
@@ -975,10 +1120,6 @@ export const removeLectureManager = async (channelId, managerUserId) => {
     });
     return channel;
   }
-
-  const channel = await getLectureChannelById(channelId);
-  const currentUserId = await getCurrentUserId();
-  assertChannelManager(channel, currentUserId);
 
   const managerId = sanitizeText(managerUserId);
   if (!managerId || managerId === channel.ownerId) {
@@ -1078,10 +1219,14 @@ const normalizeYoutubeUrl = (youtubeUrl = '') => {
 };
 
 const buildLectureBridgeMessage = ({ channel, asset, deeplink }) => {
-  const title = sanitizeText(asset?.title) || 'New lecture upload';
-  const channelName = sanitizeText(channel?.name) || 'Lecture channel';
-  const urlPart = deeplink ? `\n${deeplink}` : '';
-  return `📚 ${channelName}\n${title}${urlPart}`;
+  const payload = {
+    channelName: sanitizeText(channel?.name) || 'Lecture channel',
+    fileName: sanitizeText(asset?.title) || sanitizeText(asset?.fileName) || 'Lecture file',
+    deeplink: sanitizeText(deeplink),
+    uploadType: sanitizeText(asset?.uploadType),
+  };
+
+  return JSON.stringify(payload);
 };
 
 const notifyLectureUpload = async ({ channel, uploaderId, asset }) => {
@@ -1348,9 +1493,9 @@ export const trackLectureAssetInteraction = async ({
 
   const normalizedAction = sanitizeText(action).toLowerCase();
   const fieldMap = {
-    view: { countFields: ['viewsCount', 'viewCount'], usersField: 'viewedBy' },
-    open: { countFields: ['opensCount', 'openCount'], usersField: 'openedBy' },
-    download: { countFields: ['downloadsCount', 'downloadCount'], usersField: 'downloadedBy' },
+    view: { countFields: ['viewsCount', 'viewCount'], usersFields: ['viewedBy'] },
+    open: { countFields: ['opensCount', 'openCount'], usersFields: ['openedBy'] },
+    download: { countFields: ['downloadsCount', 'downloadCount'], usersFields: ['downloadedBy'] },
   };
 
   const mapped = fieldMap[normalizedAction];
@@ -1381,7 +1526,13 @@ export const trackLectureAssetInteraction = async ({
       throw new Error('Asset channel mismatch');
     }
 
-    const currentIds = toUniqueList(parseStringList(asset?.[mapped.usersField]));
+    const resolvedUsersField = (mapped.usersFields || []).find((field) => {
+      return Object.prototype.hasOwnProperty.call(asset || {}, field);
+    }) || '';
+
+    const currentIds = resolvedUsersField
+      ? toUniqueList(parseStringList(asset?.[resolvedUsersField]))
+      : [];
     const nextIds = toUniqueList([...currentIds, currentUserId]);
     const resolvedCountField = (mapped.countFields || []).find((field) => {
       return Object.prototype.hasOwnProperty.call(asset || {}, field);
@@ -1392,12 +1543,23 @@ export const trackLectureAssetInteraction = async ({
       : 0;
     const nextCount = Math.max(currentCount, nextIds.length);
 
-    const payload = {
-      [mapped.usersField]: nextIds,
-    };
+    const payload = {};
 
     if (resolvedCountField) {
       payload[resolvedCountField] = nextCount;
+    }
+
+    if (resolvedUsersField) {
+      payload[resolvedUsersField] = nextIds;
+    }
+
+    if (!Object.keys(payload).length) {
+      logLecturesDb('trackLectureAssetInteraction:skip_no_schema_fields', {
+        channelId,
+        assetId,
+        action: normalizedAction,
+      });
+      return asset;
     }
 
     let updated = null;
@@ -1409,11 +1571,13 @@ export const trackLectureAssetInteraction = async ({
         payload
       );
     } catch {
-      const fallbackPayload = {
-        [mapped.usersField]: nextIds.join(','),
-      };
+      const fallbackPayload = {};
       if (resolvedCountField) {
         fallbackPayload[resolvedCountField] = nextCount;
+      }
+
+      if (resolvedUsersField) {
+        fallbackPayload[resolvedUsersField] = nextIds.join(',');
       }
 
       updated = await databases.updateDocument(
@@ -1550,10 +1714,17 @@ export const getLectureMembershipSummary = async (channelId, userId) => {
 
     return summary;
   } catch (error) {
-    logLecturesDbError('getLectureMembershipSummary:error', error, {
-      channelId,
-      userId: currentUserId,
-    });
+    if (isMissingDocumentError(error)) {
+      logLecturesDb('getLectureMembershipSummary:missing_channel', {
+        channelId,
+        userId: currentUserId,
+      });
+    } else {
+      logLecturesDbError('getLectureMembershipSummary:error', error, {
+        channelId,
+        userId: currentUserId,
+      });
+    }
     throw error;
   }
 };
@@ -1576,9 +1747,15 @@ export const getLectureManagers = async (channelId) => {
 
     return managerIds;
   } catch (error) {
-    logLecturesDbError('getLectureManagers:error', error, {
-      channelId,
-    });
+    if (isMissingDocumentError(error)) {
+      logLecturesDb('getLectureManagers:missing_channel', {
+        channelId,
+      });
+    } else {
+      logLecturesDbError('getLectureManagers:error', error, {
+        channelId,
+      });
+    }
     throw error;
   }
 };

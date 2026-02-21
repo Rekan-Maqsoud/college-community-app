@@ -161,7 +161,7 @@ const MessageBubble = ({
       onPanResponderRelease: (_, gestureState) => {
         const dir = swipeDirectionRef.current;
         const dx = gestureState.dx * dir;
-        if (dx > SWIPE_THRESHOLD && onReplyRef.current) {
+        if (dx > SWIPE_THRESHOLD && message.type !== 'lecture_asset_banner' && onReplyRef.current) {
           onReplyRef.current();
         }
         Animated.spring(translateX, {
@@ -202,6 +202,7 @@ const MessageBubble = ({
   const isPoll = message.type === 'poll';
   const isFile = message.type === 'file';
   const isLectureAssetBanner = message.type === 'lecture_asset_banner';
+  const canReply = !!onReply && !isLectureAssetBanner;
   const hasText = !isVoice && !isFile && message.content && message.content.trim().length > 0;
   const isSticker = isGif && (() => {
     try {
@@ -892,7 +893,7 @@ const MessageBubble = ({
 
   const actionButtons = [
     { icon: 'copy-outline', label: t('chats.copy'), action: onCopy, show: hasText && !isVoice && !isPoll && !isFile },
-    { icon: 'arrow-undo-outline', label: t('chats.reply'), action: onReply, show: true },
+    { icon: 'arrow-undo-outline', label: t('chats.reply'), action: onReply, show: canReply },
     { icon: 'arrow-redo-outline', label: t('chats.forward'), action: onForward, show: true },
     { icon: isPinned ? 'pin' : 'pin-outline', label: isPinned ? t('chats.unpin') : t('chats.pin'), action: isPinned ? onUnpin : onPin, show: onPin || onUnpin },
     { icon: isBookmarked ? 'bookmark' : 'bookmark-outline', label: isBookmarked ? t('chats.unbookmark') : t('chats.bookmark'), action: isBookmarked ? onUnbookmark : onBookmark, show: onBookmark || onUnbookmark },
@@ -1409,7 +1410,7 @@ const MessageBubble = ({
         </Text>
         
         {/* Status indicator for current user's messages */}
-        {isCurrentUser && (
+        {isCurrentUser && !isLectureAssetBanner && (
           <MessageStatusIndicator
             status={message._status || message.status}
             readBy={message.readBy}
@@ -1506,9 +1507,9 @@ const MessageBubble = ({
             styles.bubbleWrapper,
             isLectureAssetBanner && styles.lectureBannerBubbleWrapper,
           ]}
-          {...panResponder.panHandlers}>
+          {...(canReply ? panResponder.panHandlers : {})}>
           {/* Render bubble with gradient or solid color based on chatSettings */}
-          {isCurrentUser && chatSettings?.bubbleColor?.startsWith('gradient::') ? (
+          {isCurrentUser && !isLectureAssetBanner && chatSettings?.bubbleColor?.startsWith('gradient::') ? (
             <Pressable
               onLongPress={handleLongPress}
               onPress={handlePress}
@@ -1539,14 +1540,17 @@ const MessageBubble = ({
               onPress={handlePress}
               delayLongPress={300}
               style={[
-                isSticker ? styles.stickerBubble : styles.bubble,
+                isSticker ? styles.stickerBubble : (!isLectureAssetBanner ? styles.bubble : null),
                 !isSticker && (isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble),
                 !isSticker && isLectureAssetBanner && styles.lectureBannerBubble,
                 !isSticker && getBubbleStyleRadius(chatSettings),
                 !isSticker && {
-                  backgroundColor: isCurrentUser 
+                  backgroundColor: isLectureAssetBanner
+                    ? 'transparent'
+                    : (isCurrentUser
                     ? (chatSettings?.bubbleColor || '#667eea')
                     : (isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)')
+                    )
                 },
                 !isSticker && hasImage && !hasText && styles.imageBubble,
                 !isSticker && isPinned && styles.pinnedBubble,
@@ -1596,16 +1600,18 @@ const MessageBubble = ({
       )}
 
       {/* Swipe indicator */}
-      <View style={[
-        styles.swipeIndicator,
-        isCurrentUser ? styles.swipeIndicatorLeft : styles.swipeIndicatorRight,
-      ]}>
-        <Ionicons 
-          name="arrow-undo" 
-          size={moderateScale(16)} 
-          color={theme.textSecondary} 
-        />
-      </View>
+      {canReply && (
+        <View style={[
+          styles.swipeIndicator,
+          isCurrentUser ? styles.swipeIndicatorLeft : styles.swipeIndicatorRight,
+        ]}>
+          <Ionicons 
+            name="arrow-undo" 
+            size={moderateScale(16)} 
+            color={theme.textSecondary} 
+          />
+        </View>
+      )}
 
       {/* Image Modal - Zoomable */}
       <ZoomableImageModal

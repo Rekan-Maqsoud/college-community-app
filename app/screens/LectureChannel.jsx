@@ -10,17 +10,24 @@ import {
   RefreshControl,
   Modal,
   Linking,
+  Platform,
+  Alert,
+  ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as IntentLauncher from 'expo-intent-launcher';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { useTranslation } from '../hooks/useTranslation';
 import {
+  useRealtimeSubscription,
   useLectureAssetsRealtime,
   useLectureChannelsRealtime,
   useLectureCommentsRealtime,
@@ -28,6 +35,7 @@ import {
 } from '../hooks/useRealtimeSubscription';
 import {
   addLectureManager,
+  removeLectureManager,
   createLectureAsset,
   createLectureComment,
   deleteLectureComment,
@@ -48,17 +56,60 @@ import {
   trackLectureAssetInteraction,
 } from '../../database/lectures';
 import { CHAT_TYPES, getChats } from '../../database/chats';
+import { config } from '../../database/config';
 import { getUserById, searchUsers } from '../../database/users';
 import { validateFileUploadSize } from '../utils/fileUploadUtils';
 import { wp, spacing, fontSize, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { extractYouTubeVideoId } from '../utils/lectureUtils';
 import AnimatedBackground from '../components/AnimatedBackground';
+import ProfilePicture from '../components/ProfilePicture';
+import { userCacheManager } from '../utils/cacheManager';
 import { LinearGradient } from 'expo-linear-gradient';
+import DownloadManagerModal from './lectureChannel/DownloadManagerModal';
+import AssetActionMenuModal from './lectureChannel/AssetActionMenuModal';
+import AssetStatsModal from './lectureChannel/AssetStatsModal';
+import AdminOrganizerModal from './lectureChannel/AdminOrganizerModal';
+import { deleteLectureChannelWithCleanup } from '../../database/lectureCleanup';
 
 const buildYouTubeVideoId = (url = '') => extractYouTubeVideoId(url);
+const LECTURE_DOWNLOADS_DIR = 'lecture_downloads';
+const LECTURE_DEVICE_DOWNLOADS_URI_KEY = 'lecture_device_downloads_uri';
 
 const parseChannelSettings = (settingsJson) => {
+  const normalizeFolders = (value) => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value
+      .map((item) => ({
+        id: String(item?.id || '').trim(),
+        name: String(item?.name || '').trim(),
+      }))
+      .filter(item => item.id && item.name);
+  };
+
+  const normalizeMap = (value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Object.entries(value)
+        .map(([assetId, folderId]) => [String(assetId || '').trim(), String(folderId || '').trim()])
+        .filter(([assetId, folderId]) => assetId && folderId)
+    );
+  };
+
+  const normalizeOrder = (value) => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value.map(id => String(id || '').trim()).filter(Boolean);
+  };
+
   try {
     const parsed = typeof settingsJson === 'string' ? JSON.parse(settingsJson || '{}') : (settingsJson || {});
     return {
@@ -68,6 +119,9 @@ const parseChannelSettings = (settingsJson) => {
       suggestToStage: !!parsed.suggestToStage,
       suggestedStage: String(parsed.suggestedStage || '').trim(),
       suggestedDepartment: String(parsed.suggestedDepartment || '').trim(),
+      assetFolders: normalizeFolders(parsed.assetFolders),
+      assetFolderMap: normalizeMap(parsed.assetFolderMap),
+      assetOrder: normalizeOrder(parsed.assetOrder),
     };
   } catch {
     return {
@@ -77,6 +131,9 @@ const parseChannelSettings = (settingsJson) => {
       suggestToStage: false,
       suggestedStage: '',
       suggestedDepartment: '',
+      assetFolders: [],
+      assetFolderMap: {},
+      assetOrder: [],
     };
   }
 };
@@ -126,6 +183,54 @@ const getUrlFileExtension = (url = '') => {
   return String(parts[parts.length - 1] || '').toLowerCase().trim();
 };
 
+const toProgressPercent = (written = 0, total = 0) => {
+  if (!total || total <= 0) {
+    return 0;
+  }
+
+  const value = (Number(written || 0) / Number(total || 0)) * 100;
+  return Math.max(0, Math.min(100, Math.round(value)));
+};
+
+const isNotFoundError = (error) => {
+  const code = Number(error?.code || error?.status || 0);
+  if (code === 404) {
+    return true;
+  }
+
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('could not be found') || message.includes('document not found');
+};
+
+const inferMimeType = (fileName = '', fallback = '') => {
+  if (fallback) {
+    return fallback;
+  }
+
+  const extension = String(fileName || '').toLowerCase().split('.').pop() || '';
+  const map = {
+    pdf: 'application/pdf',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ppt: 'application/vnd.ms-powerpoint',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    txt: 'text/plain',
+    csv: 'text/csv',
+    zip: 'application/zip',
+    rar: 'application/vnd.rar',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    mp4: 'video/mp4',
+    mp3: 'audio/mpeg',
+  };
+
+  return map[extension] || 'application/octet-stream';
+};
+
 const parseStatsUserIds = (value) => {
   if (Array.isArray(value)) {
     return [...new Set(value.filter(Boolean).map(item => String(item)))] ;
@@ -150,15 +255,6 @@ const parseStatsUserIds = (value) => {
   return [...new Set(raw.split(',').map(item => item.trim()).filter(Boolean))];
 };
 
-const formatStatsUserNames = (userIds = [], userNames = {}) => {
-  const names = userIds.map(id => userNames[id] || id).filter(Boolean);
-  if (!names.length) {
-    return '';
-  }
-
-  return names.join(', ');
-};
-
 const logLectureChannel = (event, payload = {}) => {
   console.log('[LectureChannel]', event, payload);
 };
@@ -170,7 +266,7 @@ const logLectureChannelError = (event, error, payload = {}) => {
   });
 };
 
-const LectureChannel = ({ route }) => {
+const LectureChannel = ({ route, navigation }) => {
   const channelId = route?.params?.channelId || '';
   const initialAssetId = route?.params?.assetId || '';
   const insets = useSafeAreaInsets();
@@ -191,7 +287,7 @@ const LectureChannel = ({ route }) => {
   const [membershipSummary, setMembershipSummary] = useState(null);
   const [joinRequests, setJoinRequests] = useState([]);
   const [managers, setManagers] = useState([]);
-  const [userNames, setUserNames] = useState({});
+  const [userProfiles, setUserProfiles] = useState({});
   const [availableGroups, setAvailableGroups] = useState([]);
   const [allGroups, setAllGroups] = useState([]);
 
@@ -210,15 +306,136 @@ const LectureChannel = ({ route }) => {
   const [addingManager, setAddingManager] = useState(false);
   const [managerError, setManagerError] = useState('');
   const [managerStatus, setManagerStatus] = useState('');
+  const [managerSuggestions, setManagerSuggestions] = useState([]);
+  const [searchingManagerSuggestions, setSearchingManagerSuggestions] = useState(false);
   const [showGroupPicker, setShowGroupPicker] = useState(false);
 
-  const [youtubeModalVideoId, setYoutubeModalVideoId] = useState('');
+  const [activeYoutubeAssetId, setActiveYoutubeAssetId] = useState('');
   const [commentsModalAsset, setCommentsModalAsset] = useState(null);
   const [assetComments, setAssetComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [postingComment, setPostingComment] = useState(false);
+  const [downloadsModalOpen, setDownloadsModalOpen] = useState(false);
+  const [downloadedFiles, setDownloadedFiles] = useState([]);
+  const [activeDownloads, setActiveDownloads] = useState({});
+  const [deviceDownloadsUri, setDeviceDownloadsUri] = useState('');
+  const [assetMenuOpen, setAssetMenuOpen] = useState(false);
+  const [assetMenuTarget, setAssetMenuTarget] = useState(null);
+  const [assetStatsOpen, setAssetStatsOpen] = useState(false);
+  const [assetStatsTarget, setAssetStatsTarget] = useState(null);
+  const [organizerOpen, setOrganizerOpen] = useState(false);
+  const managerSearchTimerRef = React.useRef(null);
+  const userProfilesRef = React.useRef({});
+  const loadingInFlightRef = React.useRef(false);
+  const channelUnavailableRef = React.useRef(false);
+  const hasShownUnavailableAlertRef = React.useRef(false);
+
+  React.useEffect(() => {
+    userProfilesRef.current = userProfiles;
+  }, [userProfiles]);
 
   const membership = membershipSummary?.membership || null;
+
+  const activeDownloadsList = useMemo(() => Object.values(activeDownloads || {}), [activeDownloads]);
+
+  const orderedAssets = useMemo(() => {
+    const list = Array.isArray(assets) ? [...assets] : [];
+    const order = Array.isArray(settingsDraft.assetOrder) ? settingsDraft.assetOrder : [];
+    const indexMap = new Map(order.map((id, index) => [id, index]));
+
+    return list.sort((first, second) => {
+      const firstOrder = indexMap.has(first?.$id) ? indexMap.get(first.$id) : Number.MAX_SAFE_INTEGER;
+      const secondOrder = indexMap.has(second?.$id) ? indexMap.get(second.$id) : Number.MAX_SAFE_INTEGER;
+
+      if (firstOrder !== secondOrder) {
+        return firstOrder - secondOrder;
+      }
+
+      const firstDate = new Date(first?.$createdAt || 0).getTime();
+      const secondDate = new Date(second?.$createdAt || 0).getTime();
+      return secondDate - firstDate;
+    });
+  }, [assets, settingsDraft.assetOrder]);
+
+  const assetListData = useMemo(() => {
+    const folders = Array.isArray(settingsDraft.assetFolders) ? settingsDraft.assetFolders : [];
+    const folderMap = settingsDraft.assetFolderMap || {};
+    const grouped = new Map();
+
+    folders.forEach((folder) => {
+      grouped.set(folder.id, {
+        id: folder.id,
+        name: folder.name,
+        items: [],
+      });
+    });
+
+    const unassigned = [];
+    orderedAssets.forEach((asset) => {
+      const folderId = folderMap[asset.$id] || '';
+      const group = grouped.get(folderId);
+      if (group) {
+        group.items.push(asset);
+      } else {
+        unassigned.push(asset);
+      }
+    });
+
+    const output = [];
+    grouped.forEach((group) => {
+      if (!group.items.length) {
+        return;
+      }
+
+      output.push({ type: 'folder', id: `folder_${group.id}`, name: group.name, folderId: group.id });
+      group.items.forEach((asset) => {
+        output.push({ type: 'asset', id: asset.$id, asset });
+      });
+    });
+
+    if (unassigned.length) {
+      output.push({ type: 'folder', id: 'folder_unassigned', name: t('lectures.unassigned'), folderId: '' });
+      unassigned.forEach((asset) => {
+        output.push({ type: 'asset', id: asset.$id, asset });
+      });
+    }
+
+    return output;
+  }, [orderedAssets, settingsDraft.assetFolders, settingsDraft.assetFolderMap, t]);
+
+  const getDownloadsDirectory = useCallback(() => {
+    const baseDirectory = FileSystem.documentDirectory || FileSystem.cacheDirectory;
+    if (!baseDirectory) {
+      return '';
+    }
+
+    return `${baseDirectory}${LECTURE_DOWNLOADS_DIR}/`;
+  }, []);
+
+  const ensureDeviceDownloadsUri = useCallback(async () => {
+    if (Platform.OS !== 'android') {
+      return '';
+    }
+
+    if (deviceDownloadsUri) {
+      return deviceDownloadsUri;
+    }
+
+    const saf = FileSystem.StorageAccessFramework;
+    if (!saf?.requestDirectoryPermissionsAsync) {
+      return '';
+    }
+
+    const permissions = await saf.requestDirectoryPermissionsAsync();
+    if (!permissions?.granted || !permissions?.directoryUri) {
+      return '';
+    }
+
+    const nextUri = permissions.directoryUri;
+    setDeviceDownloadsUri(nextUri);
+    await AsyncStorage.setItem(LECTURE_DEVICE_DOWNLOADS_URI_KEY, nextUri);
+    return nextUri;
+  }, [deviceDownloadsUri]);
 
   const isManager = useMemo(() => {
     if (!channel || !user?.$id) {
@@ -228,6 +445,10 @@ const LectureChannel = ({ route }) => {
     const managerIds = Array.isArray(managers) ? managers : [];
     return channel.ownerId === user.$id || managerIds.includes(user.$id);
   }, [channel, managers, user?.$id]);
+
+  const isOwner = useMemo(() => {
+    return String(channel?.ownerId || '').trim() === String(user?.$id || '').trim();
+  }, [channel?.ownerId, user?.$id]);
 
   const canUpload = useMemo(() => {
     if (!membership || membership.joinStatus !== 'approved') {
@@ -264,13 +485,56 @@ const LectureChannel = ({ route }) => {
     return (Array.isArray(availableGroups) ? availableGroups : []).filter(group => group?.$id && group.$id !== linkedChatId);
   }, [availableGroups, linkedChatId]);
 
+  const stageSuggestions = useMemo(() => {
+    const values = new Set();
+
+    const pushValue = (value) => {
+      const normalized = String(value || '').trim().toLowerCase();
+      if (!normalized) {
+        return;
+      }
+
+      values.add(normalized === 'all' ? 'all' : normalized);
+    };
+
+    pushValue(settingsDraft?.suggestedStage);
+    pushValue(channel?.stage);
+    pushValue(user?.stage);
+
+    (allGroups || []).forEach((group) => {
+      pushValue(group?.stage);
+    });
+
+    ['all', '1', '2', '3', '4', '5', '6'].forEach(pushValue);
+
+    return Array.from(values).sort((first, second) => {
+      if (first === 'all') return -1;
+      if (second === 'all') return 1;
+      return Number(first) - Number(second);
+    });
+  }, [allGroups, channel?.stage, settingsDraft?.suggestedStage, user?.stage]);
+
+  const normalizeProfileIdentity = useCallback((profile, fallbackId = '') => {
+    const userId = String(profile?.$id || fallbackId || '').trim();
+    if (!userId) {
+      return null;
+    }
+
+    return {
+      $id: userId,
+      name: String(profile?.name || profile?.fullName || t('common.user')),
+      profilePicture: String(profile?.profilePicture || ''),
+      updatedAt: String(profile?.$updatedAt || profile?.updatedAt || ''),
+    };
+  }, [t]);
+
   const resolveUserNames = useCallback(async (ids = []) => {
-    const uniqueIds = [...new Set((ids || []).filter(Boolean))];
+    const uniqueIds = [...new Set((ids || []).filter(Boolean).map(item => String(item)))];
     if (!uniqueIds.length) {
       return;
     }
 
-    const missing = uniqueIds.filter(id => !userNames[id]);
+    const missing = uniqueIds.filter(id => !userProfilesRef.current[id]);
     if (!missing.length) {
       return;
     }
@@ -278,24 +542,45 @@ const LectureChannel = ({ route }) => {
     const entries = await Promise.all(
       missing.map(async (id) => {
         try {
+          const cached = await userCacheManager.getCachedUserData(id);
+          const cachedIdentity = normalizeProfileIdentity(cached, id);
+
+          if (cachedIdentity) {
+            return [id, cachedIdentity];
+          }
+
           const profile = await getUserById(id);
-          return [id, profile?.name || profile?.fullName || t('common.user')];
+          const identity = normalizeProfileIdentity(profile, id);
+
+          if (!identity) {
+            return [id, normalizeProfileIdentity({ $id: id, name: t('common.user') }, id)];
+          }
+
+          await userCacheManager.cacheUserData(id, identity);
+          return [id, identity];
         } catch {
-          return [id, t('common.user')];
+          return [id, normalizeProfileIdentity({ $id: id, name: t('common.user') }, id)];
         }
       })
     );
 
-    setUserNames(prev => ({
-      ...prev,
-      ...Object.fromEntries(entries),
-    }));
-  }, [t, userNames]);
-
-  const loadData = useCallback(async ({ showLoading = true } = {}) => {
-    if (!channelId) {
+    const nextProfiles = Object.fromEntries(entries.filter(([, identity]) => !!identity));
+    if (!Object.keys(nextProfiles).length) {
       return;
     }
+
+    setUserProfiles(prev => ({
+      ...prev,
+      ...nextProfiles,
+    }));
+  }, [normalizeProfileIdentity, t]);
+
+  const loadData = useCallback(async ({ showLoading = true } = {}) => {
+    if (!channelId || channelUnavailableRef.current || loadingInFlightRef.current) {
+      return;
+    }
+
+    loadingInFlightRef.current = true;
 
     logLectureChannel('loadData:start', {
       channelId,
@@ -353,30 +638,168 @@ const LectureChannel = ({ route }) => {
         managersCount: managerIds.length,
       });
     } catch (error) {
-      logLectureChannelError('loadData:error', error, { channelId });
+      if (isNotFoundError(error)) {
+        if (!channelUnavailableRef.current) {
+          channelUnavailableRef.current = true;
+          setSettingsOpen(false);
+          setCommentsModalAsset(null);
+          setAssetComments([]);
+          setAssets([]);
+          setJoinRequests([]);
+          setManagers([]);
+          setChannel(null);
+
+          if (!hasShownUnavailableAlertRef.current) {
+            hasShownUnavailableAlertRef.current = true;
+            Alert.alert(
+              t('lectures.channelUnavailableTitle'),
+              t('lectures.channelUnavailableMessage'),
+              [
+                {
+                  text: t('common.ok'),
+                  onPress: () => {
+                    navigation?.goBack?.();
+                  },
+                },
+              ]
+            );
+          }
+        }
+      } else {
+        logLectureChannelError('loadData:error', error, { channelId });
+      }
     } finally {
+      loadingInFlightRef.current = false;
       setLoading(false);
       setRefreshing(false);
     }
-  }, [channelId, resolveUserNames, user?.$id]);
+  }, [channelId, navigation, resolveUserNames, t, user?.$id]);
 
   React.useEffect(() => {
     loadData();
   }, [loadData]);
 
+  React.useEffect(() => {
+    const loadSavedDeviceUri = async () => {
+      if (Platform.OS !== 'android') {
+        return;
+      }
+
+      try {
+        const saved = await AsyncStorage.getItem(LECTURE_DEVICE_DOWNLOADS_URI_KEY);
+        if (saved) {
+          setDeviceDownloadsUri(saved);
+        }
+      } catch {
+      }
+    };
+
+    loadSavedDeviceUri();
+  }, []);
+
+  const loadDownloadedFiles = useCallback(async () => {
+    const downloadsDir = getDownloadsDirectory();
+    if (!downloadsDir) {
+      setDownloadedFiles([]);
+      return;
+    }
+
+    try {
+      await FileSystem.makeDirectoryAsync(downloadsDir, { intermediates: true });
+      const names = await FileSystem.readDirectoryAsync(downloadsDir);
+      const files = await Promise.all(
+        (Array.isArray(names) ? names : []).map(async (name) => {
+          const path = `${downloadsDir}${name}`;
+          const info = await FileSystem.getInfoAsync(path, { size: true });
+          return {
+            id: path,
+            name,
+            path,
+            size: Number(info?.size || 0),
+            modifiedAt: Number(info?.modificationTime || 0),
+            mimeType: inferMimeType(name),
+          };
+        })
+      );
+
+      const sorted = files
+        .filter(item => !!item?.path)
+        .sort((first, second) => second.modifiedAt - first.modifiedAt);
+      setDownloadedFiles(sorted);
+    } catch (error) {
+      logLectureChannelError('downloads:list:error', error, { channelId });
+      setDownloadedFiles([]);
+    }
+  }, [channelId, getDownloadsDirectory]);
+
+  React.useEffect(() => {
+    loadDownloadedFiles();
+  }, [loadDownloadedFiles]);
+
   useLectureAssetsRealtime(channelId, () => {
+    if (channelUnavailableRef.current) {
+      return;
+    }
     loadData({ showLoading: false });
   }, true);
 
   useLectureMembershipsRealtime(channelId, () => {
+    if (channelUnavailableRef.current) {
+      return;
+    }
     loadData({ showLoading: false });
   }, true);
 
   useLectureChannelsRealtime((payload) => {
+    if (channelUnavailableRef.current) {
+      return;
+    }
     if (payload?.$id === channelId) {
       loadData({ showLoading: false });
     }
   }, true);
+
+  useRealtimeSubscription(
+    config.usersCollectionId,
+    async (payload) => {
+      const userId = String(payload?.$id || '').trim();
+      if (!userId || !userProfilesRef.current[userId]) {
+        return;
+      }
+
+      const nextIdentity = normalizeProfileIdentity(payload, userId);
+      if (!nextIdentity) {
+        return;
+      }
+
+      const currentIdentity = userProfilesRef.current[userId] || {};
+      const hasChanged =
+        String(currentIdentity?.name || '') !== String(nextIdentity?.name || '') ||
+        String(currentIdentity?.profilePicture || '') !== String(nextIdentity?.profilePicture || '') ||
+        String(currentIdentity?.updatedAt || '') !== String(nextIdentity?.updatedAt || '');
+
+      if (!hasChanged) {
+        return;
+      }
+
+      setUserProfiles(prev => ({
+        ...prev,
+        [userId]: nextIdentity,
+      }));
+
+      await userCacheManager.cacheUserData(userId, nextIdentity);
+    },
+    null,
+    { enabled: !!channelId && !!config.usersCollectionId }
+  );
+
+  React.useEffect(() => {
+    return () => {
+      if (managerSearchTimerRef.current) {
+        clearTimeout(managerSearchTimerRef.current);
+      }
+    };
+  }, []);
 
   const loadComments = useCallback(async (asset) => {
     if (!asset?.$id || !channelId) {
@@ -506,6 +929,9 @@ const LectureChannel = ({ route }) => {
           suggestedStage: settingsDraft.suggestToStage
             ? String(settingsDraft.suggestedStage || '').trim()
             : '',
+          assetFolders: Array.isArray(settingsDraft.assetFolders) ? settingsDraft.assetFolders : [],
+          assetFolderMap: settingsDraft.assetFolderMap || {},
+          assetOrder: Array.isArray(settingsDraft.assetOrder) ? settingsDraft.assetOrder : [],
         },
       });
       await loadData({ showLoading: false });
@@ -522,6 +948,185 @@ const LectureChannel = ({ route }) => {
     }
   };
 
+  const searchManagerSuggestions = useCallback(async (query) => {
+    const normalizedQuery = String(query || '').trim();
+    if (normalizedQuery.length < 2) {
+      setManagerSuggestions([]);
+      setSearchingManagerSuggestions(false);
+      return;
+    }
+
+    setSearchingManagerSuggestions(true);
+
+    try {
+      const candidates = await searchUsers(normalizedQuery, 8);
+      const filtered = (Array.isArray(candidates) ? candidates : []).filter((candidate) => {
+        const userId = String(candidate?.$id || '').trim();
+        if (!userId) {
+          return false;
+        }
+
+        if (userId === channel?.ownerId) {
+          return false;
+        }
+
+        if (managers.includes(userId)) {
+          return false;
+        }
+
+        return true;
+      });
+
+      setManagerSuggestions(filtered);
+      await resolveUserNames(filtered.map(item => item?.$id));
+    } catch {
+      setManagerSuggestions([]);
+    } finally {
+      setSearchingManagerSuggestions(false);
+    }
+  }, [channel?.ownerId, managers, resolveUserNames]);
+
+  const handleManagerInputChange = useCallback((value) => {
+    setManagerUserId(value);
+    setManagerError('');
+    setManagerStatus('');
+
+    if (managerSearchTimerRef.current) {
+      clearTimeout(managerSearchTimerRef.current);
+    }
+
+    managerSearchTimerRef.current = setTimeout(() => {
+      searchManagerSuggestions(value);
+    }, 220);
+  }, [searchManagerSuggestions]);
+
+  const addManagerWithProfile = useCallback(async (profile) => {
+    if (!profile?.$id || !isManager || addingManager) {
+      return;
+    }
+
+    const targetManagerId = String(profile.$id);
+
+    if (targetManagerId === channel?.ownerId || managers.includes(targetManagerId)) {
+      setManagerStatus(t('lectures.managerAlreadyExists'));
+      setManagerUserId('');
+      return;
+    }
+
+    try {
+      setAddingManager(true);
+      setManagerError('');
+      setManagerStatus('');
+
+      await addLectureManager(channelId, targetManagerId);
+      setManagerUserId('');
+      setManagerSuggestions([]);
+      setManagerStatus(t('lectures.managerAdded'));
+      await resolveUserNames([targetManagerId]);
+      await loadData({ showLoading: false });
+
+      logLectureChannel('addManager:success', {
+        channelId,
+        managerUserId: targetManagerId,
+      });
+    } catch (error) {
+      logLectureChannelError('addManager:error', error, { channelId });
+      setManagerError(error?.message || t('common.error'));
+    } finally {
+      setAddingManager(false);
+    }
+  }, [addingManager, channel?.ownerId, channelId, isManager, loadData, managers, resolveUserNames, t]);
+
+  const confirmAddManager = useCallback((profile) => {
+    if (!profile?.$id) {
+      return;
+    }
+
+    const managerName = String(profile?.name || profile?.fullName || t('lectures.unknownUser'));
+    Alert.alert(
+      t('lectures.confirmAddManagerTitle'),
+      t('lectures.confirmAddManagerMessage').replace('{name}', managerName),
+      [
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('lectures.confirmAddManagerCta'),
+          onPress: () => {
+            addManagerWithProfile(profile);
+          },
+        },
+      ]
+    );
+  }, [addManagerWithProfile, t]);
+
+  const handleRemoveManager = useCallback((managerId) => {
+    const normalizedManagerId = String(managerId || '').trim();
+    if (!normalizedManagerId || !isOwner || normalizedManagerId === String(channel?.ownerId || '').trim()) {
+      return;
+    }
+
+    const managerName = resolveName(normalizedManagerId);
+
+    Alert.alert(
+      t('lectures.removeManagerConfirmTitle'),
+      t('lectures.removeManagerConfirmMessage').replace('{name}', managerName),
+      [
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('common.remove'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removeLectureManager(channelId, normalizedManagerId);
+              setManagerStatus(t('lectures.managerRemoved'));
+              await loadData({ showLoading: false });
+            } catch (error) {
+              setManagerError(error?.message || t('common.error'));
+            }
+          },
+        },
+      ]
+    );
+  }, [channel?.ownerId, channelId, isOwner, loadData, resolveName, t]);
+
+  const handleDeleteChannel = useCallback(() => {
+    if (!isOwner || !channelId) {
+      return;
+    }
+
+    Alert.alert(
+      t('lectures.deleteChannelTitle'),
+      t('lectures.deleteChannelConfirmMessage'),
+      [
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('lectures.deleteChannelAction'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setSavingSettings(true);
+              await deleteLectureChannelWithCleanup(channelId);
+              channelUnavailableRef.current = true;
+              navigation?.goBack?.();
+            } catch (error) {
+              setManagerError(error?.message || t('common.error'));
+            } finally {
+              setSavingSettings(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [channelId, isOwner, navigation, t]);
+
   const handleAddManager = async () => {
     const query = managerUserId.trim();
     if (!query || !isManager || addingManager) {
@@ -534,16 +1139,22 @@ const LectureChannel = ({ route }) => {
     });
 
     try {
-      setAddingManager(true);
       setManagerError('');
       setManagerStatus('');
 
-      let profile = null;
+      let profile = managerSuggestions.find((candidate) => {
+        const candidateId = String(candidate?.$id || '').trim().toLowerCase();
+        const candidateName = String(candidate?.name || candidate?.fullName || '').trim().toLowerCase();
+        const lowered = query.toLowerCase();
+        return candidateId === lowered || candidateName === lowered;
+      }) || null;
 
-      try {
-        profile = await getUserById(query);
-      } catch {
-        profile = null;
+      if (!profile) {
+        try {
+          profile = await getUserById(query);
+        } catch {
+          profile = null;
+        }
       }
 
       if (!profile) {
@@ -557,22 +1168,7 @@ const LectureChannel = ({ route }) => {
         throw new Error('LECTURE_MANAGER_NOT_FOUND');
       }
 
-      const targetManagerId = String(profile.$id);
-      if (targetManagerId === channel?.ownerId || managers.includes(targetManagerId)) {
-        setManagerStatus(t('lectures.managerAlreadyExists'));
-        setManagerUserId('');
-        return;
-      }
-
-      await addLectureManager(channelId, targetManagerId);
-      setManagerUserId('');
-      setManagerStatus(t('lectures.managerAdded'));
-      await resolveUserNames([targetManagerId]);
-      await loadData({ showLoading: false });
-      logLectureChannel('addManager:success', {
-        channelId,
-        managerUserId: targetManagerId,
-      });
+      confirmAddManager(profile);
     } catch (error) {
       logLectureChannelError('addManager:error', error, { channelId });
       setManagerError(
@@ -580,8 +1176,6 @@ const LectureChannel = ({ route }) => {
           ? t('lectures.managerNotFound')
           : (error?.message || t('common.error'))
       );
-    } finally {
-      setAddingManager(false);
     }
   };
 
@@ -755,6 +1349,77 @@ const LectureChannel = ({ route }) => {
     });
   };
 
+  const openLocalFile = useCallback(async (fileUri, mimeType = 'application/octet-stream') => {
+    if (!fileUri) {
+      return;
+    }
+
+    try {
+      if (Platform.OS === 'android') {
+        const openUri = fileUri.startsWith('content://')
+          ? fileUri
+          : await FileSystem.getContentUriAsync(fileUri);
+
+        await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+          data: openUri,
+          flags: 1 | 268435456,
+          type: mimeType,
+        });
+        return;
+      }
+
+      await Linking.openURL(fileUri);
+    } catch (error) {
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(fileUri);
+        return;
+      }
+      throw error;
+    }
+  }, []);
+
+  const exportFileToDeviceStorage = useCallback(async ({ localUri, fileName, mimeType }) => {
+    if (Platform.OS !== 'android' || !localUri) {
+      return '';
+    }
+
+    const saf = FileSystem.StorageAccessFramework;
+    if (!saf?.createFileAsync) {
+      return '';
+    }
+
+    let directoryUri = await ensureDeviceDownloadsUri();
+    if (!directoryUri) {
+      return '';
+    }
+
+    const targetName = `${Date.now()}_${sanitizeDownloadFileName(fileName)}`;
+    const targetMimeType = inferMimeType(targetName, mimeType);
+
+    let targetUri = '';
+    try {
+      targetUri = await saf.createFileAsync(directoryUri, targetName, targetMimeType);
+    } catch {
+      setDeviceDownloadsUri('');
+      await AsyncStorage.removeItem(LECTURE_DEVICE_DOWNLOADS_URI_KEY);
+      directoryUri = await ensureDeviceDownloadsUri();
+      if (!directoryUri) {
+        return '';
+      }
+      targetUri = await saf.createFileAsync(directoryUri, targetName, targetMimeType);
+    }
+
+    const base64 = await FileSystem.readAsStringAsync(localUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    await FileSystem.writeAsStringAsync(targetUri, base64, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    return targetUri;
+  }, [ensureDeviceDownloadsUri]);
+
   const downloadLectureAssetFile = async (asset, { trackOpen = false } = {}) => {
     if (!asset || asset.uploadType !== LECTURE_UPLOAD_TYPES.FILE || !asset.fileUrl) {
       return;
@@ -766,10 +1431,11 @@ const LectureChannel = ({ route }) => {
         await markAssetInteraction(asset, 'open');
       }
 
-      const baseDirectory = FileSystem.cacheDirectory || FileSystem.documentDirectory;
-      if (!baseDirectory) {
+      const downloadsDir = getDownloadsDirectory();
+      if (!downloadsDir) {
         throw new Error('Download directory unavailable');
       }
+      await FileSystem.makeDirectoryAsync(downloadsDir, { intermediates: true });
 
       const sourceName = asset.fileName || asset.title || '';
       const safeName = sanitizeDownloadFileName(sourceName);
@@ -779,35 +1445,101 @@ const LectureChannel = ({ route }) => {
       const finalName = hasExtension || !fallbackExtension
         ? safeName
         : `${safeName}.${fallbackExtension}`;
-      const localUri = `${baseDirectory}${finalName}`;
+      const resolvedMimeType = inferMimeType(finalName, asset.mimeType || '');
+      const localUri = `${downloadsDir}${Date.now()}_${finalName}`;
 
-      const result = await FileSystem.downloadAsync(asset.fileUrl, localUri, {
-        headers: {
-          Accept: '*/*',
+      setActiveDownloads(prev => ({
+        ...prev,
+        [asset.$id]: {
+          assetId: asset.$id,
+          fileName: finalName,
+          progress: 0,
+          written: 0,
+          total: 0,
         },
-      });
+      }));
+
+      const downloadResumable = FileSystem.createDownloadResumable(
+        asset.fileUrl,
+        localUri,
+        {
+          headers: {
+            Accept: '*/*',
+          },
+        },
+        (progressEvent) => {
+          const written = Number(progressEvent?.totalBytesWritten || 0);
+          const total = Number(progressEvent?.totalBytesExpectedToWrite || 0);
+          const progress = toProgressPercent(written, total);
+          setActiveDownloads(prev => ({
+            ...prev,
+            [asset.$id]: {
+              assetId: asset.$id,
+              fileName: finalName,
+              progress,
+              written,
+              total,
+            },
+          }));
+        }
+      );
+
+      const result = await downloadResumable.downloadAsync();
 
       if (!result?.uri || result.status !== 200) {
         throw new Error('Download failed');
       }
 
+      setActiveDownloads(prev => {
+        const next = { ...prev };
+        delete next[asset.$id];
+        return next;
+      });
+
       await markAssetInteraction(asset, 'download');
 
-      const sharingAvailable = await Sharing.isAvailableAsync();
-      if (sharingAvailable) {
-        await Sharing.shareAsync(result.uri, {
-          mimeType: asset.mimeType || undefined,
+      let deviceUri = '';
+      try {
+        deviceUri = await exportFileToDeviceStorage({
+          localUri: result.uri,
+          fileName: finalName,
+          mimeType: resolvedMimeType,
         });
-      } else {
-        await Linking.openURL(result.uri);
+      } catch (exportError) {
+        logLectureChannelError('downloadAsset:export:error', exportError, {
+          channelId,
+          assetId: asset?.$id || '',
+        });
       }
 
-      await loadData({ showLoading: false });
+      await openLocalFile(deviceUri || result.uri, resolvedMimeType);
+      await Promise.all([
+        loadDownloadedFiles(),
+        loadData({ showLoading: false }),
+      ]);
     } catch (error) {
+      setActiveDownloads(prev => {
+        const next = { ...prev };
+        delete next[asset?.$id || ''];
+        return next;
+      });
       logLectureChannelError('downloadAsset:error', error, {
         channelId,
         assetId: asset?.$id || '',
       });
+    }
+  };
+
+  const removeDownloadedFile = async (filePath) => {
+    if (!filePath) {
+      return;
+    }
+
+    try {
+      await FileSystem.deleteAsync(filePath, { idempotent: true });
+      await loadDownloadedFiles();
+    } catch (error) {
+      logLectureChannelError('downloads:remove:error', error, { channelId, filePath });
     }
   };
 
@@ -817,11 +1549,22 @@ const LectureChannel = ({ route }) => {
     }
 
     if (asset.uploadType === LECTURE_UPLOAD_TYPES.FILE && asset.fileUrl) {
-      logLectureChannel('openAsset:fileDownload', {
+      logLectureChannel('openAsset:fileOpenRemote', {
         channelId,
         assetId: asset.$id,
       });
-      await downloadLectureAssetFile(asset, { trackOpen: true });
+
+      try {
+        await markAssetInteraction(asset, 'view');
+        await markAssetInteraction(asset, 'open');
+        await Linking.openURL(asset.fileUrl);
+      } catch (error) {
+        logLectureChannelError('openAsset:fileOpenRemote:error', error, {
+          channelId,
+          assetId: asset.$id,
+        });
+      }
+
       return;
     }
 
@@ -835,7 +1578,7 @@ const LectureChannel = ({ route }) => {
           assetId: asset.$id,
           videoId,
         });
-        setYoutubeModalVideoId(videoId);
+        setActiveYoutubeAssetId((prev) => (prev === asset.$id ? '' : asset.$id));
       } else {
         logLectureChannel('openAsset:youtubeInvalidId', {
           channelId,
@@ -967,7 +1710,36 @@ const LectureChannel = ({ route }) => {
     }
   };
 
-  const resolveName = (userId) => userNames[userId] || t('lectures.unknownUser');
+  const resolveName = (userId) => userProfiles[userId]?.name || t('lectures.unknownUser');
+
+  const canViewAssetInfo = useCallback((asset) => {
+    if (!asset) {
+      return false;
+    }
+
+    return isManager || asset.uploaderId === user?.$id;
+  }, [isManager, user?.$id]);
+
+  const openAssetMenu = (asset) => {
+    if (!asset) {
+      return;
+    }
+
+    setAssetMenuTarget(asset);
+    setAssetMenuOpen(true);
+  };
+
+  const handleOrganizerSave = async ({ folders, assetFolderMap, assetOrder }) => {
+    setSettingsDraft(prev => ({
+      ...prev,
+      assetFolders: Array.isArray(folders) ? folders : [],
+      assetFolderMap: assetFolderMap || {},
+      assetOrder: Array.isArray(assetOrder) ? assetOrder : [],
+    }));
+
+    await handleSaveSettings();
+    setOrganizerOpen(false);
+  };
 
   const renderStatCard = (label, value) => (
     <View style={[styles.statCard, { borderColor: colors.border, backgroundColor: colors.card }]}>
@@ -977,75 +1749,195 @@ const LectureChannel = ({ route }) => {
   );
 
   const renderAsset = ({ item }) => {
-    const typeText = item.uploadType === LECTURE_UPLOAD_TYPES.YOUTUBE
+    if (item?.type === 'folder') {
+      return (
+        <View style={[styles.folderHeaderRow, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}> 
+          <Ionicons name="folder-open-outline" size={16} color={colors.primary} />
+          <Text style={[styles.folderHeaderText, { color: colors.text }]}>{item.name}</Text>
+        </View>
+      );
+    }
+
+    const asset = item?.asset;
+    if (!asset) {
+      return null;
+    }
+
+    const typeText = asset.uploadType === LECTURE_UPLOAD_TYPES.YOUTUBE
       ? t('lectures.youtube')
-      : item.uploadType === LECTURE_UPLOAD_TYPES.LINK
+      : asset.uploadType === LECTURE_UPLOAD_TYPES.LINK
         ? t('lectures.link')
         : t('lectures.file');
 
-    const viewedByIds = parseStatsUserIds(item?.viewedBy);
-    const openedByIds = parseStatsUserIds(item?.openedBy);
-    const downloadedByIds = parseStatsUserIds(item?.downloadedBy);
+    const accentColor = asset.uploadType === LECTURE_UPLOAD_TYPES.YOUTUBE
+      ? colors.danger
+      : asset.uploadType === LECTURE_UPLOAD_TYPES.LINK
+        ? colors.warning
+        : colors.primary;
+    const previewBg = `${accentColor}1A`;
+    const youtubeVideoId = asset.uploadType === LECTURE_UPLOAD_TYPES.YOUTUBE
+      ? buildYouTubeVideoId(asset.youtubeUrl || '')
+      : '';
+    const isYoutubePlaying = activeYoutubeAssetId === asset.$id && !!youtubeVideoId;
 
-    const viewedCount = Number(item?.viewsCount ?? item?.viewCount ?? viewedByIds.length ?? 0);
-    const openedCount = Number(item?.opensCount ?? item?.openCount ?? openedByIds.length ?? 0);
-    const downloadedCount = Number(item?.downloadsCount ?? item?.downloadCount ?? downloadedByIds.length ?? 0);
+    const fileExtension = String(asset?.fileName || asset?.title || '')
+      .split('.')
+      .pop()
+      .toUpperCase();
+    const compactExt = fileExtension && fileExtension.length <= 5 ? fileExtension : t('lectures.file');
+
+    let previewContent = null;
+
+    if (asset.uploadType === LECTURE_UPLOAD_TYPES.YOUTUBE) {
+      previewContent = (
+        <View style={[styles.previewContainer, styles.youtubePreviewContainer, { borderColor: accentColor, backgroundColor: previewBg }]}>
+          {!!youtubeVideoId && (
+            <Image
+              source={{ uri: `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg` }}
+              style={styles.youtubeThumb}
+              resizeMode="cover"
+            />
+          )}
+
+          <View style={styles.previewOverlayRow}>
+            <View style={[styles.previewBadge, { borderColor: accentColor, backgroundColor: colors.card }]}>
+              <Ionicons name="logo-youtube" size={12} color={accentColor} />
+              <Text style={[styles.previewBadgeText, { color: accentColor }]}>{t('lectures.previewVideo')}</Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.previewPlayButton, { borderColor: accentColor, backgroundColor: colors.card }]}
+              onPress={() => openAsset(asset)}
+            >
+              <Ionicons
+                name={isYoutubePlaying ? 'pause' : 'play'}
+                size={14}
+                color={accentColor}
+              />
+              <Text style={[styles.previewPlayText, { color: accentColor }]}>
+                {isYoutubePlaying ? t('lectures.pauseVideo') : t('lectures.playVideo')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {isYoutubePlaying && (
+            <View style={[styles.youtubePlayerWrap, { borderColor: colors.border, backgroundColor: colors.background }]}>
+              <YoutubePlayer
+                height={moderateScale(180)}
+                play={isYoutubePlaying}
+                videoId={youtubeVideoId}
+                onChangeState={(state) => {
+                  if (state === 'ended' || state === 'paused') {
+                    setActiveYoutubeAssetId((current) => (current === asset.$id ? '' : current));
+                  }
+                }}
+                onError={(error) => {
+                  logLectureChannel('youtubePlayer:error', {
+                    channelId,
+                    assetId: asset.$id,
+                    error,
+                  });
+                  setActiveYoutubeAssetId((current) => (current === asset.$id ? '' : current));
+                }}
+                webViewStyle={styles.youtubeWebview}
+              />
+            </View>
+          )}
+        </View>
+      );
+    } else if (asset.uploadType === LECTURE_UPLOAD_TYPES.FILE) {
+      previewContent = (
+        <View style={[styles.previewContainer, styles.filePreviewContainer, { borderColor: accentColor, backgroundColor: previewBg }]}>
+          <View style={[styles.fileExtBadge, { backgroundColor: accentColor }]}>
+            <Text style={styles.fileExtText}>{compactExt}</Text>
+          </View>
+          <View style={styles.previewMetaColumn}>
+            <Text style={[styles.previewMetaTitle, { color: colors.text }]} numberOfLines={1}>
+              {asset?.fileName || asset?.title}
+            </Text>
+            <Text style={[styles.previewMetaSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
+              {asset?.fileSize ? `${formatBytesAsMb(asset.fileSize)} MB` : t('lectures.file')}
+            </Text>
+          </View>
+          <Ionicons name="document-text-outline" size={18} color={accentColor} />
+        </View>
+      );
+    } else {
+      let hostname = asset?.externalUrl || '';
+      try {
+        hostname = new URL(asset?.externalUrl || '').hostname || hostname;
+      } catch {
+      }
+
+      previewContent = (
+        <View style={[styles.previewContainer, styles.linkPreviewContainer, { borderColor: accentColor, backgroundColor: previewBg }]}>
+          <View style={[styles.linkIconWrap, { borderColor: accentColor }]}>
+            <Ionicons name="link-outline" size={16} color={accentColor} />
+          </View>
+          <View style={styles.previewMetaColumn}>
+            <Text style={[styles.previewMetaTitle, { color: colors.text }]} numberOfLines={1}>
+              {t('lectures.previewLink')}
+            </Text>
+            <Text style={[styles.previewMetaSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
+              {hostname}
+            </Text>
+          </View>
+          <Ionicons name="open-outline" size={16} color={accentColor} />
+        </View>
+      );
+    }
 
     return (
       <TouchableOpacity
-        onPress={() => openAsset(item)}
-        style={[styles.assetCard, { borderColor: colors.border, backgroundColor: colors.card }]}>
+        onPress={() => openAsset(asset)}
+        onLongPress={() => openAssetMenu(asset)}
+        delayLongPress={260}
+        style={[
+          styles.assetCard,
+          {
+            borderColor: accentColor,
+            backgroundColor: colors.card,
+            minHeight: asset.uploadType === LECTURE_UPLOAD_TYPES.YOUTUBE
+              ? moderateScale(210)
+              : asset.uploadType === LECTURE_UPLOAD_TYPES.FILE
+                ? moderateScale(134)
+                : moderateScale(118),
+          },
+        ]}>
         <View style={styles.assetHeader}>
-          <Text style={[styles.assetTitle, { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
-          <Text style={[styles.assetType, { color: colors.primary }]}>{typeText}</Text>
+          <Text style={[styles.assetTitle, { color: colors.text }]} numberOfLines={2}>{asset.title}</Text>
+          <Text style={[styles.assetType, { color: accentColor }]}>{typeText}</Text>
         </View>
 
-        {!!item.description && (
-          <Text style={[styles.assetDescription, { color: colors.textSecondary }]} numberOfLines={2}>{item.description}</Text>
+        {previewContent}
+
+        {!!asset.description && (
+          <Text style={[styles.assetDescription, { color: colors.textSecondary }]} numberOfLines={2}>{asset.description}</Text>
         )}
 
-        <View style={styles.assetStatsWrap}>
+        <View style={styles.assetStatsCompact}>
           <Text style={[styles.assetStatsLabel, { color: colors.textSecondary }]}>
-            {t('lectures.assetViews').replace('{count}', String(viewedCount))}
+            {t('lectures.longPressForActions')}
           </Text>
-          <Text style={[styles.assetStatsLabel, { color: colors.textSecondary }]}>
-            {t('lectures.assetOpens').replace('{count}', String(openedCount))}
-          </Text>
-          <Text style={[styles.assetStatsLabel, { color: colors.textSecondary }]}>
-            {t('lectures.assetDownloads').replace('{count}', String(downloadedCount))}
-          </Text>
-
-          {!!viewedByIds.length && (
-            <Text style={[styles.assetStatsNames, { color: colors.textSecondary }]} numberOfLines={2}>
-              {t('lectures.seenBy')}: {formatStatsUserNames(viewedByIds, userNames)}
-            </Text>
-          )}
-          {!!openedByIds.length && (
-            <Text style={[styles.assetStatsNames, { color: colors.textSecondary }]} numberOfLines={2}>
-              {t('lectures.openedBy')}: {formatStatsUserNames(openedByIds, userNames)}
-            </Text>
-          )}
-          {!!downloadedByIds.length && (
-            <Text style={[styles.assetStatsNames, { color: colors.textSecondary }]} numberOfLines={2}>
-              {t('lectures.downloadedBy')}: {formatStatsUserNames(downloadedByIds, userNames)}
-            </Text>
-          )}
         </View>
 
         <View style={styles.assetActionsRow}>
-          {!!item.isPinned && <Text style={[styles.pinnedLabel, { color: colors.primary }]}>{t('lectures.pinned')}</Text>}
-          <TouchableOpacity style={[styles.pinBtn, { borderColor: colors.border }]} onPress={() => openComments(item)}>
+          {!!asset.isPinned && <Text style={[styles.pinnedLabel, { color: colors.primary }]}>{t('lectures.pinned')}</Text>}
+          <TouchableOpacity style={[styles.pinBtn, { borderColor: colors.border }]} onPress={() => openComments(asset)}>
             <Text style={[styles.pinBtnText, { color: colors.text }]}>{t('lectures.discussion')}</Text>
           </TouchableOpacity>
-          {item.uploadType === LECTURE_UPLOAD_TYPES.FILE && (
-            <TouchableOpacity style={[styles.pinBtn, { borderColor: colors.border }]} onPress={() => handleDownloadAsset(item)}>
+          {asset.uploadType === LECTURE_UPLOAD_TYPES.FILE && (
+            <TouchableOpacity style={[styles.pinBtn, { borderColor: colors.border }]} onPress={() => handleDownloadAsset(asset)}>
               <Text style={[styles.pinBtnText, { color: colors.text }]}>{t('lectures.download')}</Text>
             </TouchableOpacity>
           )}
-          {isManager && (
-            <TouchableOpacity style={[styles.pinBtn, { borderColor: colors.border }]} onPress={() => handleTogglePin(item)}>
+          {canViewAssetInfo(asset) && (
+            <TouchableOpacity style={[styles.pinBtn, { borderColor: colors.border }]} onPress={() => {
+              setAssetStatsTarget(asset);
+              setAssetStatsOpen(true);
+            }}>
               <Text style={[styles.pinBtnText, { color: colors.text }]}>
-                {item.isPinned ? t('lectures.unpin') : t('lectures.pin')}
+                {t('lectures.showStats')}
               </Text>
             </TouchableOpacity>
           )}
@@ -1064,11 +1956,37 @@ const LectureChannel = ({ route }) => {
         end={{ x: 1, y: 1 }}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm, borderBottomColor: colors.border }]}> 
         <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>{channel?.name || t('lectures.channel')}</Text>
-        {isManager && (
-          <TouchableOpacity onPress={() => setSettingsOpen(true)} style={styles.headerMenuBtn}>
-            <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => setDownloadsModalOpen(true)}
+            style={[styles.headerMenuBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
+          >
+            <Ionicons name="download-outline" size={20} color={colors.text} />
+            {(downloadedFiles.length > 0 || activeDownloadsList.length > 0) && (
+              <View style={[styles.downloadBadge, { backgroundColor: colors.primary }]}> 
+                <Text style={styles.downloadBadgeText}>{String(downloadedFiles.length + activeDownloadsList.length)}</Text>
+              </View>
+            )}
           </TouchableOpacity>
-        )}
+
+          {isManager && (
+            <TouchableOpacity
+              onPress={() => setOrganizerOpen(true)}
+              style={[styles.headerMenuBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
+            >
+              <Ionicons name="folder-outline" size={20} color={colors.text} />
+            </TouchableOpacity>
+          )}
+
+          {isManager && (
+            <TouchableOpacity
+              onPress={() => setSettingsOpen(true)}
+              style={[styles.headerMenuBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
+            >
+              <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <ScrollView
@@ -1187,8 +2105,8 @@ const LectureChannel = ({ route }) => {
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('lectures.uploads')}</Text>
         <FlatList
-          data={assets}
-          keyExtractor={(item) => item.$id}
+          data={assetListData}
+          keyExtractor={(item) => item.id}
           renderItem={renderAsset}
           scrollEnabled={false}
           ListEmptyComponent={!loading ? (
@@ -1250,13 +2168,45 @@ const LectureChannel = ({ route }) => {
               </TouchableOpacity>
 
               {settingsDraft.suggestToStage && (
-                <TextInput
-                  value={settingsDraft.suggestedStage}
-                  onChangeText={(value) => setSettingsDraft(prev => ({ ...prev, suggestedStage: value }))}
-                  placeholder={t('lectures.suggestedStagePlaceholder')}
-                  placeholderTextColor={colors.textSecondary}
-                  style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
-                />
+                <>
+                  <TextInput
+                    value={settingsDraft.suggestedStage}
+                    onChangeText={(value) => setSettingsDraft(prev => ({ ...prev, suggestedStage: value }))}
+                    placeholder={t('lectures.suggestedStagePlaceholder')}
+                    placeholderTextColor={colors.textSecondary}
+                    style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+                  />
+
+                  <View style={styles.stageSuggestionWrap}>
+                    {stageSuggestions.map((stageValue) => {
+                      const selected = String(settingsDraft.suggestedStage || '').trim().toLowerCase() === String(stageValue).toLowerCase();
+                      return (
+                        <TouchableOpacity
+                          key={`stage_${stageValue}`}
+                          style={[
+                            styles.stageSuggestionChip,
+                            {
+                              borderColor: selected ? colors.primary : colors.border,
+                              backgroundColor: selected ? `${colors.primary}22` : colors.inputBackground,
+                            },
+                          ]}
+                          onPress={() => {
+                            setSettingsDraft(prev => ({ ...prev, suggestedStage: String(stageValue) }));
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.stageSuggestionChipText,
+                              { color: selected ? colors.primary : colors.textSecondary },
+                            ]}
+                          >
+                            {String(stageValue)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </>
               )}
 
               <Text style={[styles.modalSectionTitle, { color: colors.text }]}>{t('lectures.linkedGroup')}</Text>
@@ -1304,29 +2254,96 @@ const LectureChannel = ({ route }) => {
               )}
 
               <Text style={[styles.modalSectionTitle, { color: colors.text }]}>{t('lectures.managers')}</Text>
-              <TextInput
-                value={managerUserId}
-                onChangeText={setManagerUserId}
-                placeholder={t('lectures.managerLookupPlaceholder')}
-                placeholderTextColor={colors.textSecondary}
-                style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
-              />
-              <TouchableOpacity
-                style={[styles.smallBtn, { borderColor: colors.border, alignSelf: 'flex-start', opacity: addingManager ? 0.7 : 1 }]}
-                onPress={handleAddManager}
-                disabled={addingManager}>
-                <Text style={[styles.smallBtnText, { color: colors.text }]}>
-                  {addingManager ? t('lectures.addingManager') : t('lectures.addManager')}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.managerInputRow}>
+                <TextInput
+                  value={managerUserId}
+                  onChangeText={handleManagerInputChange}
+                  placeholder={t('lectures.managerLookupPlaceholder')}
+                  placeholderTextColor={colors.textSecondary}
+                  style={[
+                    styles.input,
+                    styles.managerInput,
+                    {
+                      color: colors.text,
+                      borderColor: colors.border,
+                      backgroundColor: colors.inputBackground,
+                    },
+                  ]}
+                />
+
+                <TouchableOpacity
+                  style={[
+                    styles.managerAddButton,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.inputBackground,
+                      opacity: addingManager ? 0.7 : 1,
+                    },
+                  ]}
+                  onPress={handleAddManager}
+                  disabled={addingManager}
+                >
+                  {addingManager ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Ionicons name="add" size={20} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {!!managerSuggestions.length && (
+                <View style={styles.managerSuggestionsWrap}>
+                  {managerSuggestions.map((candidate) => (
+                    <TouchableOpacity
+                      key={candidate.$id}
+                      style={[styles.optionCard, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+                      onPress={() => confirmAddManager(candidate)}
+                    >
+                      <View style={styles.managerSuggestionLeft}>
+                        <ProfilePicture
+                          uri={candidate?.profilePicture}
+                          name={candidate?.name || candidate?.fullName}
+                          size={moderateScale(28)}
+                        />
+                        <View style={styles.optionMeta}>
+                          <Text style={[styles.optionText, { color: colors.text }]} numberOfLines={1}>
+                            {candidate?.name || candidate?.fullName || t('lectures.unknownUser')}
+                          </Text>
+                        </View>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {searchingManagerSuggestions && (
+                <Text style={[styles.infoText, { color: colors.textSecondary }]}>{t('lectures.searchingManagers')}</Text>
+              )}
+
               {!!managerError && <Text style={[styles.managerErrorText, { color: colors.danger }]}>{managerError}</Text>}
               {!!managerStatus && <Text style={[styles.managerStatusText, { color: colors.success }]}>{managerStatus}</Text>}
 
               <View style={styles.nameListWrap}>
                 {managers.map((managerId) => (
-                  <Text key={managerId} style={[styles.nameListText, { color: colors.textSecondary }]}>
-                    • {resolveName(managerId)}
-                  </Text>
+                  <View key={managerId} style={styles.managerIdentityRow}>
+                    <ProfilePicture
+                      uri={userProfiles[managerId]?.profilePicture}
+                      name={resolveName(managerId)}
+                      size={moderateScale(24)}
+                    />
+                    <Text style={[styles.nameListText, { color: colors.textSecondary }]}>
+                      {resolveName(managerId)}
+                    </Text>
+                    {isOwner && String(managerId || '').trim() !== String(channel?.ownerId || '').trim() && (
+                      <TouchableOpacity
+                        style={[styles.managerRemoveButton, { borderColor: colors.border }]}
+                        onPress={() => handleRemoveManager(managerId)}
+                      >
+                        <Ionicons name="trash-outline" size={13} color={colors.danger} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 ))}
               </View>
 
@@ -1353,39 +2370,97 @@ const LectureChannel = ({ route }) => {
                 disabled={savingSettings}>
                 <Text style={styles.saveBtnText}>{savingSettings ? t('lectures.savingSettings') : t('lectures.saveSettings')}</Text>
               </TouchableOpacity>
+
+              {isOwner && (
+                <TouchableOpacity
+                  style={[styles.deleteChannelButton, { borderColor: colors.danger, opacity: savingSettings ? 0.6 : 1 }]}
+                  onPress={handleDeleteChannel}
+                  disabled={savingSettings}
+                >
+                  <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                  <Text style={[styles.deleteChannelButtonText, { color: colors.danger }]}>{t('lectures.deleteChannelAction')}</Text>
+                </TouchableOpacity>
+              )}
             </ScrollView>
           </View>
         </View>
       </Modal>
 
-      <Modal visible={!!youtubeModalVideoId} animationType="slide" onRequestClose={() => setYoutubeModalVideoId('')}>
-        <View style={[styles.youtubeModalWrap, { backgroundColor: colors.background }]}> 
-          <TouchableOpacity style={styles.closeYoutubeBtn} onPress={() => setYoutubeModalVideoId('')}>
-            <Ionicons name="close" size={28} color={colors.text} />
-          </TouchableOpacity>
-          {!!youtubeModalVideoId && (
-            <YoutubePlayer
-              height={300}
-              play
-              videoId={youtubeModalVideoId}
-              onError={(error) => {
-                logLectureChannel('youtubePlayer:error', {
-                  channelId,
-                  videoId: youtubeModalVideoId,
-                  error,
-                });
-              }}
-              onReady={() => {
-                logLectureChannel('youtubePlayer:ready', {
-                  channelId,
-                  videoId: youtubeModalVideoId,
-                });
-              }}
-              webViewStyle={styles.youtubeWebview}
-            />
-          )}
-        </View>
-      </Modal>
+      <DownloadManagerModal
+        visible={downloadsModalOpen}
+        onClose={() => setDownloadsModalOpen(false)}
+        colors={colors}
+        t={t}
+        activeDownloads={activeDownloadsList}
+        downloadedFiles={downloadedFiles}
+        onOpenFile={openLocalFile}
+        onDeleteFile={removeDownloadedFile}
+      />
+
+      <AssetActionMenuModal
+        visible={assetMenuOpen}
+        onClose={() => setAssetMenuOpen(false)}
+        colors={colors}
+        t={t}
+        asset={assetMenuTarget}
+        canViewInfo={canViewAssetInfo(assetMenuTarget)}
+        canPin={!!isManager}
+        onOpen={async () => {
+          const target = assetMenuTarget;
+          setAssetMenuOpen(false);
+          if (target) {
+            await openAsset(target);
+          }
+        }}
+        onDownload={async () => {
+          const target = assetMenuTarget;
+          setAssetMenuOpen(false);
+          if (target) {
+            await handleDownloadAsset(target);
+          }
+        }}
+        onDiscuss={async () => {
+          const target = assetMenuTarget;
+          setAssetMenuOpen(false);
+          if (target) {
+            await openComments(target);
+          }
+        }}
+        onShowInfo={() => {
+          const target = assetMenuTarget;
+          setAssetMenuOpen(false);
+          setAssetStatsTarget(target);
+          setAssetStatsOpen(true);
+        }}
+        onTogglePin={async () => {
+          const target = assetMenuTarget;
+          setAssetMenuOpen(false);
+          if (target && isManager) {
+            await handleTogglePin(target);
+          }
+        }}
+      />
+
+      <AssetStatsModal
+        visible={assetStatsOpen}
+        onClose={() => setAssetStatsOpen(false)}
+        colors={colors}
+        t={t}
+        asset={assetStatsTarget}
+        userProfiles={userProfiles}
+      />
+
+      <AdminOrganizerModal
+        visible={organizerOpen}
+        onClose={() => setOrganizerOpen(false)}
+        colors={colors}
+        t={t}
+        assets={assets}
+        folders={settingsDraft.assetFolders}
+        assetFolderMap={settingsDraft.assetFolderMap}
+        assetOrder={settingsDraft.assetOrder}
+        onSave={handleOrganizerSave}
+      />
 
       <Modal visible={!!commentsModalAsset} animationType="slide" onRequestClose={closeComments}>
         <View style={[styles.commentsModalWrap, { backgroundColor: colors.background }]}> 
@@ -1462,11 +2537,35 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flex: 1,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   headerMenuBtn: {
     width: moderateScale(34),
     height: moderateScale(34),
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderRadius: borderRadius.round,
+    position: 'relative',
+  },
+  downloadBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: moderateScale(16),
+    height: moderateScale(16),
+    borderRadius: moderateScale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  downloadBadgeText: {
+    color: '#FFFFFF',
+    fontSize: fontSize(9),
+    fontWeight: '700',
   },
   content: {
     padding: spacing.sm,
@@ -1556,6 +2655,49 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     fontSize: fontSize(12),
   },
+  stageSuggestionWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  stageSuggestionChip: {
+    borderWidth: 1,
+    borderRadius: borderRadius.round,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  stageSuggestionChipText: {
+    fontSize: fontSize(10),
+    fontWeight: '700',
+  },
+  managerInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  managerInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  managerAddButton: {
+    width: moderateScale(42),
+    height: moderateScale(42),
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  managerSuggestionsWrap: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  managerSuggestionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
   multiline: {
     minHeight: moderateScale(82),
     textAlignVertical: 'top',
@@ -1628,6 +2770,126 @@ const styles = StyleSheet.create({
   },
   assetDescription: {
     fontSize: fontSize(12),
+    marginTop: spacing.xs,
+  },
+  previewContainer: {
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+  },
+  filePreviewContainer: {
+    minHeight: moderateScale(68),
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  linkPreviewContainer: {
+    minHeight: moderateScale(62),
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  youtubePreviewContainer: {
+    minHeight: moderateScale(96),
+  },
+  youtubeThumb: {
+    width: '100%',
+    height: moderateScale(132),
+  },
+  previewOverlayRow: {
+    position: 'absolute',
+    top: spacing.xs,
+    left: spacing.xs,
+    right: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.xs,
+  },
+  previewBadge: {
+    borderWidth: 1,
+    borderRadius: borderRadius.round,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  previewBadgeText: {
+    fontSize: fontSize(10),
+    fontWeight: '700',
+  },
+  previewPlayButton: {
+    borderWidth: 1,
+    borderRadius: borderRadius.round,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  previewPlayText: {
+    fontSize: fontSize(10),
+    fontWeight: '700',
+  },
+  youtubePlayerWrap: {
+    borderTopWidth: 1,
+    paddingTop: spacing.xs,
+  },
+  fileExtBadge: {
+    minWidth: moderateScale(48),
+    height: moderateScale(34),
+    borderRadius: borderRadius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
+  },
+  fileExtText: {
+    color: '#FFFFFF',
+    fontSize: fontSize(10),
+    fontWeight: '800',
+  },
+  linkIconWrap: {
+    width: moderateScale(34),
+    height: moderateScale(34),
+    borderRadius: borderRadius.round,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewMetaColumn: {
+    flex: 1,
+  },
+  previewMetaTitle: {
+    fontSize: fontSize(11),
+    fontWeight: '700',
+  },
+  previewMetaSubtitle: {
+    marginTop: 1,
+    fontSize: fontSize(10),
+  },
+  folderHeaderRow: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  folderHeaderText: {
+    fontSize: fontSize(12),
+    fontWeight: '800',
+  },
+  assetStatsCompact: {
+    marginTop: spacing.xs,
   },
   assetStatsWrap: {
     marginTop: spacing.sm,
@@ -1694,6 +2956,53 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
     marginTop: spacing.xs,
   },
+  downloadsSection: {
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  downloadRow: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  downloadRowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  downloadFileName: {
+    flex: 1,
+    fontSize: fontSize(12),
+    fontWeight: '700',
+  },
+  downloadPercent: {
+    fontSize: fontSize(11),
+    fontWeight: '700',
+  },
+  downloadMeta: {
+    fontSize: fontSize(10),
+    fontWeight: '600',
+  },
+  downloadProgressTrack: {
+    width: '100%',
+    height: moderateScale(6),
+    borderRadius: borderRadius.round,
+    overflow: 'hidden',
+  },
+  downloadProgressFill: {
+    height: '100%',
+  },
+  downloadActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
   toggleRow: {
     borderWidth: 1,
     borderRadius: borderRadius.md,
@@ -1754,9 +3063,25 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     marginBottom: spacing.sm,
   },
+  managerIdentityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  managerRemoveButton: {
+    marginLeft: 'auto',
+    borderWidth: 1,
+    borderRadius: borderRadius.round,
+    width: moderateScale(26),
+    height: moderateScale(26),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   nameListText: {
     fontSize: fontSize(11),
-    marginBottom: 2,
+    marginBottom: 0,
+    flexShrink: 1,
   },
   requestRow: {
     flexDirection: 'row',
@@ -1800,14 +3125,19 @@ const styles = StyleSheet.create({
     fontSize: fontSize(12),
     fontWeight: '700',
   },
-  youtubeModalWrap: {
-    flex: 1,
-  },
-  closeYoutubeBtn: {
-    alignSelf: 'flex-end',
-    padding: spacing.sm,
+  deleteChannelButton: {
     marginTop: spacing.sm,
-    marginRight: spacing.sm,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  deleteChannelButtonText: {
+    fontSize: fontSize(12),
+    fontWeight: '700',
   },
   youtubeWebview: {
     flex: 1,

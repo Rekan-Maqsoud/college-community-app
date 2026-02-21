@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { AppState } from 'react-native';
 import { config, safeSubscribe } from '../../database/config';
-import { isCreateEvent, isDeleteEvent } from '../utils/realtimeHelpers';
+import { isDeleteEvent } from '../utils/realtimeHelpers';
 import realtimeDebugLogger from '../utils/realtimeDebugLogger';
 
 /**
@@ -65,7 +65,7 @@ export const useRealtimeSubscription = (
 
       isConnectedRef.current = true;
 
-      if (isCreateEvent(events)) {
+      if (!isDeleteEvent(events)) {
         onUpdateRef.current?.(payload, events);
       }
 
@@ -107,7 +107,7 @@ export const useRealtimeSubscription = (
 
         isConnectedRef.current = true;
 
-        if (isCreateEvent(events)) {
+        if (!isDeleteEvent(events)) {
           onUpdateRef.current?.(payload, events);
         }
         if (isDeleteEvent(events) && onDeleteRef.current) {

@@ -11,7 +11,6 @@ import {
   RefreshControl,
   Share,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,10 +23,12 @@ import {
   createLectureChannel,
   getLectureChannels,
   getLectureChannelShareLink,
+  getLecturePinnedChannelIds,
   getMyLectureChannels,
   LECTURE_ACCESS_TYPES,
   LECTURE_CHANNEL_TYPES,
   requestJoinLectureChannel,
+  setLecturePinnedChannelIds,
 } from '../../database/lectures';
 import { CHAT_TYPES, getChats } from '../../database/chats';
 import { wp, fontSize, spacing } from '../utils/responsive';
@@ -40,11 +41,9 @@ const CHANNEL_FILTERS = {
 };
 
 const LECTURE_WINDOWS = {
-  DISCOVER: 'discover',
-  MY: 'my',
+  COMMUNITY: 'community',
+  OFFICIAL: 'official',
 };
-
-const getPinnedChannelsStorageKey = (userId = '') => `lecture_pinned_channels_${userId}`;
 
 const logLectureTab = (event, payload = {}) => {
   console.log('[LectureTab]', event, payload);
@@ -279,7 +278,7 @@ const Lecture = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState(CHANNEL_FILTERS.ALL);
-  const [activeWindow, setActiveWindow] = useState(LECTURE_WINDOWS.DISCOVER);
+  const [activeWindow, setActiveWindow] = useState(LECTURE_WINDOWS.COMMUNITY);
   const [allChannels, setAllChannels] = useState([]);
   const [myChannels, setMyChannels] = useState([]);
   const [availableGroups, setAvailableGroups] = useState([]);
@@ -373,11 +372,17 @@ const Lecture = ({ navigation }) => {
     }
 
     try {
-      const raw = await AsyncStorage.getItem(getPinnedChannelsStorageKey(user.$id));
-      const parsed = raw ? JSON.parse(raw) : [];
-      const normalized = Array.isArray(parsed) ? parsed.filter(Boolean).map(id => String(id)) : [];
+      const pinnedIds = await getLecturePinnedChannelIds(user.$id);
+      const normalized = Array.isArray(pinnedIds) ? pinnedIds.filter(Boolean).map(id => String(id)) : [];
       setPinnedChannelIds(normalized);
-    } catch {
+      logLectureTab('loadPinnedChannels:success', {
+        userId: user.$id,
+        pinnedCount: normalized.length,
+      });
+    } catch (error) {
+      logLectureTabError('loadPinnedChannels:error', error, {
+        userId: user?.$id || '',
+      });
       setPinnedChannelIds([]);
     }
   }, [user?.$id]);
@@ -388,9 +393,23 @@ const Lecture = ({ navigation }) => {
     }
 
     const normalized = [...new Set((Array.isArray(nextIds) ? nextIds : []).filter(Boolean).map(id => String(id)))];
+    const previous = pinnedChannelIds;
     setPinnedChannelIds(normalized);
-    await AsyncStorage.setItem(getPinnedChannelsStorageKey(user.$id), JSON.stringify(normalized));
-  }, [user?.$id]);
+
+    try {
+      await setLecturePinnedChannelIds(normalized, user.$id);
+      logLectureTab('persistPinnedChannels:success', {
+        userId: user.$id,
+        pinnedCount: normalized.length,
+      });
+    } catch (error) {
+      setPinnedChannelIds(previous);
+      logLectureTabError('persistPinnedChannels:error', error, {
+        userId: user?.$id || '',
+        pinnedCount: normalized.length,
+      });
+    }
+  }, [pinnedChannelIds, user?.$id]);
 
   const handleTogglePinChannel = useCallback(async (channelId) => {
     if (!channelId) {
@@ -463,6 +482,10 @@ const Lecture = ({ navigation }) => {
       loadAvailableGroups(),
     ]);
   };
+
+  React.useEffect(() => {
+    setFilter(activeWindow === LECTURE_WINDOWS.OFFICIAL ? CHANNEL_FILTERS.OFFICIAL : CHANNEL_FILTERS.COMMUNITY);
+  }, [activeWindow]);
 
   const handleCreateChannel = async (payload) => {
     logLectureTab('createChannel:start', {
@@ -578,9 +601,16 @@ const Lecture = ({ navigation }) => {
   };
 
   const listData = useMemo(() => {
-    const source = activeWindow === LECTURE_WINDOWS.DISCOVER ? allChannels : myChannels;
+    const source = (Array.isArray(allChannels) ? allChannels : []).filter((channel) => {
+      if (activeWindow === LECTURE_WINDOWS.OFFICIAL) {
+        return channel?.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL;
+      }
+
+      return channel?.channelType !== LECTURE_CHANNEL_TYPES.OFFICIAL;
+    });
+
     return sortChannelsWithPins(source);
-  }, [activeWindow, allChannels, myChannels, sortChannelsWithPins]);
+  }, [activeWindow, allChannels, sortChannelsWithPins]);
 
   const channelMenuTargetJoined = !!(channelMenuTarget?.$id && myChannelIds.has(channelMenuTarget.$id));
   const channelMenuTargetPinned = !!(channelMenuTarget?.$id && pinnedChannelIdSet.has(channelMenuTarget.$id));
@@ -613,12 +643,12 @@ const Lecture = ({ navigation }) => {
             styles.windowBtn,
             {
               borderColor: colors.border,
-              backgroundColor: activeWindow === LECTURE_WINDOWS.DISCOVER ? colors.primary : 'transparent',
+              backgroundColor: activeWindow === LECTURE_WINDOWS.COMMUNITY ? colors.primary : 'transparent',
             },
           ]}
-          onPress={() => setActiveWindow(LECTURE_WINDOWS.DISCOVER)}>
-          <Text style={[styles.windowBtnText, { color: activeWindow === LECTURE_WINDOWS.DISCOVER ? '#FFFFFF' : colors.text }]}> 
-            {t('lectures.discoverWindow')}
+          onPress={() => setActiveWindow(LECTURE_WINDOWS.COMMUNITY)}>
+          <Text style={[styles.windowBtnText, { color: activeWindow === LECTURE_WINDOWS.COMMUNITY ? '#FFFFFF' : colors.text }]}> 
+            {t('lectures.communityWindow')}
           </Text>
         </TouchableOpacity>
 
@@ -627,24 +657,24 @@ const Lecture = ({ navigation }) => {
             styles.windowBtn,
             {
               borderColor: colors.border,
-              backgroundColor: activeWindow === LECTURE_WINDOWS.MY ? colors.primary : 'transparent',
+              backgroundColor: activeWindow === LECTURE_WINDOWS.OFFICIAL ? colors.primary : 'transparent',
             },
           ]}
-          onPress={() => setActiveWindow(LECTURE_WINDOWS.MY)}>
-          <Text style={[styles.windowBtnText, { color: activeWindow === LECTURE_WINDOWS.MY ? '#FFFFFF' : colors.text }]}> 
-            {t('lectures.myWindow')}
+          onPress={() => setActiveWindow(LECTURE_WINDOWS.OFFICIAL)}>
+          <Text style={[styles.windowBtnText, { color: activeWindow === LECTURE_WINDOWS.OFFICIAL ? '#FFFFFF' : colors.text }]}> 
+            {t('lectures.officialWindow')}
           </Text>
         </TouchableOpacity>
       </View>
 
-      {activeWindow === LECTURE_WINDOWS.DISCOVER && (
+      {
         <View style={styles.searchWrap}>
           <TouchableOpacity
             style={[styles.toolsToggleBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
             onPress={() => setShowDiscoverTools(prev => !prev)}>
             <View style={styles.toolsToggleLeft}>
-              <Ionicons name="options-outline" size={16} color={colors.primary} />
-              <Text style={[styles.toolsToggleText, { color: colors.text }]}>{t('lectures.discoverTools')}</Text>
+              <Ionicons name="search-outline" size={16} color={colors.primary} />
+              <Text style={[styles.toolsToggleText, { color: colors.text }]}>{t('lectures.searchTools')}</Text>
             </View>
             <Ionicons
               name={showDiscoverTools ? 'chevron-up' : 'chevron-down'}
@@ -713,7 +743,7 @@ const Lecture = ({ navigation }) => {
             </>
           )}
         </View>
-      )}
+      }
 
       <FlatList
         style={styles.list}
@@ -726,7 +756,7 @@ const Lecture = ({ navigation }) => {
           !loading ? (
             <View style={styles.emptyWrap}>
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}> 
-                {activeWindow === LECTURE_WINDOWS.DISCOVER ? t('lectures.emptyChannels') : t('lectures.emptyMyChannels')}
+                {activeWindow === LECTURE_WINDOWS.OFFICIAL ? t('lectures.emptyOfficialChannels') : t('lectures.emptyCommunityChannels')}
               </Text>
             </View>
           ) : null

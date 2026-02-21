@@ -79,10 +79,10 @@ const styles = StyleSheet.create({
   },
   lectureBannerBubble: {
     width: '100%',
-    maxWidth: moderateScale(360),
-    minWidth: moderateScale(160),
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.xs,
+    maxWidth: moderateScale(340),
+    minWidth: moderateScale(140),
+    paddingHorizontal: 0,
+    paddingVertical: 0,
     borderRadius: borderRadius.md,
     borderBottomLeftRadius: borderRadius.md,
     borderBottomRightRadius: borderRadius.md,
@@ -616,12 +616,12 @@ const styles = StyleSheet.create({
     width: '100%',
     borderWidth: 1,
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs + 2,
+    paddingVertical: spacing.xs + 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.xs,
+    gap: spacing.xs / 2,
   },
   lectureBannerLeft: {
     flex: 1,
@@ -635,12 +635,12 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   lectureBannerTitle: {
-    fontSize: fontSize(11),
+    fontSize: fontSize(10),
     fontWeight: '700',
   },
   lectureBannerLine: {
-    marginTop: 2,
-    fontSize: fontSize(11),
+    marginTop: 1,
+    fontSize: fontSize(10),
     fontWeight: '500',
   },
   lectureBannerRight: {
@@ -649,7 +649,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs / 2,
   },
   lectureBannerHint: {
-    fontSize: fontSize(10),
+    fontSize: fontSize(9),
     fontWeight: '700',
   },
   pollCard: {

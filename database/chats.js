@@ -1,7 +1,7 @@
 import { account, databases, storage, config } from './config';
 import { ID, Query, Permission, Role } from 'appwrite';
 import * as SecureStore from 'expo-secure-store';
-import * as Random from 'expo-random';
+import * as Crypto from 'expo-crypto';
 import nacl from 'tweetnacl';
 import { encodeBase64, decodeBase64, encodeUTF8, decodeUTF8 } from 'tweetnacl-util';
 import { messagesCacheManager, unreadCountCacheManager } from '../app/utils/cacheManager';
@@ -235,8 +235,8 @@ const canManageChat = (chat, userId) => {
     return admins.includes(userId) || representatives.includes(userId);
 };
 const getSecureRandomBytes = (size) => {
-    if (Random && typeof Random.getRandomBytes === 'function') {
-        return Random.getRandomBytes(size);
+    if (Crypto && typeof Crypto.getRandomBytes === 'function') {
+        return Crypto.getRandomBytes(size);
     }
 
     if (typeof global !== 'undefined' && global?.crypto?.getRandomValues) {
