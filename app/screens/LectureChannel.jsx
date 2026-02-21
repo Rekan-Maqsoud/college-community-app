@@ -21,7 +21,6 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as IntentLauncher from 'expo-intent-launcher';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import YoutubePlayer from 'react-native-youtube-iframe';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
@@ -143,18 +142,12 @@ const canLinkGroupToChannel = (chat, userId) => {
     return false;
   }
 
-  if (chat.type === CHAT_TYPES.DEPARTMENT_GROUP || chat.type === 'private') {
+  if (chat.type === 'private') {
     return false;
   }
 
-  const representatives = Array.isArray(chat.representatives) ? chat.representatives : [];
-  const admins = Array.isArray(chat.admins) ? chat.admins : [];
-
-  if (chat.type === CHAT_TYPES.STAGE_GROUP) {
-    return representatives.includes(userId);
-  }
-
-  return admins.includes(userId) || representatives.includes(userId);
+  const participants = Array.isArray(chat.participants) ? chat.participants : [];
+  return participants.includes(userId);
 };
 
 const formatBytesAsMb = (bytes = 0) => {
@@ -255,16 +248,8 @@ const parseStatsUserIds = (value) => {
   return [...new Set(raw.split(',').map(item => item.trim()).filter(Boolean))];
 };
 
-const logLectureChannel = (event, payload = {}) => {
-  console.log('[LectureChannel]', event, payload);
-};
-
-const logLectureChannelError = (event, error, payload = {}) => {
-  console.error('[LectureChannel]', event, {
-    ...payload,
-    message: error?.message || String(error),
-  });
-};
+const logLectureChannel = () => {};
+const logLectureChannelError = () => {};
 
 const LectureChannel = ({ route, navigation }) => {
   const channelId = route?.params?.channelId || '';
@@ -324,6 +309,7 @@ const LectureChannel = ({ route, navigation }) => {
   const [assetStatsOpen, setAssetStatsOpen] = useState(false);
   const [assetStatsTarget, setAssetStatsTarget] = useState(null);
   const [organizerOpen, setOrganizerOpen] = useState(false);
+  const autoSaveTimerRef = React.useRef(null);
   const managerSearchTimerRef = React.useRef(null);
   const userProfilesRef = React.useRef({});
   const loadingInFlightRef = React.useRef(false);
@@ -899,17 +885,20 @@ const LectureChannel = ({ route, navigation }) => {
     }
   };
 
-  const handleSaveSettings = async () => {
+  const handleSaveSettings = async (overrides = {}) => {
     if (!isManager || savingSettings) {
       return;
     }
 
+    const draft = { ...settingsDraft, ...overrides };
+    const chatId = overrides.linkedChatId !== undefined ? overrides.linkedChatId : linkedChatId;
+
     logLectureChannel('saveSettings:start', {
       channelId,
-      linkedChatId,
-      allowUploadsFromMembers: !!settingsDraft.allowUploadsFromMembers,
-      suggestToDepartment: !!settingsDraft.suggestToDepartment,
-      suggestToStage: !!settingsDraft.suggestToStage,
+      linkedChatId: chatId,
+      allowUploadsFromMembers: !!draft.allowUploadsFromMembers,
+      suggestToDepartment: !!draft.suggestToDepartment,
+      suggestToStage: !!draft.suggestToStage,
     });
 
     try {
@@ -917,29 +906,28 @@ const LectureChannel = ({ route, navigation }) => {
       setManagerError('');
       setManagerStatus('');
       await updateLectureChannelSettings(channelId, {
-        linkedChatId,
+        linkedChatId: chatId,
         settingsJson: {
           allowComments: true,
-          allowUploadsFromMembers: !!settingsDraft.allowUploadsFromMembers,
-          suggestToDepartment: !!settingsDraft.suggestToDepartment,
-          suggestToStage: !!settingsDraft.suggestToStage,
-          suggestedDepartment: settingsDraft.suggestToDepartment
-            ? (settingsDraft.suggestedDepartment || user?.department || '')
+          allowUploadsFromMembers: !!draft.allowUploadsFromMembers,
+          suggestToDepartment: !!draft.suggestToDepartment,
+          suggestToStage: !!draft.suggestToStage,
+          suggestedDepartment: draft.suggestToDepartment
+            ? (draft.suggestedDepartment || user?.department || '')
             : '',
-          suggestedStage: settingsDraft.suggestToStage
-            ? String(settingsDraft.suggestedStage || '').trim()
+          suggestedStage: draft.suggestToStage
+            ? String(draft.suggestedStage || '').trim()
             : '',
-          assetFolders: Array.isArray(settingsDraft.assetFolders) ? settingsDraft.assetFolders : [],
-          assetFolderMap: settingsDraft.assetFolderMap || {},
-          assetOrder: Array.isArray(settingsDraft.assetOrder) ? settingsDraft.assetOrder : [],
+          assetFolders: Array.isArray(draft.assetFolders) ? draft.assetFolders : [],
+          assetFolderMap: draft.assetFolderMap || {},
+          assetOrder: Array.isArray(draft.assetOrder) ? draft.assetOrder : [],
         },
       });
       await loadData({ showLoading: false });
       setShowGroupPicker(false);
-      setSettingsOpen(false);
       logLectureChannel('saveSettings:success', {
         channelId,
-        linkedChatId,
+        linkedChatId: chatId,
       });
     } catch (error) {
       logLectureChannelError('saveSettings:error', error, { channelId });
@@ -1730,14 +1718,17 @@ const LectureChannel = ({ route, navigation }) => {
   };
 
   const handleOrganizerSave = async ({ folders, assetFolderMap, assetOrder }) => {
-    setSettingsDraft(prev => ({
-      ...prev,
+    const overrides = {
       assetFolders: Array.isArray(folders) ? folders : [],
       assetFolderMap: assetFolderMap || {},
       assetOrder: Array.isArray(assetOrder) ? assetOrder : [],
+    };
+    setSettingsDraft(prev => ({
+      ...prev,
+      ...overrides,
     }));
 
-    await handleSaveSettings();
+    await handleSaveSettings(overrides);
     setOrganizerOpen(false);
   };
 
@@ -1822,24 +1813,20 @@ const LectureChannel = ({ route, navigation }) => {
 
           {isYoutubePlaying && (
             <View style={[styles.youtubePlayerWrap, { borderColor: colors.border, backgroundColor: colors.background }]}>
-              <YoutubePlayer
-                height={moderateScale(180)}
-                play={isYoutubePlaying}
-                videoId={youtubeVideoId}
-                onChangeState={(state) => {
-                  if (state === 'ended' || state === 'paused') {
-                    setActiveYoutubeAssetId((current) => (current === asset.$id ? '' : current));
-                  }
+              <TouchableOpacity
+                style={[styles.youtubeExternalBtn, { borderColor: colors.border }]}
+                onPress={() => {
+                  const url = `https://www.youtube.com/watch?v=${youtubeVideoId}`;
+                  Linking.openURL(url).catch(() => {});
                 }}
-                onError={(error) => {
-                  logLectureChannel('youtubePlayer:error', {
-                    channelId,
-                    assetId: asset.$id,
-                    error,
-                  });
-                  setActiveYoutubeAssetId((current) => (current === asset.$id ? '' : current));
-                }}
-                webViewStyle={styles.youtubeWebview}
+              >
+                <Ionicons name="open-outline" size={14} color={colors.primary} />
+                <Text style={[styles.youtubeExternalText, { color: colors.primary }]}>{t('lectures.openInYoutube')}</Text>
+              </TouchableOpacity>
+              <Image
+                source={{ uri: `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg` }}
+                style={styles.youtubeInlineThumb}
+                resizeMode="cover"
               />
             </View>
           )}
@@ -1996,20 +1983,7 @@ const LectureChannel = ({ route, navigation }) => {
           <TouchableOpacity style={[styles.joinBtn, { backgroundColor: colors.primary }]} onPress={handleJoin}>
             <Text style={styles.joinBtnText}>{membership?.joinStatus === 'pending' ? t('lectures.joinPending') : t('lectures.join')}</Text>
           </TouchableOpacity>
-        ) : (
-          <View style={styles.actionRow}>
-            <TouchableOpacity style={[styles.smallBtn, { borderColor: colors.border }]} onPress={handleToggleNotifications}>
-              <Text style={[styles.smallBtnText, { color: colors.text }]}>
-                {membership.notificationsEnabled ? t('lectures.notificationsOn') : t('lectures.notificationsOff')}
-              </Text>
-            </TouchableOpacity>
-            {isManager && channel?.channelType !== LECTURE_CHANNEL_TYPES.OFFICIAL && (
-              <TouchableOpacity style={[styles.smallBtn, { borderColor: colors.border }]} onPress={handleToggleAccess}>
-                <Text style={[styles.smallBtnText, { color: colors.text }]}>{t('lectures.toggleAccess')}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+        ) : null}
 
         {canUpload && (
           <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}> 
@@ -2148,21 +2122,36 @@ const LectureChannel = ({ route, navigation }) => {
 
               <TouchableOpacity
                 style={[styles.toggleRow, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}
-                onPress={() => setSettingsDraft(prev => ({ ...prev, allowUploadsFromMembers: !prev.allowUploadsFromMembers }))}>
+                onPress={() => {
+                  const nextVal = !settingsDraft.allowUploadsFromMembers;
+                  setSettingsDraft(prev => ({ ...prev, allowUploadsFromMembers: nextVal }));
+                  clearTimeout(autoSaveTimerRef.current);
+                  autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ allowUploadsFromMembers: nextVal }), 600);
+                }}>
                 <Text style={[styles.toggleText, { color: colors.text }]}>{t('lectures.allowMemberUploads')}</Text>
                 <Ionicons name={settingsDraft.allowUploadsFromMembers ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.toggleRow, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}
-                onPress={() => setSettingsDraft(prev => ({ ...prev, suggestToDepartment: !prev.suggestToDepartment }))}>
+                onPress={() => {
+                  const nextVal = !settingsDraft.suggestToDepartment;
+                  setSettingsDraft(prev => ({ ...prev, suggestToDepartment: nextVal }));
+                  clearTimeout(autoSaveTimerRef.current);
+                  autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ suggestToDepartment: nextVal }), 600);
+                }}>
                 <Text style={[styles.toggleText, { color: colors.text }]}>{t('lectures.suggestToDepartment')}</Text>
                 <Ionicons name={settingsDraft.suggestToDepartment ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.toggleRow, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}
-                onPress={() => setSettingsDraft(prev => ({ ...prev, suggestToStage: !prev.suggestToStage }))}>
+                onPress={() => {
+                  const nextVal = !settingsDraft.suggestToStage;
+                  setSettingsDraft(prev => ({ ...prev, suggestToStage: nextVal }));
+                  clearTimeout(autoSaveTimerRef.current);
+                  autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ suggestToStage: nextVal }), 600);
+                }}>
                 <Text style={[styles.toggleText, { color: colors.text }]}>{t('lectures.suggestToStage')}</Text>
                 <Ionicons name={settingsDraft.suggestToStage ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
               </TouchableOpacity>
@@ -2191,7 +2180,10 @@ const LectureChannel = ({ route, navigation }) => {
                             },
                           ]}
                           onPress={() => {
-                            setSettingsDraft(prev => ({ ...prev, suggestedStage: String(stageValue) }));
+                            const nextStage = String(stageValue);
+                            setSettingsDraft(prev => ({ ...prev, suggestedStage: nextStage }));
+                            clearTimeout(autoSaveTimerRef.current);
+                            autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ suggestedStage: nextStage }), 600);
                           }}
                         >
                           <Text
@@ -2218,7 +2210,11 @@ const LectureChannel = ({ route, navigation }) => {
                       {connectedGroup.type === CHAT_TYPES.STAGE_GROUP ? t('lectures.stageGroup') : t('lectures.customGroup')}
                     </Text>
                   </View>
-                  <TouchableOpacity style={[styles.unlinkBtn, { borderColor: colors.border }]} onPress={() => setLinkedChatId('')}>
+                  <TouchableOpacity style={[styles.unlinkBtn, { borderColor: colors.border }]} onPress={() => {
+                    setLinkedChatId('');
+                    clearTimeout(autoSaveTimerRef.current);
+                    autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ linkedChatId: '' }), 400);
+                  }}>
                     <Text style={[styles.unlinkBtnText, { color: colors.text }]}>{t('lectures.disconnectGroup')}</Text>
                   </TouchableOpacity>
                 </View>
@@ -2239,6 +2235,8 @@ const LectureChannel = ({ route, navigation }) => {
                   onPress={() => {
                     setLinkedChatId(group.$id);
                     setShowGroupPicker(false);
+                    clearTimeout(autoSaveTimerRef.current);
+                    autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ linkedChatId: group.$id }), 400);
                   }}>
                   <View style={styles.optionMeta}>
                     <Text style={[styles.optionText, { color: colors.text }]} numberOfLines={1}>{group.name}</Text>
@@ -2347,10 +2345,35 @@ const LectureChannel = ({ route, navigation }) => {
                 ))}
               </View>
 
+              {isManager && channel?.channelType !== LECTURE_CHANNEL_TYPES.OFFICIAL && (
+                <TouchableOpacity
+                  style={[styles.toggleRow, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+                  onPress={handleToggleAccess}>
+                  <Text style={[styles.toggleText, { color: colors.text }]}>{t('lectures.approvalRequired')}</Text>
+                  <Ionicons name={channel?.accessType === LECTURE_ACCESS_TYPES.APPROVAL_REQUIRED ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
+                </TouchableOpacity>
+              )}
+
+              {!!membership && (
+                <TouchableOpacity
+                  style={[styles.toggleRow, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+                  onPress={handleToggleNotifications}>
+                  <Text style={[styles.toggleText, { color: colors.text }]}>{membership.notificationsEnabled ? t('lectures.notificationsOn') : t('lectures.notificationsOff')}</Text>
+                  <Ionicons name={membership.notificationsEnabled ? 'notifications' : 'notifications-off-outline'} size={20} color={colors.primary} />
+                </TouchableOpacity>
+              )}
+
               <Text style={[styles.modalSectionTitle, { color: colors.text }]}>{t('lectures.joinRequests')}</Text>
               {joinRequests.length > 0 ? joinRequests.map((request) => (
                 <View key={request.$id} style={[styles.requestRow, { borderBottomColor: colors.border }]}> 
-                  <Text style={[styles.requestUser, { color: colors.text }]} numberOfLines={1}>{resolveName(request.userId)}</Text>
+                  <View style={styles.requestUserInfo}>
+                    <ProfilePicture
+                      uri={userProfiles[request.userId]?.profilePicture}
+                      name={resolveName(request.userId)}
+                      size={moderateScale(32)}
+                    />
+                    <Text style={[styles.requestUser, { color: colors.text }]} numberOfLines={1}>{resolveName(request.userId)}</Text>
+                  </View>
                   <View style={styles.requestBtns}>
                     <TouchableOpacity style={[styles.acceptBtn, { backgroundColor: colors.success }]} onPress={() => handleApproveRequest(request.$id, 'approved')}>
                       <Text style={styles.requestBtnText}>{t('lectures.accept')}</Text>
@@ -2364,12 +2387,12 @@ const LectureChannel = ({ route, navigation }) => {
                 <Text style={[styles.infoText, { color: colors.textSecondary }]}>{t('lectures.noPendingRequests')}</Text>
               )}
 
-              <TouchableOpacity
-                style={[styles.saveBtn, { backgroundColor: colors.primary, opacity: savingSettings ? 0.7 : 1 }]}
-                onPress={handleSaveSettings}
-                disabled={savingSettings}>
-                <Text style={styles.saveBtnText}>{savingSettings ? t('lectures.savingSettings') : t('lectures.saveSettings')}</Text>
-              </TouchableOpacity>
+              {savingSettings && (
+                <View style={styles.savingIndicator}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.savingText, { color: colors.textSecondary }]}>{t('lectures.savingSettings')}</Text>
+                </View>
+              )}
 
               {isOwner && (
                 <TouchableOpacity
@@ -2842,6 +2865,25 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingTop: spacing.xs,
   },
+  youtubeExternalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.xs,
+  },
+  youtubeExternalText: {
+    fontSize: fontSize(12),
+    fontWeight: '700',
+  },
+  youtubeInlineThumb: {
+    width: '100%',
+    height: moderateScale(160),
+    borderRadius: borderRadius.md,
+  },
   fileExtBadge: {
     minWidth: moderateScale(48),
     height: moderateScale(34),
@@ -3088,12 +3130,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: 1,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
+  },
+  requestUserInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+    marginRight: spacing.sm,
   },
   requestUser: {
     flex: 1,
-    marginRight: spacing.sm,
     fontSize: fontSize(12),
+    fontWeight: '600',
   },
   requestBtns: {
     flexDirection: 'row',
@@ -3114,16 +3163,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: fontSize(11),
   },
-  saveBtn: {
-    marginTop: spacing.md,
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.sm,
+  savingIndicator: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  saveBtnText: {
-    color: '#FFFFFF',
+  savingText: {
     fontSize: fontSize(12),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   deleteChannelButton: {
     marginTop: spacing.sm,
@@ -3138,9 +3188,6 @@ const styles = StyleSheet.create({
   deleteChannelButtonText: {
     fontSize: fontSize(12),
     fontWeight: '700',
-  },
-  youtubeWebview: {
-    flex: 1,
   },
   commentsModalWrap: {
     flex: 1,

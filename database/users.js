@@ -113,6 +113,51 @@ export const getUsersByDepartment = async (department, limit = 20, offset = 0) =
     }
 };
 
+/**
+ * Get all students in a specific class (department + year/stage).
+ * The DB stores `year` as an integer (1-6), while the app uses stage keys
+ * like 'firstYear'. This function accepts either format.
+ */
+export const getClassStudents = async (department, stage) => {
+    try {
+        if (!department || !stage) return [];
+
+        // Convert stage key to year number if needed
+        const stageToYearMap = {
+            firstYear: 1, secondYear: 2, thirdYear: 3,
+            fourthYear: 4, fifthYear: 5, sixthYear: 6,
+        };
+        const year = stageToYearMap[stage] || parseInt(stage) || null;
+        if (!year) return [];
+
+        let allStudents = [];
+        let offset = 0;
+        const batchSize = 100;
+        let hasMore = true;
+
+        while (hasMore) {
+            const batch = await databases.listDocuments(
+                config.databaseId,
+                config.usersCollectionId,
+                [
+                    Query.equal('department', department),
+                    Query.equal('year', year),
+                    Query.limit(batchSize),
+                    Query.offset(offset),
+                    Query.orderAsc('name'),
+                ],
+            );
+            allStudents = [...allStudents, ...batch.documents];
+            hasMore = batch.documents.length === batchSize;
+            offset += batchSize;
+        }
+
+        return allStudents;
+    } catch (error) {
+        return [];
+    }
+};
+
 export const updateUserPublicKey = async (userId, publicKey) => {
     try {
         if (!userId || typeof userId !== 'string') {

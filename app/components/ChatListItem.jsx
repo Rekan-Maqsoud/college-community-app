@@ -2,6 +2,7 @@ import React, { memo, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, PanResponder } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ProfilePicture from './ProfilePicture';
+import RepBadge from './RepBadge';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { 
   fontSize, 
@@ -31,6 +32,7 @@ const ChatListItem = ({
   currentUserId,
   unreadCount = 0,
   clearedAt = null,
+  isPartnerRep = false,
 }) => {
   const { theme, isDarkMode, t, showActivityStatus } = useAppSettings();
   const translateX = useRef(new Animated.Value(0)).current;
@@ -301,6 +303,9 @@ const ChatListItem = ({
             numberOfLines={1}>
             {chatName}
           </Text>
+          {isPartnerRep && isPrivateChat && (
+            <RepBadge size="small" colors={theme} label={t('repVoting.repLabel')} />
+          )}
           <View style={styles.headerRight}>
             {chat.lastMessageAt && (
               <Text style={[styles.time, { fontSize: fontSize(11), color: theme.textSecondary }]}>

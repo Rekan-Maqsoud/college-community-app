@@ -10,6 +10,8 @@ import { Ionicons } from '@expo/vector-icons';
 import AnimatedBackground from '../components/AnimatedBackground';
 import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
+import RepBadge from '../components/RepBadge';
+import useRepDetection from '../hooks/useRepDetection';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { getPostsByUser, togglePostLike, setQuestionResolvedStatus, deletePost } from '../../database/posts';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
@@ -20,6 +22,8 @@ const Profile = ({ navigation, route }) => {
   const { user, isLoading, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
+  const { isUserRepresentative } = useRepDetection(user);
+  const isMeRep = isUserRepresentative(user?.$id);
   const [imageKey, setImageKey] = useState(Date.now());
   const [userPosts, setUserPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
@@ -701,7 +705,10 @@ const Profile = ({ navigation, route }) => {
                 </View>
               </LinearGradient>
             </View>
-            <Text style={[styles.name, { fontSize: fontSize(22), color: isDarkMode ? '#FFFFFF' : '#1C1C1E' }]}>{userProfile.name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Text style={[styles.name, { fontSize: fontSize(22), color: isDarkMode ? '#FFFFFF' : '#1C1C1E' }]}>{userProfile.name}</Text>
+              {isMeRep && <RepBadge size="medium" colors={theme} label={t('repVoting.repLabel')} />}
+            </View>
             {userProfile.bio && <Text style={[styles.bio, { fontSize: fontSize(13), color: isDarkMode ? 'rgba(255,255,255,0.8)' : 'rgba(28, 28, 30, 0.8)' }]} numberOfLines={2}>{userProfile.bio}</Text>}
             <View style={[styles.statsContainer, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.7)' : 'rgba(255, 255, 255, 0.9)' }]}>
               <TouchableOpacity style={styles.statItem} activeOpacity={0.7}>

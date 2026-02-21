@@ -58,6 +58,7 @@ import ChatRoom from './screens/ChatRoom';
 import UserProfile from './screens/UserProfile';
 import FollowList from './screens/FollowList';
 import ManageRepresentatives from './screens/ManageRepresentatives';
+import { RepVotingScreen, ReselectionRequestScreen } from './screens/representatives';
 import Notifications from './screens/Notifications';
 import LectureChannel from './screens/LectureChannel';
 import { NewChat, UserSearch, CreateGroup, GroupSettings, ForwardMessage, AddMembers } from './screens/chats';
@@ -441,6 +442,16 @@ const MainStack = () => {
       <Stack.Screen 
         name="ManageRepresentatives" 
         component={ManageRepresentatives}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="RepVoting" 
+        component={RepVotingScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="ReselectionRequest" 
+        component={ReselectionRequestScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen 

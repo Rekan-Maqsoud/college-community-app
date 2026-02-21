@@ -68,6 +68,14 @@ const Settings = ({ navigation }) => {
       screen: 'SavedPosts',
     },
     {
+      id: 'representatives',
+      title: t('settings.classRepresentative'),
+      description: t('settings.classRepresentativeDesc'),
+      icon: 'people-outline',
+      color: '#F59E0B',
+      screen: 'RepVoting',
+    },
+    {
       id: 'account',
       title: t('settings.accountSettings'),
       description: t('settings.accountDesc') || 'Password, security, and account actions',

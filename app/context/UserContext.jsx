@@ -15,16 +15,20 @@ export const UserProvider = ({ children }) => {
   }, []);
 
   const initializeUser = async () => {
+    console.log('[DB_DEBUG] initializeUser() called');
     try {
       setIsLoading(true);
       
           const cachedData = await safeStorage.getItem('userData');
       const cached = cachedData ? JSON.parse(cachedData) : null;
+      console.log('[DB_DEBUG] cached user:', cached ? { $id: cached.$id, department: cached.department, stage: cached.stage } : null);
       
       const appwriteUser = await getCurrentUser();
+      console.log('[DB_DEBUG] getCurrentUser() returned:', appwriteUser ? { $id: appwriteUser.$id, email: appwriteUser.email } : null);
       
       if (appwriteUser) {
         const completeUserData = await getCompleteUserData();
+        console.log('[DB_DEBUG] getCompleteUserData() returned:', completeUserData ? { $id: completeUserData.$id, department: completeUserData.department, year: completeUserData.year, name: completeUserData.name } : null);
         
         if (completeUserData) {
           // Parse socialLinks from profileViews field (stored as JSON string)
@@ -48,6 +52,7 @@ export const UserProvider = ({ children }) => {
             college: completeUserData.major || '',
             department: completeUserData.department || '',
             stage: yearToStage(completeUserData.year),
+            role: completeUserData.role || 'student',
             postsCount: completeUserData.postsCount || 0,
             followersCount: completeUserData.followersCount || 0,
             followingCount: completeUserData.followingCount || 0,
@@ -59,13 +64,17 @@ export const UserProvider = ({ children }) => {
             chatBlockedUsers: completeUserData.chatBlockedUsers || [],
           };
           
+          console.log('[DB_DEBUG] Final user object:', { $id: userData.$id, department: userData.department, stage: userData.stage, college: userData.college });
               await safeStorage.setItem('userData', JSON.stringify(userData));
           setUser(userData);
           
           // Restore bookmarks from server in background (for fresh installs)
           restoreBookmarksFromServer(userData.$id).catch(() => {});
+        } else {
+          console.log('[DB_DEBUG] completeUserData was null/undefined');
         }
       } else {
+        console.log('[DB_DEBUG] No active session, falling back to cache');
         if (cached) {
           setUser(cached);
         } else {
@@ -74,17 +83,19 @@ export const UserProvider = ({ children }) => {
         }
       }
     } catch (error) {
+      console.log('[DB_DEBUG] initializeUser() CAUGHT ERROR:', error?.message, error?.code, error?.type);
       try {
             const cachedData = await safeStorage.getItem('userData');
         if (cachedData) {
           setUser(JSON.parse(cachedData));
         }
       } catch (cacheError) {
-        // Failed to load cached data
+        console.log('[DB_DEBUG] Cache fallback also failed:', cacheError?.message);
       }
     } finally {
       setIsLoading(false);
       setSessionChecked(true);
+      console.log('[DB_DEBUG] initializeUser() finished');
     }
   };
 
@@ -120,6 +131,7 @@ export const UserProvider = ({ children }) => {
             college: completeUserData.major || '',
             department: completeUserData.department || '',
             stage: yearToStage(completeUserData.year),
+            role: completeUserData.role || 'student',
             postsCount: completeUserData.postsCount || 0,
             followersCount: completeUserData.followersCount || 0,
             followingCount: completeUserData.followingCount || 0,

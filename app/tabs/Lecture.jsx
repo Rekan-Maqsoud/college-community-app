@@ -10,6 +10,7 @@ import {
   Modal,
   RefreshControl,
   Share,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,13 +26,14 @@ import {
   getLectureChannelShareLink,
   getLecturePinnedChannelIds,
   getMyLectureChannels,
+  getMyPendingLectureChannelIds,
   LECTURE_ACCESS_TYPES,
   LECTURE_CHANNEL_TYPES,
   requestJoinLectureChannel,
   setLecturePinnedChannelIds,
 } from '../../database/lectures';
 import { CHAT_TYPES, getChats } from '../../database/chats';
-import { wp, fontSize, spacing } from '../utils/responsive';
+import { wp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 
 const CHANNEL_FILTERS = {
@@ -45,16 +47,8 @@ const LECTURE_WINDOWS = {
   OFFICIAL: 'official',
 };
 
-const logLectureTab = (event, payload = {}) => {
-  console.log('[LectureTab]', event, payload);
-};
-
-const logLectureTabError = (event, error, payload = {}) => {
-  console.error('[LectureTab]', event, {
-    ...payload,
-    message: error?.message || String(error),
-  });
-};
+const logLectureTab = () => {};
+const logLectureTabError = () => {};
 
 const parseLectureSuggestionSettings = (settingsJson) => {
   if (!settingsJson) {
@@ -89,18 +83,12 @@ const canLinkGroupToLectureChannel = (chat, userId) => {
     return false;
   }
 
-  if (chat.type === CHAT_TYPES.DEPARTMENT_GROUP || chat.type === 'private') {
+  if (chat.type === 'private') {
     return false;
   }
 
-  const representatives = Array.isArray(chat.representatives) ? chat.representatives : [];
-  const admins = Array.isArray(chat.admins) ? chat.admins : [];
-
-  if (chat.type === CHAT_TYPES.STAGE_GROUP) {
-    return representatives.includes(userId);
-  }
-
-  return admins.includes(userId) || representatives.includes(userId);
+  const participants = Array.isArray(chat.participants) ? chat.participants : [];
+  return participants.includes(userId);
 };
 
 const CreateChannelModal = ({
@@ -111,6 +99,7 @@ const CreateChannelModal = ({
   colors,
   creating,
   groups,
+  canCreateOfficial,
 }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -118,7 +107,11 @@ const CreateChannelModal = ({
   const [needsApproval, setNeedsApproval] = useState(false);
   const [linkedGroupId, setLinkedGroupId] = useState('');
 
+  const isNameValid = name.trim().length >= 2;
+
   const handleSubmit = async () => {
+    if (!isNameValid) return;
+
     const accessType = channelType === LECTURE_CHANNEL_TYPES.OFFICIAL
       ? LECTURE_ACCESS_TYPES.APPROVAL_REQUIRED
       : needsApproval
@@ -146,15 +139,26 @@ const CreateChannelModal = ({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}> 
         <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
-          <Text style={[styles.modalTitle, { color: colors.text }]}>{t('lectures.createChannel')}</Text>
+          <View style={styles.modalHeader}>
+            <View style={styles.modalHeaderLeft}>
+              <Ionicons name="school-outline" size={20} color={colors.primary} />
+              <Text style={[styles.modalTitle, { color: colors.text }]}>{t('lectures.createChannel')}</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close" size={22} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
 
           <TextInput
             value={name}
             onChangeText={setName}
             placeholder={t('lectures.channelNamePlaceholder')}
             placeholderTextColor={colors.textSecondary}
-            style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+            style={[styles.input, { color: colors.text, borderColor: isNameValid || !name ? colors.border : '#ef4444', backgroundColor: colors.inputBackground }]}
           />
+          {name.length > 0 && !isNameValid && (
+            <Text style={styles.validationHint}>{t('lectures.nameMinLength')}</Text>
+          )}
 
           <TextInput
             value={description}
@@ -169,30 +173,49 @@ const CreateChannelModal = ({
             ]}
           />
 
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('lectures.channelTypeLabel')}</Text>
           <View style={styles.typeRow}>
             <TouchableOpacity
               style={[
                 styles.chip,
                 {
                   borderColor: colors.border,
-                  backgroundColor: channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? colors.primary : 'transparent',
+                  backgroundColor: canCreateOfficial
+                    ? (channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? colors.primary : 'transparent')
+                    : colors.inputBackground,
+                  opacity: canCreateOfficial ? 1 : 0.5,
                 },
               ]}
-              onPress={() => setChannelType(LECTURE_CHANNEL_TYPES.OFFICIAL)}>
-              <Text style={[styles.chipText, { color: channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? '#FFFFFF' : colors.text }]}> 
-                {t('lectures.official')}
-              </Text>
-            </TouchableOpacity>
+              onPress={() => { if (canCreateOfficial) setChannelType(LECTURE_CHANNEL_TYPES.OFFICIAL); }}
+              disabled={!canCreateOfficial}
+              activeOpacity={canCreateOfficial ? 0.7 : 1}>
+                <Ionicons
+                  name={canCreateOfficial ? 'shield-checkmark-outline' : 'lock-closed-outline'}
+                  size={14}
+                  color={canCreateOfficial
+                    ? (channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? '#FFFFFF' : colors.text)
+                    : colors.textSecondary}
+                />
+                <Text style={[styles.chipText, { color: canCreateOfficial
+                    ? (channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? '#FFFFFF' : colors.text)
+                    : colors.textSecondary }]}> 
+                  {t('lectures.official')}
+                </Text>
+              </TouchableOpacity>
+            {!canCreateOfficial && (
+              <Text style={[styles.officialHint, { color: colors.textSecondary, fontStyle: 'italic' }]}>{t('lectures.officialHintForStudents')}</Text>
+            )}
 
             <TouchableOpacity
               style={[
                 styles.chip,
                 {
-                  borderColor: colors.border,
+                  borderColor: channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? colors.primary : colors.border,
                   backgroundColor: channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? colors.primary : 'transparent',
                 },
               ]}
               onPress={() => setChannelType(LECTURE_CHANNEL_TYPES.COMMUNITY)}>
+              <Ionicons name="people-outline" size={14} color={channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? '#FFFFFF' : colors.text} />
               <Text style={[styles.chipText, { color: channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? '#FFFFFF' : colors.text }]}> 
                 {t('lectures.community')}
               </Text>
@@ -254,12 +277,22 @@ const CreateChannelModal = ({
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.modalBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+              style={[
+                styles.modalBtn,
+                {
+                  backgroundColor: isNameValid && !creating ? colors.primary : colors.border,
+                  borderColor: isNameValid && !creating ? colors.primary : colors.border,
+                },
+              ]}
               onPress={handleSubmit}
-              disabled={creating}>
-              <Text style={[styles.modalBtnText, { color: '#FFFFFF' }]}> 
-                {creating ? t('lectures.creating') : t('lectures.create')}
-              </Text>
+              disabled={creating || !isNameValid}>
+              {creating ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={[styles.modalBtnText, { color: isNameValid ? '#FFFFFF' : colors.textSecondary }]}> 
+                  {t('lectures.create')}
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -274,24 +307,38 @@ const Lecture = ({ navigation }) => {
   const { user } = useUser();
   const { t } = useTranslation();
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
+  const [searchVisible, setSearchVisible] = useState(false);
   const [filter, setFilter] = useState(CHANNEL_FILTERS.ALL);
   const [activeWindow, setActiveWindow] = useState(LECTURE_WINDOWS.COMMUNITY);
   const [allChannels, setAllChannels] = useState([]);
   const [myChannels, setMyChannels] = useState([]);
+  const [pendingChannelIds, setPendingChannelIds] = useState([]);
   const [availableGroups, setAvailableGroups] = useState([]);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
-  const [showDiscoverTools, setShowDiscoverTools] = useState(false);
   const [channelMenuOpen, setChannelMenuOpen] = useState(false);
   const [channelMenuTarget, setChannelMenuTarget] = useState(null);
   const [pinnedChannelIds, setPinnedChannelIds] = useState([]);
+  const [joiningChannelId, setJoiningChannelId] = useState(null);
 
   const myChannelIds = useMemo(() => new Set((myChannels || []).map(channel => channel.$id)), [myChannels]);
+  const pendingChannelIdSet = useMemo(() => new Set((pendingChannelIds || []).filter(Boolean)), [pendingChannelIds]);
   const pinnedChannelIdSet = useMemo(() => new Set((pinnedChannelIds || []).filter(Boolean)), [pinnedChannelIds]);
+
+  const isRepresentative = useMemo(() => {
+    if (!user?.$id || !Array.isArray(availableGroups)) return false;
+    return availableGroups.length > 0;
+  }, [user?.$id, availableGroups]);
+
+  const canCreateOfficial = useMemo(() => {
+    if (!user?.$id) return false;
+    if (user?.role === 'teacher') return true;
+    return isRepresentative;
+  }, [user?.$id, user?.role, isRepresentative]);
 
   const suggestedChannels = useMemo(() => {
     if (!Array.isArray(allChannels) || !allChannels.length) {
@@ -437,21 +484,24 @@ const Lecture = ({ navigation }) => {
         setLoading(true);
       }
 
-      const [channels, mine] = await Promise.all([
+      const [channels, mine, pendingIds] = await Promise.all([
         getLectureChannels({
           search,
-          channelType: filter,
+          channelType: 'all',
           limit: 50,
           offset: 0,
         }),
         getMyLectureChannels(user?.$id),
+        getMyPendingLectureChannelIds(user?.$id),
       ]);
 
       setAllChannels(channels);
       setMyChannels(mine);
+      setPendingChannelIds(pendingIds);
       logLectureTab('loadChannels:success', {
         channelsCount: channels.length,
         myChannelsCount: mine.length,
+        pendingCount: pendingIds.length,
       });
     } catch (error) {
       logLectureTabError('loadChannels:error', error, {
@@ -485,6 +535,8 @@ const Lecture = ({ navigation }) => {
 
   React.useEffect(() => {
     setFilter(activeWindow === LECTURE_WINDOWS.OFFICIAL ? CHANNEL_FILTERS.OFFICIAL : CHANNEL_FILTERS.COMMUNITY);
+    setSearch('');
+    setSearchVisible(false);
   }, [activeWindow]);
 
   const handleCreateChannel = async (payload) => {
@@ -514,12 +566,22 @@ const Lecture = ({ navigation }) => {
 
   const handleRequestJoin = async (channelId) => {
     logLectureTab('requestJoin:start', { channelId });
+    setJoiningChannelId(channelId);
     try {
-      await requestJoinLectureChannel(channelId);
-      await loadChannels({ showLoading: false });
-      logLectureTab('requestJoin:success', { channelId });
+      const membership = await requestJoinLectureChannel(channelId);
+      const joinStatus = membership?.joinStatus || 'pending';
+
+      if (joinStatus === 'approved') {
+        await loadChannels({ showLoading: false });
+        logLectureTab('requestJoin:approved', { channelId });
+      } else {
+        setPendingChannelIds(prev => [...new Set([...(prev || []), channelId])]);
+        logLectureTab('requestJoin:pending', { channelId });
+      }
     } catch (error) {
       logLectureTabError('requestJoin:error', error, { channelId });
+    } finally {
+      setJoiningChannelId(null);
     }
   };
 
@@ -549,11 +611,15 @@ const Lecture = ({ navigation }) => {
 
   const renderChannelCard = ({ item }) => {
     const joined = myChannelIds.has(item.$id);
+    const isPending = pendingChannelIdSet.has(item.$id);
     const isPinned = pinnedChannelIdSet.has(item.$id);
+    const isJoining = joiningChannelId === item.$id;
+    const isOfficial = item.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL;
 
     return (
       <TouchableOpacity
         style={[styles.channelCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        activeOpacity={0.7}
         onPress={() => openChannel(item)}
         onLongPress={() => {
           setChannelMenuTarget(item);
@@ -562,37 +628,69 @@ const Lecture = ({ navigation }) => {
         delayLongPress={280}>
         <View style={styles.channelHeader}>
           <View style={styles.channelHeaderLeft}>
-            {isPinned && <Ionicons name="pin" size={14} color={colors.primary} />}
-            <Text style={[styles.channelName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+            <View style={[styles.channelIcon, { backgroundColor: isOfficial ? `${colors.primary}20` : `${colors.textSecondary}15` }]}>
+              <Ionicons
+                name={isOfficial ? 'school' : 'people'}
+                size={18}
+                color={isOfficial ? colors.primary : colors.textSecondary}
+              />
+            </View>
+            <View style={styles.channelTitleWrap}>
+              <View style={styles.channelNameRow}>
+                {isPinned && <Ionicons name="pin" size={12} color={colors.primary} style={{ marginRight: spacing.xs }} />}
+                <Text style={[styles.channelName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+              </View>
+              <Text style={[styles.channelDescription, { color: colors.textSecondary }]} numberOfLines={1}>
+                {item.description || t('lectures.noDescription')}
+              </Text>
+            </View>
           </View>
 
           <View style={styles.channelHeaderRight}>
-            <Text style={[styles.channelTypeBadge, { color: colors.primary }]}>
-              {item.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? t('lectures.official') : t('lectures.community')}
-            </Text>
-            <Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} />
+            {joined && (
+              <View style={[styles.statusBadge, { backgroundColor: '#10b98120' }]}>
+                <Ionicons name="checkmark-circle" size={12} color="#10b981" />
+                <Text style={[styles.statusBadgeText, { color: '#10b981' }]}>{t('lectures.joined')}</Text>
+              </View>
+            )}
+            {isPending && !joined && (
+              <View style={[styles.statusBadge, { backgroundColor: '#f59e0b20' }]}>
+                <Ionicons name="time-outline" size={12} color="#f59e0b" />
+                <Text style={[styles.statusBadgeText, { color: '#f59e0b' }]}>{t('lectures.pending')}</Text>
+              </View>
+            )}
           </View>
         </View>
 
-        <Text style={[styles.channelDescription, { color: colors.textSecondary }]} numberOfLines={2}>
-          {item.description || t('lectures.noDescription')}
-        </Text>
-
         <View style={styles.channelMetaRow}>
-          <Text style={[styles.metaText, { color: colors.textSecondary }]}> 
-            {channelAccessLabel(item)}
-          </Text>
-          <Text style={[styles.metaText, { color: colors.textSecondary }]}> 
-            {t('lectures.membersCount').replace('{count}', String(item.membersCount || 0))}
-          </Text>
+          <View style={styles.metaItem}>
+            <Ionicons name={isOfficial ? 'shield-checkmark-outline' : 'lock-open-outline'} size={12} color={colors.textSecondary} />
+            <Text style={[styles.metaText, { color: colors.textSecondary }]}> 
+              {channelAccessLabel(item)}
+            </Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Ionicons name="people-outline" size={12} color={colors.textSecondary} />
+            <Text style={[styles.metaText, { color: colors.textSecondary }]}> 
+              {t('lectures.membersCount').replace('{count}', String(item.membersCount || 0))}
+            </Text>
+          </View>
         </View>
 
-        {!joined && (
+        {!joined && !isPending && (
           <View style={styles.cardActions}>
             <TouchableOpacity
-              style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-              onPress={() => handleRequestJoin(item.$id)}>
-              <Text style={styles.primaryBtnText}>{t('lectures.join')}</Text>
+              style={[styles.joinBtn, { backgroundColor: colors.primary }]}
+              onPress={() => handleRequestJoin(item.$id)}
+              disabled={isJoining}>
+              {isJoining ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="enter-outline" size={14} color="#FFFFFF" />
+                  <Text style={styles.joinBtnText}>{t('lectures.join')}</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         )}
@@ -631,22 +729,59 @@ const Lecture = ({ navigation }) => {
 
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm, borderBottomColor: colors.border }]}> 
         <Text style={[styles.screenTitle, { color: colors.text }]}>{t('lectures.title')}</Text>
-        <TouchableOpacity style={[styles.createHeaderBtn, { backgroundColor: colors.primary }]} onPress={() => setCreateOpen(true)}>
-          <Ionicons name="add" size={18} color="#FFFFFF" />
-          <Text style={styles.createHeaderBtnText}>{t('lectures.create')}</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={[styles.headerIconBtn, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)' }]}
+            activeOpacity={0.7}
+            onPress={() => setSearchVisible(prev => !prev)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="search" size={moderateScale(18)} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.headerIconBtn, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)' }]}
+            activeOpacity={0.7}
+            onPress={() => setCreateOpen(true)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="add" size={moderateScale(18)} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {searchVisible && (
+        <View style={styles.searchWrap}>
+          <View style={[styles.searchInputWrap, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
+            <Ionicons name="search-outline" size={16} color={colors.textSecondary} />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              onSubmitEditing={() => loadChannels()}
+              placeholder={t('lectures.searchPlaceholder')}
+              placeholderTextColor={colors.textSecondary}
+              style={[styles.searchInput, { color: colors.text }]}
+              autoFocus
+              returnKeyType="search"
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => { setSearch(''); loadChannels(); }}>
+                <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
 
       <View style={styles.windowSwitcher}>
         <TouchableOpacity
           style={[
             styles.windowBtn,
             {
-              borderColor: colors.border,
+              borderColor: activeWindow === LECTURE_WINDOWS.COMMUNITY ? colors.primary : colors.border,
               backgroundColor: activeWindow === LECTURE_WINDOWS.COMMUNITY ? colors.primary : 'transparent',
             },
           ]}
+          activeOpacity={0.7}
           onPress={() => setActiveWindow(LECTURE_WINDOWS.COMMUNITY)}>
+          <Ionicons name="people-outline" size={14} color={activeWindow === LECTURE_WINDOWS.COMMUNITY ? '#FFFFFF' : colors.text} />
           <Text style={[styles.windowBtnText, { color: activeWindow === LECTURE_WINDOWS.COMMUNITY ? '#FFFFFF' : colors.text }]}> 
             {t('lectures.communityWindow')}
           </Text>
@@ -656,110 +791,92 @@ const Lecture = ({ navigation }) => {
           style={[
             styles.windowBtn,
             {
-              borderColor: colors.border,
+              borderColor: activeWindow === LECTURE_WINDOWS.OFFICIAL ? colors.primary : colors.border,
               backgroundColor: activeWindow === LECTURE_WINDOWS.OFFICIAL ? colors.primary : 'transparent',
             },
           ]}
+          activeOpacity={0.7}
           onPress={() => setActiveWindow(LECTURE_WINDOWS.OFFICIAL)}>
+          <Ionicons name="school-outline" size={14} color={activeWindow === LECTURE_WINDOWS.OFFICIAL ? '#FFFFFF' : colors.text} />
           <Text style={[styles.windowBtnText, { color: activeWindow === LECTURE_WINDOWS.OFFICIAL ? '#FFFFFF' : colors.text }]}> 
             {t('lectures.officialWindow')}
           </Text>
         </TouchableOpacity>
       </View>
 
-      {
-        <View style={styles.searchWrap}>
-          <TouchableOpacity
-            style={[styles.toolsToggleBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
-            onPress={() => setShowDiscoverTools(prev => !prev)}>
-            <View style={styles.toolsToggleLeft}>
-              <Ionicons name="search-outline" size={16} color={colors.primary} />
-              <Text style={[styles.toolsToggleText, { color: colors.text }]}>{t('lectures.searchTools')}</Text>
-            </View>
-            <Ionicons
-              name={showDiscoverTools ? 'chevron-up' : 'chevron-down'}
-              size={16}
-              color={colors.textSecondary}
-            />
-          </TouchableOpacity>
-
-          {showDiscoverTools && (
-            <>
-              <TextInput
-                value={search}
-                onChangeText={setSearch}
-                onSubmitEditing={() => loadChannels()}
-                placeholder={t('lectures.searchPlaceholder')}
-                placeholderTextColor={colors.textSecondary}
-                style={[styles.searchInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
-              />
-
-              <View style={styles.filterRow}>
-                {[CHANNEL_FILTERS.ALL, CHANNEL_FILTERS.OFFICIAL, CHANNEL_FILTERS.COMMUNITY].map(item => (
-                  <TouchableOpacity
-                    key={item}
-                    style={[
-                      styles.filterChip,
-                      {
-                        borderColor: colors.border,
-                        backgroundColor: filter === item ? colors.primary : 'transparent',
-                      },
-                    ]}
-                    onPress={() => setFilter(item)}>
-                    <Text style={[styles.filterChipText, { color: filter === item ? '#FFFFFF' : colors.text }]}> 
-                      {item === CHANNEL_FILTERS.ALL
-                        ? t('lectures.all')
-                        : item === CHANNEL_FILTERS.OFFICIAL
-                          ? t('lectures.official')
-                          : t('lectures.community')}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={styles.suggestedWrap}>
-                <Text style={[styles.suggestedTitle, { color: colors.text }]}>{t('lectures.suggestedChannels')}</Text>
-                {suggestedChannels.length > 0 ? (
-                  <FlatList
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    data={sortChannelsWithPins(suggestedChannels)}
-                    keyExtractor={(item) => item.$id}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
-                        style={[styles.suggestedCard, { borderColor: colors.border, backgroundColor: colors.card }]}
-                        onPress={() => openChannel(item)}>
-                        <Text style={[styles.suggestedCardTitle, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
-                        <Text style={[styles.suggestedCardSub, { color: colors.textSecondary }]} numberOfLines={1}>
-                          {item.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? t('lectures.official') : t('lectures.community')}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  />
-                ) : (
-                  <Text style={[styles.suggestedEmpty, { color: colors.textSecondary }]}>{t('lectures.noSuggestedChannels')}</Text>
-                )}
-              </View>
-            </>
-          )}
+      {suggestedChannels.length > 0 && !searchVisible && (
+        <View style={styles.suggestedWrap}>
+          <Text style={[styles.suggestedTitle, { color: colors.text }]}>{t('lectures.suggestedChannels')}</Text>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={sortChannelsWithPins(suggestedChannels)}
+            keyExtractor={(item) => item.$id}
+            renderItem={({ item }) => {
+              const sugJoined = myChannelIds.has(item.$id);
+              return (
+                <TouchableOpacity
+                  style={[styles.suggestedCard, { borderColor: colors.border, backgroundColor: colors.card }]}
+                  activeOpacity={0.7}
+                  onPress={() => openChannel(item)}>
+                  <View style={styles.suggestedCardTop}>
+                    <Ionicons
+                      name={item.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? 'school' : 'people'}
+                      size={14}
+                      color={colors.primary}
+                    />
+                    <Text style={[styles.suggestedCardTitle, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+                  </View>
+                  <Text style={[styles.suggestedCardSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {t('lectures.membersCount').replace('{count}', String(item.membersCount || 0))}
+                  </Text>
+                  {sugJoined && (
+                    <View style={[styles.suggestedJoinedBadge, { backgroundColor: '#10b98115' }]}>
+                      <Ionicons name="checkmark-circle" size={10} color="#10b981" />
+                      <Text style={styles.suggestedJoinedText}>{t('lectures.joined')}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            }}
+          />
         </View>
-      }
+      )}
 
       <FlatList
         style={styles.list}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: spacing.xxl + insets.bottom }]}
         data={listData}
         keyExtractor={(item) => item.$id}
         renderItem={renderChannelCard}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />}
         ListEmptyComponent={
-          !loading ? (
+          loading ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : (
             <View style={styles.emptyWrap}>
+              <Ionicons
+                name={activeWindow === LECTURE_WINDOWS.OFFICIAL ? 'school-outline' : 'people-outline'}
+                size={48}
+                color={colors.textSecondary}
+                style={{ marginBottom: spacing.md }}
+              />
+              <Text style={[styles.emptyTitle, { color: colors.text }]}> 
+                {activeWindow === LECTURE_WINDOWS.OFFICIAL ? t('lectures.emptyOfficialTitle') : t('lectures.emptyCommunityTitle')}
+              </Text>
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}> 
                 {activeWindow === LECTURE_WINDOWS.OFFICIAL ? t('lectures.emptyOfficialChannels') : t('lectures.emptyCommunityChannels')}
               </Text>
+              <TouchableOpacity
+                style={[styles.emptyCreateBtn, { backgroundColor: colors.primary }]}
+                onPress={() => setCreateOpen(true)}>
+                <Ionicons name="add" size={16} color="#FFFFFF" />
+                <Text style={styles.emptyCreateBtnText}>{t('lectures.createChannel')}</Text>
+              </TouchableOpacity>
             </View>
-          ) : null
+          )
         }
       />
 
@@ -771,6 +888,7 @@ const Lecture = ({ navigation }) => {
         colors={colors}
         creating={createLoading}
         groups={availableGroups}
+        canCreateOfficial={canCreateOfficial}
       />
 
       <Modal
@@ -783,9 +901,16 @@ const Lecture = ({ navigation }) => {
           style={[styles.menuBackdrop, { backgroundColor: colors.overlay }]}
           onPress={() => setChannelMenuOpen(false)}>
           <View style={[styles.channelMenuCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
-            <Text style={[styles.channelMenuTitle, { color: colors.text }]} numberOfLines={1}>
-              {channelMenuTarget?.name || t('lectures.channel')}
-            </Text>
+            <View style={styles.channelMenuHeader}>
+              <Ionicons
+                name={channelMenuTarget?.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? 'school' : 'people'}
+                size={18}
+                color={colors.primary}
+              />
+              <Text style={[styles.channelMenuTitle, { color: colors.text }]} numberOfLines={1}>
+                {channelMenuTarget?.name || t('lectures.channel')}
+              </Text>
+            </View>
 
             <TouchableOpacity
               style={[styles.channelMenuItem, { borderTopColor: colors.border }]}
@@ -795,6 +920,7 @@ const Lecture = ({ navigation }) => {
                   openChannel(channelMenuTarget);
                 }
               }}>
+              <Ionicons name="enter-outline" size={16} color={colors.text} />
               <Text style={[styles.channelMenuItemText, { color: colors.text }]}>{t('lectures.openChannel')}</Text>
             </TouchableOpacity>
 
@@ -807,6 +933,7 @@ const Lecture = ({ navigation }) => {
                   handleShareChannel(targetId);
                 }
               }}>
+              <Ionicons name="share-social-outline" size={16} color={colors.text} />
               <Text style={[styles.channelMenuItemText, { color: colors.text }]}>{t('lectures.share')}</Text>
             </TouchableOpacity>
 
@@ -819,12 +946,13 @@ const Lecture = ({ navigation }) => {
                   await handleTogglePinChannel(targetId);
                 }
               }}>
+              <Ionicons name={channelMenuTargetPinned ? 'pin-outline' : 'pin'} size={16} color={colors.text} />
               <Text style={[styles.channelMenuItemText, { color: colors.text }]}>
                 {channelMenuTargetPinned ? t('lectures.unpinChannel') : t('lectures.pinChannel')}
               </Text>
             </TouchableOpacity>
 
-            {!channelMenuTargetJoined && !!channelMenuTarget?.$id && (
+            {!channelMenuTargetJoined && !!channelMenuTarget?.$id && !pendingChannelIdSet.has(channelMenuTarget?.$id) && (
               <TouchableOpacity
                 style={[styles.channelMenuItem, { borderTopColor: colors.border }]}
                 onPress={() => {
@@ -832,6 +960,7 @@ const Lecture = ({ navigation }) => {
                   setChannelMenuOpen(false);
                   handleRequestJoin(targetId);
                 }}>
+                <Ionicons name="enter-outline" size={16} color={colors.primary} />
                 <Text style={[styles.channelMenuItemText, { color: colors.primary }]}>{t('lectures.join')}</Text>
               </TouchableOpacity>
             )}
@@ -839,6 +968,7 @@ const Lecture = ({ navigation }) => {
             <TouchableOpacity
               style={[styles.channelMenuItem, { borderTopColor: colors.border }]}
               onPress={() => setChannelMenuOpen(false)}>
+              <Ionicons name="close-outline" size={16} color={colors.textSecondary} />
               <Text style={[styles.channelMenuItemText, { color: colors.textSecondary }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
@@ -868,107 +998,102 @@ const styles = StyleSheet.create({
     fontSize: fontSize(22),
     fontWeight: '700',
   },
-  createHeaderBtn: {
+  headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: borderRadius.md,
+    gap: spacing.sm,
+  },
+  headerIconBtn: {
+    width: moderateScale(34),
+    height: moderateScale(34),
+    borderRadius: moderateScale(17),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchWrap: {
+    paddingHorizontal: wp(4),
+    paddingVertical: spacing.sm,
+  },
+  searchInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
-  createHeaderBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+  searchInput: {
+    flex: 1,
     fontSize: fontSize(13),
+    padding: 0,
+    margin: 0,
   },
   windowSwitcher: {
     flexDirection: 'row',
-    gap: spacing.xs,
+    gap: spacing.sm,
     paddingHorizontal: wp(4),
     paddingVertical: spacing.sm,
   },
   windowBtn: {
     flex: 1,
+    flexDirection: 'row',
     borderWidth: 1,
     borderRadius: borderRadius.round,
     paddingVertical: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.xs,
   },
   windowBtnText: {
     fontSize: fontSize(12),
     fontWeight: '700',
   },
-  searchWrap: {
+  suggestedWrap: {
     paddingHorizontal: wp(4),
     paddingBottom: spacing.sm,
-  },
-  toolsToggleBtn: {
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  toolsToggleLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  toolsToggleText: {
-    fontSize: fontSize(12),
-    fontWeight: '700',
-  },
-  searchInput: {
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.sm,
-    fontSize: fontSize(13),
-  },
-  filterRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  suggestedWrap: {
-    marginTop: spacing.sm,
   },
   suggestedTitle: {
     fontSize: fontSize(12),
     fontWeight: '700',
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
   },
   suggestedCard: {
     borderWidth: 1,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    marginRight: spacing.xs,
+    marginRight: spacing.sm,
     minWidth: wp(36),
+  },
+  suggestedCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: 2,
   },
   suggestedCardTitle: {
     fontSize: fontSize(12),
     fontWeight: '700',
+    flex: 1,
   },
   suggestedCardSub: {
     fontSize: fontSize(10),
     marginTop: 2,
   },
-  suggestedEmpty: {
-    fontSize: fontSize(11),
+  suggestedJoinedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+    alignSelf: 'flex-start',
   },
-  filterChip: {
-    borderWidth: 1,
-    borderRadius: borderRadius.round,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  filterChipText: {
-    fontSize: fontSize(11),
+  suggestedJoinedText: {
+    fontSize: fontSize(9),
+    color: '#10b981',
     fontWeight: '600',
   },
   list: {
@@ -976,26 +1101,39 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: wp(4),
-    paddingBottom: spacing.xxl,
   },
   channelCard: {
     borderWidth: 1,
     borderRadius: borderRadius.lg,
-    padding: spacing.sm,
+    padding: spacing.md,
     marginBottom: spacing.sm,
   },
   channelHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
     gap: spacing.sm,
   },
   channelHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
     flex: 1,
+  },
+  channelIcon: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(10),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  channelTitleWrap: {
+    flex: 1,
+  },
+  channelNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   channelHeaderRight: {
     flexDirection: 'row',
@@ -1007,63 +1145,88 @@ const styles = StyleSheet.create({
     fontSize: fontSize(14),
     fontWeight: '700',
   },
-  channelTypeBadge: {
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: borderRadius.round,
+  },
+  statusBadgeText: {
     fontSize: fontSize(10),
     fontWeight: '700',
-    textTransform: 'uppercase',
   },
   channelDescription: {
     fontSize: fontSize(12),
-    marginBottom: spacing.sm,
   },
   channelMetaRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
-    gap: spacing.sm,
+    justifyContent: 'flex-start',
+    gap: spacing.md,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   metaText: {
     fontSize: fontSize(11),
-    flex: 1,
   },
   cardActions: {
     flexDirection: 'row',
     gap: spacing.xs,
-    flexWrap: 'wrap',
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
   },
-  secondaryBtn: {
-    borderWidth: 1,
+  joinBtn: {
+    flexDirection: 'row',
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: spacing.xs,
+    flex: 1,
   },
-  secondaryBtnText: {
-    fontSize: fontSize(11),
-    fontWeight: '600',
-  },
-  primaryBtn: {
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  primaryBtnText: {
-    fontSize: fontSize(11),
+  joinBtnText: {
+    fontSize: fontSize(12),
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  emptyWrap: {
-    paddingVertical: spacing.xl,
+  loadingWrap: {
+    paddingVertical: spacing.xxl,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  emptyWrap: {
+    paddingVertical: spacing.xxl,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: wp(10),
+  },
+  emptyTitle: {
+    fontSize: fontSize(16),
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+    textAlign: 'center',
   },
   emptyText: {
     fontSize: fontSize(12),
     textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  emptyCreateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+  },
+  emptyCreateBtnText: {
+    fontSize: fontSize(12),
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   modalBackdrop: {
     flex: 1,
@@ -1076,10 +1239,34 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     maxHeight: '88%',
   },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   modalTitle: {
     fontSize: fontSize(16),
     fontWeight: '700',
+  },
+  sectionLabel: {
+    fontSize: fontSize(11),
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  validationHint: {
+    fontSize: fontSize(10),
+    color: '#ef4444',
+    marginTop: -spacing.xs,
     marginBottom: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
   input: {
     borderWidth: 1,
@@ -1095,19 +1282,27 @@ const styles = StyleSheet.create({
   },
   typeRow: {
     flexDirection: 'row',
-    gap: spacing.xs,
+    gap: spacing.sm,
     marginBottom: spacing.sm,
     flexWrap: 'wrap',
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     borderWidth: 1,
     borderRadius: borderRadius.round,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   chipText: {
     fontSize: fontSize(11),
     fontWeight: '600',
+  },
+  officialHint: {
+    fontSize: fontSize(10),
+    fontStyle: 'italic',
+    marginTop: spacing.xs,
   },
   toggleRow: {
     borderWidth: 1,
@@ -1158,13 +1353,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: spacing.sm,
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
   },
   modalBtn: {
     borderWidth: 1,
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
+    minWidth: wp(20),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalBtnText: {
     fontSize: fontSize(12),
@@ -1181,16 +1379,25 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
   },
+  channelMenuHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
   channelMenuTitle: {
     fontSize: fontSize(14),
     fontWeight: '700',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    flex: 1,
   },
   channelMenuItem: {
     borderTopWidth: 1,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   channelMenuItemText: {
     fontSize: fontSize(13),

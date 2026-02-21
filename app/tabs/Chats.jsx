@@ -19,6 +19,8 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import AnimatedBackground from '../components/AnimatedBackground';
 import ChatListItem from '../components/ChatListItem';
+import RepDetectionPopup from '../components/RepDetectionPopup';
+import useRepDetection from '../hooks/useRepDetection';
 import UnifiedEmptyState from '../components/UnifiedEmptyState';
 import { ChatListSkeleton } from '../components/SkeletonLoader';
 import { 
@@ -60,6 +62,7 @@ const Chats = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user, refreshUser } = useUser();
   const insets = useSafeAreaInsets();
+  const { needsRep, hasActiveElection, currentElection, isUserRepresentative, dismiss: dismissRepPopup } = useRepDetection(user);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [initializing, setInitializing] = useState(true);
@@ -261,7 +264,10 @@ const Chats = ({ navigation }) => {
   };
 
   const loadChats = async (useCache = true, options = {}) => {
+    console.log('[DB_DEBUG] Chats.loadChats() called');
+    console.log('[DB_DEBUG] Chats user:', user ? { $id: user.$id, department: user.department, stage: user.stage } : null);
     if (!user?.department) {
+      console.log('[DB_DEBUG] Chats.loadChats() BAILED: user.department missing');
       setLoading(false);
       return;
     }
@@ -273,7 +279,7 @@ const Chats = ({ navigation }) => {
       const stageValue = stageToValue(user.stage);
       
       const chats = await getAllUserChats(user.$id, user.department, stageValue, useCache);
-      
+      console.log('[DB_DEBUG] Chats loaded:', { defaults: (chats.defaultGroups || []).length, custom: (chats.customGroups || []).length, private: (chats.privateChats || []).length });
       setDefaultGroups(chats.defaultGroups || []);
       setCustomGroups(chats.customGroups || []);
 
@@ -342,6 +348,7 @@ const Chats = ({ navigation }) => {
 
       loadAuxiliaryData();
     } catch (error) {
+      console.log('[DB_DEBUG] Chats.loadChats() ERROR:', error?.message, error?.code, error?.type);
       setDefaultGroups([]);
       setCustomGroups([]);
       setPrivateChats([]);
@@ -659,6 +666,8 @@ const Chats = ({ navigation }) => {
 
   const renderChatItem = ({ item, section }) => {
     const isArchivedSection = section?.key === 'archived';
+    const partnerId = item.type === 'private' ? item.otherUser?.$id : null;
+    const partnerIsRep = partnerId ? isUserRepresentative(partnerId) : false;
 
     return (
       <ChatListItem 
@@ -670,6 +679,7 @@ const Chats = ({ navigation }) => {
         currentUserId={user?.$id}
         unreadCount={unreadCounts[item.$id] || 0}
         clearedAt={clearedAtMap[item.$id] || null}
+        isPartnerRep={partnerIsRep}
       />
     );
   };
@@ -1111,6 +1121,16 @@ const Chats = ({ navigation }) => {
               </View>
             </Modal>
           </LinearGradient>
+
+          <RepDetectionPopup
+            visible={needsRep || hasActiveElection}
+            hasActiveElection={hasActiveElection}
+            onVote={() => {
+              dismissRepPopup();
+              navigation.navigate('RepVoting', { department: user?.department, stage: user?.stage });
+            }}
+            onDismiss={dismissRepPopup}
+          />
         </View>
       );
     };

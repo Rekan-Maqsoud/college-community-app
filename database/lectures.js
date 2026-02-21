@@ -23,16 +23,8 @@ export const LECTURE_UPLOAD_TYPES = {
   LINK: 'link',
 };
 
-const logLecturesDb = (event, payload = {}) => {
-  console.log('[LecturesDB]', event, payload);
-};
-
-const logLecturesDbError = (event, error, payload = {}) => {
-  console.error('[LecturesDB]', event, {
-    ...payload,
-    message: error?.message || String(error),
-  });
-};
+const logLecturesDb = () => {};
+const logLecturesDbError = () => {};
 
 const isMissingDocumentError = (error) => {
   const code = Number(error?.code || error?.status || 0);
@@ -655,6 +647,41 @@ export const getMyLectureChannels = async (userId) => {
       userId: currentUserId,
     });
     throw error;
+  }
+};
+
+export const getMyPendingLectureChannelIds = async (userId) => {
+  assertLecturesConfigured();
+
+  const currentUserId = userId || await getCurrentUserId();
+
+  logLecturesDb('getMyPendingLectureChannelIds:start', {
+    userId: currentUserId,
+  });
+
+  try {
+    const memberships = await databases.listDocuments(
+      config.databaseId,
+      config.lectureMembershipsCollectionId,
+      [
+        Query.equal('userId', currentUserId),
+        Query.equal('joinStatus', 'pending'),
+        Query.limit(200),
+        Query.orderDesc('$updatedAt'),
+      ]
+    );
+
+    const channelIds = (memberships.documents || []).map(item => item.channelId).filter(Boolean);
+    logLecturesDb('getMyPendingLectureChannelIds:success', {
+      userId: currentUserId,
+      count: channelIds.length,
+    });
+    return channelIds;
+  } catch (error) {
+    logLecturesDbError('getMyPendingLectureChannelIds:error', error, {
+      userId: currentUserId,
+    });
+    return [];
   }
 };
 

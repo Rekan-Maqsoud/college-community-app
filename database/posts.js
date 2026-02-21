@@ -185,6 +185,7 @@ export const getPost = async (postId, viewerId = null) => {
 };
 
 export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = true, sortBy = 'newest', blockedUserIds = [], currentUserId = null) => {
+    console.log('[DB_DEBUG] getPosts() called with filters:', JSON.stringify(filters), 'databaseId:', config.databaseId, 'postsCollectionId:', config.postsCollectionId);
     const cacheKey = postsCacheManager.generateCacheKey(filters, limit, offset) + `_sort_${sortBy}`;
     
     try {
@@ -236,6 +237,7 @@ export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = 
             config.postsCollectionId,
             queries
         );
+        console.log('[DB_DEBUG] getPosts() Appwrite returned', posts.documents?.length, 'posts, total:', posts.total);
         
         // Cache the results for first page
         if (offset === 0) {
@@ -250,6 +252,7 @@ export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = 
         
         return results;
     } catch (error) {
+        console.log('[DB_DEBUG] getPosts() ERROR:', error?.message, error?.code, error?.type);
         // On network error, try to return stale cache
         if (offset === 0) {
             const cached = await postsCacheManager.getCachedPosts(cacheKey);

@@ -10,6 +10,8 @@ import { GlassContainer } from '../components/GlassComponents';
 import AnimatedBackground from '../components/AnimatedBackground';
 import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
+import RepBadge from '../components/RepBadge';
+import useRepDetection from '../hooks/useRepDetection';
 import UnifiedEmptyState from '../components/UnifiedEmptyState';
 import { ProfileSkeleton, PostCardSkeleton } from '../components/SkeletonLoader';
 import { useCustomAlert } from '../hooks/useCustomAlert';
@@ -43,6 +45,8 @@ const UserProfile = ({ route, navigation }) => {
   const [showQRModal, setShowQRModal] = useState(false);
   const qrShareCardRef = useRef(null);
   const displayName = userData?.fullName || userData?.name || t('errors.unknownUser');
+  const { isUserRepresentative } = useRepDetection(currentUser);
+  const isThisUserRep = isUserRepresentative(userId);
 
   // Generate profile link for sharing
   const getProfileLink = () => {
@@ -683,7 +687,10 @@ const UserProfile = ({ route, navigation }) => {
               </LinearGradient>
             </View>
             
-            <Text style={[styles.name, { fontSize: fontSize(22), color: isDarkMode ? '#FFFFFF' : '#1C1C1E' }]}>{userProfile.name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Text style={[styles.name, { fontSize: fontSize(22), color: isDarkMode ? '#FFFFFF' : '#1C1C1E' }]}>{userProfile.name}</Text>
+              {isThisUserRep && <RepBadge size="medium" colors={theme} label={t('repVoting.repLabel')} />}
+            </View>
             {userProfile.gender ? (
               <Text style={[styles.genderText, { fontSize: fontSize(12), color: isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(28, 28, 30, 0.6)' }]}>
                 {t(`settings.${userProfile.gender}`)}

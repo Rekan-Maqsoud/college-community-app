@@ -29,6 +29,8 @@ import CustomAlert from '../components/CustomAlert';
 import GreetingBanner from '../components/GreetingBanner';
 import { PostCardSkeleton } from '../components/SkeletonLoader';
 import UnifiedEmptyState from '../components/UnifiedEmptyState';
+import RepDetectionPopup from '../components/RepDetectionPopup';
+import useRepDetection from '../hooks/useRepDetection';
 import {
   wp,
   hp,
@@ -54,6 +56,7 @@ const Home = ({ navigation, route }) => {
   const { t, theme, isDarkMode, compactMode, triggerHaptic } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const { needsRep, hasActiveElection, dismiss: dismissRepPopup } = useRepDetection(user);
   const insets = useSafeAreaInsets();
   const [selectedFeed, setSelectedFeed] = useState(FEED_TYPES.DEPARTMENT);
   const [selectedStage, setSelectedStage] = useState('all');
@@ -323,7 +326,10 @@ const Home = ({ navigation, route }) => {
   );
 
   const loadPosts = async (reset = false, options = {}) => {
+    console.log('[DB_DEBUG] Home.loadPosts() called, reset:', reset);
+    console.log('[DB_DEBUG] Home user:', user ? { $id: user.$id, department: user.department, stage: user.stage } : null);
     if (!user || !user.department) {
+      console.log('[DB_DEBUG] Home.loadPosts() BAILED: user or department missing');
       return;
     }
 
@@ -387,6 +393,7 @@ const Home = ({ navigation, route }) => {
       }
 
       // Enrich posts with user data for those missing userName
+      console.log('[DB_DEBUG] Home fetched', fetchedPosts.length, 'posts for feed:', selectedFeed);
       const enrichedPosts = await enrichPostsWithUserData(fetchedPosts);
 
       // Filter out posts from blocked users
@@ -407,6 +414,7 @@ const Home = ({ navigation, route }) => {
 
       setHasMore(fetchedPosts.length === POSTS_PER_PAGE);
     } catch (error) {
+      console.log('[DB_DEBUG] Home.loadPosts() ERROR:', error?.message, error?.code, error?.type);
       const errorInfo = handleNetworkError(error);
       showAlert(
         errorInfo.isNetworkError ? t('error.noInternet') : t('error.title'),
@@ -1110,6 +1118,15 @@ const Home = ({ navigation, route }) => {
         message={alertConfig.message}
         buttons={alertConfig.buttons}
         onDismiss={hideAlert}
+      />
+      <RepDetectionPopup
+        visible={needsRep || hasActiveElection}
+        hasActiveElection={hasActiveElection}
+        onVote={() => {
+          dismissRepPopup();
+          navigation.navigate('RepVoting', { department: user?.department, stage: user?.stage });
+        }}
+        onDismiss={dismissRepPopup}
       />
     </View>
   );

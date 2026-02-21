@@ -755,8 +755,10 @@ export const signOut = async () => {
 export const getCurrentUser = async () => {
     try {
         const user = await account.get();
+        console.log('[DB_DEBUG] auth.getCurrentUser() OK, user $id:', user?.$id);
         return user;
     } catch (error) {
+        console.log('[DB_DEBUG] auth.getCurrentUser() FAILED:', error?.message, error?.code);
         if (error.message?.includes('missing scopes') || error.code === 401) {
             return null;
         }
@@ -770,12 +772,14 @@ export const getCompleteUserData = async () => {
         if (!authUser) return null;
         
         const userDoc = await getUserDocument(authUser.$id);
+        console.log('[DB_DEBUG] auth.getCompleteUserData() OK, department:', userDoc?.department, 'year:', userDoc?.year);
         
         return {
             ...authUser,
             ...userDoc
         };
     } catch (error) {
+        console.log('[DB_DEBUG] auth.getCompleteUserData() FAILED:', error?.message, error?.code);
         if (error.message?.includes('missing scopes') || error.code === 401) {
             return null;
         }
