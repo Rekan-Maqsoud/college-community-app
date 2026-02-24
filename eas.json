@@ -16,6 +16,10 @@
     },
     "production": {
       "channel": "production",
+      "env": {
+        "NODE_ENV": "production",
+        "GRADLE_OPTS": "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
+      },
       "android": {
         "buildType": "app-bundle"
       }

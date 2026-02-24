@@ -76,6 +76,17 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "",
+            "kotlinVersion": "1.9.25",
+            "extraMavenRepos": [],
+            "newArchEnabled": true
+          }
+        }
+      ],
       "expo-localization",
       "expo-font",
       "expo-web-browser",
@@ -109,7 +120,10 @@
           "recordAudioAndroid": true
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-build-properties",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth"
     ],
     "extra": {
       "eas": {
