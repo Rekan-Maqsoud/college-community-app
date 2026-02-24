@@ -19,6 +19,7 @@ import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
 import VoteCard from '../../components/VoteCard';
 import RepBadge from '../../components/RepBadge';
+import ProfilePicture from '../../components/ProfilePicture';
 import { wp, hp, fontSize, normalize, spacing } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
 import { getClassStudents } from '../../../database/users';
@@ -335,6 +336,9 @@ const RepVotingScreen = ({ navigation, route }) => {
     && winnerCountdownMs <= 0;
   const isVotingDisabled = isCompleted || timerExpiredDuringVoting;
 
+  // When reps exist and no active/tiebreaker election, show rep-only view (no voting)
+  const hasRepNoActiveElection = classReps.length > 0 && !isActive && !isInTiebreaker;
+
   const canRequestReselection = !!election && isCompleted;
   const canElectNextRep = !!nextSeat && nextSeat <= MAX_REPS_PER_CLASS && classReps.length >= 1 && classReps.length < MAX_REPS_PER_CLASS;
   const nextSeatLabel = nextSeat || Math.min((currentSeat || 1) + 1, MAX_REPS_PER_CLASS);
@@ -458,7 +462,43 @@ const RepVotingScreen = ({ navigation, route }) => {
         </View>
       )}
 
-      {currentSeat > 1 && (
+      {/* Current rep cards — shown when reps exist and no active voting */}
+      {hasRepNoActiveElection && classReps.map((rep) => {
+        const repStudent = students.find((s) => s.$id === rep.userId);
+        if (!repStudent) return null;
+        const repName = repStudent.name || repStudent.fullName || '';
+        const repAvatar = repStudent.profilePicture || '';
+        return (
+          <TouchableOpacity
+            key={rep.userId}
+            style={[styles.currentRepCard, { backgroundColor: theme.card, borderColor: theme.primary + '40' }]}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('UserProfile', { userId: rep.userId })}
+          >
+            <ProfilePicture uri={repAvatar} name={repName} size={normalize(52)} />
+            <View style={styles.currentRepInfo}>
+              <Text style={[styles.currentRepName, { color: theme.text }]} numberOfLines={1}>
+                {repName}
+              </Text>
+              <View style={styles.currentRepBadgeRow}>
+                <RepBadge size="small" />
+                <Text style={[styles.currentRepSeat, { color: theme.textSecondary }]}>
+                  {t('repVoting.repLabel')} #{rep.seatNumber || 1}
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={normalize(20)} color={theme.textSecondary} />
+          </TouchableOpacity>
+        );
+      })}
+
+      {hasRepNoActiveElection && (
+        <Text style={[styles.noActiveVotingNote, { color: theme.textSecondary }]}>
+          {t('repVoting.noActiveVoting')}
+        </Text>
+      )}
+
+      {currentSeat > 1 && !hasRepNoActiveElection && (
         <View style={[styles.seatBadge, { backgroundColor: theme.warning + '20', borderColor: theme.warning + '40' }]}>
           <Ionicons name="ribbon-outline" size={fontSize(16)} color={theme.warning} />
           <Text style={[styles.seatBadgeText, { color: theme.warning }]}>
@@ -467,9 +507,11 @@ const RepVotingScreen = ({ navigation, route }) => {
         </View>
       )}
 
-      <Text style={[styles.listTitle, { color: theme.text }]}>
-        {t('repVoting.classStudents')}
-      </Text>
+      {!hasRepNoActiveElection && (
+        <Text style={[styles.listTitle, { color: theme.text }]}>
+          {t('repVoting.classStudents')}
+        </Text>
+      )}
     </View>
   );
   };
@@ -585,11 +627,11 @@ const RepVotingScreen = ({ navigation, route }) => {
       </Modal>
 
       <FlatList
-        data={candidatesWithInfo}
+        data={hasRepNoActiveElection ? [] : candidatesWithInfo}
         keyExtractor={(item) => item.$id}
         renderItem={renderItem}
         ListHeaderComponent={renderHeader}
-        ListEmptyComponent={renderEmpty}
+        ListEmptyComponent={hasRepNoActiveElection ? null : renderEmpty}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[theme.primary]} tintColor={theme.primary} />
@@ -828,6 +870,39 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: normalize(12),
     fontWeight: '600',
+  },
+  currentRepCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: wp(3.5),
+    borderRadius: borderRadius.lg,
+    borderWidth: 1.5,
+    marginBottom: spacing.sm,
+  },
+  currentRepInfo: {
+    flex: 1,
+    marginLeft: spacing.sm,
+  },
+  currentRepName: {
+    fontSize: normalize(16),
+    fontWeight: '700',
+  },
+  currentRepBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: 3,
+  },
+  currentRepSeat: {
+    fontSize: normalize(12),
+    fontWeight: '500',
+  },
+  noActiveVotingNote: {
+    fontSize: normalize(13),
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+    lineHeight: normalize(18),
   },
 });
 

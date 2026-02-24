@@ -2237,5 +2237,6 @@ export default {
     votingClosed: 'Voting has ended',
     maxRepsReached: 'Maximum 3 representatives reached',
     electingSeat: 'Electing Representative #{seat}',
+    noActiveVoting: 'No active voting at the moment. Use the menu to request a reselection or elect an additional representative.',
   },
 };

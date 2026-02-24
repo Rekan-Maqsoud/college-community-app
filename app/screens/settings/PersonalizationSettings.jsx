@@ -12,7 +12,6 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import Slider from '@react-native-community/slider';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import CustomAlert from '../../components/CustomAlert';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
@@ -314,48 +313,42 @@ const PersonalizationSettings = ({ navigation }) => {
           </Text>
           <GlassCard>
             <View style={styles.fontSliderContainer}>
-              <View style={styles.sliderHeaderRow}>
-                <Text style={[styles.sliderHint, { color: theme.textSecondary }]}>
-                  {t('settings.fontSmall') || 'Small'}
-                </Text>
-                <Text style={[styles.sliderValue, { color: theme.primary }]}>
-                  {sliderFontPercent}%
-                </Text>
-                <Text style={[styles.sliderHint, { color: theme.textSecondary }]}>
-                  {t('settings.fontExtraLarge') || 'Extra Large'}
-                </Text>
+              <View style={styles.stepperRow}>
+                <TouchableOpacity
+                  style={[styles.stepperButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}
+                  onPress={() => {
+                    const next = Math.max(MIN_FONT_PERCENT, sliderFontPercent - 5);
+                    setSliderFontPercent(next);
+                    updateFontScale(next / 100);
+                  }}
+                  disabled={sliderFontPercent <= MIN_FONT_PERCENT}
+                  activeOpacity={0.6}
+                >
+                  <Ionicons name="remove" size={moderateScale(22)} color={sliderFontPercent <= MIN_FONT_PERCENT ? theme.textSecondary : theme.primary} />
+                </TouchableOpacity>
+
+                <View style={styles.stepperValueContainer}>
+                  <Text style={[styles.stepperValue, { color: theme.primary }]}>
+                    {sliderFontPercent}%
+                  </Text>
+                  <Text style={[styles.stepperLabel, { color: theme.textSecondary }]}>
+                    {t('settings.fontSize') || 'Font Size'}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.stepperButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}
+                  onPress={() => {
+                    const next = Math.min(MAX_FONT_PERCENT, sliderFontPercent + 5);
+                    setSliderFontPercent(next);
+                    updateFontScale(next / 100);
+                  }}
+                  disabled={sliderFontPercent >= MAX_FONT_PERCENT}
+                  activeOpacity={0.6}
+                >
+                  <Ionicons name="add" size={moderateScale(22)} color={sliderFontPercent >= MAX_FONT_PERCENT ? theme.textSecondary : theme.primary} />
+                </TouchableOpacity>
               </View>
-              <Slider
-                style={styles.sliderControl}
-                minimumValue={MIN_FONT_PERCENT}
-                maximumValue={MAX_FONT_PERCENT}
-                step={0}
-                value={sliderFontPercent}
-                minimumTrackTintColor={theme.primary}
-                maximumTrackTintColor={isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'}
-                thumbTintColor={theme.primary}
-                onValueChange={(value) => {
-                  const nextPercent = Math.round(value);
-                  const nextScale = nextPercent / 100;
-                  setSliderFontPercent((prev) => (prev === nextPercent ? prev : nextPercent));
-                  previewFontScale(nextScale);
-                  console.log('[SETTINGS_DEBUG] fontScale:onValueChange', {
-                    raw: value,
-                    percent: nextPercent,
-                  });
-                }}
-                onSlidingComplete={(value) => {
-                  const roundedPercent = Math.round(value);
-                  const roundedScale = roundedPercent / 100;
-                  setSliderFontPercent(roundedPercent);
-                  console.log('[SETTINGS_DEBUG] fontScale:onSlidingComplete', {
-                    raw: value,
-                    roundedPercent,
-                    roundedScale,
-                  });
-                  updateFontScale(roundedScale);
-                }}
-              />
               <View
                 style={[
                   styles.fontPreviewCard,
@@ -905,23 +898,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
   },
-  sliderHeaderRow: {
+  stepperRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    justifyContent: 'space-between',
   },
-  sliderHint: {
-    fontSize: responsiveFontSize(11),
-    fontWeight: '500',
+  stepperButton: {
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(22),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  sliderValue: {
-    fontSize: responsiveFontSize(14),
+  stepperValueContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  stepperValue: {
+    fontSize: responsiveFontSize(22),
     fontWeight: '700',
   },
-  sliderControl: {
-    width: '100%',
-    height: moderateScale(34),
+  stepperLabel: {
+    fontSize: responsiveFontSize(11),
+    fontWeight: '500',
+    marginTop: 2,
   },
   fontPreviewCard: {
     marginTop: spacing.sm,

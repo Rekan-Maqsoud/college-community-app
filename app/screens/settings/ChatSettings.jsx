@@ -12,7 +12,6 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import Slider from '@react-native-community/slider';
 import * as ImagePicker from 'expo-image-picker';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
@@ -133,7 +132,10 @@ const ChatSettings = ({ navigation, route }) => {
     </BlurView>
   );
 
-  const [sliderBubbleRadius, setSliderBubbleRadius] = useState(null);
+  const [sliderBubbleRadius, setSliderBubbleRadius] = useState(() => {
+    const parsed = Number(chatSettings?.bubbleRadius);
+    return Number.isFinite(parsed) ? Math.max(MIN_BUBBLE_RADIUS, Math.min(MAX_BUBBLE_RADIUS, parsed)) : 16;
+  });
 
   const handleBubbleRoundnessChange = (radius) => {
     updateChatSetting('bubbleRadius', Math.round(radius));
@@ -178,7 +180,7 @@ const ChatSettings = ({ navigation, route }) => {
   };
 
   const getPreviewBubbleRadius = () => {
-    if (sliderBubbleRadius !== null && Number.isFinite(sliderBubbleRadius)) {
+    if (Number.isFinite(sliderBubbleRadius)) {
       return Math.max(MIN_BUBBLE_RADIUS, Math.min(MAX_BUBBLE_RADIUS, sliderBubbleRadius));
     }
     return getBubbleRadius();
@@ -333,44 +335,42 @@ const ChatSettings = ({ navigation, route }) => {
           </Text>
           <GlassCard>
             <View style={styles.sliderSection}>
-              <View style={styles.sliderHeaderRow}>
-                <Text style={[styles.sliderHint, { color: theme.textSecondary }]}>
-                  {t('settings.bubbleLessRound') || 'Less round'}
-                </Text>
-                <Text style={[styles.sliderValue, { color: theme.primary }]}>
-                  {sliderBubbleRadius !== null ? Math.round(sliderBubbleRadius) : Math.round(getBubbleRadius())}
-                </Text>
-                <Text style={[styles.sliderHint, { color: theme.textSecondary }]}>
-                  {t('settings.bubbleMoreRound') || 'More round'}
-                </Text>
+              <View style={styles.stepperRow}>
+                <TouchableOpacity
+                  style={[styles.stepperButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}
+                  onPress={() => {
+                    const next = Math.max(MIN_BUBBLE_RADIUS, sliderBubbleRadius - 2);
+                    setSliderBubbleRadius(next);
+                    handleBubbleRoundnessChange(next);
+                  }}
+                  disabled={sliderBubbleRadius <= MIN_BUBBLE_RADIUS}
+                  activeOpacity={0.6}
+                >
+                  <Ionicons name="remove" size={moderateScale(22)} color={sliderBubbleRadius <= MIN_BUBBLE_RADIUS ? theme.textSecondary : theme.primary} />
+                </TouchableOpacity>
+
+                <View style={styles.stepperValueContainer}>
+                  <Text style={[styles.stepperValue, { color: theme.primary }]}>
+                    {Math.round(sliderBubbleRadius)}
+                  </Text>
+                  <Text style={[styles.stepperLabel, { color: theme.textSecondary }]}>
+                    {t('settings.bubbleRoundness') || 'Roundness'}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.stepperButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}
+                  onPress={() => {
+                    const next = Math.min(MAX_BUBBLE_RADIUS, sliderBubbleRadius + 2);
+                    setSliderBubbleRadius(next);
+                    handleBubbleRoundnessChange(next);
+                  }}
+                  disabled={sliderBubbleRadius >= MAX_BUBBLE_RADIUS}
+                  activeOpacity={0.6}
+                >
+                  <Ionicons name="add" size={moderateScale(22)} color={sliderBubbleRadius >= MAX_BUBBLE_RADIUS ? theme.textSecondary : theme.primary} />
+                </TouchableOpacity>
               </View>
-              <Slider
-                style={styles.sliderControl}
-                minimumValue={MIN_BUBBLE_RADIUS}
-                maximumValue={MAX_BUBBLE_RADIUS}
-                step={0}
-                value={sliderBubbleRadius !== null ? Math.round(sliderBubbleRadius) : Math.round(getBubbleRadius())}
-                minimumTrackTintColor={theme.primary}
-                maximumTrackTintColor={isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'}
-                thumbTintColor={theme.primary}
-                onValueChange={(value) => {
-                  const rounded = Math.round(value);
-                  setSliderBubbleRadius((prev) => (prev === rounded ? prev : rounded));
-                  console.log('[SETTINGS_DEBUG] bubbleRadius:onValueChange', {
-                    raw: value,
-                    rounded,
-                  });
-                }}
-                onSlidingComplete={(value) => {
-                  const rounded = Math.round(value);
-                  setSliderBubbleRadius(null);
-                  console.log('[SETTINGS_DEBUG] bubbleRadius:onSlidingComplete', {
-                    raw: value,
-                    rounded,
-                  });
-                  handleBubbleRoundnessChange(rounded);
-                }}
-              />
             </View>
           </GlassCard>
         </View>
@@ -712,23 +712,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
-  sliderHeaderRow: {
+  stepperRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.xs,
   },
-  sliderHint: {
-    fontSize: responsiveFontSize(11),
-    fontWeight: '500',
+  stepperButton: {
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(22),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  sliderValue: {
-    fontSize: responsiveFontSize(14),
+  stepperValueContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  stepperValue: {
+    fontSize: responsiveFontSize(22),
     fontWeight: '700',
   },
-  sliderControl: {
-    width: '100%',
-    height: moderateScale(34),
+  stepperLabel: {
+    fontSize: responsiveFontSize(11),
+    fontWeight: '500',
+    marginTop: 2,
   },
   colorsGrid: {
     flexDirection: 'row',
