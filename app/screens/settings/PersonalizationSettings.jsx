@@ -20,8 +20,8 @@ import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const MIN_FONT_SCALE = 0.85;
-const MAX_FONT_SCALE = 1.3;
+const MIN_FONT_PERCENT = 85;
+const MAX_FONT_PERCENT = 130;
 
 const PersonalizationSettings = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -34,6 +34,7 @@ const PersonalizationSettings = ({ navigation }) => {
     currentLanguage,
     changeLanguage,
     fontScale,
+    previewFontScale,
     updateFontScale,
     reduceMotion,
     updateReduceMotion,
@@ -58,10 +59,10 @@ const PersonalizationSettings = ({ navigation }) => {
   const [tempTime, setTempTime] = useState('');
 
   useEffect(() => {
-    setSliderFontScale(fontScale);
+    setSliderFontPercent(Math.round(fontScale * 100));
   }, [fontScale]);
 
-  const [sliderFontScale, setSliderFontScale] = useState(fontScale);
+  const [sliderFontPercent, setSliderFontPercent] = useState(Math.round(fontScale * 100));
 
   const openTimePicker = (type) => {
     setTimePickerType(type);
@@ -318,7 +319,7 @@ const PersonalizationSettings = ({ navigation }) => {
                   {t('settings.fontSmall') || 'Small'}
                 </Text>
                 <Text style={[styles.sliderValue, { color: theme.primary }]}>
-                  {Math.round(sliderFontScale * 100)}%
+                  {sliderFontPercent}%
                 </Text>
                 <Text style={[styles.sliderHint, { color: theme.textSecondary }]}>
                   {t('settings.fontExtraLarge') || 'Extra Large'}
@@ -326,16 +327,33 @@ const PersonalizationSettings = ({ navigation }) => {
               </View>
               <Slider
                 style={styles.sliderControl}
-                minimumValue={MIN_FONT_SCALE}
-                maximumValue={MAX_FONT_SCALE}
-                step={0.01}
-                value={sliderFontScale}
+                minimumValue={MIN_FONT_PERCENT}
+                maximumValue={MAX_FONT_PERCENT}
+                step={0}
+                value={sliderFontPercent}
                 minimumTrackTintColor={theme.primary}
                 maximumTrackTintColor={isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'}
                 thumbTintColor={theme.primary}
                 onValueChange={(value) => {
-                  setSliderFontScale(value);
-                  updateFontScale(value);
+                  const nextPercent = Math.round(value);
+                  const nextScale = nextPercent / 100;
+                  setSliderFontPercent((prev) => (prev === nextPercent ? prev : nextPercent));
+                  previewFontScale(nextScale);
+                  console.log('[SETTINGS_DEBUG] fontScale:onValueChange', {
+                    raw: value,
+                    percent: nextPercent,
+                  });
+                }}
+                onSlidingComplete={(value) => {
+                  const roundedPercent = Math.round(value);
+                  const roundedScale = roundedPercent / 100;
+                  setSliderFontPercent(roundedPercent);
+                  console.log('[SETTINGS_DEBUG] fontScale:onSlidingComplete', {
+                    raw: value,
+                    roundedPercent,
+                    roundedScale,
+                  });
+                  updateFontScale(roundedScale);
                 }}
               />
               <View
@@ -352,7 +370,7 @@ const PersonalizationSettings = ({ navigation }) => {
                     styles.fontPreviewText,
                     {
                       color: theme.text,
-                      fontSize: responsiveFontSize(15) * sliderFontScale,
+                      fontSize: responsiveFontSize(15) * (sliderFontPercent / 100),
                     },
                   ]}
                 >

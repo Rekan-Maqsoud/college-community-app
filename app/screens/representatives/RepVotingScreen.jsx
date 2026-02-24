@@ -9,6 +9,9 @@ import {
   StyleSheet,
   StatusBar,
   Modal,
+  ToastAndroid,
+  Platform,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,17 +19,24 @@ import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
 import VoteCard from '../../components/VoteCard';
 import RepBadge from '../../components/RepBadge';
-import { wp, hp, normalize, spacing } from '../../utils/responsive';
+import { wp, hp, fontSize, normalize, spacing } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
 import { getClassStudents } from '../../../database/users';
 import {
   getActiveElection,
+  getLatestElection,
   createElection,
   finalizeElection,
   getClassRepresentatives,
   getNextSeatNumber,
+  requestNextRepresentativeElection,
+  handleElectionTimerExpiry,
+  getElectionDuration,
+  getTiebreakerCandidates,
   ELECTION_STATUS,
   MAX_REPS_PER_CLASS,
+  WINNER_COOLDOWN_MS,
+  TIEBREAKER_DURATION_MS,
 } from '../../../database/repElections';
 import { castVote, getElectionResults } from '../../../database/repVotes';
 
@@ -37,7 +47,7 @@ const RepVotingScreen = ({ navigation, route }) => {
 
   const department = route?.params?.department || user?.department;
   const stage = route?.params?.stage || user?.stage;
-  const seatNumber = route?.params?.seatNumber || 1;
+  const routeSeatNumber = route?.params?.seatNumber;
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -48,10 +58,17 @@ const RepVotingScreen = ({ navigation, route }) => {
   const [menuVisible, setMenuVisible] = useState(false);
   const [classReps, setClassReps] = useState([]);
   const [nextSeat, setNextSeat] = useState(null);
+  const [winnerCountdownMs, setWinnerCountdownMs] = useState(0);
 
   const loadData = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
+      console.log('[REP_DEBUG] RepVotingScreen:loadData:start', {
+        department,
+        stage,
+        routeSeatNumber,
+        showLoading,
+      });
 
       // Load students in this class
       const classStudents = await getClassStudents(department, stage);
@@ -63,27 +80,132 @@ const RepVotingScreen = ({ navigation, route }) => {
       const next = await getNextSeatNumber(department, stage);
       setNextSeat(next);
 
-      // Get or create election for this seat
-      let electionDoc = await getActiveElection(department, stage, seatNumber);
+      // Resolve election context:
+      // 1) prefer active election (seat-specific when requested)
+      // 2) fallback to latest election for status/winner display
+      // 3) create a new election only when needed
+      const targetSeat = routeSeatNumber || next || 1;
+      let electionDoc = routeSeatNumber
+        ? await getActiveElection(department, stage, routeSeatNumber)
+        : await getActiveElection(department, stage);
 
-      if (!electionDoc || electionDoc.status === ELECTION_STATUS.COMPLETED) {
-        electionDoc = await createElection(department, stage, classStudents.length, seatNumber);
+      if (!electionDoc) {
+        electionDoc = routeSeatNumber
+          ? await getLatestElection(department, stage, routeSeatNumber)
+          : await getLatestElection(department, stage);
       }
+
+      if (!electionDoc) {
+        electionDoc = await createElection(department, stage, classStudents.length, targetSeat);
+      } else if (
+        electionDoc.status !== ELECTION_STATUS.ACTIVE
+        && routeSeatNumber
+        && routeSeatNumber === next
+      ) {
+        // User explicitly opened a new seat that has no active election yet
+        electionDoc = await createElection(department, stage, classStudents.length, routeSeatNumber);
+      }
+
+      console.log('[REP_DEBUG] RepVotingScreen:loadData:electionResolved', {
+        electionId: electionDoc?.$id || null,
+        status: electionDoc?.status || null,
+        seatNumber: electionDoc?.seatNumber || null,
+        classStudents: classStudents.length,
+        repsCount: reps.length,
+        nextSeat: next,
+      });
 
       setElection(electionDoc);
 
       // Load vote results
       if (electionDoc) {
         const voteResults = await getElectionResults(electionDoc.$id);
+
+        // Handle timer expiry: auto-finalize or enter tiebreaker
+        if (
+          (electionDoc.status === ELECTION_STATUS.ACTIVE || electionDoc.status === ELECTION_STATUS.TIEBREAKER)
+          && voteResults.totalVotes > 0
+          && electionDoc.startedAt
+        ) {
+          const startedAt = new Date(electionDoc.startedAt).getTime();
+          const duration = getElectionDuration(electionDoc);
+          const now = Date.now();
+          const elapsed = now - startedAt;
+          if (elapsed >= duration) {
+            const handled = await handleElectionTimerExpiry(electionDoc.$id, voteResults);
+            if (handled) {
+              electionDoc = handled;
+              // Re-fetch results after state change
+              if (handled.status === ELECTION_STATUS.TIEBREAKER) {
+                const freshResults = await getElectionResults(electionDoc.$id);
+                setResults(freshResults);
+                setElection(electionDoc);
+                return;
+              }
+            }
+          }
+        }
+
         setResults(voteResults);
+        console.log('[REP_DEBUG] RepVotingScreen:loadData:results', {
+          electionId: electionDoc.$id,
+          totalVotes: voteResults?.totalVotes || 0,
+          myVote: voteResults?.myVote || null,
+        });
       }
     } catch (error) {
+      console.log('[REP_DEBUG] RepVotingScreen:loadData:error', {
+        message: error?.message,
+        department,
+        stage,
+        routeSeatNumber,
+      });
       // Silent fail
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [department, stage, seatNumber]);
+  }, [department, stage, routeSeatNumber]);
+
+  useEffect(() => {
+    const isVotingPhase = election?.status === ELECTION_STATUS.ACTIVE || election?.status === ELECTION_STATUS.TIEBREAKER;
+    if (!election || !isVotingPhase || !election.startedAt || results.totalVotes <= 0) {
+      setWinnerCountdownMs(0);
+      return undefined;
+    }
+
+    const duration = getElectionDuration(election);
+
+    const tick = async () => {
+      const startedAt = new Date(election.startedAt).getTime();
+      const endAt = startedAt + duration;
+      const remaining = Math.max(0, endAt - Date.now());
+      setWinnerCountdownMs(remaining);
+
+      // When timer reaches 0, handle expiry
+      if (remaining === 0) {
+        try {
+          const freshResults = await getElectionResults(election.$id);
+          const handled = await handleElectionTimerExpiry(election.$id, freshResults);
+          if (handled) {
+            setElection(handled);
+            if (handled.status === ELECTION_STATUS.TIEBREAKER) {
+              const tiebreakerResults = await getElectionResults(handled.$id);
+              setResults(tiebreakerResults);
+            } else {
+              setResults(freshResults);
+            }
+          }
+        } catch (err) {
+          console.log('[REP_DEBUG] RepVotingScreen:timerExpiry:error', { message: err?.message });
+        }
+      }
+    };
+
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [election, results.totalVotes]);
 
   useEffect(() => {
     loadData();
@@ -91,26 +213,98 @@ const RepVotingScreen = ({ navigation, route }) => {
 
   const handleVote = useCallback(async (candidateId) => {
     if (!election || voting) return;
+    const isVotingPhase = election.status === ELECTION_STATUS.ACTIVE || election.status === ELECTION_STATUS.TIEBREAKER;
+    if (!isVotingPhase) return;
+
+    // Block voting after timer expired (client-side guard)
+    if (winnerCountdownMs <= 0 && results.totalVotes > 0 && election.startedAt) return;
+
     try {
       setVoting(true);
+      console.log('[REP_DEBUG] RepVotingScreen:handleVote:start', {
+        electionId: election?.$id,
+        electionStatus: election?.status,
+        candidateId,
+        myUserId: user?.$id,
+      });
       await castVote(election.$id, candidateId);
       // Refresh results
       const updated = await getElectionResults(election.$id);
       setResults(updated);
+      console.log('[REP_DEBUG] RepVotingScreen:handleVote:success', {
+        electionId: election?.$id,
+        totalVotes: updated?.totalVotes || 0,
+        myVote: updated?.myVote || null,
+      });
     } catch (error) {
-      // Silent fail
+      console.log('[REP_DEBUG] RepVotingScreen:handleVote:error', {
+        message: error?.message,
+        electionId: election?.$id,
+        candidateId,
+      });
+      if (error?.message === 'Voting time has expired' || error?.message === 'Election is closed') {
+        showToast(t('repVoting.votingClosed'));
+        loadData(false);
+      } else if (error?.message === 'Can only vote for tiebreaker candidates') {
+        showToast(t('repVoting.tiebreakerOnly'));
+      }
     } finally {
       setVoting(false);
     }
-  }, [election, voting]);
+  }, [election, voting, winnerCountdownMs, results.totalVotes]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     loadData(false);
   }, [loadData]);
 
+  const showToast = useCallback((message) => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('', message);
+    }
+  }, []);
+
+  const formatRemaining = (ms) => {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  };
+
+  const handleRequestNextRep = useCallback(async () => {
+    if (!election?.$id || classReps.length === 0) {
+      showToast(t('repVoting.electNextRepDisabled'));
+      return;
+    }
+
+    try {
+      const res = await requestNextRepresentativeElection(election.$id);
+      if (res?.nextElectionStarted && res?.nextSeat) {
+        showToast(t('repVoting.nextRepElectionStarted').replace('{seat}', String(res.nextSeat)));
+        setMenuVisible(false);
+        navigation.push('RepVoting', { department, stage, seatNumber: res.nextSeat });
+        return;
+      }
+      if (res?.alreadyVoted) {
+        showToast(t('repVoting.alreadyRequestedReselection'));
+      } else if (res?.reason === 'max_reps_reached') {
+        showToast(t('repVoting.maxRepsReached'));
+      } else {
+        const voters = Array.isArray(res?.election?.reselectionVoters) ? res.election.reselectionVoters.length : 0;
+        const threshold = res?.election?.reselectionThreshold || 0;
+        showToast(t('repVoting.nextRepRequestProgress').replace('{count}', String(voters)).replace('{threshold}', String(threshold)));
+        setElection(res?.election || election);
+      }
+    } catch (error) {
+      showToast(t('repVoting.voteFailed'));
+    }
+  }, [election, classReps.length, showToast, t, navigation, department, stage]);
+
   // Merge students with vote counts
-  const candidatesWithInfo = students.map((student) => {
+  const allCandidatesWithInfo = students.map((student) => {
     const voteInfo = results.candidates.find((c) => c.candidateId === student.$id);
     return {
       ...student,
@@ -118,17 +312,36 @@ const RepVotingScreen = ({ navigation, route }) => {
     };
   }).sort((a, b) => b.voteCount - a.voteCount);
 
+  const isCompleted = election?.status === ELECTION_STATUS.COMPLETED;
+  const isInTiebreaker = election?.status === ELECTION_STATUS.TIEBREAKER;
+  const isActive = election?.status === ELECTION_STATUS.ACTIVE;
+  const winner = election?.winner || null;
+  const currentSeat = election?.seatNumber || routeSeatNumber || nextSeat || 1;
+  const tiebreakerCandidateIds = isInTiebreaker ? getTiebreakerCandidates(election) : [];
+
+  // During tiebreaker, only show the two tied candidates
+  const candidatesWithInfo = isInTiebreaker && tiebreakerCandidateIds.length > 0
+    ? allCandidatesWithInfo.filter((s) => tiebreakerCandidateIds.includes(s.$id))
+    : allCandidatesWithInfo;
+
   const leadingId = candidatesWithInfo.length > 0 && candidatesWithInfo[0].voteCount > 0
     ? candidatesWithInfo[0].$id
     : null;
 
-  const isCompleted = election?.status === ELECTION_STATUS.COMPLETED;
-  const winner = election?.winner || null;
-  const currentSeat = election?.seatNumber || seatNumber;
+  // Voting is disabled when: completed, or timer expired during active/tiebreaker
+  const timerExpiredDuringVoting = (isActive || isInTiebreaker)
+    && results.totalVotes > 0
+    && election?.startedAt
+    && winnerCountdownMs <= 0;
+  const isVotingDisabled = isCompleted || timerExpiredDuringVoting;
+
+  const canRequestReselection = !!election && isCompleted;
+  const canElectNextRep = !!nextSeat && nextSeat <= MAX_REPS_PER_CLASS && classReps.length >= 1 && classReps.length < MAX_REPS_PER_CLASS;
+  const nextSeatLabel = nextSeat || Math.min((currentSeat || 1) + 1, MAX_REPS_PER_CLASS);
 
   const renderItem = useCallback(({ item }) => {
-    // Don't let user vote for themselves
     const isSelf = item.$id === user?.$id;
+    const isTiebreakerCandidate = isInTiebreaker && tiebreakerCandidateIds.includes(item.$id);
 
     return (
       <VoteCard
@@ -136,23 +349,94 @@ const RepVotingScreen = ({ navigation, route }) => {
         voteCount={item.voteCount}
         isVotedByMe={results.myVote === item.$id}
         isLeading={item.$id === leadingId}
-        onVote={isSelf ? () => {} : handleVote}
+        disabled={isVotingDisabled}
+        isTiebreakerCandidate={isTiebreakerCandidate}
+        onVote={(candidateId) => {
+          if (isVotingDisabled) {
+            showToast(t('repVoting.votingClosed'));
+            return;
+          }
+          if (isSelf) {
+            showToast(t('repVoting.cannotVoteSelf'));
+            return;
+          }
+          handleVote(candidateId);
+        }}
         colors={theme}
         t={t}
       />
     );
-  }, [results.myVote, leadingId, handleVote, theme, t, user?.$id]);
+  }, [results.myVote, leadingId, handleVote, theme, t, user?.$id, showToast, isVotingDisabled, isInTiebreaker, tiebreakerCandidateIds]);
 
-  const renderHeader = () => (
+  const renderHeader = () => {
+    // Find winner name if election is completed
+    const winnerStudent = winner ? students.find(s => s.$id === winner) : null;
+    const winnerName = winnerStudent?.name || winnerStudent?.fullName || '';
+
+    return (
     <View style={styles.headerInfo}>
-      <View style={[styles.infoBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <Ionicons name="information-circle-outline" size={normalize(20)} color={theme.primary} />
-        <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-          {isCompleted
-            ? t('repVoting.electionComplete')
-            : t('repVoting.voteInstruction').replace('{seat}', String(currentSeat))}
-        </Text>
-      </View>
+      {/* Election completed banner */}
+      {isCompleted && winner && (
+        <View style={[styles.winnerBanner, { backgroundColor: (theme.success || '#22C55E') + '15', borderColor: (theme.success || '#22C55E') + '40' }]}>
+          <Ionicons name="trophy" size={fontSize(22)} color={theme.success || '#22C55E'} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.winnerTitle, { color: theme.success || '#22C55E' }]}>
+              {t('repVoting.electionComplete')}
+            </Text>
+            {winnerName ? (
+              <Text style={[styles.winnerName, { color: theme.text }]}>
+                {winnerName}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      )}
+
+      {/* Tiebreaker banner */}
+      {isInTiebreaker && (
+        <View style={[styles.tiebreakerBanner, { backgroundColor: (theme.warning || '#F59E0B') + '15', borderColor: (theme.warning || '#F59E0B') + '40' }]}>
+          <Ionicons name="flash-outline" size={fontSize(20)} color={theme.warning || '#F59E0B'} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.tiebreakerTitle, { color: theme.warning || '#F59E0B' }]}>
+              {t('repVoting.tiebreakerTitle')}
+            </Text>
+            <Text style={[styles.tiebreakerDesc, { color: theme.textSecondary }]}>
+              {t('repVoting.tiebreakerDescription')}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Active voting banner (not tiebreaker) */}
+      {isActive && !isInTiebreaker && (
+        <View style={[styles.activeBanner, { backgroundColor: theme.primary + '15', borderColor: theme.primary + '40' }]}>
+          <Ionicons name="hand-left-outline" size={fontSize(18)} color={theme.primary} />
+          <Text style={[styles.activeBannerText, { color: theme.primary }]}>
+            {t('repVoting.voteInstruction').replace('{seat}', String(currentSeat))}
+          </Text>
+        </View>
+      )}
+
+      {!isCompleted && results.totalVotes > 0 && winnerCountdownMs > 0 && (
+        <View style={[styles.cooldownBanner, { backgroundColor: theme.warning + '15', borderColor: theme.warning + '40' }]}>
+          <Ionicons name="time-outline" size={fontSize(16)} color={theme.warning} />
+          <Text style={[styles.cooldownText, { color: theme.warning }]}>
+            {isInTiebreaker
+              ? t('repVoting.tiebreakerCountdown').replace('{time}', formatRemaining(winnerCountdownMs))
+              : t('repVoting.winnerCooldown').replace('{time}', formatRemaining(winnerCountdownMs))}
+          </Text>
+        </View>
+      )}
+
+      {/* Voting closed banner (timer expired but not yet finalized) */}
+      {isVotingDisabled && !isCompleted && (
+        <View style={[styles.closedBanner, { backgroundColor: (theme.error || '#EF4444') + '15', borderColor: (theme.error || '#EF4444') + '40' }]}>
+          <Ionicons name="lock-closed-outline" size={fontSize(16)} color={theme.error || '#EF4444'} />
+          <Text style={[styles.closedText, { color: theme.error || '#EF4444' }]}>
+            {t('repVoting.votingClosed')}
+          </Text>
+        </View>
+      )}
 
       <View style={styles.statsRow}>
         <View style={[styles.statBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -167,7 +451,7 @@ const RepVotingScreen = ({ navigation, route }) => {
 
       {classReps.length > 0 && (
         <View style={[styles.winnersBox, { backgroundColor: theme.primary + '15', borderColor: theme.primary + '40' }]}>
-          <Ionicons name="trophy" size={normalize(18)} color={theme.primary} />
+          <Ionicons name="trophy" size={fontSize(18)} color={theme.primary} />
           <Text style={[styles.winnersText, { color: theme.primary }]}>
             {t('repVoting.currentReps')}: {classReps.length}/{MAX_REPS_PER_CLASS}
           </Text>
@@ -176,7 +460,7 @@ const RepVotingScreen = ({ navigation, route }) => {
 
       {currentSeat > 1 && (
         <View style={[styles.seatBadge, { backgroundColor: theme.warning + '20', borderColor: theme.warning + '40' }]}>
-          <Ionicons name="ribbon-outline" size={normalize(16)} color={theme.warning} />
+          <Ionicons name="ribbon-outline" size={fontSize(16)} color={theme.warning} />
           <Text style={[styles.seatBadgeText, { color: theme.warning }]}>
             {t('repVoting.electingSeat').replace('{seat}', String(currentSeat))}
           </Text>
@@ -188,6 +472,7 @@ const RepVotingScreen = ({ navigation, route }) => {
       </Text>
     </View>
   );
+  };
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
@@ -237,35 +522,54 @@ const RepVotingScreen = ({ navigation, route }) => {
       <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
         <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={() => setMenuVisible(false)}>
           <View style={[styles.menuContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            {/* Reselect current seat */}
             <TouchableOpacity
-              style={styles.menuItem}
+              disabled={!canRequestReselection}
+              style={[styles.menuItem, !canRequestReselection && styles.menuItemDisabled]}
               onPress={() => {
+                if (!canRequestReselection) return;
                 setMenuVisible(false);
                 navigation.navigate('ReselectionRequest', { election, department, stage, seatNumber: currentSeat });
               }}
             >
-              <Ionicons name="refresh-outline" size={normalize(20)} color={theme.text} />
-              <Text style={[styles.menuItemText, { color: theme.text }]}>
+              <Ionicons
+                name="refresh-outline"
+                size={normalize(20)}
+                color={canRequestReselection ? theme.text : theme.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.menuItemText,
+                  { color: canRequestReselection ? theme.text : theme.textSecondary },
+                ]}
+              >
                 {t('repVoting.requestReselection')}
               </Text>
             </TouchableOpacity>
 
-            {/* Elect next rep (only if fewer than 3 reps and next seat available) */}
-            {nextSeat && nextSeat <= MAX_REPS_PER_CLASS && classReps.length < MAX_REPS_PER_CLASS && (
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => {
-                  setMenuVisible(false);
-                  navigation.push('RepVoting', { department, stage, seatNumber: nextSeat });
-                }}
+            <TouchableOpacity
+              disabled={!canElectNextRep}
+              style={[styles.menuItem, !canElectNextRep && styles.menuItemDisabled]}
+              onPress={() => {
+                if (!canElectNextRep) return;
+                handleRequestNextRep();
+              }}
+            >
+              <Ionicons
+                name="person-add-outline"
+                size={normalize(20)}
+                color={canElectNextRep ? theme.primary : theme.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.menuItemText,
+                  { color: canElectNextRep ? theme.primary : theme.textSecondary },
+                ]}
               >
-                <Ionicons name="person-add-outline" size={normalize(20)} color={theme.primary} />
-                <Text style={[styles.menuItemText, { color: theme.primary }]}>
-                  {t('repVoting.electNextRep').replace('{seat}', String(nextSeat))}
-                </Text>
-              </TouchableOpacity>
-            )}
+                {classReps.length === 0
+                  ? t('repVoting.electNextRep').replace('{seat}', '1')
+                  : t('repVoting.requestNextRep').replace('{seat}', String(nextSeatLabel))}
+              </Text>
+            </TouchableOpacity>
 
             {/* Max reps reached label */}
             {classReps.length >= MAX_REPS_PER_CLASS && (
@@ -335,6 +639,54 @@ const styles = StyleSheet.create({
   },
   headerInfo: {
     marginBottom: spacing.md,
+  },
+  winnerBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: wp(4),
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+  },
+  winnerTitle: {
+    fontSize: normalize(14),
+    fontWeight: '700',
+  },
+  winnerName: {
+    fontSize: normalize(16),
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  activeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: wp(3.5),
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+  },
+  activeBannerText: {
+    flex: 1,
+    fontSize: normalize(13),
+    fontWeight: '600',
+    lineHeight: normalize(18),
+  },
+  cooldownBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: wp(3),
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+  },
+  cooldownText: {
+    flex: 1,
+    fontSize: normalize(12),
+    fontWeight: '600',
   },
   infoBox: {
     flexDirection: 'row',
@@ -423,6 +775,9 @@ const styles = StyleSheet.create({
     paddingVertical: hp(1.4),
     paddingHorizontal: wp(4),
   },
+  menuItemDisabled: {
+    opacity: 0.55,
+  },
   menuItemText: {
     fontSize: normalize(14),
     fontWeight: '500',
@@ -438,6 +793,39 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   seatBadgeText: {
+    fontSize: normalize(12),
+    fontWeight: '600',
+  },
+  tiebreakerBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: wp(4),
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+  },
+  tiebreakerTitle: {
+    fontSize: normalize(14),
+    fontWeight: '700',
+  },
+  tiebreakerDesc: {
+    fontSize: normalize(12),
+    marginTop: 2,
+    lineHeight: normalize(17),
+  },
+  closedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: wp(3),
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+  },
+  closedText: {
+    flex: 1,
     fontSize: normalize(12),
     fontWeight: '600',
   },

@@ -7,7 +7,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { getActiveElection, getClassRepresentatives, getNextSeatNumber, ELECTION_STATUS } from '../../database/repElections';
+import { getActiveElection, getLatestElection, getClassRepresentatives, getNextSeatNumber, ensureActiveElectionsForAllClasses, ELECTION_STATUS } from '../../database/repElections';
+import { getMyVote } from '../../database/repVotes';
 import safeStorage from '../utils/safeStorage';
 
 const DISMISS_KEY = 'rep_popup_dismissed';
@@ -25,11 +26,18 @@ const useRepDetection = (user) => {
 
   const check = useCallback(async () => {
     if (!department || !stage) {
+      console.log('[REP_DEBUG] useRepDetection:skipMissingContext', { department, stage });
       setLoading(false);
       return;
     }
 
     try {
+      console.log('[REP_DEBUG] useRepDetection:checkStart', {
+        userId: user?.$id,
+        department,
+        stage,
+      });
+      await ensureActiveElectionsForAllClasses();
       setLoading(true);
 
       // Check dismissal cache (per dept+stage, expires after 24h)
@@ -48,26 +56,52 @@ const useRepDetection = (user) => {
       setCurrentWinners(repIds);
       setTotalReps(reps.length);
 
-      // Check if there's an active election for seat 1
-      const election = await getActiveElection(department, stage);
+      // Check if there's an active election (status=active only)
+      const activeElection = await getActiveElection(department, stage);
+      // Also get the latest election regardless of status for context
+      const latestElection = await getLatestElection(department, stage);
 
-      if (!election && reps.length === 0) {
+      console.log('[REP_DEBUG] useRepDetection:data', {
+        repsCount: reps.length,
+        activeElectionId: activeElection?.$id || null,
+        activeElectionStatus: activeElection?.status || null,
+        latestElectionId: latestElection?.$id || null,
+        latestElectionStatus: latestElection?.status || null,
+      });
+
+      if (activeElection) {
+        const myVote = await getMyVote(activeElection.$id);
+        const alreadyVoted = !!myVote?.candidateId;
+        // There is an active election — show popup so users can vote
+        setNeedsRep(!alreadyVoted);
+        setCurrentElection(activeElection);
+        console.log('[REP_DEBUG] useRepDetection:needsRepActiveElection', {
+          electionId: activeElection.$id,
+          alreadyVoted,
+        });
+      } else if (reps.length === 0 && !latestElection) {
         // No election ever, no reps → needs first rep
         setNeedsRep(true);
         setCurrentElection(null);
-      } else if (election && election.status === ELECTION_STATUS.ACTIVE) {
-        // There is an active election
-        setNeedsRep(false);
-        setCurrentElection(election);
-      } else if (reps.length > 0) {
+        console.log('[REP_DEBUG] useRepDetection:needsRepNoElectionNoRep');
+      } else if (reps.length === 0 && latestElection && latestElection.status !== ELECTION_STATUS.ACTIVE && latestElection.status !== ELECTION_STATUS.TIEBREAKER) {
+        // Had elections but no current reps → needs rep
+        setNeedsRep(true);
+        setCurrentElection(latestElection);
+        console.log('[REP_DEBUG] useRepDetection:needsRepNoRepLatestExists', {
+          latestStatus: latestElection.status,
+        });
+      } else {
         // Has reps, no active election
         setNeedsRep(false);
-        setCurrentElection(election || null);
-      } else {
-        setNeedsRep(true);
-        setCurrentElection(election || null);
+        setCurrentElection(latestElection || null);
+        console.log('[REP_DEBUG] useRepDetection:noPopupNeeded', {
+          repsCount: reps.length,
+          latestStatus: latestElection?.status || null,
+        });
       }
     } catch (error) {
+      console.log('[REP_DEBUG] useRepDetection:error', { message: error?.message });
       setNeedsRep(false);
     } finally {
       setLoading(false);
@@ -105,7 +139,7 @@ const useRepDetection = (user) => {
 
   return {
     needsRep: needsRep && !dismissed,
-    hasActiveElection: currentElection?.status === ELECTION_STATUS.ACTIVE,
+    hasActiveElection: currentElection?.status === ELECTION_STATUS.ACTIVE || currentElection?.status === ELECTION_STATUS.TIEBREAKER,
     currentElection,
     currentWinners,
     totalReps,

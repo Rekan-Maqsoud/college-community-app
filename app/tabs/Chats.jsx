@@ -111,22 +111,23 @@ const Chats = ({ navigation }) => {
       ? await decryptChatPreview(payload, user.$id)
       : payload;
     
-    // Update the chat in the appropriate list
-    const updateChatInList = (list, setList) => {
-      const index = list.findIndex(c => c.$id === resolvedPayload.$id);
-      if (index >= 0) {
-        setList(prev => {
-          const updated = [...prev];
-          updated[index] = { ...updated[index], ...resolvedPayload };
-          return updated.sort((a, b) => {
-            const dateA = new Date(a.lastMessageAt || a.$createdAt || 0);
-            const dateB = new Date(b.lastMessageAt || b.$createdAt || 0);
-            return dateB - dateA;
-          });
+    // Update the chat in the appropriate list using functional state updates
+    // to avoid stale closure issues
+    const updateChatInList = (setList) => {
+      let found = false;
+      setList(prev => {
+        const index = prev.findIndex(c => c.$id === resolvedPayload.$id);
+        if (index < 0) return prev;
+        found = true;
+        const updated = [...prev];
+        updated[index] = { ...updated[index], ...resolvedPayload };
+        return updated.sort((a, b) => {
+          const dateA = new Date(a.lastMessageAt || a.$createdAt || 0);
+          const dateB = new Date(b.lastMessageAt || b.$createdAt || 0);
+          return dateB - dateA;
         });
-        return true;
-      }
-      return false;
+      });
+      return found;
     };
 
     const addChatToList = async () => {
@@ -189,19 +190,19 @@ const Chats = ({ navigation }) => {
       return false;
     };
 
-    // Try updating in each list
-    let updated = updateChatInList(defaultGroups, setDefaultGroups);
+    // Try updating in each list using functional updates (no stale closure)
+    let updated = updateChatInList(setDefaultGroups);
     if (!updated) {
-      updated = updateChatInList(customGroups, setCustomGroups);
+      updated = updateChatInList(setCustomGroups);
     }
     if (!updated) {
-      updated = updateChatInList(privateChats, setPrivateChats);
+      updated = updateChatInList(setPrivateChats);
     }
     if (!updated) {
       await addChatToList();
     }
 
-  }, [defaultGroups, customGroups, privateChats, user?.$id]);
+  }, [user?.$id]);
 
   // Subscribe to chat list updates
   useChatList(user?.$id, handleRealtimeChatUpdate, !!user?.$id);
@@ -264,10 +265,7 @@ const Chats = ({ navigation }) => {
   };
 
   const loadChats = async (useCache = true, options = {}) => {
-    console.log('[DB_DEBUG] Chats.loadChats() called');
-    console.log('[DB_DEBUG] Chats user:', user ? { $id: user.$id, department: user.department, stage: user.stage } : null);
     if (!user?.department) {
-      console.log('[DB_DEBUG] Chats.loadChats() BAILED: user.department missing');
       setLoading(false);
       return;
     }
@@ -279,7 +277,6 @@ const Chats = ({ navigation }) => {
       const stageValue = stageToValue(user.stage);
       
       const chats = await getAllUserChats(user.$id, user.department, stageValue, useCache);
-      console.log('[DB_DEBUG] Chats loaded:', { defaults: (chats.defaultGroups || []).length, custom: (chats.customGroups || []).length, private: (chats.privateChats || []).length });
       setDefaultGroups(chats.defaultGroups || []);
       setCustomGroups(chats.customGroups || []);
 
@@ -348,7 +345,6 @@ const Chats = ({ navigation }) => {
 
       loadAuxiliaryData();
     } catch (error) {
-      console.log('[DB_DEBUG] Chats.loadChats() ERROR:', error?.message, error?.code, error?.type);
       setDefaultGroups([]);
       setCustomGroups([]);
       setPrivateChats([]);
@@ -1123,9 +1119,17 @@ const Chats = ({ navigation }) => {
           </LinearGradient>
 
           <RepDetectionPopup
-            visible={needsRep || hasActiveElection}
+            visible={needsRep}
             hasActiveElection={hasActiveElection}
             onVote={() => {
+              console.log('[REP_DEBUG] Chats:onVoteFromPopup', {
+                userId: user?.$id,
+                department: user?.department,
+                stage: user?.stage,
+                hasActiveElection,
+                needsRep,
+                currentElectionId: currentElection?.$id || null,
+              });
               dismissRepPopup();
               navigation.navigate('RepVoting', { department: user?.department, stage: user?.stage });
             }}

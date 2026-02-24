@@ -10,25 +10,28 @@ export const UserProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [sessionChecked, setSessionChecked] = useState(false);
 
+  const normalizeRole = (roleValue) => {
+    if (roleValue === null || roleValue === undefined) return 'student';
+    const text = String(roleValue).trim().toLowerCase();
+    if (!text || text === 'null' || text === 'undefined') return 'student';
+    return text;
+  };
+
   useEffect(() => {
     initializeUser();
   }, []);
 
   const initializeUser = async () => {
-    console.log('[DB_DEBUG] initializeUser() called');
     try {
       setIsLoading(true);
       
           const cachedData = await safeStorage.getItem('userData');
       const cached = cachedData ? JSON.parse(cachedData) : null;
-      console.log('[DB_DEBUG] cached user:', cached ? { $id: cached.$id, department: cached.department, stage: cached.stage } : null);
       
       const appwriteUser = await getCurrentUser();
-      console.log('[DB_DEBUG] getCurrentUser() returned:', appwriteUser ? { $id: appwriteUser.$id, email: appwriteUser.email } : null);
       
       if (appwriteUser) {
         const completeUserData = await getCompleteUserData();
-        console.log('[DB_DEBUG] getCompleteUserData() returned:', completeUserData ? { $id: completeUserData.$id, department: completeUserData.department, year: completeUserData.year, name: completeUserData.name } : null);
         
         if (completeUserData) {
           // Parse socialLinks from profileViews field (stored as JSON string)
@@ -52,7 +55,7 @@ export const UserProvider = ({ children }) => {
             college: completeUserData.major || '',
             department: completeUserData.department || '',
             stage: yearToStage(completeUserData.year),
-            role: completeUserData.role || 'student',
+            role: normalizeRole(completeUserData.role),
             postsCount: completeUserData.postsCount || 0,
             followersCount: completeUserData.followersCount || 0,
             followingCount: completeUserData.followingCount || 0,
@@ -64,17 +67,15 @@ export const UserProvider = ({ children }) => {
             chatBlockedUsers: completeUserData.chatBlockedUsers || [],
           };
           
-          console.log('[DB_DEBUG] Final user object:', { $id: userData.$id, department: userData.department, stage: userData.stage, college: userData.college });
               await safeStorage.setItem('userData', JSON.stringify(userData));
           setUser(userData);
           
           // Restore bookmarks from server in background (for fresh installs)
           restoreBookmarksFromServer(userData.$id).catch(() => {});
         } else {
-          console.log('[DB_DEBUG] completeUserData was null/undefined');
+          // completeUserData was null
         }
       } else {
-        console.log('[DB_DEBUG] No active session, falling back to cache');
         if (cached) {
           setUser(cached);
         } else {
@@ -83,19 +84,17 @@ export const UserProvider = ({ children }) => {
         }
       }
     } catch (error) {
-      console.log('[DB_DEBUG] initializeUser() CAUGHT ERROR:', error?.message, error?.code, error?.type);
       try {
             const cachedData = await safeStorage.getItem('userData');
         if (cachedData) {
           setUser(JSON.parse(cachedData));
         }
       } catch (cacheError) {
-        console.log('[DB_DEBUG] Cache fallback also failed:', cacheError?.message);
+        // Cache fallback failed
       }
     } finally {
       setIsLoading(false);
       setSessionChecked(true);
-      console.log('[DB_DEBUG] initializeUser() finished');
     }
   };
 
@@ -131,7 +130,7 @@ export const UserProvider = ({ children }) => {
             college: completeUserData.major || '',
             department: completeUserData.department || '',
             stage: yearToStage(completeUserData.year),
-            role: completeUserData.role || 'student',
+            role: normalizeRole(completeUserData.role),
             postsCount: completeUserData.postsCount || 0,
             followersCount: completeUserData.followersCount || 0,
             followingCount: completeUserData.followingCount || 0,
@@ -178,6 +177,7 @@ export const UserProvider = ({ children }) => {
   };
 
   const yearToStage = (year) => {
+    if (year === null || year === undefined) return null;
     const yearMap = {
       1: 'firstYear',
       2: 'secondYear',
@@ -186,7 +186,7 @@ export const UserProvider = ({ children }) => {
       5: 'fifthYear',
       6: 'sixthYear'
     };
-    return yearMap[year] || year?.toString() || '';
+    return yearMap[year] || yearMap[parseInt(year)] || null;
   };
 
   const updateUser = async (updates) => {

@@ -401,7 +401,7 @@ export default {
     newPassword: 'كلمة المرور الجديدة',
     useEducationalEmail: 'يرجى استخدام بريدك التعليمي (مثال: name@university.edu)',
   },
-  
+
   // Universities
   universities: {
     // Kurdistan Region Universities
@@ -416,19 +416,19 @@ export default {
     halabja: 'جامعة حلبجة',
     garmian: 'جامعة گرميان',
     soran: 'جامعة سوران',
-    
+
     // Baghdad and Central Iraq
     baghdad: 'جامعة بغداد',
     mustansiriya: 'الجامعة المستنصرية',
     iraqi: 'الجامعة العراقية',
     technology: 'الجامعة التكنولوجية',
     nahrain: 'جامعة النهرين',
-    
+
     // Northern Iraq
     mosul: 'جامعة الموصل',
     tikrit: 'جامعة تكريت',
     anbar: 'جامعة الأنبار',
-    
+
     // Southern Iraq
     basra: 'جامعة البصرة',
     kufa: 'جامعة الكوفة',
@@ -437,7 +437,7 @@ export default {
     thi_qar: 'جامعة ذي قار',
     karbala: 'جامعة كربلاء',
     babylon: 'جامعة بابل',
-    
+
     // Private Universities
     americanUniversity: 'الجامعة الأمريكية في السليمانية',
     cihan: 'جامعة جيهان',
@@ -451,7 +451,7 @@ export default {
     knowledgeUniversity: 'جامعة المعرفة',
     komar: 'جامعة كومار للعلوم والتكنولوجيا',
   },
-  
+
   // Colleges/Departments
   colleges: {
     // Erbil Polytechnic University - Technical Colleges
@@ -468,7 +468,7 @@ export default {
     technicalAdministration: 'كلية الإدارة التقنية',
     technicalHealth: 'كلية التقنيات الصحية والطبية',
     technicalComputer: 'كلية الحاسوب التقنية',
-    
+
     // Technical Institutes
     erbilTechnical: 'المعهد التقني أربيل',
     shaqlawaTechnical: 'المعهد التقني شقلاوة',
@@ -476,14 +476,14 @@ export default {
     mergasurTechnical: 'المعهد التقني ميركه سور',
     akre: 'المعهد التقني عقرة',
     soran: 'المعهد التقني سوران',
-    
+
     // General Colleges - Sciences
     engineering: 'الهندسة',
     computerScience: 'علوم الحاسوب',
     informationTechnology: 'تقنية المعلومات',
     science: 'العلوم',
     appliedSciences: 'العلوم التطبيقية',
-    
+
     // Medical Colleges
     medicine: 'الطب',
     dentistry: 'طب الأسنان',
@@ -492,7 +492,7 @@ export default {
     medicalTechnology: 'تقنيات طبية',
     publicHealth: 'الصحة العامة',
     veterinary: 'الطب البيطري',
-    
+
     // Humanities and Social Sciences
     arts: 'الآداب',
     law: 'القانون',
@@ -501,21 +501,21 @@ export default {
     basicEducation: 'التربية الأساسية',
     languages: 'اللغات',
     islamicStudies: 'العلوم الإسلامية',
-    
+
     // Business and Management
     businessAdministration: 'إدارة الأعمال',
     economics: 'العلوم الاقتصادية والإدارية',
     commerce: 'التجارة',
-    
+
     // Agriculture and Environment
     agriculture: 'الزراعة',
     agriculturalEngineering: 'الهندسة الزراعية',
-    
+
     // Arts and Sports
     fineArts: 'الفنون الجميلة',
     physicalEducation: 'التربية الرياضية وعلوم الرياضة',
     media: 'الإعلام',
-    
+
     // Other Specializations
     archaeology: 'الآثار',
     tourism: 'علوم السياحة',
@@ -590,7 +590,7 @@ export default {
     collegeOfArts: 'كلية الآداب',
     collegeOfBusiness: 'كلية الأعمال',
   },
-  
+
   // Academic Stages
   stages: {
     firstYear: 'المرحلة 1',
@@ -639,7 +639,7 @@ export default {
     electronics: 'الهندسة الإلكترونية',
     surveying: 'هندسة المساحة',
     construction: 'هندسة البناء والإنشاءات',
-    
+
     // Medicine Departments
     surgery: 'الجراحة',
     internalMedicine: 'الطب الباطني',
@@ -653,7 +653,7 @@ export default {
     anatomy: 'التشريح',
     physiology: 'علم وظائف الأعضاء',
     biochemistry: 'الكيمياء الحيوية',
-    
+
     // Dentistry Departments
     oralSurgery: 'جراحة الفم والوجه والفكين',
     orthodontics: 'تقويم الأسنان',
@@ -661,14 +661,14 @@ export default {
     prosthodontics: 'التعويضات السنية',
     pediatricDentistry: 'طب أسنان الأطفال',
     oralPathology: 'أمراض الفم',
-    
+
     // Pharmacy Departments
     pharmaceuticalChemistry: 'الكيمياء الصيدلانية',
     pharmacology: 'علم الأدوية',
     pharmaceutics: 'الصيدلانيات',
     clinicalPharmacy: 'الصيدلة السريرية',
     pharmacognosy: 'علم العقاقير',
-    
+
     // Nursing Departments
     adultNursing: 'تمريض البالغين',
     pediatricNursing: 'تمريض الأطفال',
@@ -676,7 +676,7 @@ export default {
     communityHealth: 'تمريض صحة المجتمع',
     maternalHealth: 'تمريض صحة الأمومة',
     criticalCare: 'تمريض العناية المركزة',
-    
+
     // Science Departments
     mathematics: 'الرياضيات',
     physics: 'الفيزياء',
@@ -686,7 +686,7 @@ export default {
     statistics: 'الإحصاء',
     geology: 'الجيولوجيا',
     biotechnology: 'التقنية الحيوية',
-    
+
     // Computer Science & IT Departments
     ICTE: 'هندسة تكنولوجيا المعلومات والاتصالات',
     ISE: 'هندسة نظم المعلومات',
@@ -705,7 +705,7 @@ export default {
     systemsAdministration: 'إدارة الأنظمة',
     webDesign: 'تصميم الويب',
     databaseManagement: 'إدارة قواعد البيانات',
-    
+
     // Arts & Humanities Departments
     english: 'اللغة الإنجليزية',
     arabic: 'اللغة العربية',
@@ -721,7 +721,7 @@ export default {
     spanish: 'اللغة الإسبانية',
     turkish: 'اللغة التركية',
     persian: 'اللغة الفارسية',
-    
+
     // Law Departments
     publicLaw: 'القانون العام',
     privateLaw: 'القانون الخاص',
@@ -729,7 +729,7 @@ export default {
     internationalLaw: 'القانون الدولي',
     commercialLaw: 'القانون التجاري',
     islamicLaw: 'الشريعة الإسلامية',
-    
+
     // Education Departments
     educationalPsychology: 'علم النفس التربوي',
     curriculumInstruction: 'المناهج وطرق التدريس',
@@ -741,7 +741,7 @@ export default {
     science: 'تعليم العلوم',
     socialStudies: 'الدراسات الاجتماعية',
     islamicStudies: 'الدراسات الإسلامية',
-    
+
     // Business Administration Departments
     accounting: 'المحاسبة',
     accountingTechniques: 'تقنيات المحاسبة',
@@ -756,7 +756,7 @@ export default {
     mediaTechniques: 'تقنيات الإعلام',
     hotelManagement: 'إدارة الفنادق',
     tourism: 'إدارة السياحة',
-    
+
     // Economics & Political Science
     microeconomics: 'الاقتصاد الجزئي',
     macroeconomics: 'الاقتصاد الكلي',
@@ -768,7 +768,7 @@ export default {
     politicalTheory: 'النظرية السياسية',
     comparativePolitics: 'السياسة المقارنة',
     publicAdministration: 'الإدارة العامة',
-    
+
     // Fine Arts Departments
     painting: 'الرسم',
     sculpture: 'النحت',
@@ -776,7 +776,7 @@ export default {
     theater: 'المسرح',
     photography: 'التصوير الفوتوغرافي',
     graphicDesign: 'التصميم الجرافيكي',
-    
+
     // Agriculture Departments
     cropScience: 'علوم المحاصيل',
     animalScience: 'علوم الحيوان',
@@ -784,21 +784,21 @@ export default {
     horticulture: 'البستنة',
     agriculturalEconomics: 'الاقتصاد الزراعي',
     foodScience: 'علوم الأغذية',
-    
+
     // Veterinary Departments
     animalSurgery: 'جراحة الحيوان',
     internalMedicine: 'الطب الباطني',
     pathology: 'علم الأمراض',
     publicHealth: 'الصحة العامة',
     pharmacology: 'علم الأدوية',
-    
+
     // Physical Education Departments
     sportsTraining: 'التدريب الرياضي',
     sportsManagement: 'الإدارة الرياضية',
     physicalTherapy: 'العلاج الطبيعي',
     sportsScience: 'علوم الرياضة',
     recreation: 'الترويح',
-    
+
     // Islamic Studies Departments
     quran: 'القرآن الكريم وعلومه',
     hadith: 'علوم الحديث',
@@ -806,7 +806,7 @@ export default {
     islamicHistory: 'التاريخ الإسلامي',
     comparativeReligion: 'الأديان المقارنة',
     islamicPhilosophy: 'الفلسفة الإسلامية',
-    
+
     // Technical Health Departments
     medicalLaboratory: 'المختبرات الطبية',
     nursing: 'التمريض',
@@ -814,13 +814,13 @@ export default {
     pathologicalAnalysis: 'التحليلات المرضية',
     midwifery: 'القبالة',
     dentalHealth: 'صحة الأسنان',
-    
+
     // Applied Sciences
     appliedPhysics: 'الفيزياء التطبيقية',
     appliedChemistry: 'الكيمياء التطبيقية',
     appliedMathematics: 'الرياضيات التطبيقية',
     environmentalScience: 'العلوم البيئية',
-    
+
     // Archaeology & Tourism
     ancientCivilizations: 'الحضارات القديمة',
     islamicArchaeology: 'الآثار الإسلامية',
@@ -829,13 +829,13 @@ export default {
     tourismManagement: 'إدارة السياحة',
     tourGuiding: 'الإرشاد السياحي',
     culturalHeritage: 'التراث الثقافي',
-    
+
     // Media Departments
     broadcasting: 'الإذاعة والتلفزيون',
     publicRelations: 'العلاقات العامة',
     advertising: 'الإعلان',
     filmProduction: 'إنتاج الأفلام',
-    
+
     // General
     general: 'عام',
 
@@ -971,7 +971,7 @@ export default {
     petrochemicalEngineering: 'الهندسة البتروكيميائية',
     plantProtection: 'وقاية النبات',
   },
-  
+
   // Tab Navigation
   tabs: {
     home: 'الرئيسية',
@@ -1142,7 +1142,7 @@ export default {
     channelUnavailableTitle: 'القناة غير متاحة',
     channelUnavailableMessage: 'تم حذف هذه القناة أو لم تعد متاحة.',
   },
-  
+
   // Home Screen
   home: {
     welcome: 'مرحباً بعودتك',
@@ -1163,7 +1163,7 @@ export default {
     filterSort: 'تصفية وترتيب الخلاصة',
     scrollToTop: 'التمرير إلى الأعلى',
   },
-  
+
   // Chats Screen
   chats: {
     title: 'الرسائل',
@@ -1516,7 +1516,7 @@ export default {
     customReactionPlaceholder: 'اكتب رمزاً تعبيرياً',
     reactionDefaultsTitle: 'تفاعلات افتراضية',
   },
-  
+
   // Lecture Screen
   lecture: {
     myLectures: 'محاضراتي',
@@ -1527,7 +1527,7 @@ export default {
     emptyTitle: 'لا توجد موارد بعد',
     emptyMessage: 'ستظهر ملاحظات محاضراتك والمواد الدراسية هنا',
   },
-  
+
   // Profile Screen
   profile: {
     myProfile: 'ملفي الشخصي',
@@ -1571,7 +1571,7 @@ export default {
     noFollowers: 'لا يوجد متابعون حتى الآن',
     noFollowing: 'لا تتابع أي شخص حتى الآن',
   },
-  
+
   // Settings Screen
   settings: {
     title: 'الإعدادات',
@@ -1704,6 +1704,17 @@ export default {
     logoutDesc: 'تسجيل الخروج من حسابك',
     logoutConfirm: 'هل أنت متأكد من تسجيل الخروج؟',
     logoutError: 'فشل تسجيل الخروج. حاول مرة أخرى.',
+    deleteAccount: 'حذف الحساب',
+    deleteAccountDesc: 'حذف حسابك وجميع بياناتك نهائياً',
+    deleteAccountConfirm: 'هذا الإجراء دائم ولا يمكن التراجع عنه. سيتم حذف جميع بياناتك.',
+    deleteAccountAction: 'حذف الحساب',
+    deleteAccountError: 'فشل حذف الحساب. حاول مرة أخرى.',
+    enterPasswordToDelete: 'أدخل كلمة المرور للتأكيد',
+    passwordRequiredForDelete: 'كلمة المرور مطلوبة لحذف حسابك.',
+    incorrectPassword: 'كلمة المرور غير صحيحة. حاول مرة أخرى.',
+    deleteWarningPosts: 'سيتم حذف جميع منشوراتك وردودك',
+    deleteWarningMessages: 'سيظهر اسمك في المحادثات كـ "حساب محذوف"',
+    deleteWarningIrreversible: 'لا يمكن التراجع عن هذا الإجراء',
     // Chat Customization
     chatCustomization: 'تخصيص المحادثات',
     chatCustomizationDesc: 'نمط الفقاعات والألوان والخلفيات',
@@ -1790,7 +1801,7 @@ export default {
     classRepresentative: 'ممثل الصف',
     classRepresentativeDesc: 'صوّت أو شاهد ممثل صفك',
   },
-  
+
   // Post Feature
   post: {
     createPost: 'إنشاء منشور',
@@ -1979,7 +1990,7 @@ export default {
     hideReplies: 'إخفاء الردود',
     liked: 'أعجبني',
   },
-  
+
   // Search
   search: {
     placeholder: 'البحث عن مستخدمين، منشورات...',
@@ -2212,6 +2223,16 @@ export default {
     voteSuccess: 'تم تسجيل التصويت',
     voteFailed: 'فشل في تسجيل التصويت',
     electNextRep: 'انتخاب الممثل #{seat}',
+    requestNextRep: 'طلب انتخاب الممثل #{seat}',
+    electNextRepDisabled: 'انتخاب الممثل #1 نشط بالفعل',
+    nextRepRequestProgress: 'الطلبات: {count}/{threshold}',
+    nextRepElectionStarted: 'بدأ انتخاب الممثل #{seat}',
+    winnerCooldown: 'اختيار الفائز خلال: {time}',
+    tiebreakerTitle: 'جولة فاصلة!',
+    tiebreakerDescription: 'مرشحان متعادلان. لديك ساعة واحدة للتصويت بينهما. فقط هذان المرشحان يمكنهما تلقي الأصوات.',
+    tiebreakerCountdown: 'الجولة الفاصلة تنتهي خلال: {time}',
+    tiebreakerOnly: 'يمكنك فقط التصويت للمرشحَين المتعادلَين',
+    votingClosed: 'انتهى التصويت',
     maxRepsReached: 'تم الوصول إلى الحد الأقصى 3 ممثلين',
     electingSeat: 'انتخاب الممثل رقم {seat}',
   },

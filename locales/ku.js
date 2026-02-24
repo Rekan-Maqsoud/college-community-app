@@ -401,7 +401,7 @@ export default {
     newPassword: 'وشەی نهێنی نوێ',
     useEducationalEmail: 'تکایە ئیمەیڵی خوێندنگایی بەکاربهێنە (وەک: name@university.edu)',
   },
-  
+
   // Universities
   universities: {
     // Kurdistan Region Universities
@@ -416,19 +416,19 @@ export default {
     halabja: 'زانکۆی هەڵەبجە',
     garmian: 'زانکۆی گەرمیان',
     soran: 'زانکۆی سۆران',
-    
+
     // Baghdad and Central Iraq
     baghdad: 'زانکۆی بەغدا',
     mustansiriya: 'زانکۆی موستەنسریە',
     iraqi: 'زانکۆی عێراقی',
     technology: 'زانکۆی تەکنەلۆژیا',
     nahrain: 'زانکۆی نەهرەین',
-    
+
     // Northern Iraq
     mosul: 'زانکۆی مووسڵ',
     tikrit: 'زانکۆی تکریت',
     anbar: 'زانکۆی ئەنبار',
-    
+
     // Southern Iraq
     basra: 'زانکۆی بەسرە',
     kufa: 'زانکۆی کوفە',
@@ -437,7 +437,7 @@ export default {
     thi_qar: 'زانکۆی زیقار',
     karbala: 'زانکۆی کەربەلا',
     babylon: 'زانکۆی بابل',
-    
+
     // Private Universities
     americanUniversity: 'زانکۆی ئەمریکی لە سلێمانی',
     cihan: 'زانکۆی جیهان',
@@ -451,7 +451,7 @@ export default {
     knowledgeUniversity: 'زانکۆی زانیاری',
     komar: 'زانکۆی کۆمار بۆ زانست و تەکنەلۆژیا',
   },
-  
+
   // Colleges/Departments
   colleges: {
     // Erbil Polytechnic University - Technical Colleges
@@ -468,7 +468,7 @@ export default {
     technicalAdministration: 'کۆلێژی بەڕێوەبردنی تەکنیکی',
     technicalHealth: 'کۆلێژی تەندروستی و تەکنیکی پزیشکی',
     technicalComputer: 'کۆلێژی کۆمپیوتەری تەکنیکی',
-    
+
     // Technical Institutes
     erbilTechnical: 'پەیمانگای تەکنیکی هەولێر',
     shaqlawaTechnical: 'پەیمانگای تەکنیکی شەقڵاوە',
@@ -476,14 +476,14 @@ export default {
     mergasurTechnical: 'پەیمانگای تەکنیکی مێرگەسوور',
     akre: 'پەیمانگای تەکنیکی عەقرێ',
     soran: 'پەیمانگای تەکنیکی سۆران',
-    
+
     // General Colleges - Sciences
     engineering: 'ئەندازیاری',
     computerScience: 'زانستی کۆمپیوتەر',
     informationTechnology: 'تەکنەلۆژیای زانیاری',
     science: 'زانست',
     appliedSciences: 'زانستە جێبەجێکراوەکان',
-    
+
     // Medical Colleges
     medicine: 'پزیشکی',
     dentistry: 'پزیشکی ددان',
@@ -492,7 +492,7 @@ export default {
     medicalTechnology: 'تەکنیکی پزیشکی',
     publicHealth: 'تەندروستی گشتی',
     veterinary: 'پزیشکی ئاژەڵ',
-    
+
     // Humanities and Social Sciences
     arts: 'ئەدەبیات',
     law: 'یاسا',
@@ -501,21 +501,21 @@ export default {
     basicEducation: 'پەروەردەی بنەڕەتی',
     languages: 'زمانەکان',
     islamicStudies: 'زانستە ئیسلامیەکان',
-    
+
     // Business and Management
     businessAdministration: 'بەڕێوەبردنی بازرگانی',
     economics: 'زانستە ئابووری و کارگێڕیەکان',
     commerce: 'بازرگانی',
-    
+
     // Agriculture and Environment
     agriculture: 'کشتوکاڵ',
     agriculturalEngineering: 'ئەندازیاری کشتوکاڵی',
-    
+
     // Arts and Sports
     fineArts: 'هونەرە جوانەکان',
     physicalEducation: 'پەروەردەی جەستەیی و زانستە وەرزشیەکان',
     media: 'میدیا',
-    
+
     // Other Specializations
     archaeology: 'شوێنەوارناسی',
     tourism: 'زانستی گەشتیاری',
@@ -590,7 +590,7 @@ export default {
     collegeOfArts: 'کۆلێژی هونەر',
     collegeOfBusiness: 'کۆلێژی بازرگانی',
   },
-  
+
   // Academic Stages
   stages: {
     firstYear: 'قۆناغ 1',
@@ -639,7 +639,7 @@ export default {
     electronics: 'ئەندازیاری ئەلیکترۆنی',
     surveying: 'ئەندازیاری نەخشەسازی',
     construction: 'ئەندازیاری بیناسازی و دروستکردن',
-    
+
     // Medicine Departments
     surgery: 'نەشتەرگەری',
     internalMedicine: 'نەشتەری ناوەوە',
@@ -653,7 +653,7 @@ export default {
     anatomy: 'ئاناتۆمی',
     physiology: 'فیزیۆلۆجی',
     biochemistry: 'کیمیای ژینگەیی',
-    
+
     // Dentistry Departments
     oralSurgery: 'نەشتەرگەری دەم و ڕووخسار و چەناگە',
     orthodontics: 'ڕێکخستنی ددان',
@@ -661,14 +661,14 @@ export default {
     prosthodontics: 'جێگرەوەی ددان',
     pediatricDentistry: 'ددانی منداڵان',
     oralPathology: 'نەخۆشیەکانی دەم',
-    
+
     // Pharmacy Departments
     pharmaceuticalChemistry: 'کیمیای دەرمان',
     pharmacology: 'زانستی دەرمان',
     pharmaceutics: 'دەرمانسازی',
     clinicalPharmacy: 'دەرمانی کلینیکی',
     pharmacognosy: 'زانستی دەرمانە سروشتیەکان',
-    
+
     // Nursing Departments
     adultNursing: 'پەرستاری گەورەسالان',
     pediatricNursing: 'پەرستاری منداڵان',
@@ -676,7 +676,7 @@ export default {
     communityHealth: 'پەرستاری تەندروستی کۆمەڵگە',
     maternalHealth: 'پەرستاری تەندروستی دایک',
     criticalCare: 'پەرستاری چاودێری توند',
-    
+
     // Science Departments
     mathematics: 'ماتماتیک',
     physics: 'فیزیا',
@@ -686,7 +686,7 @@ export default {
     statistics: 'ئامار',
     geology: 'جیۆلۆجی',
     biotechnology: 'تەکنەلۆجیای ژینگەیی',
-    
+
     // Computer Science & IT Departments
     ICTE: 'ئەندازیاری تەکنەلۆژیای زانیاری و گەیاندن',
     ISE: 'ئەندازیاری سیستەمی زانیاری',
@@ -705,7 +705,7 @@ export default {
     systemsAdministration: 'بەڕێوەبردنی سیستەمەکان',
     webDesign: 'دیزاینی وێب',
     databaseManagement: 'بەڕێوەبردنی بنکەی داتا',
-    
+
     // Arts & Humanities Departments
     english: 'زمانی ئینگلیزی',
     arabic: 'زمانی عەرەبی',
@@ -721,7 +721,7 @@ export default {
     spanish: 'زمانی ئیسپانی',
     turkish: 'زمانی تورکی',
     persian: 'زمانی فارسی',
-    
+
     // Law Departments
     publicLaw: 'یاسای گشتی',
     privateLaw: 'یاسای تایبەت',
@@ -729,7 +729,7 @@ export default {
     internationalLaw: 'یاسای نێودەوڵەتی',
     commercialLaw: 'یاسای بازرگانی',
     islamicLaw: 'شەریعەتی ئیسلامی',
-    
+
     // Education Departments
     educationalPsychology: 'دەروونناسی پەروەردە',
     curriculumInstruction: 'مەنهەج و ڕێگەکانی فێرکردن',
@@ -741,7 +741,7 @@ export default {
     science: 'فێرکردنی زانست',
     socialStudies: 'لێکۆڵینەوەی کۆمەڵایەتی',
     islamicStudies: 'لێکۆڵینەوەی ئیسلامی',
-    
+
     // Business Administration Departments
     accounting: 'ژمێریاری',
     accountingTechniques: 'تەکنیکەکانی ژمێریاری',
@@ -756,7 +756,7 @@ export default {
     mediaTechniques: 'تەکنیکەکانی میدیا',
     hotelManagement: 'بەڕێوەبردنی هوتێل',
     tourism: 'بەڕێوەبردنی گەشتیاری',
-    
+
     // Economics & Political Science
     microeconomics: 'ئابووری بچووک',
     macroeconomics: 'ئابووری گەورە',
@@ -768,7 +768,7 @@ export default {
     politicalTheory: 'تیۆری سیاسی',
     comparativePolitics: 'سیاسەتی بەراوردکاری',
     publicAdministration: 'بەڕێوەبردنی گشتی',
-    
+
     // Fine Arts Departments
     painting: 'وێنەکێشان',
     sculpture: 'پەیکەرتاشی',
@@ -776,7 +776,7 @@ export default {
     theater: 'شانۆ',
     photography: 'وێنەگرتن',
     graphicDesign: 'دیزاینی گرافیک',
-    
+
     // Agriculture Departments
     cropScience: 'زانستی بەروبووم',
     animalScience: 'زانستی ئاژەڵ',
@@ -784,21 +784,21 @@ export default {
     horticulture: 'باخچەداری',
     agriculturalEconomics: 'ئابووری کشتوکاڵی',
     foodScience: 'زانستی خواردن',
-    
+
     // Veterinary Departments
     animalSurgery: 'نەشتەرگەری ئاژەڵ',
     internalMedicine: 'نەشتەری ناوەوە',
     pathology: 'زانستی نەخۆشی',
     publicHealth: 'تەندروستی گشتی',
     pharmacology: 'زانستی دەرمان',
-    
+
     // Physical Education Departments
     sportsTraining: 'ڕاهێنانی وەرزشی',
     sportsManagement: 'بەڕێوەبردنی وەرزشی',
     physicalTherapy: 'چارەسەری فیزیایی',
     sportsScience: 'زانستی وەرزش',
     recreation: 'کاتی بەسەربردن',
-    
+
     // Islamic Studies Departments
     quran: 'قورئان و زانستەکانی',
     hadith: 'زانستی حەدیس',
@@ -806,7 +806,7 @@ export default {
     islamicHistory: 'مێژووی ئیسلامی',
     comparativeReligion: 'ئاینە بەراوردکراوەکان',
     islamicPhilosophy: 'فەلسەفەی ئیسلامی',
-    
+
     // Technical Health Departments
     medicalLaboratory: 'تاقیگەی پزیشکی',
     nursing: 'پەرستاری',
@@ -814,13 +814,13 @@ export default {
     pathologicalAnalysis: 'شیکاری نەخۆشی',
     midwifery: 'دایکۆکی',
     dentalHealth: 'تەندروستی ددان',
-    
+
     // Applied Sciences
     appliedPhysics: 'فیزیای کاربەردی',
     appliedChemistry: 'کیمیای کاربەردی',
     appliedMathematics: 'ماتماتیکی کاربەردی',
     environmentalScience: 'زانستی ژینگە',
-    
+
     // Archaeology & Tourism
     ancientCivilizations: 'شارستانییەتە کۆنەکان',
     islamicArchaeology: 'شوێنەوارە ئیسلامیەکان',
@@ -829,13 +829,13 @@ export default {
     tourismManagement: 'بەڕێوەبردنی گەشتیاری',
     tourGuiding: 'ڕێنمایی گەشتیاری',
     culturalHeritage: 'میراتی کلتووری',
-    
+
     // Media Departments
     broadcasting: 'ڕادیۆ و تەلەفزیۆن',
     publicRelations: 'پەیوەندییە گشتیەکان',
     advertising: 'ڕیکلامکردن',
     filmProduction: 'بەرهەمهێنانی فیلم',
-    
+
     // General
     general: 'گشتی',
 
@@ -971,7 +971,7 @@ export default {
     petrochemicalEngineering: 'ئەندازیاری پیتڕۆکیمیاوی',
     plantProtection: 'پاراستنی ڕووەک',
   },
-  
+
   // Tab Navigation
   tabs: {
     home: 'سەرەکی',
@@ -1142,7 +1142,7 @@ export default {
     channelUnavailableTitle: 'کەناڵ بەردەست نییە',
     channelUnavailableMessage: 'ئەم کەناڵە سڕاوەتەوە یان چیتر بەردەست نییە.',
   },
-  
+
   // Home Screen
   home: {
     welcome: 'بەخێربێیتەوە',
@@ -1163,7 +1163,7 @@ export default {
     filterSort: 'فلتەر و ڕیزکردنی فید',
     scrollToTop: 'سکرۆڵکردن بۆ سەرەوە',
   },
-  
+
   // Chats Screen
   chats: {
     title: 'پەیامەکان',
@@ -1516,7 +1516,7 @@ export default {
     customReactionPlaceholder: 'ئیمۆجی بنووسە',
     reactionDefaultsTitle: 'تێبینییە بنەڕەتیەکان',
   },
-  
+
   // Lecture Screen
   lecture: {
     myLectures: 'وانەکانم',
@@ -1527,7 +1527,7 @@ export default {
     emptyTitle: 'هێشتا هیچ سەرچاوەیەک نییە',
     emptyMessage: 'تێبینی و کەرەستەی خوێندنەکانت لێرە دەردەکەون',
   },
-  
+
   // Profile Screen
   profile: {
     myProfile: 'پرۆفایلم',
@@ -1571,7 +1571,7 @@ export default {
     noFollowers: 'هیچ شوێنکەوتوویەک نییە هێشتا',
     noFollowing: 'شوێنکەوتنی کەسی نەکردووە هێشتا',
   },
-  
+
   // Settings Screen
   settings: {
     title: 'ڕێکخستنەکان',
@@ -1704,6 +1704,17 @@ export default {
     logoutDesc: 'چوونەدەرەوە لە ئەکاونتەکەت',
     logoutConfirm: 'دڵنیایت لە چوونەدەرەوە؟',
     logoutError: 'چوونەدەرەوە سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە.',
+    deleteAccount: 'سڕینەوەی ئەکاونت',
+    deleteAccountDesc: 'سڕینەوەی ئەکاونت و هەموو داتاکانت بۆ هەمیشە',
+    deleteAccountConfirm: 'ئەم کارە هەمیشەییە و ناتوانرێت پاشگەزبکرێتەوە. هەموو داتاکانت دەسڕدرێنەوە.',
+    deleteAccountAction: 'سڕینەوەی ئەکاونت',
+    deleteAccountError: 'سڕینەوەی ئەکاونت سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە.',
+    enterPasswordToDelete: 'وشەی نهێنی بنووسە بۆ دووپاتکردنەوە',
+    passwordRequiredForDelete: 'وشەی نهێنی پێویستە بۆ سڕینەوەی ئەکاونتەکەت.',
+    incorrectPassword: 'وشەی نهێنی هەڵەیە. دووبارە هەوڵ بدەرەوە.',
+    deleteWarningPosts: 'هەموو بابەت و وەڵامەکانت دەسڕدرێنەوە',
+    deleteWarningMessages: 'ناوت لە چاتەکان وەک "ئەکاونتی سڕاو" دەردەکەوێت',
+    deleteWarningIrreversible: 'ناتوانرێت ئەم کارە پاشگەزبکرێتەوە',
     // Chat Customization
     chatCustomization: 'کەسایەتیکردنی گفتوگۆ',
     chatCustomizationDesc: 'شێوازی بڵن، ڕەنگ و پاشبنەما',
@@ -1790,7 +1801,7 @@ export default {
     classRepresentative: 'نوێنەری پۆل',
     classRepresentativeDesc: 'دەنگ بدە یان نوێنەری پۆلەکەت ببینە',
   },
-  
+
   // Post Feature
   post: {
     createPost: 'دروستکردنی پۆست',
@@ -1979,7 +1990,7 @@ export default {
     hideReplies: 'شاردنەوەی وەڵامەکان',
     liked: 'حەزکرا',
   },
-  
+
   // Search
   search: {
     placeholder: 'گەڕان بە بەکارهێنەران، پۆستەکان...',
@@ -2212,6 +2223,16 @@ export default {
     voteSuccess: 'دەنگەکە تۆمارکرا',
     voteFailed: 'شکستی هێنا لە تۆمارکردنی دەنگ',
     electNextRep: 'هەڵبژاردنی نوێنەری #{seat}',
+    requestNextRep: 'داوای هەڵبژاردنی نوێنەری #{seat}',
+    electNextRepDisabled: 'هەڵبژاردنی نوێنەری #1 پێشتر چالاکە',
+    nextRepRequestProgress: 'داواکارییەکان: {count}/{threshold}',
+    nextRepElectionStarted: 'هەڵبژاردنی نوێنەری #{seat} دەستیپێکرد',
+    winnerCooldown: 'هەڵبژاردنی براوە لە: {time}',
+    tiebreakerTitle: 'خولی جیاکەرەوە!',
+    tiebreakerDescription: 'دوو بەربژێر یەکسانن. یەک کاتژمێرت هەیە بۆ دەنگدان لەنێوان ئەوان. تەنها ئەم دوو بەربژێرە دەتوانن دەنگ وەربگرن.',
+    tiebreakerCountdown: 'خولی جیاکەرەوە دەکوژێتەوە لە: {time}',
+    tiebreakerOnly: 'تەنها دەتوانیت دەنگ بدەیت بۆ دوو بەربژێرە یەکسانەکان',
+    votingClosed: 'دەنگدانەکە تەواو بوو',
     maxRepsReached: 'زۆرترین ٣ نوێنەر تەواو بوو',
     electingSeat: 'هەڵبژاردنی نوێنەری ژمارە {seat}',
   },

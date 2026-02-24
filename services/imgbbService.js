@@ -1,8 +1,32 @@
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
-const IMGBB_API_KEY = process.env.EXPO_PUBLIC_IMGBB_API_KEY || '';
 const IMGBB_UPLOAD_URL = 'https://api.imgbb.com/1/upload';
+
+const getImgbbApiKey = () => {
+  return (
+    process.env.EXPO_PUBLIC_IMGBB_API_KEY
+    || process.env.IMGBB_API_KEY
+    || process.env.EXPO_PUBLIC_IMGBB_KEY
+    || ''
+  ).trim();
+};
+
+const normalizeHttpsUrl = (url) => {
+  if (!url || typeof url !== 'string') {
+    return '';
+  }
+
+  if (url.startsWith('//')) {
+    return `https:${url}`;
+  }
+
+  if (url.startsWith('http://')) {
+    return `https://${url.slice(7)}`;
+  }
+
+  return url;
+};
 
 export const pickImage = async () => {
   const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -47,15 +71,17 @@ export const compressImage = async (imageUri) => {
 
 export const uploadToImgbb = async (base64Image) => {
   try {
-    if (!IMGBB_API_KEY) {
+    const imgbbApiKey = getImgbbApiKey();
+
+    if (!imgbbApiKey) {
       throw new Error('Image upload service is not configured');
     }
 
     const formData = new FormData();
-    formData.append('key', IMGBB_API_KEY);
+    formData.append('key', imgbbApiKey);
     formData.append('image', base64Image);
 
-    const response = await fetch(`${IMGBB_UPLOAD_URL}?key=${IMGBB_API_KEY}`, {
+    const response = await fetch(`${IMGBB_UPLOAD_URL}?key=${imgbbApiKey}`, {
       method: 'POST',
       body: formData,
     });
@@ -63,14 +89,18 @@ export const uploadToImgbb = async (base64Image) => {
     const result = await response.json();
 
     if (result.success) {
+      const displayUrl = normalizeHttpsUrl(result?.data?.display_url);
+      const directUrl = normalizeHttpsUrl(result?.data?.url);
+      const thumbnailUrl = normalizeHttpsUrl(result?.data?.thumb?.url);
+
       return {
-        url: result.data.url,
-        displayUrl: result.data.display_url,
+        url: displayUrl || directUrl,
+        displayUrl,
         deleteUrl: result.data.delete_url,
-        thumbnailUrl: result.data.thumb.url,
+        thumbnailUrl,
       };
     } else {
-      throw new Error('Upload failed');
+      throw new Error(result?.error?.message || 'Upload failed');
     }
   } catch (error) {
     throw error;

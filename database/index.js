@@ -7,4 +7,6 @@ export * from './userChatSettings';
 export * from './notifications';
 export * from './lectures';
 export * from './lectureCleanup';
+export * from './repElections';
+export * from './repVotes';
 export { config } from './config';

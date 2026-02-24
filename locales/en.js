@@ -401,7 +401,7 @@ export default {
     newPassword: 'New Password',
     useEducationalEmail: 'Please use your educational email (e.g., name@university.edu)',
   },
-  
+
   // Universities
   universities: {
     // Kurdistan Region Universities
@@ -416,19 +416,19 @@ export default {
     halabja: 'University of Halabja',
     garmian: 'Garmian University',
     soran: 'Soran University',
-    
+
     // Baghdad and Central Iraq
     baghdad: 'Baghdad University',
     mustansiriya: 'Al-Mustansiriyah University',
     iraqi: 'Iraqi University',
     technology: 'University of Technology',
     nahrain: 'Al-Nahrain University',
-    
+
     // Northern Iraq
     mosul: 'University of Mosul',
     tikrit: 'Tikrit University',
     anbar: 'University of Anbar',
-    
+
     // Southern Iraq
     basra: 'University of Basra',
     kufa: 'University of Kufa',
@@ -437,7 +437,7 @@ export default {
     thi_qar: 'Thi-Qar University',
     karbala: 'University of Karbala',
     babylon: 'University of Babylon',
-    
+
     // Private Universities
     americanUniversity: 'American University of Iraq, Sulaimani',
     cihan: 'Cihan University',
@@ -451,7 +451,7 @@ export default {
     knowledgeUniversity: 'Knowledge University',
     komar: 'Komar University of Science and Technology',
   },
-  
+
   // Colleges/Departments
   colleges: {
     // Erbil Polytechnic University - Technical Colleges
@@ -468,7 +468,7 @@ export default {
     technicalAdministration: 'Technical Administration College',
     technicalHealth: 'Technical Health and Medical College',
     technicalComputer: 'Technical Computer College',
-    
+
     // Technical Institutes
     erbilTechnical: 'Erbil Technical Institute',
     shaqlawaTechnical: 'Shaqlawa Technical Institute',
@@ -476,14 +476,14 @@ export default {
     mergasurTechnical: 'Mergasur Technical Institute',
     akre: 'Akre Technical Institute',
     soran: 'Soran Technical Institute',
-    
+
     // General Colleges - Sciences
     engineering: 'Engineering',
     computerScience: 'Computer Science',
     informationTechnology: 'Information Technology',
     science: 'Science',
     appliedSciences: 'Applied Sciences',
-    
+
     // Medical Colleges
     medicine: 'Medicine',
     dentistry: 'Dentistry',
@@ -492,7 +492,7 @@ export default {
     medicalTechnology: 'Medical Technology',
     publicHealth: 'Public Health',
     veterinary: 'Veterinary Medicine',
-    
+
     // Humanities and Social Sciences
     arts: 'Arts',
     law: 'Law',
@@ -501,21 +501,21 @@ export default {
     basicEducation: 'Basic Education',
     languages: 'Languages',
     islamicStudies: 'Islamic Studies',
-    
+
     // Business and Management
     businessAdministration: 'Business Administration',
     economics: 'Economics and Administrative Sciences',
     commerce: 'Commerce',
-    
+
     // Agriculture and Environment
     agriculture: 'Agriculture',
     agriculturalEngineering: 'Agricultural Engineering',
-    
+
     // Arts and Sports
     fineArts: 'Fine Arts',
     physicalEducation: 'Physical Education and Sports Sciences',
     media: 'Media',
-    
+
     // Other Specializations
     archaeology: 'Archaeology',
     tourism: 'Tourism Sciences',
@@ -590,7 +590,7 @@ export default {
     collegeOfArts: 'College of Arts',
     collegeOfBusiness: 'College of Business',
   },
-  
+
   // Academic Stages
   stages: {
     firstYear: 'Stage 1',
@@ -639,7 +639,7 @@ export default {
     electronics: 'Electronics Engineering',
     surveying: 'Surveying Engineering',
     construction: 'Construction Engineering',
-    
+
     // Medicine Departments
     surgery: 'Surgery',
     internalMedicine: 'Internal Medicine',
@@ -653,7 +653,7 @@ export default {
     anatomy: 'Anatomy',
     physiology: 'Physiology',
     biochemistry: 'Biochemistry',
-    
+
     // Dentistry Departments
     oralSurgery: 'Oral and Maxillofacial Surgery',
     orthodontics: 'Orthodontics',
@@ -661,14 +661,14 @@ export default {
     prosthodontics: 'Prosthodontics',
     pediatricDentistry: 'Pediatric Dentistry',
     oralPathology: 'Oral Pathology',
-    
+
     // Pharmacy Departments
     pharmaceuticalChemistry: 'Pharmaceutical Chemistry',
     pharmacology: 'Pharmacology',
     pharmaceutics: 'Pharmaceutics',
     clinicalPharmacy: 'Clinical Pharmacy',
     pharmacognosy: 'Pharmacognosy',
-    
+
     // Nursing Departments
     adultNursing: 'Adult Nursing',
     pediatricNursing: 'Pediatric Nursing',
@@ -676,7 +676,7 @@ export default {
     communityHealth: 'Community Health Nursing',
     maternalHealth: 'Maternal Health Nursing',
     criticalCare: 'Critical Care Nursing',
-    
+
     // Science Departments
     mathematics: 'Mathematics',
     physics: 'Physics',
@@ -686,7 +686,7 @@ export default {
     statistics: 'Statistics',
     geology: 'Geology',
     biotechnology: 'Biotechnology',
-    
+
     // Computer Science & IT Departments
     ICTE: 'Information and Communication Technology Engineering',
     ISE: 'Information System Engineering',
@@ -705,7 +705,7 @@ export default {
     systemsAdministration: 'Systems Administration',
     webDesign: 'Web Design',
     databaseManagement: 'Database Management',
-    
+
     // Arts & Humanities Departments
     english: 'English Language',
     arabic: 'Arabic Language',
@@ -721,7 +721,7 @@ export default {
     spanish: 'Spanish Language',
     turkish: 'Turkish Language',
     persian: 'Persian Language',
-    
+
     // Law Departments
     publicLaw: 'Public Law',
     privateLaw: 'Private Law',
@@ -729,7 +729,7 @@ export default {
     internationalLaw: 'International Law',
     commercialLaw: 'Commercial Law',
     islamicLaw: 'Islamic Law',
-    
+
     // Education Departments
     educationalPsychology: 'Educational Psychology',
     curriculumInstruction: 'Curriculum and Instruction',
@@ -742,7 +742,7 @@ export default {
     science: 'Science Education',
     socialStudies: 'Social Studies',
     islamicStudies: 'Islamic Studies',
-    
+
     // Business Administration Departments
     accounting: 'Accounting',
     accountingTechniques: 'Accounting Techniques',
@@ -757,7 +757,7 @@ export default {
     mediaTechniques: 'Media Techniques',
     hotelManagement: 'Hotel Management',
     tourism: 'Tourism Management',
-    
+
     // Economics & Political Science
     microeconomics: 'Microeconomics',
     macroeconomics: 'Macroeconomics',
@@ -769,7 +769,7 @@ export default {
     politicalTheory: 'Political Theory',
     comparativePolitics: 'Comparative Politics',
     publicAdministration: 'Public Administration',
-    
+
     // Fine Arts Departments
     painting: 'Painting',
     sculpture: 'Sculpture',
@@ -777,7 +777,7 @@ export default {
     theater: 'Theater',
     photography: 'Photography',
     graphicDesign: 'Graphic Design',
-    
+
     // Agriculture Departments
     cropScience: 'Crop Science',
     animalScience: 'Animal Science',
@@ -785,21 +785,21 @@ export default {
     horticulture: 'Horticulture',
     agriculturalEconomics: 'Agricultural Economics',
     foodScience: 'Food Science',
-    
+
     // Veterinary Departments
     animalSurgery: 'Animal Surgery',
     internalMedicine: 'Internal Medicine',
     pathology: 'Pathology',
     publicHealth: 'Public Health',
     pharmacology: 'Pharmacology',
-    
+
     // Physical Education Departments
     sportsTraining: 'Sports Training',
     sportsManagement: 'Sports Management',
     physicalTherapy: 'Physical Therapy',
     sportsScience: 'Sports Science',
     recreation: 'Recreation',
-    
+
     // Islamic Studies Departments
     quran: 'Quran and Quranic Sciences',
     hadith: 'Hadith Sciences',
@@ -807,7 +807,7 @@ export default {
     islamicHistory: 'Islamic History',
     comparativeReligion: 'Comparative Religion',
     islamicPhilosophy: 'Islamic Philosophy',
-    
+
     // Technical Health Departments
     medicalLaboratory: 'Medical Laboratory',
     nursing: 'Nursing',
@@ -815,13 +815,13 @@ export default {
     pathologicalAnalysis: 'Pathological Analysis',
     midwifery: 'Midwifery',
     dentalHealth: 'Dental Health',
-    
+
     // Applied Sciences
     appliedPhysics: 'Applied Physics',
     appliedChemistry: 'Applied Chemistry',
     appliedMathematics: 'Applied Mathematics',
     environmentalScience: 'Environmental Science',
-    
+
     // Archaeology & Tourism
     ancientCivilizations: 'Ancient Civilizations',
     islamicArchaeology: 'Islamic Archaeology',
@@ -830,13 +830,13 @@ export default {
     tourismManagement: 'Tourism Management',
     tourGuiding: 'Tour Guiding',
     culturalHeritage: 'Cultural Heritage',
-    
+
     // Media Departments
     broadcasting: 'Broadcasting',
     publicRelations: 'Public Relations',
     advertising: 'Advertising',
     filmProduction: 'Film Production',
-    
+
     // General
     general: 'General',
 
@@ -972,7 +972,7 @@ export default {
     petrochemicalEngineering: 'Petrochemical Engineering',
     plantProtection: 'Plant Protection',
   },
-  
+
   // Tab Navigation
   tabs: {
     home: 'Home',
@@ -1143,7 +1143,7 @@ export default {
     channelUnavailableTitle: 'Channel unavailable',
     channelUnavailableMessage: 'This channel was deleted or is no longer available.',
   },
-  
+
   // Home Screen
   home: {
     welcome: 'Welcome Back',
@@ -1164,7 +1164,7 @@ export default {
     filterSort: 'Filter and sort feed',
     scrollToTop: 'Scroll to top',
   },
-  
+
   // Chats Screen
   chats: {
     title: 'Messages',
@@ -1518,7 +1518,7 @@ export default {
     customReactionPlaceholder: 'Type an emoji',
     reactionDefaultsTitle: 'Reaction Defaults',
   },
-  
+
   // Lecture Screen
   lecture: {
     myLectures: 'My Lectures',
@@ -1529,7 +1529,7 @@ export default {
     emptyTitle: 'No Resources Yet',
     emptyMessage: 'Your lecture notes and study materials will appear here',
   },
-  
+
   // Profile Screen
   profile: {
     myProfile: 'My Profile',
@@ -1573,7 +1573,7 @@ export default {
     noFollowers: 'No followers yet',
     noFollowing: 'Not following anyone yet',
   },
-  
+
   // Settings Screen
   settings: {
     title: 'Settings',
@@ -1706,6 +1706,17 @@ export default {
     logoutDesc: 'Sign out of your account',
     logoutConfirm: 'Are you sure you want to logout?',
     logoutError: 'Failed to logout. Please try again.',
+    deleteAccount: 'Delete Account',
+    deleteAccountDesc: 'Permanently delete your account and all data',
+    deleteAccountConfirm: 'This action is permanent and cannot be undone. All your data will be deleted.',
+    deleteAccountAction: 'Delete Account',
+    deleteAccountError: 'Failed to delete account. Please try again.',
+    enterPasswordToDelete: 'Enter your password to confirm',
+    passwordRequiredForDelete: 'Password is required to delete your account.',
+    incorrectPassword: 'Incorrect password. Please try again.',
+    deleteWarningPosts: 'All your posts and replies will be deleted',
+    deleteWarningMessages: 'Your name in chats will show as "Deleted Account"',
+    deleteWarningIrreversible: 'This action cannot be undone',
     // Chat Customization
     chatCustomization: 'Chat Customization',
     chatCustomizationDesc: 'Bubble style, colors, and backgrounds',
@@ -1792,7 +1803,7 @@ export default {
     classRepresentative: 'Class Representative',
     classRepresentativeDesc: 'Vote for or view your class representative',
   },
-  
+
   // Post Feature
   post: {
     createPost: 'Create Post',
@@ -1981,7 +1992,7 @@ export default {
     hideReplies: 'Hide Replies',
     liked: 'Liked',
   },
-  
+
   // Search
   search: {
     placeholder: 'Search users, posts...',
@@ -2214,6 +2225,16 @@ export default {
     voteSuccess: 'Vote recorded',
     voteFailed: 'Failed to cast vote',
     electNextRep: 'Elect Rep #{seat}',
+    requestNextRep: 'Request Rep #{seat} Election',
+    electNextRepDisabled: 'Rep #1 election is already active',
+    nextRepRequestProgress: 'Requests: {count}/{threshold}',
+    nextRepElectionStarted: 'Rep #{seat} election has started',
+    winnerCooldown: 'Winner selection in: {time}',
+    tiebreakerTitle: 'Tiebreaker Round!',
+    tiebreakerDescription: 'Two candidates are tied. You have 1 hour to vote between them. Only these two candidates can receive votes.',
+    tiebreakerCountdown: 'Tiebreaker ends in: {time}',
+    tiebreakerOnly: 'You can only vote for the two tied candidates',
+    votingClosed: 'Voting has ended',
     maxRepsReached: 'Maximum 3 representatives reached',
     electingSeat: 'Electing Representative #{seat}',
   },

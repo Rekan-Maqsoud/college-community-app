@@ -8,6 +8,11 @@ import { borderRadius } from '../theme/designTokens';
 const RepDetectionPopup = ({ visible, onVote, onDismiss, hasActiveElection }) => {
   const { t, theme, isDarkMode } = useAppSettings();
 
+  console.log('[REP_DEBUG] RepDetectionPopup:render', {
+    visible,
+    hasActiveElection,
+  });
+
   if (!visible) return null;
 
   const title = hasActiveElection
@@ -38,7 +43,10 @@ const RepDetectionPopup = ({ visible, onVote, onDismiss, hasActiveElection }) =>
 
           <TouchableOpacity
             style={[styles.primaryButton, { backgroundColor: theme.primary }]}
-            onPress={onVote}
+            onPress={() => {
+              console.log('[REP_DEBUG] RepDetectionPopup:pressVote');
+              onVote();
+            }}
             activeOpacity={0.8}
           >
             <Ionicons name="hand-left-outline" size={normalize(18)} color="#FFFFFF" />
@@ -47,7 +55,10 @@ const RepDetectionPopup = ({ visible, onVote, onDismiss, hasActiveElection }) =>
 
           <TouchableOpacity
             style={[styles.secondaryButton, { borderColor: theme.border }]}
-            onPress={onDismiss}
+            onPress={() => {
+              console.log('[REP_DEBUG] RepDetectionPopup:pressDismiss');
+              onDismiss();
+            }}
             activeOpacity={0.7}
           >
             <Text style={[styles.secondaryButtonText, { color: theme.textSecondary }]}>

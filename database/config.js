@@ -160,13 +160,4 @@ export const config = {
     repVotesCollectionId: process.env.EXPO_PUBLIC_APPWRITE_REP_VOTES_COLLECTION_ID,
 };
 
-console.log('[DB_DEBUG] Appwrite config:', {
-    endpoint: config.endpoint,
-    projectId: config.projectId,
-    databaseId: config.databaseId,
-    postsCollectionId: config.postsCollectionId,
-    usersCollectionId: config.usersCollectionId,
-    chatsCollectionId: config.chatsCollectionId,
-});
-
 export default client;

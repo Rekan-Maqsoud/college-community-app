@@ -6,6 +6,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import CustomAlert from '../../components/CustomAlert';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
@@ -15,7 +18,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
-import { signOut } from '../../../database/auth';
+import { signOut, deleteAccount } from '../../../database/auth';
 import { deleteUserPushToken } from '../../../database/users';
 import { cacheManager } from '../../utils/cacheManager';
 import { borderRadius, shadows } from '../../theme/designTokens';
@@ -25,6 +28,10 @@ const AccountSettings = ({ navigation }) => {
   const { t, theme, isDarkMode, resetSettings } = useAppSettings();
   const { user, clearUser } = useUser();
   const [isClearingCache, setIsClearingCache] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   const handleClearCache = () => {
@@ -95,6 +102,31 @@ const AccountSettings = ({ navigation }) => {
         },
       ],
     });
+  };
+
+  const handleDeleteAccount = () => {
+    setDeletePassword('');
+    setDeleteError('');
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    setIsDeleting(true);
+    setDeleteError('');
+    try {
+      await deleteAccount(deletePassword.trim());
+      await clearUser();
+      setShowDeleteModal(false);
+      navigation.replace('SignIn');
+    } catch (error) {
+      setIsDeleting(false);
+      const errorMessage = error?.message?.includes('Invalid credentials')
+        || error?.message?.includes('Invalid email')
+        || error?.code === 401
+        ? t('settings.incorrectPassword')
+        : t('settings.deleteAccountError');
+      setDeleteError(errorMessage);
+    }
   };
 
   const GlassCard = ({ children, style }) => (
@@ -229,6 +261,14 @@ const AccountSettings = ({ navigation }) => {
               onPress={handleLogout}
               danger
             />
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <SettingItem
+              icon="trash-outline"
+              title={t('settings.deleteAccount')}
+              description={t('settings.deleteAccountDesc')}
+              onPress={handleDeleteAccount}
+              danger
+            />
           </GlassCard>
         </View>
 
@@ -247,7 +287,95 @@ const AccountSettings = ({ navigation }) => {
 
         <View style={styles.bottomPadding} />
       </ScrollView>
-      
+
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !isDeleting && setShowDeleteModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[
+            styles.deleteModal,
+            { backgroundColor: isDarkMode ? '#1C1C1E' : '#FFFFFF' },
+          ]}>
+            <View style={styles.deleteModalIcon}>
+              <Ionicons name="warning" size={40} color="#FF3B30" />
+            </View>
+
+            <Text style={[styles.deleteModalTitle, { color: theme.text }]}>
+              {t('settings.deleteAccount')}
+            </Text>
+
+            <Text style={[styles.deleteModalMessage, { color: theme.textSecondary }]}>
+              {t('settings.deleteAccountConfirm')}
+            </Text>
+
+            <View style={styles.deleteWarningList}>
+              <Text style={[styles.deleteWarningItem, { color: theme.textSecondary }]}>
+                {'\u2022'} {t('settings.deleteWarningPosts')}
+              </Text>
+              <Text style={[styles.deleteWarningItem, { color: theme.textSecondary }]}>
+                {'\u2022'} {t('settings.deleteWarningMessages')}
+              </Text>
+              <Text style={[styles.deleteWarningItem, { color: theme.textSecondary }]}>
+                {'\u2022'} {t('settings.deleteWarningIrreversible')}
+              </Text>
+            </View>
+
+            <TextInput
+              style={[
+                styles.deletePasswordInput,
+                {
+                  color: theme.text,
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                  borderColor: deleteError ? '#FF3B30' : (isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'),
+                },
+              ]}
+              placeholder={t('settings.enterPasswordToDelete')}
+              placeholderTextColor={theme.textTertiary}
+              secureTextEntry
+              value={deletePassword}
+              onChangeText={(text) => {
+                setDeletePassword(text);
+                setDeleteError('');
+              }}
+              editable={!isDeleting}
+              autoCapitalize="none"
+            />
+
+            {deleteError ? (
+              <Text style={styles.deleteErrorText}>{deleteError}</Text>
+            ) : null}
+
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.deleteModalCancelButton, {
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                }]}
+                onPress={() => setShowDeleteModal(false)}
+                disabled={isDeleting}>
+                <Text style={[styles.deleteModalButtonText, { color: theme.text }]}>
+                  {t('common.cancel')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.deleteModalConfirmButton]}
+                onPress={confirmDeleteAccount}
+                disabled={isDeleting}>
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={[styles.deleteModalButtonText, { color: '#FFFFFF' }]}>
+                    {t('settings.deleteAccountAction')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <CustomAlert {...alertConfig} onDismiss={hideAlert} />
     </View>
   );
@@ -361,6 +489,82 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: hp(5),
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: wp(6),
+  },
+  deleteModal: {
+    width: '100%',
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    alignItems: 'center',
+    ...shadows.medium,
+  },
+  deleteModalIcon: {
+    marginBottom: spacing.md,
+  },
+  deleteModalTitle: {
+    fontSize: responsiveFontSize(20),
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  deleteModalMessage: {
+    fontSize: responsiveFontSize(14),
+    textAlign: 'center',
+    lineHeight: responsiveFontSize(20),
+    marginBottom: spacing.md,
+  },
+  deleteWarningList: {
+    alignSelf: 'stretch',
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.sm,
+  },
+  deleteWarningItem: {
+    fontSize: responsiveFontSize(13),
+    lineHeight: responsiveFontSize(20),
+    marginBottom: 4,
+  },
+  deletePasswordInput: {
+    alignSelf: 'stretch',
+    height: 48,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    fontSize: responsiveFontSize(15),
+    marginBottom: spacing.sm,
+  },
+  deleteErrorText: {
+    color: '#FF3B30',
+    fontSize: responsiveFontSize(13),
+    alignSelf: 'stretch',
+    marginBottom: spacing.md,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignSelf: 'stretch',
+    marginTop: spacing.sm,
+  },
+  deleteModalButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: borderRadius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteModalCancelButton: {
+  },
+  deleteModalConfirmButton: {
+    backgroundColor: '#FF3B30',
+  },
+  deleteModalButtonText: {
+    fontSize: responsiveFontSize(16),
+    fontWeight: '600',
   },
 });
 

@@ -8,7 +8,7 @@ import { borderRadius } from '../theme/designTokens';
 /**
  * Card showing a candidate in the voting screen with their vote count.
  */
-const VoteCard = ({ candidate, voteCount, isVotedByMe, isLeading, onVote, colors, t }) => {
+const VoteCard = ({ candidate, voteCount, isVotedByMe, isLeading, disabled, isTiebreakerCandidate, onVote, colors, t }) => {
   const name = candidate?.name || candidate?.fullName || '';
   const avatar = candidate?.profilePicture || '';
   const department = candidate?.department || '';
@@ -22,10 +22,12 @@ const VoteCard = ({ candidate, voteCount, isVotedByMe, isLeading, onVote, colors
           backgroundColor: colors.card,
           borderColor: isVotedByMe ? colors.primary : colors.border,
           borderWidth: isVotedByMe ? 2 : 1,
+          opacity: disabled ? 0.6 : 1,
         },
       ]}
       onPress={() => onVote(userId)}
-      activeOpacity={0.7}
+      activeOpacity={disabled ? 1 : 0.7}
+      disabled={disabled}
     >
       <View style={styles.left}>
         <ProfilePicture

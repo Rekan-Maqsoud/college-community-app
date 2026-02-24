@@ -78,12 +78,12 @@ export const isEducationalEmail = (email) => {
     if (!email) return false;
     const domain = email.toLowerCase().split('@')[1];
     if (!domain) return false;
-    
+
     // Check if it's a blocked public email domain
     if (BLOCKED_EMAIL_DOMAINS.includes(domain)) {
         return false;
     }
-    
+
     // If not a public email domain, allow it
     // This allows educational domains like epu.edu.iq, university.edu, etc.
     return true;
@@ -93,27 +93,27 @@ export const initiateSignup = async (email, password, name, additionalData = {})
     try {
         const sanitizedEmail = sanitizeInput(email).toLowerCase();
         const sanitizedName = sanitizeInput(name);
-        
+
         if (!sanitizedEmail || !sanitizedName) {
             throw new Error('Invalid input data');
         }
-        
+
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(sanitizedEmail)) {
             throw new Error('Invalid email format');
         }
-        
+
         // Check if email is from an educational institution
         if (!isEducationalEmail(sanitizedEmail)) {
             throw new Error('Only educational email addresses are allowed. Please use your university or college email.');
         }
-        
+
         if (password.length < 8) {
             throw new Error('Password must be at least 8 characters');
         }
-        
+
         const userId = ID.unique();
-        
+
         try {
             await account.create(
                 userId,
@@ -122,13 +122,13 @@ export const initiateSignup = async (email, password, name, additionalData = {})
                 sanitizedName
             );
         } catch (createError) {
-            if (createError.message?.includes('already exists') || 
+            if (createError.message?.includes('already exists') ||
                 createError.message?.includes('user with the same email')) {
                 throw new Error('An account with this email already exists. Please sign in or use a different email.');
             }
             throw createError;
         }
-        
+
         // Don't create session yet - use Email OTP to verify
         // Send OTP using Appwrite's Email OTP feature (must be enabled in console)
         let tokenResponse;
@@ -148,7 +148,7 @@ export const initiateSignup = async (email, password, name, additionalData = {})
             }
             throw new Error('Failed to send verification code. Please try again.');
         }
-        
+
         // Store pending data for completion after verification
         const pendingData = {
             userId,
@@ -163,9 +163,9 @@ export const initiateSignup = async (email, password, name, additionalData = {})
             otpResendCount: 0,
             lastOtpSentAt: Date.now(),
         };
-        
+
         await safeStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingData));
-        
+
         return {
             userId,
             email: sanitizedEmail,
@@ -180,13 +180,13 @@ export const initiateSignup = async (email, password, name, additionalData = {})
 export const checkAndCompleteVerification = async () => {
     try {
         const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
-        
+
         if (!storedData) {
             throw new Error('No pending verification found');
         }
-        
+
         const pendingData = JSON.parse(storedData);
-        
+
         // Check if user document already exists
         try {
             await getUserDocument(pendingData.userId);
@@ -195,16 +195,16 @@ export const checkAndCompleteVerification = async () => {
         } catch (error) {
             // User document not found, need to create one
         }
-        
+
         await createUserDocument(
             pendingData.userId,
             pendingData.name,
             pendingData.email,
             pendingData.additionalData
         );
-        
+
         await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
-        
+
         return true;
     } catch (error) {
         throw error;
@@ -220,11 +220,11 @@ export const verifyOTPCode = async (otpCode) => {
         }
 
         const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
-        
+
         if (!storedData) {
             throw new Error('No pending verification found');
         }
-        
+
         const pendingData = JSON.parse(storedData);
         const now = Date.now();
 
@@ -236,7 +236,7 @@ export const verifyOTPCode = async (otpCode) => {
         if (pendingData.otpLockedUntil && now < pendingData.otpLockedUntil) {
             throw new Error('Too many verification attempts. Please wait and try again.');
         }
-        
+
         // Verify OTP by creating a session with the code
         // The OTP code acts as the "secret" for createSession
         try {
@@ -258,14 +258,14 @@ export const verifyOTPCode = async (otpCode) => {
                 }
             }
 
-            if (sessionError.message?.includes('Invalid') || 
+            if (sessionError.message?.includes('Invalid') ||
                 sessionError.message?.includes('expired') ||
                 sessionError.code === 401) {
                 throw new Error('Invalid or expired verification code. Please try again.');
             }
             throw sessionError;
         }
-        
+
         // OTP verified successfully, now complete the signup
         // Check if user document already exists
         try {
@@ -279,13 +279,13 @@ export const verifyOTPCode = async (otpCode) => {
                 pendingData.additionalData
             );
         }
-        
+
         // Clean up storage
         await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
-        
+
         return true;
     } catch (error) {
-        if (error.message?.includes('Invalid token') || 
+        if (error.message?.includes('Invalid token') ||
             error.message?.includes('Invalid credentials') ||
             error.code === 401) {
             throw new Error('Invalid verification code. Please check and try again.');
@@ -298,11 +298,11 @@ export const verifyOTPCode = async (otpCode) => {
 export const resendVerificationEmail = async () => {
     try {
         const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
-        
+
         if (!storedData) {
             throw new Error('No pending verification found');
         }
-        
+
         const pendingData = JSON.parse(storedData);
         const now = Date.now();
 
@@ -323,17 +323,17 @@ export const resendVerificationEmail = async () => {
         if (resendCount >= OTP_MAX_RESENDS) {
             throw new Error('Too many verification code requests. Please sign up again.');
         }
-        
+
         // Send new OTP using Email OTP
         const tokenResponse = await account.createEmailToken(pendingData.userId, pendingData.email);
-        
+
         // Update expiration time and token data
         pendingData.expiresAt = Date.now() + VERIFICATION_TIMEOUT;
         pendingData.otpUserId = tokenResponse.userId;
         pendingData.otpResendCount = resendCount + 1;
         pendingData.lastOtpSentAt = now;
         await safeStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingData));
-        
+
         return true;
     } catch (error) {
         throw error;
@@ -361,7 +361,7 @@ const getOAuthRedirectUrl = () => {
 export const signInWithGoogle = async () => {
     try {
         const redirectUrl = getOAuthRedirectUrl();
-        
+
         // Use createOAuth2Token for React Native - it returns userId and secret
         // that we use to create a session manually
         const authUrl = account.createOAuth2Token(
@@ -369,7 +369,7 @@ export const signInWithGoogle = async () => {
             redirectUrl, // success URL
             redirectUrl  // failure URL (same, we parse the result)
         );
-        
+
         // Open the browser for OAuth authentication
         const result = await WebBrowser.openAuthSessionAsync(
             authUrl.toString(),
@@ -378,30 +378,30 @@ export const signInWithGoogle = async () => {
                 showInRecents: true,
             }
         );
-        
+
         if (result.type === 'success' && result.url) {
             // Parse the callback URL to extract userId and secret
             const url = new URL(result.url);
             const secret = url.searchParams.get('secret');
             const userId = url.searchParams.get('userId');
-            
+
             if (secret && userId) {
                 // Create a session using the token
                 await account.createSession(userId, secret);
                 return { success: true };
             }
-            
+
             // Check for error in URL parameters
             const error = url.searchParams.get('error');
             if (error) {
                 return { success: false, error: error };
             }
         }
-        
+
         if (result.type === 'cancel' || result.type === 'dismiss') {
             return { success: false, cancelled: true };
         }
-        
+
         return { success: false };
     } catch (error) {
         if (error.code === 401) {
@@ -418,30 +418,30 @@ export const checkOAuthUserExists = async (userId = null) => {
         if (!user) {
             return { exists: false, user: null };
         }
-        
+
         // If userId provided, verify it matches
         if (userId && user.$id !== userId) {
             return { exists: false, user: null };
         }
-        
+
         // Check if user has a document in our users collection
         try {
             const userDoc = await getUserDocument(user.$id);
-            return { 
-                exists: true, 
+            return {
+                exists: true,
                 user: user,
                 userDoc: userDoc,
-                isComplete: true 
+                isComplete: true
             };
         } catch (docError) {
             // User authenticated with Google but doesn't have a user document
             // They need to complete signup
-            return { 
-                exists: false, 
+            return {
+                exists: false,
                 user: user,
                 email: user.email,
                 name: user.name,
-                isComplete: false 
+                isComplete: false
             };
         }
     } catch (error) {
@@ -494,14 +494,14 @@ export const completeOAuthSignup = async (userId, email, name, additionalData = 
         if (!user || user.$id !== userId) {
             throw new Error('User authentication mismatch');
         }
-        
+
         // Check if email is educational
         if (!isEducationalEmail(email)) {
             // Sign out the user since they can't use this app
             await account.deleteSession('current');
             throw new Error('Only educational email addresses are allowed. Please use your university or college email.');
         }
-        
+
         // Create user document
         const userDoc = await createUserDocument(
             userId,
@@ -509,10 +509,10 @@ export const completeOAuthSignup = async (userId, email, name, additionalData = 
             email,
             additionalData
         );
-        
+
         // Clear pending data
         await clearPendingOAuthSignup();
-        
+
         return {
             success: true,
             userId: userId,
@@ -529,17 +529,17 @@ export const cancelPendingVerification = async () => {
     try {
         // Get pending data to know if we need cleanup
         const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
-        
+
         try {
             // Delete the current session
             await account.deleteSession('current');
         } catch (sessionError) {
             // Session might already be deleted
         }
-        
+
         // Remove pending verification data
         await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
-        
+
         return true;
     } catch (error) {
         // Even if there's an error, try to clean up storage
@@ -551,14 +551,14 @@ export const cancelPendingVerification = async () => {
 export const checkExpiredVerification = async () => {
     try {
         const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
-        
+
         if (!storedData) {
             return { expired: false, hasPending: false };
         }
-        
+
         const pendingData = JSON.parse(storedData);
         const now = Date.now();
-        
+
         if (pendingData.expiresAt && now > pendingData.expiresAt) {
             // Verification expired, cleanup
             try {
@@ -566,14 +566,14 @@ export const checkExpiredVerification = async () => {
             } catch (sessionError) {
                 // Session might already be deleted
             }
-            
+
             await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
-            
+
             return { expired: true, hasPending: false };
         }
-        
-        return { 
-            expired: false, 
+
+        return {
+            expired: false,
             hasPending: true,
             email: pendingData.email,
             expiresAt: pendingData.expiresAt,
@@ -587,11 +587,11 @@ export const checkExpiredVerification = async () => {
 export const getPendingVerificationData = async () => {
     try {
         const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
-        
+
         if (!storedData) {
             return null;
         }
-        
+
         return JSON.parse(storedData);
     } catch (error) {
         return null;
@@ -601,26 +601,26 @@ export const getPendingVerificationData = async () => {
 export const signUp = async (email, password, name, additionalData = {}) => {
     let userId = null;
     let userCreated = false;
-    
+
     try {
         const sanitizedEmail = sanitizeInput(email).toLowerCase();
         const sanitizedName = sanitizeInput(name);
-        
+
         if (!sanitizedEmail || !sanitizedName) {
             throw new Error('Invalid input data');
         }
-        
+
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(sanitizedEmail)) {
             throw new Error('Invalid email format');
         }
-        
+
         if (password.length < 8) {
             throw new Error('Password must be at least 8 characters');
         }
-        
+
         userId = ID.unique();
-        
+
         const user = await account.create(
             userId,
             sanitizedEmail,
@@ -628,20 +628,20 @@ export const signUp = async (email, password, name, additionalData = {}) => {
             sanitizedName
         );
         userCreated = true;
-        
+
         await signIn(sanitizedEmail, password);
-        
+
         await createUserDocument(userId, name, email, additionalData);
-        
+
         return user;
     } catch (error) {
-        
+
         if (userCreated && userId) {
             try {
                 await account.deleteSession('current');
             } catch (sessionError) {
             }
-            
+
             try {
                 await databases.deleteDocument(
                     config.databaseId,
@@ -651,7 +651,7 @@ export const signUp = async (email, password, name, additionalData = {}) => {
             } catch (cleanupError) {
             }
         }
-        
+
         throw error;
     }
 };
@@ -666,11 +666,11 @@ const createUserDocument = async (userId, name, email, additionalData = {}) => {
         const sanitizedName = sanitizeInput(name);
         const sanitizedEmail = sanitizeInput(email);
         const sanitizedRole = sanitizeInput(additionalData.role || 'student') || 'student';
-        
+
         if (!sanitizedName || !sanitizedEmail) {
             throw new Error('Invalid user data');
         }
-        
+
         const basePayload = {
             userID: userId,
             name: sanitizedName,
@@ -732,11 +732,11 @@ const createUserDocument = async (userId, name, email, additionalData = {}) => {
 export const signIn = async (email, password) => {
     try {
         const sanitizedEmail = sanitizeInput(email).toLowerCase();
-        
+
         if (!sanitizedEmail || !password) {
             throw new Error('Email and password are required');
         }
-        
+
         const session = await account.createEmailPasswordSession(sanitizedEmail, password);
         return session;
     } catch (error) {
@@ -755,10 +755,8 @@ export const signOut = async () => {
 export const getCurrentUser = async () => {
     try {
         const user = await account.get();
-        console.log('[DB_DEBUG] auth.getCurrentUser() OK, user $id:', user?.$id);
         return user;
     } catch (error) {
-        console.log('[DB_DEBUG] auth.getCurrentUser() FAILED:', error?.message, error?.code);
         if (error.message?.includes('missing scopes') || error.code === 401) {
             return null;
         }
@@ -770,16 +768,14 @@ export const getCompleteUserData = async () => {
     try {
         const authUser = await account.get();
         if (!authUser) return null;
-        
+
         const userDoc = await getUserDocument(authUser.$id);
-        console.log('[DB_DEBUG] auth.getCompleteUserData() OK, department:', userDoc?.department, 'year:', userDoc?.year);
-        
+
         return {
             ...authUser,
             ...userDoc
         };
     } catch (error) {
-        console.log('[DB_DEBUG] auth.getCompleteUserData() FAILED:', error?.message, error?.code);
         if (error.message?.includes('missing scopes') || error.code === 401) {
             return null;
         }
@@ -792,7 +788,7 @@ export const getUserDocument = async (userId, skipCache = false) => {
         if (!userId || typeof userId !== 'string') {
             throw new Error('Invalid user ID');
         }
-        
+
         // Check cache first (unless explicitly skipped)
         if (!skipCache) {
             const cachedUser = await userCacheManager.getCachedUserData(userId);
@@ -800,16 +796,16 @@ export const getUserDocument = async (userId, skipCache = false) => {
                 return cachedUser;
             }
         }
-        
+
         const userDoc = await databases.getDocument(
             config.databaseId,
             config.usersCollectionId || '68fc7b42001bf7efbba3',
             userId
         );
-        
+
         // Cache the user data for future requests
         await userCacheManager.cacheUserData(userId, userDoc);
-        
+
         return userDoc;
     } catch (error) {
         throw error;
@@ -821,7 +817,7 @@ export const updateUserDocument = async (userId, data) => {
         if (!userId || typeof userId !== 'string') {
             throw new Error('Invalid user ID');
         }
-        
+
         if (data.name) {
             data.name = sanitizeInput(data.name);
         }
@@ -840,17 +836,17 @@ export const updateUserDocument = async (userId, data) => {
         if (data.department) {
             data.department = sanitizeInput(data.department);
         }
-        
+
         const userDoc = await databases.updateDocument(
             config.databaseId,
             config.usersCollectionId || '68fc7b42001bf7efbba3',
             userId,
             data
         );
-        
+
         // Invalidate user cache
         await userCacheManager.invalidateUser(userId);
-        
+
         return userDoc;
     } catch (error) {
         throw error;
@@ -889,12 +885,12 @@ export const sendEmailVerification = async () => {
 export const confirmEmailVerification = async (userId, secret) => {
     try {
         await account.updateVerification(userId, secret);
-        
+
         const user = await getCurrentUser();
         if (user) {
             await updateUserDocument(user.$id, { isEmailVerified: true });
         }
-        
+
         return true;
     } catch (error) {
         throw error;
@@ -921,20 +917,461 @@ export const resendEmailVerification = async () => {
     }
 };
 
-export const deleteAccount = async () => {
+export const deleteAccount = async (password) => {
     try {
-        const user = await getCurrentUser();
-        if (user) {
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+            throw new Error('No authenticated user found');
+        }
+
+        const userId = currentUser.$id;
+
+        // Re-authenticate to confirm identity
+        const trimmedPassword = typeof password === 'string' ? password.trim() : '';
+        if (trimmedPassword) {
+            try {
+                await account.createEmailPasswordSession(currentUser.email, trimmedPassword);
+            } catch (reauthError) {
+                const reauthMessage = reauthError?.message || '';
+                const invalidCredentials = reauthError?.code === 401
+                    || reauthMessage.includes('Invalid credentials')
+                    || reauthMessage.includes('Invalid email')
+                    || reauthMessage.includes('Invalid password');
+
+                if (invalidCredentials) {
+                    throw reauthError;
+                }
+
+                const passwordAuthUnavailable = reauthMessage.includes('password')
+                    || reauthMessage.includes('provider')
+                    || reauthMessage.includes('OAuth')
+                    || reauthMessage.includes('sessions limit');
+
+                if (!passwordAuthUnavailable) {
+                    throw reauthError;
+                }
+            }
+        }
+
+        // 1. Delete all user's posts (cascades to replies & notifications via deletePost)
+        await _deleteAllUserPosts(userId);
+
+        // 2. Delete all user's replies on other posts
+        await _deleteAllUserReplies(userId);
+
+        // 3. Delete all notifications for/from this user
+        await _deleteAllUserNotifications(userId);
+
+        // 4. Delete all push tokens
+        await _deleteAllUserPushTokens(userId);
+
+        // 5. Delete all user chat settings
+        await _deleteAllUserChatSettings(userId);
+
+        // 6. Anonymize messages sent by this user (set senderName to "Deleted Account")
+        await _anonymizeUserMessages(userId);
+
+        // 7. Remove user from chat participants
+        await _removeUserFromChats(userId);
+
+        // 8. Remove user from followers/following lists of other users
+        await _removeUserFromFollowLists(userId);
+
+        // 9. Anonymize the user document instead of deleting it
+        // This ensures any remaining references resolve to "Deleted Account"
+        try {
+            await databases.updateDocument(
+                config.databaseId,
+                config.usersCollectionId,
+                userId,
+                {
+                    name: 'Deleted Account',
+                    email: `deleted_${userId}@deleted.local`,
+                    bio: null,
+                    profilePicture: null,
+                    coverPhoto: null,
+                    isActive: false,
+                    pronouns: null,
+                    university: null,
+                    major: null,
+                    department: null,
+                    following: [],
+                    followers: [],
+                    blockedUsers: [],
+                    followersCount: 0,
+                    followingCount: 0,
+                    postsCount: 0,
+                }
+            );
+        } catch (err) {
+            // If update fails, try to delete the document entirely
             await databases.deleteDocument(
                 config.databaseId,
-                config.usersCollectionId || '68fc7b42001bf7efbba3',
-                user.$id
+                config.usersCollectionId,
+                userId
             );
-            
-            await account.deleteSessions();
         }
+
+        // 10. Disable the Appwrite auth identity
+        try {
+            await account.updateStatus();
+        } catch (err) {
+            // Continue even if status update fails
+        }
+
+        // 11. Clear sessions from this device
+        try {
+            await account.deleteSession('current');
+        } catch (err) {
+            // Continue even if session cleanup fails
+        }
+
+        return { success: true };
     } catch (error) {
         throw error;
+    }
+};
+
+/**
+ * Delete all posts created by a user (bypasses assertPostOwner for account deletion)
+ */
+const _deleteAllUserPosts = async (userId) => {
+    try {
+        let hasMore = true;
+        while (hasMore) {
+            const posts = await databases.listDocuments(
+                config.databaseId,
+                config.postsCollectionId,
+                [Query.equal('userId', userId), Query.limit(100)]
+            );
+
+            if (posts.documents.length === 0) {
+                hasMore = false;
+                break;
+            }
+
+            for (const post of posts.documents) {
+                try {
+                    // Delete replies for this post
+                    const { deleteRepliesByPost } = require('./replies');
+                    const { deleteNotificationsByPostId } = require('./notifications');
+                    await deleteRepliesByPost(post.$id);
+                    await deleteNotificationsByPostId(post.$id);
+
+                    await databases.deleteDocument(
+                        config.databaseId,
+                        config.postsCollectionId,
+                        post.$id
+                    );
+                } catch (err) {
+                    // Continue deleting other posts
+                }
+            }
+
+            if (posts.documents.length < 100) {
+                hasMore = false;
+            }
+        }
+    } catch (error) {
+        // Non-critical: continue with account deletion
+    }
+};
+
+/**
+ * Delete all replies created by a user on other people's posts
+ */
+const _deleteAllUserReplies = async (userId) => {
+    try {
+        let hasMore = true;
+        while (hasMore) {
+            const replies = await databases.listDocuments(
+                config.databaseId,
+                config.repliesCollectionId,
+                [Query.equal('userId', userId), Query.limit(100)]
+            );
+
+            if (replies.documents.length === 0) {
+                hasMore = false;
+                break;
+            }
+
+            for (const reply of replies.documents) {
+                try {
+                    await databases.deleteDocument(
+                        config.databaseId,
+                        config.repliesCollectionId,
+                        reply.$id
+                    );
+
+                    // Decrement reply count on the parent post
+                    if (reply.postId) {
+                        try {
+                            const post = await databases.getDocument(
+                                config.databaseId,
+                                config.postsCollectionId,
+                                reply.postId
+                            );
+                            if (post) {
+                                await databases.updateDocument(
+                                    config.databaseId,
+                                    config.postsCollectionId,
+                                    reply.postId,
+                                    { replyCount: Math.max(0, (post.replyCount || 1) - 1) }
+                                );
+                            }
+                        } catch (err) {
+                            // Post may already be deleted
+                        }
+                    }
+                } catch (err) {
+                    // Continue deleting other replies
+                }
+            }
+
+            if (replies.documents.length < 100) {
+                hasMore = false;
+            }
+        }
+    } catch (error) {
+        // Non-critical
+    }
+};
+
+/**
+ * Delete all notifications for and from a user
+ */
+const _deleteAllUserNotifications = async (userId) => {
+    try {
+        // Delete notifications received by the user
+        let hasMore = true;
+        while (hasMore) {
+            const notifs = await databases.listDocuments(
+                config.databaseId,
+                config.notificationsCollectionId,
+                [Query.equal('userId', userId), Query.limit(100)]
+            );
+
+            if (notifs.documents.length === 0) break;
+
+            for (const n of notifs.documents) {
+                try {
+                    await databases.deleteDocument(config.databaseId, config.notificationsCollectionId, n.$id);
+                } catch (err) { /* continue */ }
+            }
+
+            if (notifs.documents.length < 100) hasMore = false;
+        }
+
+        // Delete notifications sent by the user
+        hasMore = true;
+        while (hasMore) {
+            const notifs = await databases.listDocuments(
+                config.databaseId,
+                config.notificationsCollectionId,
+                [Query.equal('senderId', userId), Query.limit(100)]
+            );
+
+            if (notifs.documents.length === 0) break;
+
+            for (const n of notifs.documents) {
+                try {
+                    await databases.deleteDocument(config.databaseId, config.notificationsCollectionId, n.$id);
+                } catch (err) { /* continue */ }
+            }
+
+            if (notifs.documents.length < 100) hasMore = false;
+        }
+    } catch (error) {
+        // Non-critical
+    }
+};
+
+/**
+ * Delete all push tokens for a user
+ */
+const _deleteAllUserPushTokens = async (userId) => {
+    try {
+        const tokens = await databases.listDocuments(
+            config.databaseId,
+            config.pushTokensCollectionId,
+            [Query.equal('userId', userId), Query.limit(100)]
+        );
+
+        for (const token of tokens.documents) {
+            try {
+                await databases.deleteDocument(config.databaseId, config.pushTokensCollectionId, token.$id);
+            } catch (err) { /* continue */ }
+        }
+    } catch (error) {
+        // Non-critical
+    }
+};
+
+/**
+ * Delete all user chat settings
+ */
+const _deleteAllUserChatSettings = async (userId) => {
+    try {
+        let hasMore = true;
+        while (hasMore) {
+            const settings = await databases.listDocuments(
+                config.databaseId,
+                config.userChatSettingsCollectionId,
+                [Query.equal('userId', userId), Query.limit(100)]
+            );
+
+            if (settings.documents.length === 0) break;
+
+            for (const s of settings.documents) {
+                try {
+                    await databases.deleteDocument(config.databaseId, config.userChatSettingsCollectionId, s.$id);
+                } catch (err) { /* continue */ }
+            }
+
+            if (settings.documents.length < 100) hasMore = false;
+        }
+    } catch (error) {
+        // Non-critical
+    }
+};
+
+/**
+ * Anonymize all messages sent by this user (set senderName to "Deleted Account")
+ */
+const _anonymizeUserMessages = async (userId) => {
+    try {
+        let hasMore = true;
+        while (hasMore) {
+            const messages = await databases.listDocuments(
+                config.databaseId,
+                config.messagesCollectionId,
+                [Query.equal('senderId', userId), Query.limit(100)]
+            );
+
+            if (messages.documents.length === 0) break;
+
+            for (const msg of messages.documents) {
+                try {
+                    await databases.updateDocument(
+                        config.databaseId,
+                        config.messagesCollectionId,
+                        msg.$id,
+                        { senderName: 'Deleted Account' }
+                    );
+                } catch (err) { /* continue */ }
+            }
+
+            if (messages.documents.length < 100) hasMore = false;
+        }
+    } catch (error) {
+        // Non-critical
+    }
+};
+
+/**
+ * Remove user from all chat participant lists
+ */
+const _removeUserFromChats = async (userId) => {
+    try {
+        let hasMore = true;
+        while (hasMore) {
+            const chats = await databases.listDocuments(
+                config.databaseId,
+                config.chatsCollectionId,
+                [Query.contains('participants', [userId]), Query.limit(50)]
+            );
+
+            if (chats.documents.length === 0) break;
+
+            for (const chat of chats.documents) {
+                try {
+                    const updatedParticipants = (chat.participants || []).filter(id => id !== userId);
+                    const updatedAdmins = (chat.admins || []).filter(id => id !== userId);
+                    const updatedReps = (chat.representatives || []).filter(id => id !== userId);
+
+                    await databases.updateDocument(
+                        config.databaseId,
+                        config.chatsCollectionId,
+                        chat.$id,
+                        {
+                            participants: updatedParticipants,
+                            admins: updatedAdmins,
+                            representatives: updatedReps,
+                        }
+                    );
+                } catch (err) { /* continue */ }
+            }
+
+            if (chats.documents.length < 50) hasMore = false;
+        }
+    } catch (error) {
+        // Non-critical
+    }
+};
+
+/**
+ * Remove user from followers/following lists of other users
+ */
+const _removeUserFromFollowLists = async (userId) => {
+    try {
+        // Get the user's followers and following lists
+        let userDoc;
+        try {
+            userDoc = await databases.getDocument(
+                config.databaseId,
+                config.usersCollectionId,
+                userId
+            );
+        } catch (err) {
+            return;
+        }
+
+        const followers = userDoc.followers || [];
+        const following = userDoc.following || [];
+
+        // Remove this user from each follower's "following" list
+        for (const followerId of followers) {
+            try {
+                const follower = await databases.getDocument(
+                    config.databaseId,
+                    config.usersCollectionId,
+                    followerId
+                );
+                const updatedFollowing = (follower.following || []).filter(id => id !== userId);
+                await databases.updateDocument(
+                    config.databaseId,
+                    config.usersCollectionId,
+                    followerId,
+                    {
+                        following: updatedFollowing,
+                        followingCount: Math.max(0, (follower.followingCount || 1) - 1),
+                    }
+                );
+            } catch (err) { /* continue */ }
+        }
+
+        // Remove this user from each followed user's "followers" list
+        for (const followedId of following) {
+            try {
+                const followed = await databases.getDocument(
+                    config.databaseId,
+                    config.usersCollectionId,
+                    followedId
+                );
+                const updatedFollowers = (followed.followers || []).filter(id => id !== userId);
+                await databases.updateDocument(
+                    config.databaseId,
+                    config.usersCollectionId,
+                    followedId,
+                    {
+                        followers: updatedFollowers,
+                        followersCount: Math.max(0, (followed.followersCount || 1) - 1),
+                    }
+                );
+            } catch (err) { /* continue */ }
+        }
+    } catch (error) {
+        // Non-critical
     }
 };
 
@@ -961,16 +1398,16 @@ const getRecoveryRedirectUrl = () => {
 export const sendPasswordResetOTP = async (email) => {
     try {
         const sanitizedEmail = sanitizeInput(email).toLowerCase();
-        
+
         if (!sanitizedEmail) {
             throw new Error('Invalid email');
         }
-        
+
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(sanitizedEmail)) {
             throw new Error('Invalid email format');
         }
-        
+
         // Use Appwrite's Recovery feature - do not expose whether an account exists
         const redirectUrl = getRecoveryRedirectUrl();
         const now = Date.now();
@@ -1024,12 +1461,12 @@ export const sendPasswordResetOTP = async (email) => {
                 requestCount,
             }));
         };
-        
+
         try {
             await account.createRecovery(sanitizedEmail, redirectUrl);
 
             await saveResetAttempt();
-            
+
             return {
                 success: true,
                 email: sanitizedEmail,
@@ -1066,17 +1503,17 @@ export const completePasswordReset = async (userId, secret, newPassword) => {
         if (!userId || !secret) {
             throw new Error('Invalid recovery link. Please request a new password reset.');
         }
-        
+
         if (!newPassword || newPassword.length < 8) {
             throw new Error('Password must be at least 8 characters');
         }
-        
+
         // Use Appwrite's updateRecovery to set the new password
         await account.updateRecovery(userId, secret, newPassword);
-        
+
         // Clean up stored data
         await safeStorage.removeItem(PENDING_PASSWORD_RESET_KEY);
-        
+
         return {
             success: true,
         };
@@ -1087,7 +1524,7 @@ export const completePasswordReset = async (userId, secret, newPassword) => {
         if (error.message?.includes('Invalid')) {
             throw new Error('Invalid recovery link. Please request a new password reset.');
         }
-        
+
         throw error;
     }
 };

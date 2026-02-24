@@ -552,6 +552,11 @@ export const AppSettingsProvider = ({ children }) => {
     }
   };
 
+  const previewFontScale = (scale) => {
+    setFontScale(scale);
+    setGlobalFontScale(scale);
+  };
+
   const updateReduceMotion = async (value) => {
     try {
       setReduceMotion(value);
@@ -749,6 +754,7 @@ export const AppSettingsProvider = ({ children }) => {
     loadUserChatSettings,
 
     fontScale,
+    previewFontScale,
     updateFontScale,
     
     reduceMotion,

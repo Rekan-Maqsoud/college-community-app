@@ -28,10 +28,10 @@ export const horizontalScale = (size) => (SCREEN_WIDTH / guidelineBaseWidth) * s
 export const verticalScale = (size) => (SCREEN_HEIGHT / guidelineBaseHeight) * size;
 export const moderateScale = (size, factor = 0.5) => size + (horizontalScale(size) - size) * factor;
 
-// Normalize font size based on screen width
+// Normalize font size based on screen width, respects global font scale
 export const normalize = (size) => {
   const scale = SCREEN_WIDTH / guidelineBaseWidth;
-  const newSize = size * scale;
+  const newSize = size * scale * _globalFontScale;
   if (Platform.OS === 'ios') {
     return Math.round(PixelRatio.roundToNearestPixel(newSize));
   }

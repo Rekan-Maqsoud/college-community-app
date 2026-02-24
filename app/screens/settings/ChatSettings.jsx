@@ -133,6 +133,8 @@ const ChatSettings = ({ navigation, route }) => {
     </BlurView>
   );
 
+  const [sliderBubbleRadius, setSliderBubbleRadius] = useState(null);
+
   const handleBubbleRoundnessChange = (radius) => {
     updateChatSetting('bubbleRadius', Math.round(radius));
   };
@@ -175,6 +177,13 @@ const ChatSettings = ({ navigation, route }) => {
     return Math.max(MIN_BUBBLE_RADIUS, Math.min(MAX_BUBBLE_RADIUS, parsedRadius));
   };
 
+  const getPreviewBubbleRadius = () => {
+    if (sliderBubbleRadius !== null && Number.isFinite(sliderBubbleRadius)) {
+      return Math.max(MIN_BUBBLE_RADIUS, Math.min(MAX_BUBBLE_RADIUS, sliderBubbleRadius));
+    }
+    return getBubbleRadius();
+  };
+
   const pickCustomBackground = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -198,7 +207,7 @@ const ChatSettings = ({ navigation, route }) => {
           styles.previewBubble,
           { 
             backgroundColor: 'rgba(255,255,255,0.15)',
-            borderRadius: getBubbleRadius(),
+              borderRadius: getPreviewBubbleRadius(),
             borderBottomLeftRadius: spacing.xs / 2,
           }
         ]}>
@@ -217,7 +226,7 @@ const ChatSettings = ({ navigation, route }) => {
             style={[
               styles.previewBubble,
               { 
-                borderRadius: getBubbleRadius(),
+                borderRadius: getPreviewBubbleRadius(),
                 borderBottomRightRadius: spacing.xs / 2,
               }
             ]}
@@ -234,7 +243,7 @@ const ChatSettings = ({ navigation, route }) => {
             styles.previewBubble,
             { 
               backgroundColor: chatSettings.bubbleColor || '#667eea',
-              borderRadius: getBubbleRadius(),
+              borderRadius: getPreviewBubbleRadius(),
               borderBottomRightRadius: spacing.xs / 2,
             }
           ]}>
@@ -329,7 +338,7 @@ const ChatSettings = ({ navigation, route }) => {
                   {t('settings.bubbleLessRound') || 'Less round'}
                 </Text>
                 <Text style={[styles.sliderValue, { color: theme.primary }]}>
-                  {Math.round(getBubbleRadius())}
+                  {sliderBubbleRadius !== null ? Math.round(sliderBubbleRadius) : Math.round(getBubbleRadius())}
                 </Text>
                 <Text style={[styles.sliderHint, { color: theme.textSecondary }]}>
                   {t('settings.bubbleMoreRound') || 'More round'}
@@ -339,12 +348,28 @@ const ChatSettings = ({ navigation, route }) => {
                 style={styles.sliderControl}
                 minimumValue={MIN_BUBBLE_RADIUS}
                 maximumValue={MAX_BUBBLE_RADIUS}
-                step={1}
-                value={getBubbleRadius()}
+                step={0}
+                value={sliderBubbleRadius !== null ? Math.round(sliderBubbleRadius) : Math.round(getBubbleRadius())}
                 minimumTrackTintColor={theme.primary}
                 maximumTrackTintColor={isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'}
                 thumbTintColor={theme.primary}
-                onValueChange={handleBubbleRoundnessChange}
+                onValueChange={(value) => {
+                  const rounded = Math.round(value);
+                  setSliderBubbleRadius((prev) => (prev === rounded ? prev : rounded));
+                  console.log('[SETTINGS_DEBUG] bubbleRadius:onValueChange', {
+                    raw: value,
+                    rounded,
+                  });
+                }}
+                onSlidingComplete={(value) => {
+                  const rounded = Math.round(value);
+                  setSliderBubbleRadius(null);
+                  console.log('[SETTINGS_DEBUG] bubbleRadius:onSlidingComplete', {
+                    raw: value,
+                    rounded,
+                  });
+                  handleBubbleRoundnessChange(rounded);
+                }}
               />
             </View>
           </GlassCard>

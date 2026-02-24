@@ -326,10 +326,7 @@ const Home = ({ navigation, route }) => {
   );
 
   const loadPosts = async (reset = false, options = {}) => {
-    console.log('[DB_DEBUG] Home.loadPosts() called, reset:', reset);
-    console.log('[DB_DEBUG] Home user:', user ? { $id: user.$id, department: user.department, stage: user.stage } : null);
     if (!user || !user.department) {
-      console.log('[DB_DEBUG] Home.loadPosts() BAILED: user or department missing');
       return;
     }
 
@@ -393,7 +390,6 @@ const Home = ({ navigation, route }) => {
       }
 
       // Enrich posts with user data for those missing userName
-      console.log('[DB_DEBUG] Home fetched', fetchedPosts.length, 'posts for feed:', selectedFeed);
       const enrichedPosts = await enrichPostsWithUserData(fetchedPosts);
 
       // Filter out posts from blocked users
@@ -414,7 +410,6 @@ const Home = ({ navigation, route }) => {
 
       setHasMore(fetchedPosts.length === POSTS_PER_PAGE);
     } catch (error) {
-      console.log('[DB_DEBUG] Home.loadPosts() ERROR:', error?.message, error?.code, error?.type);
       const errorInfo = handleNetworkError(error);
       showAlert(
         errorInfo.isNetworkError ? t('error.noInternet') : t('error.title'),
@@ -1120,9 +1115,16 @@ const Home = ({ navigation, route }) => {
         onDismiss={hideAlert}
       />
       <RepDetectionPopup
-        visible={needsRep || hasActiveElection}
+        visible={needsRep}
         hasActiveElection={hasActiveElection}
         onVote={() => {
+          console.log('[REP_DEBUG] Home:onVoteFromPopup', {
+            userId: user?.$id,
+            department: user?.department,
+            stage: user?.stage,
+            hasActiveElection,
+            needsRep,
+          });
           dismissRepPopup();
           navigation.navigate('RepVoting', { department: user?.department, stage: user?.stage });
         }}
