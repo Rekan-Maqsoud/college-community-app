@@ -3,6 +3,7 @@ import { ID, Query } from 'appwrite';
 import { CHAT_TYPES, createGroupChat, getUserGroupChats, decryptChatPreviews, ensureChatParticipant } from './chats';
 import { getUserById } from './users';
 import { chatsCacheManager } from '../app/utils/cacheManager';
+import { seedChatMeta } from '../app/hooks/useFirebaseRealtime';
 
 export const PRIVATE_CHAT_TYPE = 'private';
 export const CUSTOM_GROUP_TYPE = 'custom_group';
@@ -339,6 +340,10 @@ export const getAllUserChats = async (userId, department, stage, useCache = true
         
         results.privateChats = await decryptChatPreviews(privateChatsWithOtherUser, userId);
         
+        // Seed chat metadata to Firebase RTDB so live listeners have data
+        const allChats = [...results.defaultGroups, ...results.customGroups, ...results.privateChats];
+        seedChatMeta(allChats);
+
         // Cache the results
         await chatsCacheManager.cacheChats(cacheKey, results);
 

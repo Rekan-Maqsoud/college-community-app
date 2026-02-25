@@ -203,7 +203,8 @@ const MessageBubble = ({
   const isFile = message.type === 'file';
   const isLectureAssetBanner = message.type === 'lecture_asset_banner';
   const canReply = !!onReply && !isLectureAssetBanner;
-  const hasText = !isVoice && !isFile && message.content && message.content.trim().length > 0;
+  const hasEncryptedFallbackText = !!message._isEncryptedUnavailable;
+  const hasText = ((message.content && message.content.trim().length > 0 && !isVoice && !isFile) || hasEncryptedFallbackText);
   const isSticker = isGif && (() => {
     try {
       const parsed = typeof message.content === 'string' ? JSON.parse(message.content) : message.content;
@@ -721,7 +722,9 @@ const MessageBubble = ({
   const renderMessageContent = () => {
     if (!hasText) return null;
     
-    const content = message.content;
+    const content = hasEncryptedFallbackText
+      ? t('chats.encryptedMessageUnavailable')
+      : message.content;
     
     // Helper to highlight search matches in text
     const highlightSearchMatches = (text, keyPrefix = '') => {
@@ -1394,7 +1397,8 @@ const MessageBubble = ({
         </TouchableOpacity>
       )}
 
-      {!isLectureAssetBanner && !isPostShare && !isLocation && !isGif && !isVoice && !isPoll && !isFile && renderMessageContent()}
+      {((!isLectureAssetBanner && !isPostShare && !isLocation && !isGif && !isVoice && !isPoll && !isFile) || hasEncryptedFallbackText)
+        && renderMessageContent()}
       
       <View style={styles.timeStatusRow}>
         <Text style={[

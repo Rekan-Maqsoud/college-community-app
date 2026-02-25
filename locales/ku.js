@@ -1187,6 +1187,7 @@ export default {
     typeMessage: 'پەیامێک بنووسە...',
     mentionEveryone: 'هەموان',
     cannotSendMessage: 'ناتوانیت پەیام بنێریت',
+    encryptedMessageUnavailable: 'نەتوانرا ئەم پەیامە بکرێتەوە',
     errorLoadingChats: 'بارکردنی گفتوگۆکان سەرکەوتوو نەبوو',
     errorLoadingMessages: 'بارکردنی پەیامەکان سەرکەوتوو نەبوو',
     errorSendingMessage: 'ناردنی پەیام سەرکەوتوو نەبوو',

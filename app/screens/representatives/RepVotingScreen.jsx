@@ -64,12 +64,6 @@ const RepVotingScreen = ({ navigation, route }) => {
   const loadData = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
-      console.log('[REP_DEBUG] RepVotingScreen:loadData:start', {
-        department,
-        stage,
-        routeSeatNumber,
-        showLoading,
-      });
 
       // Load students in this class
       const classStudents = await getClassStudents(department, stage);
@@ -107,15 +101,6 @@ const RepVotingScreen = ({ navigation, route }) => {
         electionDoc = await createElection(department, stage, classStudents.length, routeSeatNumber);
       }
 
-      console.log('[REP_DEBUG] RepVotingScreen:loadData:electionResolved', {
-        electionId: electionDoc?.$id || null,
-        status: electionDoc?.status || null,
-        seatNumber: electionDoc?.seatNumber || null,
-        classStudents: classStudents.length,
-        repsCount: reps.length,
-        nextSeat: next,
-      });
-
       setElection(electionDoc);
 
       // Load vote results
@@ -148,19 +133,8 @@ const RepVotingScreen = ({ navigation, route }) => {
         }
 
         setResults(voteResults);
-        console.log('[REP_DEBUG] RepVotingScreen:loadData:results', {
-          electionId: electionDoc.$id,
-          totalVotes: voteResults?.totalVotes || 0,
-          myVote: voteResults?.myVote || null,
-        });
       }
     } catch (error) {
-      console.log('[REP_DEBUG] RepVotingScreen:loadData:error', {
-        message: error?.message,
-        department,
-        stage,
-        routeSeatNumber,
-      });
       // Silent fail
     } finally {
       setLoading(false);
@@ -198,7 +172,7 @@ const RepVotingScreen = ({ navigation, route }) => {
             }
           }
         } catch (err) {
-          console.log('[REP_DEBUG] RepVotingScreen:timerExpiry:error', { message: err?.message });
+          // silent
         }
       }
     };
@@ -222,27 +196,11 @@ const RepVotingScreen = ({ navigation, route }) => {
 
     try {
       setVoting(true);
-      console.log('[REP_DEBUG] RepVotingScreen:handleVote:start', {
-        electionId: election?.$id,
-        electionStatus: election?.status,
-        candidateId,
-        myUserId: user?.$id,
-      });
       await castVote(election.$id, candidateId);
       // Refresh results
       const updated = await getElectionResults(election.$id);
       setResults(updated);
-      console.log('[REP_DEBUG] RepVotingScreen:handleVote:success', {
-        electionId: election?.$id,
-        totalVotes: updated?.totalVotes || 0,
-        myVote: updated?.myVote || null,
-      });
     } catch (error) {
-      console.log('[REP_DEBUG] RepVotingScreen:handleVote:error', {
-        message: error?.message,
-        electionId: election?.$id,
-        candidateId,
-      });
       if (error?.message === 'Voting time has expired' || error?.message === 'Election is closed') {
         showToast(t('repVoting.votingClosed'));
         loadData(false);

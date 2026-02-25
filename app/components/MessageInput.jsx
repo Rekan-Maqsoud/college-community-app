@@ -266,7 +266,7 @@ const MessageInput = ({
   }, [isRecording, recorderState?.durationMillis, recorderState?.metering]);
 
   const startVoiceRecording = async () => {
-    if (disabled || uploading || isRecordingRef.current || message.trim() || selectedImage) {
+    if (disabled || uploading || isRecordingRef.current || message.trim() || selectedImage || selectedFile) {
       return;
     }
 
@@ -288,7 +288,7 @@ const MessageInput = ({
       });
 
       await audioRecorder.prepareToRecordAsync();
-      audioRecorder.record();
+      await audioRecorder.record();
 
       recordingStartedAtRef.current = Date.now();
       recordingWaveformHistoryRef.current = [];

@@ -14,16 +14,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from '../hooks/useTranslation';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { useUser } from '../context/UserContext';
 import { useAppSettings } from '../context/AppSettingsContext';
+import AnimatedBackground from '../components/AnimatedBackground';
 import ImagePickerComponent from '../components/ImagePicker';
 import SearchableDropdownNew from '../components/SearchableDropdownNew';
 import CustomAlert from '../components/CustomAlert';
 import {
   POST_TYPES,
   POST_TYPE_OPTIONS,
+  POST_ICONS,
   getStageOptionsForDepartment,
   isExtendedStageDepartment,
   VALIDATION_RULES,
@@ -31,9 +34,29 @@ import {
 } from '../constants/postConstants';
 import { uploadImage } from '../../services/imgbbService';
 import { updatePost } from '../../database/posts';
+import { createPollPayload, parsePollPayload } from '../utils/pollUtils';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
+
+const normalizeStageValue = (userStage) => {
+  const stageMap = {
+    firstYear: 'stage_1',
+    secondYear: 'stage_2',
+    thirdYear: 'stage_3',
+    fourthYear: 'stage_4',
+    fifthYear: 'stage_5',
+    sixthYear: 'stage_6',
+    graduate: 'graduate',
+    '1': 'stage_1',
+    '2': 'stage_2',
+    '3': 'stage_3',
+    '4': 'stage_4',
+    '5': 'stage_5',
+    '6': 'stage_6',
+  };
+  return stageMap[userStage] || userStage || '';
+};
 
 const EditPost = ({ navigation, route }) => {
   const { t } = useTranslation();
@@ -47,7 +70,9 @@ const EditPost = ({ navigation, route }) => {
   const [topic, setTopic] = useState(post?.topic || '');
   const [text, setText] = useState(post?.text || '');
   const [department, setDepartment] = useState(post?.department || user?.department || '');
-  const [stage, setStage] = useState(post?.stage || '');
+  const [stage, setStage] = useState(post?.stage || normalizeStageValue(user?.stage));
+  const [topicInputHeight, setTopicInputHeight] = useState(48);
+  const [textInputHeight, setTextInputHeight] = useState(96);
   const [visibility, setVisibility] = useState(post?.visibility || 'department');
   const [canOthersRepost, setCanOthersRepost] = useState(post?.canOthersRepost !== false);
   const [images, setImages] = useState([]);
@@ -56,26 +81,12 @@ const EditPost = ({ navigation, route }) => {
   const [tagInput, setTagInput] = useState('');
   const [links, setLinks] = useState([]);
   const [linkInput, setLinkInput] = useState('');
+  const [showTags, setShowTags] = useState(true);
+  const [showLinks, setShowLinks] = useState(true);
+  const [pollChoices, setPollChoices] = useState(['', '']);
+  const [isQuizPoll, setIsQuizPoll] = useState(false);
+  const [correctPollOptionId, setCorrectPollOptionId] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const convertUserStageToStageValue = (userStage) => {
-    const stageMap = {
-      'firstYear': 'stage_1',
-      'secondYear': 'stage_2',
-      'thirdYear': 'stage_3',
-      'fourthYear': 'stage_4',
-      'fifthYear': 'stage_5',
-      'sixthYear': 'stage_6',
-      'graduate': 'graduate',
-      '1': 'stage_1',
-      '2': 'stage_2',
-      '3': 'stage_3',
-      '4': 'stage_4',
-      '5': 'stage_5',
-      '6': 'stage_6',
-    };
-    return stageMap[userStage] || userStage;
-  };
 
   useEffect(() => {
     if (!post) {
@@ -92,12 +103,24 @@ const EditPost = ({ navigation, route }) => {
       setDepartment(user.department);
     }
 
+    if (!post?.stage && user?.stage) {
+      setStage(normalizeStageValue(user.stage));
+    }
+
     if (Array.isArray(post.tags)) {
       setTags(post.tags);
     }
 
     if (Array.isArray(post.links)) {
       setLinks(post.links);
+    }
+
+    const parsedPoll = parsePollPayload(post.pollData);
+    if (parsedPoll) {
+      const pollOptionTexts = parsedPoll.options.map((option) => option.text);
+      setPollChoices(pollOptionTexts.length >= 2 ? pollOptionTexts : ['', '']);
+      setIsQuizPoll(Boolean(parsedPoll.isQuiz));
+      setCorrectPollOptionId(parsedPoll.correctOptionId || '');
     }
   }, []);
 
@@ -109,6 +132,10 @@ const EditPost = ({ navigation, route }) => {
   }, [department, stage]);
 
   const stageOptions = getStageOptionsForDepartment(department);
+  const postTypeOptions = [
+    ...POST_TYPE_OPTIONS,
+    { value: POST_TYPES.POLL, labelKey: 'post.types.poll' },
+  ];
 
   const inputColors = {
     backgroundColor: theme.input.background,
@@ -142,7 +169,50 @@ const EditPost = ({ navigation, route }) => {
       return false;
     }
 
+    if (postType === POST_TYPES.POLL) {
+      const validChoices = pollChoices.map(choice => choice.trim()).filter(Boolean);
+      if (validChoices.length < 2) {
+        showAlert(t('common.error'), t('post.poll.minChoicesError'));
+        return false;
+      }
+
+      if (isQuizPoll && !correctPollOptionId) {
+        showAlert(t('common.error'), t('post.poll.correctAnswerRequired'));
+        return false;
+      }
+    }
+
     return true;
+  };
+
+  const handlePollChoiceChange = (index, value) => {
+    setPollChoices((prevChoices) => {
+      const nextChoices = [...prevChoices];
+      nextChoices[index] = value;
+      return nextChoices;
+    });
+  };
+
+  const handleAddPollChoice = () => {
+    if (pollChoices.length >= 8) {
+      showAlert(t('common.warning'), t('post.poll.maxChoicesError'));
+      return;
+    }
+    setPollChoices((prevChoices) => [...prevChoices, '']);
+  };
+
+  const handleRemovePollChoice = (index) => {
+    if (pollChoices.length <= 2) {
+      return;
+    }
+
+    const removedChoiceId = `opt_${index + 1}`;
+    const nextChoices = pollChoices.filter((_, choiceIndex) => choiceIndex !== index);
+    setPollChoices(nextChoices);
+
+    if (correctPollOptionId === removedChoiceId) {
+      setCorrectPollOptionId('');
+    }
   };
 
   const handleUpdatePost = async () => {
@@ -180,6 +250,19 @@ const EditPost = ({ navigation, route }) => {
         imageDeleteUrls,
         canOthersRepost,
       };
+
+      if (postType === POST_TYPES.POLL) {
+        updateData.pollData = createPollPayload({
+          question: topic.trim() || text.trim() || t('post.poll.defaultQuestion'),
+          options: pollChoices,
+          allowMultiple: false,
+          maxSelections: 1,
+          isQuiz: isQuizPoll,
+          correctOptionId: correctPollOptionId,
+        });
+      } else {
+        updateData.pollData = null;
+      }
 
       updateData.tags = tagArray;
       updateData.links = linkArray;
@@ -269,59 +352,68 @@ const EditPost = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-      <View style={[styles.header, { backgroundColor: theme.background, borderBottomColor: theme.border }]}>
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => navigation.goBack()}
-          disabled={loading}
-        >
-          <Ionicons name="close" size={moderateScale(26)} color={theme.text} />
-        </TouchableOpacity>
-        
-        <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.editPost')}</Text>
-        
-        <TouchableOpacity
-          style={[styles.headerButton, loading && styles.headerButtonDisabled]}
-          onPress={handleUpdatePost}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#3B82F6" />
-          ) : (
-            <Text style={[styles.postButtonText, { color: theme.primary }]}>{t('common.save')}</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      <LinearGradient
+        colors={isDarkMode
+          ? ['#1a1a2e', '#16213e', '#0f3460']
+          : ['#FFFEF7', '#FFF9E6', '#FFF4D6']
+        }
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={contentStyle}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+        <AnimatedBackground particleCount={16} />
+        <View style={[styles.header, { backgroundColor: 'transparent', borderBottomColor: theme.border }]}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => navigation.goBack()}
+            disabled={loading}
+          >
+            <Ionicons name="close" size={moderateScale(26)} color={theme.text} />
+          </TouchableOpacity>
+          
+          <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.editPost')}</Text>
+          
+          <TouchableOpacity
+            style={[styles.headerButton, loading && styles.headerButtonDisabled]}
+            onPress={handleUpdatePost}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#3B82F6" />
+            ) : (
+              <Text style={[styles.postButtonText, { color: theme.primary }]}>{t('common.save')}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={contentStyle}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
           <View style={styles.section}>
             <View style={styles.topControlsRow}>
-              <View style={styles.compactField}>
+              <View style={[styles.compactField, styles.postTypeField]}>
                 <Text style={[styles.compactLabel, { color: theme.textSecondary }]}>
                   {t('post.postType')}
                 </Text>
                 <SearchableDropdownNew
-                  items={POST_TYPE_OPTIONS}
+                  items={postTypeOptions}
                   value={postType}
                   onSelect={setPostType}
                   placeholder={t('post.postType')}
-                  icon="list-outline"
+                  icon={POST_ICONS[postType] || 'list-outline'}
                   disabled={loading}
-                  compact
                 />
               </View>
 
-              <View style={styles.compactField}>
+              <View style={[styles.compactField, styles.compactFieldHalf]}>
                 <Text style={[styles.compactLabel, { color: theme.textSecondary }]}>
                   {t('post.stage')}
                 </Text>
@@ -336,7 +428,7 @@ const EditPost = ({ navigation, route }) => {
                 />
               </View>
 
-              <View style={styles.compactField}>
+              <View style={[styles.compactField, styles.compactFieldHalf]}>
                 <Text style={[styles.compactLabel, { color: theme.textSecondary }]}>
                   {t('post.visibility')}
                 </Text>
@@ -362,22 +454,41 @@ const EditPost = ({ navigation, route }) => {
             <Text style={[styles.helperText, styles.compactHelper, { color: theme.textSecondary }]}>
               {getVisibilityHelper()}
             </Text>
-            <View style={styles.repostPermissionRow}>
-              <View style={styles.repostPermissionTextWrap}>
-                <Text style={[styles.compactLabel, { color: theme.textSecondary }]}>
-                  {t('post.allowReposts')}
+
+            <View style={styles.actionButtonsRow}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}
+                onPress={() => setShowTags(!showTags)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="pricetag-outline" size={18} color={showTags ? theme.primary : theme.textSecondary} />
+                <Text style={[styles.actionButtonText, { color: showTags ? theme.primary : theme.textSecondary }]}>
+                  {t('post.tags')}
                 </Text>
-                <Text style={[styles.helperText, { color: theme.textSecondary }]}>
-                  {t('post.allowRepostsHelper')}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}
+                onPress={() => setShowLinks(!showLinks)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="link-outline" size={18} color={showLinks ? theme.primary : theme.textSecondary} />
+                <Text style={[styles.actionButtonText, { color: showLinks ? theme.primary : theme.textSecondary }]}>
+                  {t('post.links')}
                 </Text>
-              </View>
-              <Switch
-                value={canOthersRepost}
-                onValueChange={setCanOthersRepost}
-                disabled={loading}
-                trackColor={{ false: theme.input.border, true: `${theme.primary}88` }}
-                thumbColor={canOthersRepost ? theme.primary : '#F3F4F6'}
-              />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}
+                onPress={() => {}}
+                disabled
+                activeOpacity={1}
+              >
+                <Ionicons name="images-outline" size={18} color={theme.textSecondary} />
+                <Text style={[styles.actionButtonText, { color: theme.textSecondary }]}> 
+                  {t('post.images')} ({existingImages.length + images.length})
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -386,13 +497,23 @@ const EditPost = ({ navigation, route }) => {
               {t('post.topic')}
             </Text>
             <TextInput
-              style={[styles.topicInput, inputColors]}
+              style={[styles.topicInput, styles.growingInput, inputColors, {
+                minHeight: topicInputHeight,
+                height: topicInputHeight,
+              }]}
               value={topic}
               onChangeText={setTopic}
               placeholder={t('post.topicPlaceholder')}
               placeholderTextColor={theme.input.placeholder}
               editable={!loading}
               maxLength={VALIDATION_RULES.POST.topic.max}
+              multiline
+              numberOfLines={1}
+              textAlignVertical="top"
+              onContentSizeChange={(event) => {
+                const nextHeight = Math.max(48, Math.min(120, event.nativeEvent.contentSize.height + 16));
+                setTopicInputHeight(nextHeight);
+              }}
             />
             <Text style={[styles.charCount, { color: theme.textSecondary }]}>
               {topic.length}/{VALIDATION_RULES.POST.topic.max}
@@ -404,23 +525,134 @@ const EditPost = ({ navigation, route }) => {
               {t('post.description')}
             </Text>
             <TextInput
-              style={[styles.textInput, inputColors]}
+              style={[styles.textInput, styles.growingInput, inputColors, {
+                minHeight: textInputHeight,
+                height: textInputHeight,
+              }]}
               value={text}
               onChangeText={setText}
               placeholder={t('post.descriptionPlaceholder')}
               placeholderTextColor={theme.input.placeholder}
               multiline
-              numberOfLines={8}
+              numberOfLines={3}
               textAlignVertical="top"
               editable={!loading}
               maxLength={VALIDATION_RULES.POST.text.max}
+              onContentSizeChange={(event) => {
+                const nextHeight = Math.max(96, Math.min(280, event.nativeEvent.contentSize.height + 16));
+                setTextInputHeight(nextHeight);
+              }}
             />
             <Text style={[styles.charCount, { color: theme.textSecondary }]}>
               {text.length}/{VALIDATION_RULES.POST.text.max}
             </Text>
           </View>
 
+          {postType === POST_TYPES.POLL && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionLabel, { color: theme.text }]}>{t('post.poll.choicesLabel')}</Text>
+              <Text style={[styles.helperText, { color: theme.textSecondary }]}>{t('post.poll.choicesHelper')}</Text>
 
+              {pollChoices.map((choice, index) => (
+                <View key={`poll-choice-${index}`} style={styles.pollChoiceRow}>
+                  <TextInput
+                    style={[
+                      styles.pollChoiceInput,
+                      {
+                        backgroundColor: theme.input.background,
+                        borderColor: theme.input.border,
+                        color: theme.text,
+                      },
+                    ]}
+                    value={choice}
+                    onChangeText={(value) => handlePollChoiceChange(index, value)}
+                    placeholder={t('post.poll.choicePlaceholder').replace('{number}', String(index + 1))}
+                    placeholderTextColor={theme.input.placeholder}
+                    editable={!loading}
+                    maxLength={120}
+                  />
+                  <TouchableOpacity
+                    style={[styles.pollChoiceRemoveButton, { borderColor: theme.input.border }]}
+                    onPress={() => handleRemovePollChoice(index)}
+                    disabled={loading || pollChoices.length <= 2}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={theme.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              <TouchableOpacity
+                style={[styles.pollAddChoiceButton, { borderColor: theme.input.border, backgroundColor: theme.input.background }]}
+                onPress={handleAddPollChoice}
+                disabled={loading}
+              >
+                <Ionicons name="add-circle-outline" size={18} color={theme.primary} />
+                <Text style={[styles.pollAddChoiceText, { color: theme.primary }]}>{t('post.poll.addChoice')}</Text>
+              </TouchableOpacity>
+
+              <View style={styles.pollModeRow}>
+                <TouchableOpacity
+                  style={styles.pollModeItem}
+                  onPress={() => {
+                    setIsQuizPoll(false);
+                    setCorrectPollOptionId('');
+                  }}
+                >
+                  <Ionicons
+                    name={!isQuizPoll ? 'checkbox' : 'square-outline'}
+                    size={20}
+                    color={!isQuizPoll ? theme.primary : theme.textSecondary}
+                  />
+                  <Text style={[styles.pollModeText, { color: theme.text }]}>{t('post.poll.modePoll')}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.pollModeItem}
+                  onPress={() => setIsQuizPoll(true)}
+                >
+                  <Ionicons
+                    name={isQuizPoll ? 'checkbox' : 'square-outline'}
+                    size={20}
+                    color={isQuizPoll ? theme.primary : theme.textSecondary}
+                  />
+                  <Text style={[styles.pollModeText, { color: theme.text }]}>{t('post.poll.modeQuestion')}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {isQuizPoll && (
+                <View style={styles.pollCorrectAnswerWrap}>
+                  <Text style={[styles.compactLabel, { color: theme.textSecondary }]}>{t('post.poll.correctAnswerLabel')}</Text>
+                  {pollChoices.map((choice, index) => {
+                    const optionId = `opt_${index + 1}`;
+                    const choiceLabel = choice.trim();
+                    if (!choiceLabel) {
+                      return null;
+                    }
+
+                    const isSelected = correctPollOptionId === optionId;
+                    return (
+                      <TouchableOpacity
+                        key={`poll-correct-${optionId}`}
+                        style={styles.pollCorrectAnswerItem}
+                        onPress={() => setCorrectPollOptionId(optionId)}
+                      >
+                        <Ionicons
+                          name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                          size={18}
+                          color={isSelected ? theme.primary : theme.textSecondary}
+                        />
+                        <Text style={[styles.pollCorrectAnswerText, { color: theme.text }]} numberOfLines={1}>
+                          {choiceLabel}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          )}
+
+          {showTags && (
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, { color: theme.text }]}>
               {t('post.tags')} {t('common.optional')}
@@ -498,7 +730,9 @@ const EditPost = ({ navigation, route }) => {
               {t('post.tagsInputHelper')}
             </Text>
           </View>
+          )}
 
+          {showLinks && (
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, { color: theme.text }]}>
               {t('post.links')} {t('common.optional')}
@@ -574,6 +808,7 @@ const EditPost = ({ navigation, route }) => {
               {t('post.linksHelper')}
             </Text>
           </View>
+          )}
 
           {existingImages.length > 0 && (
             <View style={styles.section}>
@@ -607,9 +842,30 @@ const EditPost = ({ navigation, route }) => {
             disabled={loading}
           />
 
-          <View style={styles.bottomSpace} />
-        </ScrollView>
-      </KeyboardAvoidingView>
+          <View style={styles.section}>
+            <View style={styles.repostPermissionRow}>
+              <View style={styles.repostPermissionTextWrap}>
+                <Text style={[styles.compactLabel, { color: theme.textSecondary }]}> 
+                  {t('post.allowReposts')}
+                </Text>
+                <Text style={[styles.helperText, { color: theme.textSecondary }]}> 
+                  {t('post.allowRepostsHelper')}
+                </Text>
+              </View>
+              <Switch
+                value={canOthersRepost}
+                onValueChange={setCanOthersRepost}
+                disabled={loading}
+                trackColor={{ false: theme.input.border, true: `${theme.primary}88` }}
+                thumbColor={canOthersRepost ? theme.primary : '#F3F4F6'}
+              />
+            </View>
+          </View>
+
+            <View style={styles.bottomSpace} />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </LinearGradient>
       <CustomAlert
         visible={alertConfig.visible}
         type={alertConfig.type}
@@ -626,6 +882,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  gradient: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -671,12 +930,19 @@ const styles = StyleSheet.create({
   },
   topControlsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'flex-start',
     gap: spacing.sm,
   },
   compactField: {
     flex: 1,
     minWidth: wp(24),
+  },
+  postTypeField: {
+    flexBasis: '100%',
+  },
+  compactFieldHalf: {
+    minWidth: wp(38),
   },
   compactLabel: {
     fontSize: fontSize(11),
@@ -710,6 +976,25 @@ const styles = StyleSheet.create({
   },
   repostPermissionTextWrap: {
     flex: 1,
+  },
+  actionButtonsRow: {
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    gap: spacing.xs / 2,
+  },
+  actionButtonText: {
+    fontSize: fontSize(12),
+    fontWeight: '600',
   },
   postTypeGrid: {
     flexDirection: 'row',
@@ -746,6 +1031,9 @@ const styles = StyleSheet.create({
     color: '#111827',
     backgroundColor: '#F9FAFB',
   },
+  growingInput: {
+    overflow: 'hidden',
+  },
   textInput: {
     borderWidth: 1,
     borderColor: '#D1D5DB',
@@ -755,7 +1043,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize(15),
     color: '#111827',
     backgroundColor: '#F9FAFB',
-    minHeight: moderateScale(140),
+    minHeight: moderateScale(96),
   },
   charCount: {
     fontSize: fontSize(12),
@@ -847,6 +1135,70 @@ const styles = StyleSheet.create({
   },
   addLinkButton: {
     padding: spacing.xs / 2,
+  },
+  pollChoiceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  pollChoiceInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    fontSize: fontSize(14),
+  },
+  pollChoiceRemoveButton: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderWidth: 1,
+    borderRadius: borderRadius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pollAddChoiceButton: {
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderRadius: borderRadius.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs / 2,
+  },
+  pollAddChoiceText: {
+    fontSize: fontSize(13),
+    fontWeight: '600',
+  },
+  pollModeRow: {
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  pollModeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  pollModeText: {
+    fontSize: fontSize(14),
+    fontWeight: '500',
+  },
+  pollCorrectAnswerWrap: {
+    marginTop: spacing.sm,
+  },
+  pollCorrectAnswerItem: {
+    marginTop: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  pollCorrectAnswerText: {
+    flex: 1,
+    fontSize: fontSize(14),
   },
   // Hashtags section styles
   hashtagsSection: {

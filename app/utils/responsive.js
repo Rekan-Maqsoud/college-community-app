@@ -5,6 +5,24 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const guidelineBaseWidth = 375;
 const guidelineBaseHeight = 812;
 
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const getWidthScale = () => {
+  const raw = SCREEN_WIDTH / guidelineBaseWidth;
+  if (SCREEN_WIDTH >= 768) {
+    return clamp(raw, 1, 1.3);
+  }
+  return clamp(raw, 0.92, 1.08);
+};
+
+const getHeightScale = () => {
+  const raw = SCREEN_HEIGHT / guidelineBaseHeight;
+  if (SCREEN_WIDTH >= 768) {
+    return clamp(raw, 1, 1.2);
+  }
+  return clamp(raw, 0.92, 1.08);
+};
+
 export const isTablet = () => {
   const pixelDensity = PixelRatio.get();
   const adjustedWidth = SCREEN_WIDTH * pixelDensity;
@@ -24,13 +42,13 @@ export const isSmallDevice = () => SCREEN_WIDTH < 375;
 export const isMediumDevice = () => SCREEN_WIDTH >= 375 && SCREEN_WIDTH < 768;
 export const isLargeDevice = () => SCREEN_WIDTH >= 768;
 
-export const horizontalScale = (size) => (SCREEN_WIDTH / guidelineBaseWidth) * size;
-export const verticalScale = (size) => (SCREEN_HEIGHT / guidelineBaseHeight) * size;
+export const horizontalScale = (size) => getWidthScale() * size;
+export const verticalScale = (size) => getHeightScale() * size;
 export const moderateScale = (size, factor = 0.5) => size + (horizontalScale(size) - size) * factor;
 
 // Normalize font size based on screen width, respects global font scale
 export const normalize = (size) => {
-  const scale = SCREEN_WIDTH / guidelineBaseWidth;
+  const scale = getWidthScale();
   const newSize = size * scale * _globalFontScale;
   if (Platform.OS === 'ios') {
     return Math.round(PixelRatio.roundToNearestPixel(newSize));
@@ -58,19 +76,11 @@ export const setGlobalFontScale = (scale) => {
 export const getGlobalFontScale = () => _globalFontScale;
 
 export const fontSize = (size) => {
-  const scaledSize = size * _globalFontScale;
-  if (isTablet()) {
-    return moderateScale(scaledSize * 1.2);
-  }
-  return moderateScale(scaledSize);
+  return normalize(size);
 };
 
 export const fontSizeWithScale = (size, scale = 1) => {
-  const scaledSize = size * scale;
-  if (isTablet()) {
-    return moderateScale(scaledSize * 1.2);
-  }
-  return moderateScale(scaledSize);
+  return normalize(size * scale);
 };
 
 export const spacing = {

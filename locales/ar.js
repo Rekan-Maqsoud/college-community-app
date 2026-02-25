@@ -1187,6 +1187,7 @@ export default {
     typeMessage: 'اكتب رسالة...',
     mentionEveryone: 'الجميع',
     cannotSendMessage: 'لا يمكنك إرسال الرسائل',
+    encryptedMessageUnavailable: 'تعذر فك تشفير هذه الرسالة',
     errorLoadingChats: 'فشل تحميل المحادثات',
     errorLoadingMessages: 'فشل تحميل الرسائل',
     errorSendingMessage: 'فشل إرسال الرسالة',

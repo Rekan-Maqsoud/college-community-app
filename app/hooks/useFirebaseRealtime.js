@@ -326,3 +326,80 @@ export const broadcastViewCount = (postId, newViewCount) => {
 export const broadcastPollVotes = (postId, voteCounts, total) => {
   writeValue(`polls/${postId}`, { votes: voteCounts, total });
 };
+
+/* ================================================================== */
+/*  Seeding helpers (populate Firebase from Appwrite data)             */
+/* ================================================================== */
+
+/** Track which posts have already been seeded this session. */
+const _seededPosts = new Set();
+
+/**
+ * Seed an array of posts' counters into Firebase RTDB so that active
+ * listeners immediately receive real data instead of `null`.
+ *
+ * Only writes once per post per app session to minimise writes.
+ *
+ * @param {Array} posts  Appwrite post documents
+ */
+export const seedPostCounters = (posts) => {
+  if (!Array.isArray(posts) || posts.length === 0) return;
+
+  posts.forEach((post) => {
+    if (!post?.$id || _seededPosts.has(post.$id)) return;
+    _seededPosts.add(post.$id);
+
+    updateValues(`posts/${post.$id}`, {
+      likeCount: post.likeCount ?? 0,
+      replyCount: post.replyCount ?? 0,
+      viewCount: post.viewCount ?? 0,
+    });
+  });
+};
+
+/**
+ * Broadcast chat metadata to Firebase after a message is sent.
+ * Chat list listeners pick this up for instant last-message updates.
+ *
+ * RTDB structure:
+ * ```
+ * chatMeta/{chatId} : { lastMessage, lastMessageAt, messageCount, lastSenderId }
+ * ```
+ *
+ * @param {string} chatId
+ * @param {Object} meta
+ */
+export const broadcastChatMeta = (chatId, meta) => {
+  if (!chatId) return;
+  updateValues(`chatMeta/${chatId}`, {
+    lastMessage: meta.lastMessage || '',
+    lastMessageAt: meta.lastMessageAt || new Date().toISOString(),
+    messageCount: meta.messageCount ?? 0,
+    lastSenderId: meta.lastSenderId || '',
+    updatedAt: Date.now(),
+  });
+};
+
+/**
+ * Seed chat metadata for an array of chats (called once on load).
+ *
+ * @param {Array} chats  Appwrite chat documents
+ */
+const _seededChats = new Set();
+
+export const seedChatMeta = (chats) => {
+  if (!Array.isArray(chats) || chats.length === 0) return;
+
+  chats.forEach((chat) => {
+    if (!chat?.$id || _seededChats.has(chat.$id)) return;
+    _seededChats.add(chat.$id);
+
+    updateValues(`chatMeta/${chat.$id}`, {
+      lastMessage: chat.lastMessage || '',
+      lastMessageAt: chat.lastMessageAt || chat.$createdAt || '',
+      messageCount: chat.messageCount ?? 0,
+      lastSenderId: chat.lastMessageSenderId || '',
+      updatedAt: Date.now(),
+    });
+  });
+};

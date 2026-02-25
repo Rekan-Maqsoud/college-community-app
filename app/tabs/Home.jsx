@@ -1120,13 +1120,6 @@ const Home = ({ navigation, route }) => {
         visible={needsRep}
         hasActiveElection={hasActiveElection}
         onVote={() => {
-          console.log('[REP_DEBUG] Home:onVoteFromPopup', {
-            userId: user?.$id,
-            department: user?.department,
-            stage: user?.stage,
-            hasActiveElection,
-            needsRep,
-          });
           dismissRepPopup();
           navigation.navigate('RepVoting', { department: user?.department, stage: user?.stage });
         }}

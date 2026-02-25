@@ -6,7 +6,7 @@
       "collegecommunity",
       "appwrite-callback-6973c51d0000bdd71f7a"
     ],
-    "version": "1.0.4",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -35,7 +35,7 @@
     },
     "android": {
       "package": "com.collegecommunity",
-      "versionCode": 4,
+      "versionCode": 5,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

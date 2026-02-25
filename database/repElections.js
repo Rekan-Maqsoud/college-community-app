@@ -50,7 +50,6 @@ export const TIEBREAKER_DURATION_MS = 1 * 60 * 60 * 1000;
  */
 export const getActiveElection = async (department, stage, seatNumber = null) => {
   try {
-    console.log('[REP_DEBUG] getActiveElection:start', { department, stage, seatNumber });
     const queries = [
       Query.equal('department', department),
       Query.equal('stage', stage),
@@ -63,19 +62,11 @@ export const getActiveElection = async (department, stage, seatNumber = null) =>
     }
     const response = await databases.listDocuments(DB_ID(), COLLECTION_ID(), queries);
     const activeElection = response.documents[0] || null;
-    console.log('[REP_DEBUG] getActiveElection:result', {
-      found: !!activeElection,
-      electionId: activeElection?.$id || null,
-      status: activeElection?.status || null,
-      seatNumber: activeElection?.seatNumber || null,
-    });
     return activeElection;
   } catch (error) {
     if (error?.message?.includes('not authorized') || error?.code === 401) {
-      console.log('[REP_DEBUG] getActiveElection:unauthorizedFallback', { department, stage, seatNumber });
       return null;
     }
-    console.log('[REP_DEBUG] getActiveElection:error', { message: error?.message });
     throw error;
   }
 };
@@ -86,7 +77,6 @@ export const getActiveElection = async (department, stage, seatNumber = null) =>
  */
 export const getLatestElection = async (department, stage, seatNumber = null) => {
   try {
-    console.log('[REP_DEBUG] getLatestElection:start', { department, stage, seatNumber });
     const queries = [
       Query.equal('department', department),
       Query.equal('stage', stage),
@@ -98,20 +88,11 @@ export const getLatestElection = async (department, stage, seatNumber = null) =>
     }
     const response = await databases.listDocuments(DB_ID(), COLLECTION_ID(), queries);
     const latestElection = response.documents[0] || null;
-    console.log('[REP_DEBUG] getLatestElection:result', {
-      found: !!latestElection,
-      electionId: latestElection?.$id || null,
-      status: latestElection?.status || null,
-      seatNumber: latestElection?.seatNumber || null,
-      winner: latestElection?.winner || null,
-    });
     return latestElection;
   } catch (error) {
     if (error?.message?.includes('not authorized') || error?.code === 401) {
-      console.log('[REP_DEBUG] getLatestElection:unauthorizedFallback', { department, stage, seatNumber });
       return null;
     }
-    console.log('[REP_DEBUG] getLatestElection:error', { message: error?.message });
     throw error;
   }
 };
@@ -138,7 +119,6 @@ export const getCompletedElections = async (department, stage) => {
     return Object.values(bySeat);
   } catch (error) {
     if (error?.message?.includes('not authorized') || error?.code === 401) {
-      console.log('[REP_DEBUG] getCompletedElections:unauthorizedFallback', { department, stage });
       return [];
     }
     throw error;
@@ -154,19 +134,11 @@ export const getClassRepresentatives = async (department, stage) => {
     const reps = elections
       .filter((e) => e.winner)
       .map((e) => ({ userId: e.winner, seatNumber: e.seatNumber || 1 }));
-    console.log('[REP_DEBUG] getClassRepresentatives:result', {
-      department,
-      stage,
-      count: reps.length,
-      reps,
-    });
     return reps;
   } catch (error) {
     if (error?.message?.includes('not authorized') || error?.code === 401) {
-      console.log('[REP_DEBUG] getClassRepresentatives:unauthorizedFallback', { department, stage });
       return [];
     }
-    console.log('[REP_DEBUG] getClassRepresentatives:error', { message: error?.message });
     throw error;
   }
 };
@@ -182,14 +154,11 @@ export const getNextSeatNumber = async (department, stage) => {
     for (let i = 1; i <= MAX_REPS_PER_CLASS; i++) {
       if (!takenSeats.includes(i)) return i;
     }
-    console.log('[REP_DEBUG] getNextSeatNumber:full', { department, stage, takenSeats });
     return null; // All seats taken
   } catch (error) {
     if (error?.message?.includes('not authorized') || error?.code === 401) {
-      console.log('[REP_DEBUG] getNextSeatNumber:unauthorizedFallback', { department, stage });
       return 1;
     }
-    console.log('[REP_DEBUG] getNextSeatNumber:error', { message: error?.message });
     throw error;
   }
 };
@@ -226,18 +195,8 @@ export const ensureActiveElectionForClass = async (department, stage, totalStude
       return active;
     }
     const created = await createElection(department, stage, totalStudents, 1);
-    console.log('[REP_DEBUG] ensureActiveElectionForClass:created', {
-      department,
-      stage,
-      electionId: created?.$id,
-    });
     return created;
   } catch (error) {
-    console.log('[REP_DEBUG] ensureActiveElectionForClass:error', {
-      department,
-      stage,
-      message: error?.message,
-    });
     return null;
   }
 };
@@ -248,7 +207,6 @@ export const ensureActiveElectionsForAllClasses = async () => {
     const lastRun = await safeStorage.getItem(coolDownKey);
     const now = Date.now();
     if (lastRun && now - parseInt(lastRun, 10) < 6 * 60 * 60 * 1000) {
-      console.log('[REP_DEBUG] ensureActiveElectionsForAllClasses:skipCooldown');
       return { processed: 0, created: 0 };
     }
 
@@ -288,10 +246,8 @@ export const ensureActiveElectionsForAllClasses = async () => {
     }
 
     await safeStorage.setItem(coolDownKey, String(now));
-    console.log('[REP_DEBUG] ensureActiveElectionsForAllClasses:done', { processed, created });
     return { processed, created };
   } catch (error) {
-    console.log('[REP_DEBUG] ensureActiveElectionsForAllClasses:error', { message: error?.message });
     return { processed: 0, created: 0 };
   }
 };
@@ -302,15 +258,9 @@ export const ensureActiveElectionsForAllClasses = async () => {
  */
 export const createElection = async (department, stage, totalStudents = 0, seatNumber = 1) => {
   try {
-    console.log('[REP_DEBUG] createElection:start', { department, stage, totalStudents, seatNumber });
     // Check if there's already an active election for this seat
     const existing = await getActiveElection(department, stage, seatNumber);
     if (existing) {
-      console.log('[REP_DEBUG] createElection:reuseExisting', {
-        electionId: existing.$id,
-        status: existing.status,
-        seatNumber: existing.seatNumber,
-      });
       return existing;
     }
 
@@ -338,15 +288,8 @@ export const createElection = async (department, stage, totalStudents = 0, seatN
       startedAt: new Date().toISOString(),
       endedAt: null,
     }, permissions);
-    console.log('[REP_DEBUG] createElection:created', {
-      electionId: election.$id,
-      status: election.status,
-      seatNumber: election.seatNumber,
-      threshold,
-    });
     return election;
   } catch (error) {
-    console.log('[REP_DEBUG] createElection:error', { message: error?.message });
     throw error;
   }
 };
@@ -356,20 +299,13 @@ export const createElection = async (department, stage, totalStudents = 0, seatN
  */
 export const finalizeElection = async (electionId, winnerId = null) => {
   try {
-    console.log('[REP_DEBUG] finalizeElection:start', { electionId, winnerId });
     const election = await databases.updateDocument(DB_ID(), COLLECTION_ID(), electionId, {
       status: ELECTION_STATUS.COMPLETED,
       winner: winnerId,
       endedAt: new Date().toISOString(),
     });
-    console.log('[REP_DEBUG] finalizeElection:done', {
-      electionId: election.$id,
-      status: election.status,
-      winner: election.winner,
-    });
     return election;
   } catch (error) {
-    console.log('[REP_DEBUG] finalizeElection:error', { message: error?.message, electionId });
     throw error;
   }
 };
@@ -381,7 +317,6 @@ export const finalizeElection = async (electionId, winnerId = null) => {
  */
 export const requestReselection = async (electionId) => {
   try {
-    console.log('[REP_DEBUG] requestReselection:start', { electionId });
     const currentUser = await getCurrentUser();
     if (!currentUser) throw new Error('Not authenticated');
     const userId = currentUser.$id;
@@ -390,7 +325,6 @@ export const requestReselection = async (electionId) => {
 
     const voters = Array.isArray(election.reselectionVoters) ? election.reselectionVoters : [];
     if (voters.includes(userId)) {
-      console.log('[REP_DEBUG] requestReselection:alreadyRequested', { electionId, userId });
       return { election, reselectionTriggered: false, alreadyVoted: true };
     }
 
@@ -398,11 +332,6 @@ export const requestReselection = async (electionId) => {
     const threshold = election.reselectionThreshold || Math.ceil((election.totalStudents || 1) / 2);
 
     if (updatedVoters.length >= threshold) {
-      console.log('[REP_DEBUG] requestReselection:thresholdReached', {
-        electionId,
-        voters: updatedVoters.length,
-        threshold,
-      });
       // Threshold reached — archive old election and create new one
       await databases.updateDocument(DB_ID(), COLLECTION_ID(), electionId, {
         reselectionVoters: updatedVoters,
@@ -416,10 +345,6 @@ export const requestReselection = async (electionId) => {
         election.totalStudents,
         election.seatNumber || 1,
       );
-      console.log('[REP_DEBUG] requestReselection:newElectionCreated', {
-        oldElectionId: electionId,
-        newElectionId: newElection?.$id,
-      });
       return { election: newElection, reselectionTriggered: true, alreadyVoted: false };
     }
 
@@ -427,15 +352,8 @@ export const requestReselection = async (electionId) => {
       reselectionVoters: updatedVoters,
     });
 
-    console.log('[REP_DEBUG] requestReselection:updated', {
-      electionId,
-      voters: updatedVoters.length,
-      threshold,
-    });
-
     return { election: updated, reselectionTriggered: false, alreadyVoted: false };
   } catch (error) {
-    console.log('[REP_DEBUG] requestReselection:error', { message: error?.message, electionId });
     throw error;
   }
 };
@@ -447,7 +365,6 @@ export const requestReselection = async (electionId) => {
  */
 export const requestNextRepresentativeElection = async (electionId) => {
   try {
-    console.log('[REP_DEBUG] requestNextRepresentativeElection:start', { electionId });
     const currentUser = await getCurrentUser();
     if (!currentUser) throw new Error('Not authenticated');
     const userId = currentUser.$id;
@@ -502,12 +419,6 @@ export const requestNextRepresentativeElection = async (electionId) => {
         nextSeat,
       );
 
-      console.log('[REP_DEBUG] requestNextRepresentativeElection:started', {
-        electionId,
-        nextElectionId: nextElection?.$id,
-        nextSeat,
-      });
-
       return {
         election: nextElection,
         nextElectionStarted: true,
@@ -528,10 +439,6 @@ export const requestNextRepresentativeElection = async (electionId) => {
       nextSeat,
     };
   } catch (error) {
-    console.log('[REP_DEBUG] requestNextRepresentativeElection:error', {
-      electionId,
-      message: error?.message,
-    });
     throw error;
   }
 };
@@ -592,7 +499,6 @@ export const getTiebreakerCandidates = (election) => {
  */
 export const handleElectionTimerExpiry = async (electionId, results) => {
   try {
-    console.log('[REP_DEBUG] handleElectionTimerExpiry:start', { electionId });
     const election = await getElectionById(electionId);
     if (!election) return null;
 
@@ -607,7 +513,6 @@ export const handleElectionTimerExpiry = async (electionId, results) => {
     if (election.status === ELECTION_STATUS.TIEBREAKER) {
       // Tiebreaker expired — finalize with whoever is ahead (or first if still tied)
       const winnerId = candidates[0]?.candidateId || null;
-      console.log('[REP_DEBUG] handleElectionTimerExpiry:tiebreakerFinalize', { electionId, winnerId });
       return finalizeElection(electionId, winnerId);
     }
 
@@ -620,12 +525,6 @@ export const handleElectionTimerExpiry = async (electionId, results) => {
         .map((c) => c.candidateId)
         .slice(0, 2);
 
-      console.log('[REP_DEBUG] handleElectionTimerExpiry:tieDetected', {
-        electionId,
-        tiedCandidates,
-        voteCount: topVoteCount,
-      });
-
       const updated = await databases.updateDocument(DB_ID(), COLLECTION_ID(), electionId, {
         status: ELECTION_STATUS.TIEBREAKER,
         startedAt: new Date().toISOString(),
@@ -636,10 +535,8 @@ export const handleElectionTimerExpiry = async (electionId, results) => {
 
     // Clear winner
     const winnerId = candidates[0]?.candidateId || null;
-    console.log('[REP_DEBUG] handleElectionTimerExpiry:clearWinner', { electionId, winnerId });
     return finalizeElection(electionId, winnerId);
   } catch (error) {
-    console.log('[REP_DEBUG] handleElectionTimerExpiry:error', { message: error?.message, electionId });
     throw error;
   }
 };

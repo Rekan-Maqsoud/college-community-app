@@ -1,5 +1,5 @@
 /**
- * Firebase Realtime Database — diagnostics & integration test.
+ * Firebase Realtime Database - diagnostics & integration test.
  *
  * Tests that the RTDB URL is wired correctly, auth works, and
  * read/write/increment/remove operations all succeed.
@@ -8,68 +8,69 @@
  */
 
 /* ------------------------------------------------------------------ */
-/*  Mocks — we mock @react-native-firebase/* so the test runs in Node */
+/*  Mocks - we mock @react-native-firebase/* so the test runs in Node  */
 /* ------------------------------------------------------------------ */
 
 const RTDB_URL =
-  'https://college-community-5800d-default-rtdb.europe-west1.firebasedatabase.app/';
+  'https://college-community-5800d-default-rtdb.europe-west1.firebasedatabase.app';
 
-// In-memory RTDB store scoped per test
-let _store = {};
+// In-memory RTDB store scoped per test (prefixed with 'mock' for jest.mock hoisting)
+let mockStore = {};
 
 const makeRef = (path) => {
   const fullPath = path || '/';
-  return {
-    _path: fullPath,
-    set: jest.fn(async (value) => {
-      _store[fullPath] = value;
-    }),
-    update: jest.fn(async (values) => {
-      if (typeof _store[fullPath] !== 'object' || _store[fullPath] === null) {
-        _store[fullPath] = {};
-      }
-      Object.assign(_store[fullPath], values);
-    }),
-    once: jest.fn(async () => ({
-      val: () => _store[fullPath] ?? null,
-    })),
-    on: jest.fn((event, cb) => {
-      // Fire immediately with current value
-      cb({ val: () => _store[fullPath] ?? null });
-    }),
-    off: jest.fn(),
-    remove: jest.fn(async () => {
-      delete _store[fullPath];
-    }),
-    transaction: jest.fn(async (updateFn) => {
-      const current = _store[fullPath] ?? null;
-      _store[fullPath] = updateFn(current);
-    }),
-  };
+  return { _path: fullPath };
 };
 
-// Track which URL database() was called with
-let _lastDbUrl = undefined;
+// Track which URL getDatabase was called with
+let mockLastDbUrl = undefined;
 
-const mockDatabase = jest.fn((url) => {
-  _lastDbUrl = url;
-  return {
-    ref: jest.fn((path) => makeRef(path)),
+const mockDbInstance = {};
+
+// Mock the modular API from @react-native-firebase/database
+jest.mock('@react-native-firebase/database', () => {
+  const actual = {
+    getDatabase: jest.fn((app, url) => {
+      mockLastDbUrl = url;
+      return mockDbInstance;
+    }),
+    ref: jest.fn((db, path) => makeRef(path)),
+    onValue: jest.fn((ref, callback, errorCallback) => {
+      const path = ref._path;
+      callback({ val: () => mockStore[path] ?? null });
+      return jest.fn(); // unsubscribe
+    }),
+    off: jest.fn(),
+    set: jest.fn(async (ref, value) => {
+      mockStore[ref._path] = value;
+    }),
+    update: jest.fn(async (ref, values) => {
+      if (typeof mockStore[ref._path] !== 'object' || mockStore[ref._path] === null) {
+        mockStore[ref._path] = {};
+      }
+      Object.assign(mockStore[ref._path], values);
+    }),
+    remove: jest.fn(async (ref) => {
+      delete mockStore[ref._path];
+    }),
+    get: jest.fn(async (ref) => ({
+      val: () => mockStore[ref._path] ?? null,
+    })),
+    runTransaction: jest.fn(async (ref, updateFn) => {
+      const current = mockStore[ref._path] ?? null;
+      mockStore[ref._path] = updateFn(current);
+    }),
   };
+  return actual;
 });
-mockDatabase.ref = jest.fn((path) => makeRef(path));
 
-jest.mock('@react-native-firebase/database', () => mockDatabase);
-
-jest.mock('@react-native-firebase/auth', () => {
-  const mockAuth = () => ({
-    signInAnonymously: jest.fn(() =>
-      Promise.resolve({ user: { uid: 'anon-test-user' } }),
-    ),
-    currentUser: { uid: 'anon-test-user' },
-  });
-  return mockAuth;
-});
+// Mock modular auth API
+jest.mock('@react-native-firebase/auth', () => ({
+  getAuth: jest.fn(() => ({ _mock: true })),
+  signInAnonymously: jest.fn(() =>
+    Promise.resolve({ user: { uid: 'anon-test-user' } }),
+  ),
+}));
 
 jest.mock('react-native', () => ({
   AppState: {
@@ -86,7 +87,6 @@ jest.mock('react-native', () => ({
 const {
   ensureFirebaseAuth,
   isFirebaseReady,
-  getDatabase,
   dbRef,
   getDatabaseUrl,
 } = require('../services/firebase');
@@ -107,31 +107,26 @@ const {
 /* ------------------------------------------------------------------ */
 
 beforeEach(() => {
-  _store = {};
-  _lastDbUrl = undefined;
+  mockStore = {};
+  mockLastDbUrl = undefined;
 });
 
 afterAll(() => {
   jest.restoreAllMocks();
 });
 
-describe('Firebase RTDB — configuration', () => {
+describe('Firebase RTDB - configuration', () => {
   it('getDatabaseUrl() returns the europe-west1 URL', () => {
     expect(getDatabaseUrl()).toBe(RTDB_URL);
   });
 
-  it('getDatabase() passes the RTDB URL to database()', () => {
-    getDatabase();
-    expect(_lastDbUrl).toBe(RTDB_URL);
-  });
-
-  it('dbRef(path) passes the RTDB URL to database()', () => {
+  it('dbRef(path) initialises the database with the RTDB URL', () => {
     dbRef('test/path');
-    expect(_lastDbUrl).toBe(RTDB_URL);
+    expect(mockLastDbUrl).toBe(RTDB_URL);
   });
 });
 
-describe('Firebase RTDB — anonymous auth', () => {
+describe('Firebase RTDB - anonymous auth', () => {
   it('ensureFirebaseAuth() resolves to true', async () => {
     const result = await ensureFirebaseAuth();
     expect(result).toBe(true);
@@ -143,7 +138,7 @@ describe('Firebase RTDB — anonymous auth', () => {
   });
 });
 
-describe('Firebase RTDB — connection slot management', () => {
+describe('Firebase RTDB - connection slot management', () => {
   it('acquireSlot() increments active count', () => {
     const before = getActiveSlotCount();
     const got = acquireSlot();
@@ -166,14 +161,14 @@ describe('Firebase RTDB — connection slot management', () => {
   });
 });
 
-describe('Firebase RTDB — write / read / increment / remove', () => {
+describe('Firebase RTDB - write / read / increment / remove', () => {
   it('writeValue() stores data at the given path', async () => {
     await writeValue('test/write', { hello: 'world' });
-    expect(_store['test/write']).toEqual({ hello: 'world' });
+    expect(mockStore['test/write']).toEqual({ hello: 'world' });
   });
 
   it('readOnce() retrieves data at the given path', async () => {
-    _store['test/read'] = { value: 42 };
+    mockStore['test/read'] = { value: 42 };
     const result = await readOnce('test/read');
     expect(result).toEqual({ value: 42 });
   });
@@ -184,20 +179,20 @@ describe('Firebase RTDB — write / read / increment / remove', () => {
   });
 
   it('incrementValue() atomically increments a counter', async () => {
-    _store['counters/likes'] = 5;
+    mockStore['counters/likes'] = 5;
     await incrementValue('counters/likes', 1);
-    expect(_store['counters/likes']).toBe(6);
+    expect(mockStore['counters/likes']).toBe(6);
   });
 
   it('incrementValue() starts from 0 when path is empty', async () => {
     await incrementValue('counters/new', 3);
-    expect(_store['counters/new']).toBe(3);
+    expect(mockStore['counters/new']).toBe(3);
   });
 
   it('updateValues() merges keys without overwriting siblings', async () => {
-    _store['posts/abc'] = { likeCount: 5, replyCount: 2, viewCount: 10 };
+    mockStore['posts/abc'] = { likeCount: 5, replyCount: 2, viewCount: 10 };
     await updateValues('posts/abc', { likeCount: 6 });
-    expect(_store['posts/abc']).toEqual({
+    expect(mockStore['posts/abc']).toEqual({
       likeCount: 6,
       replyCount: 2,
       viewCount: 10,
@@ -205,13 +200,13 @@ describe('Firebase RTDB — write / read / increment / remove', () => {
   });
 
   it('removeValue() deletes data at the path', async () => {
-    _store['chats/typing/user1'] = { name: 'Test', ts: 123 };
+    mockStore['chats/typing/user1'] = { name: 'Test', ts: 123 };
     await removeValue('chats/typing/user1');
-    expect(_store['chats/typing/user1']).toBeUndefined();
+    expect(mockStore['chats/typing/user1']).toBeUndefined();
   });
 });
 
-describe('Firebase RTDB — broadcast helpers', () => {
+describe('Firebase RTDB - broadcast helpers', () => {
   const {
     broadcastLikeCount,
     broadcastReplyCount,
@@ -221,22 +216,21 @@ describe('Firebase RTDB — broadcast helpers', () => {
 
   it('broadcastLikeCount() writes to posts/{id}', async () => {
     await broadcastLikeCount('post1', 42);
-    // updateValues is called which does _store merge
-    expect(_store['posts/post1']).toMatchObject({ likeCount: 42 });
+    expect(mockStore['posts/post1']).toMatchObject({ likeCount: 42 });
   });
 
   it('broadcastReplyCount() writes to posts/{id}', async () => {
     await broadcastReplyCount('post2', 7);
-    expect(_store['posts/post2']).toMatchObject({ replyCount: 7 });
+    expect(mockStore['posts/post2']).toMatchObject({ replyCount: 7 });
   });
 
   it('broadcastViewCount() writes to posts/{id}', async () => {
     await broadcastViewCount('post3', 100);
-    expect(_store['posts/post3']).toMatchObject({ viewCount: 100 });
+    expect(mockStore['posts/post3']).toMatchObject({ viewCount: 100 });
   });
 
   it('broadcastPollVotes() writes to polls/{id}', async () => {
     await broadcastPollVotes('poll1', { 0: 10, 1: 20 }, 30);
-    expect(_store['polls/poll1']).toEqual({ votes: { 0: 10, 1: 20 }, total: 30 });
+    expect(mockStore['polls/poll1']).toEqual({ votes: { 0: 10, 1: 20 }, total: 30 });
   });
 });

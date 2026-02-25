@@ -1,62 +1,48 @@
 /**
- * Firebase RTDB connection manager.
+ * Firebase RTDB connection manager — modular API.
  *
  * Manages active listener count and enforces the Spark-plan 100-connection
  * ceiling.  Every hook that attaches a Firebase listener MUST acquire a
  * slot via `acquireSlot()` and release it via `releaseSlot()` on unmount.
- *
- * When all slots are taken, `acquireSlot` returns `false` so the caller
- * can silently fall back to Appwrite polling / static reads.
  */
 
 import { AppState } from 'react-native';
 import { dbRef, ensureFirebaseAuth, isFirebaseReady } from './firebase';
+import {
+  onValue as fbOnValue,
+  off as fbOff,
+  set as fbSet,
+  update as fbUpdate,
+  remove as fbRemove,
+  get as fbGet,
+} from '@react-native-firebase/database';
+import { runTransaction as fbRunTransaction } from '@react-native-firebase/database';
 
 /* ------------------------------------------------------------------ */
 /*  Slot accounting                                                    */
 /* ------------------------------------------------------------------ */
 
-const MAX_CONNECTIONS = 85; // leave headroom below the hard 100-limit
+const MAX_CONNECTIONS = 85;
 let _activeSlots = 0;
 
-/**
- * Try to reserve a Firebase connection slot.
- * @returns {boolean} `true` if a slot was reserved, `false` if limit reached.
- */
 export const acquireSlot = () => {
   if (_activeSlots >= MAX_CONNECTIONS) return false;
   _activeSlots += 1;
   return true;
 };
 
-/**
- * Release a previously acquired slot.
- */
 export const releaseSlot = () => {
   _activeSlots = Math.max(0, _activeSlots - 1);
 };
 
-/**
- * Current number of active connections (for debugging / telemetry).
- */
 export const getActiveSlotCount = () => _activeSlots;
 
 /* ------------------------------------------------------------------ */
-/*  Safe listener helpers                                              */
+/*  Safe listener helpers  (modular API)                               */
 /* ------------------------------------------------------------------ */
 
 /**
- * Attach a Firebase RTDB value listener with full guard rails:
- *   1. Ensures anonymous auth first.
- *   2. Acquires a connection slot (returns noop if limit hit).
- *   3. On any Firebase error, invokes the optional `onFallback` so the
- *      caller can switch to Appwrite.
- *   4. Returns an `unsubscribe` function that also releases the slot.
- *
- * @param {string}   path        RTDB path to listen on
- * @param {Function} onValue     called with the snapshot value on each change
- * @param {Function} [onFallback] called when Firebase is unavailable
- * @returns {Function} unsubscribe — always safe to call, even if slot failed
+ * Attach a Firebase RTDB value listener with full guard rails.
  */
 export const attachListener = async (path, onValue, onFallback) => {
   let released = false;
@@ -80,29 +66,34 @@ export const attachListener = async (path, onValue, onFallback) => {
       return () => {};
     }
 
-    const ref = dbRef(path);
+    const reference = dbRef(path);
 
-    const valueHandler = (snapshot) => {
-      try {
-        onValue(snapshot.val());
-      } catch (_) {
-        // swallow handler errors so the listener stays alive
-      }
-    };
-
-    const errorHandler = (error) => {
-      cleanup();
-      ref.off('value', valueHandler);
-      onFallback?.();
-    };
-
-    ref.on('value', valueHandler, errorHandler);
+    const unsubscribe = fbOnValue(
+      reference,
+      (snapshot) => {
+        try {
+          onValue(snapshot.val());
+        } catch (err) {
+          // swallow handler errors so the listener stays alive
+        }
+      },
+      (error) => {
+        console.warn('[Firebase] ❌ Listener error at', path, ':', error?.code, error?.message);
+        cleanup();
+        onFallback?.();
+      },
+    );
 
     return () => {
       cleanup();
-      ref.off('value', valueHandler);
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      } else {
+        fbOff(reference, 'value');
+      }
     };
   } catch (error) {
+    console.warn('[Firebase] ❌ attachListener threw for path:', path, ':', error?.code, error?.message);
     cleanup();
     onFallback?.();
     return () => {};
@@ -110,92 +101,69 @@ export const attachListener = async (path, onValue, onFallback) => {
 };
 
 /**
- * One-shot read from RTDB.  Falls back to `null` on failure.
- *
- * @param {string} path
- * @returns {Promise<any>}
+ * One-shot read from RTDB.
  */
 export const readOnce = async (path) => {
   try {
     const authed = await ensureFirebaseAuth();
     if (!authed) return null;
-
-    const snapshot = await dbRef(path).once('value');
+    const snapshot = await fbGet(dbRef(path));
     return snapshot.val();
-  } catch (_) {
+  } catch (err) {
+    console.warn('[Firebase] ❌ readOnce failed at', path, ':', err?.code, err?.message);
     return null;
   }
 };
 
 /**
- * Write a value to RTDB.  Swallows errors silently — RTDB is a cache,
- * never the source of truth.
- *
- * @param {string} path
- * @param {any}    value
+ * Write a value to RTDB.  Swallows errors — RTDB is a cache.
  */
 export const writeValue = async (path, value) => {
   try {
     const authed = await ensureFirebaseAuth();
     if (!authed) return;
-
-    await dbRef(path).set(value);
-  } catch (_) {
-    // Swallow — Appwrite is the primary store
+    await fbSet(dbRef(path), value);
+  } catch (err) {
+    console.warn('[Firebase] ❌ writeValue failed at', path, ':', err?.code, err?.message);
   }
 };
 
 /**
- * Atomically increment a numeric counter in RTDB.
- *
- * @param {string} path
- * @param {number} delta  positive or negative integer
+ * Atomically increment a numeric counter.
  */
 export const incrementValue = async (path, delta = 1) => {
   try {
     const authed = await ensureFirebaseAuth();
     if (!authed) return;
-
-    const ref = dbRef(path);
-    await ref.transaction((current) => (current || 0) + delta);
-  } catch (_) {
-    // Swallow
+    await fbRunTransaction(dbRef(path), (current) => (current || 0) + delta);
+  } catch (err) {
+    console.warn('[Firebase] ❌ incrementValue failed at', path, ':', err?.code, err?.message);
   }
 };
 
 /**
- * Merge-update multiple children at a path without overwriting siblings.
- * This is critical for `posts/{postId}` where we store likeCount,
- * replyCount, viewCount under a single node — we only want to touch
- * the key being updated.
- *
- * @param {string} path
- * @param {Object} values  e.g. { likeCount: 5 }
+ * Merge-update without overwriting siblings.
  */
 export const updateValues = async (path, values) => {
   try {
     const authed = await ensureFirebaseAuth();
     if (!authed) return;
-
-    await dbRef(path).update(values);
-  } catch (_) {
-    // Swallow — Appwrite is the primary store
+    await fbUpdate(dbRef(path), values);
+  } catch (err) {
+    console.warn('[Firebase] ❌ updateValues failed at', path, ':', err?.code, err?.message);
   }
 };
 
 /**
  * Remove a node from RTDB.
- *
- * @param {string} path
  */
 export const removeValue = async (path) => {
   try {
     const authed = await ensureFirebaseAuth();
     if (!authed) return;
-
-    await dbRef(path).remove();
-  } catch (_) {
-    // Swallow
+    await fbRemove(dbRef(path));
+  } catch (err) {
+    console.warn('[Firebase] ❌ removeValue failed at', path, ':', err?.code, err?.message);
   }
 };
 
@@ -206,13 +174,6 @@ export const removeValue = async (path) => {
 let _appStateSubscription = null;
 let _backgroundCallbacks = [];
 
-/**
- * Register a callback to be invoked when the app moves to background.
- * Useful for globally detaching all listeners in one sweep.
- *
- * @param {Function} cb
- * @returns {Function} unregister
- */
 export const onAppBackground = (cb) => {
   _backgroundCallbacks.push(cb);
   return () => {
@@ -220,16 +181,11 @@ export const onAppBackground = (cb) => {
   };
 };
 
-// Initialise AppState listener once
 if (!_appStateSubscription) {
   _appStateSubscription = AppState.addEventListener('change', (nextState) => {
     if (nextState?.match(/inactive|background/)) {
       _backgroundCallbacks.forEach((cb) => {
-        try {
-          cb();
-        } catch (_) {
-          // ignore
-        }
+        try { cb(); } catch (_) { /* ignore */ }
       });
     }
   });

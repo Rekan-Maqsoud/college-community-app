@@ -114,6 +114,7 @@ Notifications.setNotificationHandler({
         shouldPlaySound: false,
         shouldSetBadge: false,
         shouldShowBanner: false,
+        shouldShowBanner: false,
         shouldShowList: false,
       };
     }
@@ -121,7 +122,8 @@ Notifications.setNotificationHandler({
     return {
       shouldShowAlert: true,
       shouldPlaySound: true,
-      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
       shouldShowBanner: true,
       shouldShowList: true,
     };

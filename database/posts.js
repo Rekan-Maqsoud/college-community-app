@@ -5,7 +5,7 @@ import { postsCacheManager } from '../app/utils/cacheManager';
 import { parsePollPayload, applyPollVote } from '../app/utils/pollUtils';
 import { getUserById } from './users';
 import { notifyDepartmentPost, notifyPostHiddenByReports } from './notifications';
-import { broadcastLikeCount, broadcastViewCount, broadcastPollVotes } from '../app/hooks/useFirebaseRealtime';
+import { broadcastLikeCount, broadcastViewCount, broadcastPollVotes, seedPostCounters } from '../app/hooks/useFirebaseRealtime';
 
 const REPORT_HIDE_THRESHOLD = 5;
 const REPORT_HIDE_MAX_VIEWS = 20;
@@ -248,6 +248,9 @@ export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = 
         if (Array.isArray(blockedUserIds) && blockedUserIds.length > 0) {
             results = results.filter(post => !blockedUserIds.includes(post.userId));
         }
+
+        // Seed counters to Firebase RTDB so live listeners have data
+        seedPostCounters(results);
         
         return results;
     } catch (error) {
@@ -322,6 +325,9 @@ export const getPostsByDepartments = async (departments = [], stage = 'all', lim
         if (Array.isArray(blockedUserIds) && blockedUserIds.length > 0) {
             deptResults = deptResults.filter(post => !blockedUserIds.includes(post.userId));
         }
+
+        // Seed counters to Firebase RTDB so live listeners have data
+        seedPostCounters(deptResults);
         
         return deptResults;
     } catch (error) {
@@ -391,6 +397,9 @@ export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, u
         if (Array.isArray(blockedUserIds) && blockedUserIds.length > 0) {
             publicResults = publicResults.filter(post => !blockedUserIds.includes(post.userId));
         }
+
+        // Seed counters to Firebase RTDB so live listeners have data
+        seedPostCounters(publicResults);
         
         return publicResults;
     } catch (error) {

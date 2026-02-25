@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -11,6 +11,7 @@ import {
   SectionList,
   Modal,
   Alert,
+  AppState,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,6 +58,7 @@ import {
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { useChatList } from '../hooks/useRealtimeSubscription';
+import { useFirebaseValue } from '../hooks/useFirebaseRealtime';
 import useLayout from '../hooks/useLayout';
 
 const Chats = ({ navigation }) => {
@@ -80,6 +82,25 @@ const Chats = ({ navigation }) => {
   const [selectedChat, setSelectedChat] = useState(null);
   const [chatMenuVisible, setChatMenuVisible] = useState(false);
   const [muteModalVisible, setMuteModalVisible] = useState(false);
+  const [chatMetaAppliedAt, setChatMetaAppliedAt] = useState({});
+
+  const defaultGroupsRef = useRef([]);
+  const customGroupsRef = useRef([]);
+  const privateChatsRef = useRef([]);
+
+  useEffect(() => {
+    defaultGroupsRef.current = defaultGroups;
+  }, [defaultGroups]);
+
+  useEffect(() => {
+    customGroupsRef.current = customGroups;
+  }, [customGroups]);
+
+  useEffect(() => {
+    privateChatsRef.current = privateChats;
+  }, [privateChats]);
+
+  const { value: chatMetaMap } = useFirebaseValue(user?.$id ? 'chatMeta' : null, null);
 
   const sortChatsByActivity = useCallback((chats = []) => {
     return [...chats].sort((a, b) => {
@@ -206,8 +227,119 @@ const Chats = ({ navigation }) => {
 
   }, [user?.$id]);
 
+  useEffect(() => {
+    if (!user?.$id || !chatMetaMap || typeof chatMetaMap !== 'object') return;
+
+    const processChatMeta = async () => {
+      const currentChats = [
+        ...defaultGroupsRef.current,
+        ...customGroupsRef.current,
+        ...privateChatsRef.current,
+      ];
+
+      if (currentChats.length === 0) return;
+
+      const chatMap = new Map(currentChats.map(chat => [chat.$id, chat]));
+      const updatedAtPatch = {};
+      const payloadById = {};
+
+      for (const [chatId, meta] of Object.entries(chatMetaMap)) {
+        if (!chatMap.has(chatId) || !meta || typeof meta !== 'object') continue;
+
+        const updatedAt = Number(meta.updatedAt || 0);
+        const prevUpdatedAt = Number(chatMetaAppliedAt[chatId] || 0);
+        if (updatedAt > 0 && prevUpdatedAt >= updatedAt) continue;
+
+        const currentChat = chatMap.get(chatId);
+        let nextChat = {
+          ...currentChat,
+          lastMessage: typeof meta.lastMessage === 'string' ? meta.lastMessage : (currentChat.lastMessage || ''),
+          lastMessageAt: meta.lastMessageAt || currentChat.lastMessageAt || currentChat.$updatedAt || currentChat.$createdAt,
+          lastMessageSenderId: meta.lastSenderId || currentChat.lastMessageSenderId || '',
+          messageCount: Number.isFinite(meta.messageCount) ? meta.messageCount : (currentChat.messageCount || 0),
+        };
+
+        nextChat = await decryptChatPreview(nextChat, user.$id);
+
+        payloadById[chatId] = nextChat;
+        updatedAtPatch[chatId] = updatedAt > 0 ? updatedAt : Date.now();
+      }
+
+      const hasUpdates = Object.keys(payloadById).length > 0;
+      if (!hasUpdates) return;
+
+      const applyUpdates = (prev) => {
+        let changed = false;
+        const next = prev.map((chat) => {
+          const updatedChat = payloadById[chat.$id];
+          if (!updatedChat) return chat;
+          changed = true;
+          return { ...chat, ...updatedChat };
+        });
+        if (!changed) return prev;
+        return sortChatsByActivity(next);
+      };
+
+      setDefaultGroups(applyUpdates);
+      setCustomGroups(applyUpdates);
+      setPrivateChats(applyUpdates);
+
+      setChatMetaAppliedAt((prev) => ({ ...prev, ...updatedAtPatch }));
+
+      const selfSentIds = Object.entries(payloadById)
+        .filter(([, value]) => value.lastMessageSenderId && value.lastMessageSenderId === user.$id)
+        .map(([chatId]) => chatId);
+
+      if (selfSentIds.length > 0) {
+        setUnreadCounts((prev) => {
+          const next = { ...prev };
+          selfSentIds.forEach((chatId) => {
+            next[chatId] = 0;
+          });
+          return next;
+        });
+      }
+    };
+
+    processChatMeta();
+  }, [chatMetaMap, chatMetaAppliedAt, sortChatsByActivity, user?.$id]);
+
   // Subscribe to chat list updates
   useChatList(user?.$id, handleRealtimeChatUpdate, !!user?.$id);
+
+  // --- Periodic refresh (every 3 minutes) ---
+  const refreshIntervalRef = useRef(null);
+
+  useEffect(() => {
+    if (!user?.$id) return;
+    refreshIntervalRef.current = setInterval(() => {
+      loadChats(false, { forceUnreadNetwork: true });
+    }, 3 * 60 * 1000);
+
+    return () => {
+      if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
+    };
+  }, [user?.$id, user?.department]);
+
+  // --- Foreground refresh ---
+  const appStateRef = useRef(AppState.currentState);
+  const lastForegroundRefresh = useRef(Date.now());
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (
+        appStateRef.current?.match(/inactive|background/) &&
+        nextState === 'active' &&
+        user?.$id &&
+        Date.now() - lastForegroundRefresh.current > 30000
+      ) {
+        lastForegroundRefresh.current = Date.now();
+        loadChats(false, { forceUnreadNetwork: true });
+      }
+      appStateRef.current = nextState;
+    });
+    return () => subscription.remove();
+  }, [user?.$id, user?.department]);
 
   useEffect(() => {
     if (user?.department) {
@@ -1124,14 +1256,6 @@ const Chats = ({ navigation }) => {
             visible={needsRep}
             hasActiveElection={hasActiveElection}
             onVote={() => {
-              console.log('[REP_DEBUG] Chats:onVoteFromPopup', {
-                userId: user?.$id,
-                department: user?.department,
-                stage: user?.stage,
-                hasActiveElection,
-                needsRep,
-                currentElectionId: currentElection?.$id || null,
-              });
               dismissRepPopup();
               navigation.navigate('RepVoting', { department: user?.department, stage: user?.stage });
             }}

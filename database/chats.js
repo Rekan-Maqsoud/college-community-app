@@ -10,6 +10,7 @@ import { getUserById, updateUserPublicKey } from './users';
 import { uploadImage } from '../services/imgbbService';
 import { uploadFileToAppwrite } from '../services/appwriteFileUpload';
 import { parsePollPayload, applyPollVote } from '../app/utils/pollUtils';
+import { broadcastChatMeta } from '../app/hooks/useFirebaseRealtime';
 
 export const CHAT_TYPES = {
     STAGE_GROUP: 'stage_group',
@@ -61,81 +62,21 @@ export const uploadChatVoiceMessage = async (file) => {
             throw new Error('Authentication required for voice upload');
         }
 
-        let uploadFile = null;
-        if (typeof File !== 'undefined') {
-            try {
-                uploadFile = new File(file.uri);
-            } catch (uriFileError) {
-                const response = await fetch(file.uri);
-                const blob = await response.blob();
-                uploadFile = new File([blob], fileName, { type: mimeType });
-            }
-        }
-
-        if (!uploadFile) {
-            throw new Error('File API is unavailable for voice upload');
-        }
-
-        const fileId = ID.unique();
-        const uploadUrl = new URL(`${config.endpoint}/storage/buckets/${config.voiceMessagesStorageId}/files`);
-        const { options } = storage.client.prepareRequest(
-            'post',
-            uploadUrl,
-            { 'content-type': 'multipart/form-data' },
-            {}
-        );
-
-        const formData = new FormData();
-        formData.append('fileId', fileId);
-        formData.append('permissions[]', Permission.read(Role.users()));
-        formData.append('permissions[]', Permission.update(Role.user(uploaderUserId)));
-        formData.append('permissions[]', Permission.delete(Role.user(uploaderUserId)));
-        formData.append('read[]', Role.users());
-        formData.append('write[]', Role.user(uploaderUserId));
-        formData.append('file', {
-            uri: file.uri,
-            name: fileName,
-            type: mimeType,
+        const uploadResult = await uploadFileToAppwrite({
+            file: {
+                uri: file.uri,
+                name: fileName,
+                type: mimeType,
+                size: file.size,
+            },
+            bucketId: config.voiceMessagesStorageId,
         });
 
-        options.body = formData;
-        if (options?.headers) {
-            delete options.headers['content-type'];
-        }
-
-        const response = await fetch(uploadUrl.toString(), options);
-        let responseData = null;
-        try {
-            responseData = await response.json();
-        } catch {
-            responseData = null;
-        }
-
-        if (!response.ok) {
-            throw new Error(responseData?.message || `Voice upload failed with status ${response.status}`);
-        }
-
-        const uploadedFileId = responseData?.$id || fileId;
-
-        try {
-            await storage.updateFile({
-                bucketId: config.voiceMessagesStorageId,
-                fileId: uploadedFileId,
-                permissions: [
-                    Permission.read(Role.users()),
-                    Permission.update(Role.user(uploaderUserId)),
-                    Permission.delete(Role.user(uploaderUserId)),
-                ],
-            });
-        } catch {}
-
-        const viewUrl = storage.getFileView(config.voiceMessagesStorageId, uploadedFileId)?.toString();
-
         return {
-            fileId: uploadedFileId,
-            viewUrl,
-            mimeType,
-            size: file.size || uploadFile?.size || responseData?.sizeOriginal || 0,
+            fileId: uploadResult?.fileId || null,
+            viewUrl: uploadResult?.viewUrl || '',
+            mimeType: uploadResult?.mimeType || mimeType,
+            size: Number(uploadResult?.size || file.size || 0),
         };
     } catch (error) {
         throw error;
@@ -386,13 +327,19 @@ const sanitizeEncryptedMessage = (message) => {
     if (!message || typeof message !== 'object') return message;
 
     const sanitized = { ...message };
+    let hasEncryptedFailure = false;
 
     if (isEncryptedContent(sanitized.content)) {
         sanitized.content = '';
+        hasEncryptedFailure = true;
     }
 
     if (isEncryptedContent(sanitized.replyToContent)) {
         sanitized.replyToContent = '';
+    }
+
+    if (hasEncryptedFailure) {
+        sanitized._isEncryptedUnavailable = true;
     }
 
     return sanitized;
@@ -416,6 +363,17 @@ const getStoredChatKey = async (chatId) => {
     const stored = await SecureStore.getItemAsync(key);
     if (!stored) return null;
     return decodeBytes(stored);
+};
+
+const clearStoredChatKey = async (chatId) => {
+    if (!chatId) return;
+    chatKeyMemCache.delete(chatId);
+    const key = getSecureStoreKey(CHAT_KEY_PREFIX, chatId);
+    try {
+        await SecureStore.deleteItemAsync(key);
+    } catch (error) {
+        // Ignore secure storage cleanup failures
+    }
 };
 
 const buildE2eeSettings = async (chat, creatorId) => {
@@ -485,12 +443,16 @@ const buildE2eeSettings = async (chat, creatorId) => {
     };
 };
 
-const resolveChatKey = async (chat, userId) => {
+const resolveChatKey = async (chat, userId, options = {}) => {
     if (!chat || !userId) return null;
 
+    const { forceRefresh = false } = options;
+
     // Check in-memory cache first (fastest)
-    const memCached = getCachedChatKey(chat.$id);
-    if (memCached) return memCached;
+    if (!forceRefresh) {
+        const memCached = getCachedChatKey(chat.$id);
+        if (memCached) return memCached;
+    }
 
     const publicKeyResult = await ensureChatPublicKeyStored(chat, userId);
     // Use updated settings string without mutating the (possibly frozen) chat object
@@ -498,10 +460,12 @@ const resolveChatKey = async (chat, userId) => {
         ? JSON.stringify(publicKeyResult.settings)
         : chat.settings;
 
-    const cached = await getStoredChatKey(chat.$id);
-    if (cached) {
-        setCachedChatKey(chat.$id, cached);
-        return cached;
+    if (!forceRefresh) {
+        const cached = await getStoredChatKey(chat.$id);
+        if (cached) {
+            setCachedChatKey(chat.$id, cached);
+            return cached;
+        }
     }
 
     const settings = parseChatSettings(settingsStr);
@@ -692,15 +656,68 @@ const ensureChatEncryption = async (chat, userId) => {
 const decryptMessageFields = (message, chatKey) => {
     if (!message || !chatKey) return message;
 
+    const contentWasEncrypted = isEncryptedContent(message.content);
+    const decryptedContent = decryptContent(message.content, chatKey);
+    const encryptedContentFailed = contentWasEncrypted && decryptedContent === '';
+
     const decrypted = {
         ...message,
-        content: decryptContent(message.content, chatKey),
+        content: decryptedContent,
     };
+
+    if (encryptedContentFailed) {
+        decrypted._isEncryptedUnavailable = true;
+    }
 
     if (message.replyToContent) {
         decrypted.replyToContent = decryptContent(message.replyToContent, chatKey);
     }
 
+    return decrypted;
+};
+
+const decryptMessageFieldsWithRecovery = async (chat, userId, message, chatKey) => {
+    if (!message || !chat || !userId) return message;
+    if (!chatKey) return sanitizeEncryptedMessage(message);
+
+    const decrypted = decryptMessageFields(message, chatKey);
+    const needsRetry = Boolean(decrypted?._isEncryptedUnavailable) && isEncryptedContent(message.content);
+    if (!needsRetry) {
+        return decrypted;
+    }
+
+    await clearStoredChatKey(chat.$id);
+    const refreshedKey = await resolveChatKey(chat, userId, { forceRefresh: true });
+    if (!refreshedKey) {
+        return sanitizeEncryptedMessage(message);
+    }
+
+    return decryptMessageFields(message, refreshedKey);
+};
+
+const decryptMessagesWithRecovery = async (chat, userId, messages, chatKey) => {
+    if (!Array.isArray(messages) || messages.length === 0) return [];
+    if (!chat || !userId) return messages;
+    if (!chatKey) {
+        return messages.map(message => sanitizeEncryptedMessage(message));
+    }
+
+    let decrypted = messages.map(message => decryptMessageFields(message, chatKey));
+    const hasFailure = decrypted.some((message, index) => {
+        return Boolean(message?._isEncryptedUnavailable) && isEncryptedContent(messages[index]?.content);
+    });
+
+    if (!hasFailure) {
+        return decrypted;
+    }
+
+    await clearStoredChatKey(chat.$id);
+    const refreshedKey = await resolveChatKey(chat, userId, { forceRefresh: true });
+    if (!refreshedKey) {
+        return messages.map(message => sanitizeEncryptedMessage(message));
+    }
+
+    decrypted = messages.map(message => decryptMessageFields(message, refreshedKey));
     return decrypted;
 };
 
@@ -719,6 +736,16 @@ export const decryptChatPreview = async (chat, userId) => {
         }
 
         const decryptedLastMessage = decryptContent(chat.lastMessage, chatKey);
+        if (decryptedLastMessage === '' && isEncryptedContent(chat.lastMessage)) {
+            await clearStoredChatKey(chat.$id);
+            const refreshedKey = await resolveChatKey(chat, userId, { forceRefresh: true });
+            if (refreshedKey) {
+                return {
+                    ...chat,
+                    lastMessage: decryptContent(chat.lastMessage, refreshedKey),
+                };
+            }
+        }
         return { ...chat, lastMessage: decryptedLastMessage };
     } catch (error) {
         return { ...chat, lastMessage: '' };
@@ -741,8 +768,7 @@ export const decryptMessageForChat = async (chatId, message, userId) => {
         if (!chatId || !message || !userId) return message;
         const chat = await getChat(chatId);
         const chatKey = await resolveChatKey(chat, userId);
-        if (!chatKey) return sanitizeEncryptedMessage(message);
-        return decryptMessageFields(message, chatKey);
+        return await decryptMessageFieldsWithRecovery(chat, userId, message, chatKey);
     } catch (error) {
         return sanitizeEncryptedMessage(message);
     }
@@ -1256,6 +1282,14 @@ export const sendMessage = async (chatId, messageData) => {
                 messageCount: currentCount + 1,
             }
         );
+
+        // Broadcast to Firebase so other clients update instantly
+        broadcastChatMeta(chatId, {
+            lastMessage: lastMessagePreview,
+            lastMessageAt: lastMessageAtTimestamp,
+            messageCount: currentCount + 1,
+            lastSenderId: messageData.senderId,
+        });
         
         // Add message to cache
         await messagesCacheManager.addMessageToCache(chatId, message, 100);
@@ -1313,10 +1347,7 @@ export const getMessages = async (chatId, userIdOrLimit = 50, limitOrOffset = 0,
                 if (userId) {
                     const chat = await getChat(chatId);
                     const chatKey = await resolveChatKey(chat, userId);
-                    if (chatKey) {
-                        return cached.value.map(message => decryptMessageFields(message, chatKey));
-                    }
-                    return cached.value.map(message => sanitizeEncryptedMessage(message));
+                    return await decryptMessagesWithRecovery(chat, userId, cached.value, chatKey);
                 }
                 return cached.value;
             }
@@ -1337,11 +1368,7 @@ export const getMessages = async (chatId, userIdOrLimit = 50, limitOrOffset = 0,
         if (userId) {
             const chat = await getChat(chatId);
             const chatKey = await resolveChatKey(chat, userId);
-            if (chatKey) {
-                documents = documents.map(message => decryptMessageFields(message, chatKey));
-            } else {
-                documents = documents.map(message => sanitizeEncryptedMessage(message));
-            }
+            documents = await decryptMessagesWithRecovery(chat, userId, documents, chatKey);
         }
 
         // Cache the messages for initial load

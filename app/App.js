@@ -841,7 +841,18 @@ const RealtimeLifecycleManager = () => {
   // failure, but we add a .catch() guard for extra safety so no
   // unhandled rejection can surface even on bad networks.
   useEffect(() => {
-    ensureFirebaseAuth().catch(() => {});
+    console.log('[Firebase] App bootstrap: calling ensureFirebaseAuth()...');
+    ensureFirebaseAuth()
+      .then((ok) => {
+        if (ok) {
+          console.log('[Firebase] ✅ App bootstrap: Firebase auth ready');
+        } else {
+          console.warn('[Firebase] ⚠️ App bootstrap: Firebase auth returned false — RTDB disabled');
+        }
+      })
+      .catch((err) => {
+        console.warn('[Firebase] ❌ App bootstrap: ensureFirebaseAuth threw:', err?.message);
+      });
   }, []);
 
   const pauseRealtime = useCallback(() => {

@@ -1188,6 +1188,7 @@ export default {
     typeMessage: 'Type a message...',
     mentionEveryone: 'Everyone',
     cannotSendMessage: 'You cannot send messages',
+    encryptedMessageUnavailable: 'Unable to decrypt this message',
     errorLoadingChats: 'Failed to load chats',
     errorLoadingMessages: 'Failed to load messages',
     errorSendingMessage: 'Failed to send message',

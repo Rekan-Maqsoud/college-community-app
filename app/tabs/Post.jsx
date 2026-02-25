@@ -17,8 +17,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
+import AnimatedBackground from '../components/AnimatedBackground';
+import SearchableDropdownNew from '../components/SearchableDropdownNew';
 import CustomAlert from '../components/CustomAlert';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { uploadImage } from '../../services/imgbbService';
@@ -28,12 +31,32 @@ import { compressImage } from '../utils/imageCompression';
 import { createPollPayload } from '../utils/pollUtils';
 import {
   POST_TYPES,
-  DEPARTMENTS,
+  POST_TYPE_OPTIONS,
+  POST_ICONS,
   getStageOptionsForDepartment,
   isExtendedStageDepartment,
   MAX_IMAGES_PER_POST,
 } from '../constants/postConstants';
 import useLayout from '../hooks/useLayout';
+
+const normalizeStageValue = (userStage) => {
+  const stageMap = {
+    firstYear: 'stage_1',
+    secondYear: 'stage_2',
+    thirdYear: 'stage_3',
+    fourthYear: 'stage_4',
+    fifthYear: 'stage_5',
+    sixthYear: 'stage_6',
+    graduate: 'graduate',
+    '1': 'stage_1',
+    '2': 'stage_2',
+    '3': 'stage_3',
+    '4': 'stage_4',
+    '5': 'stage_5',
+    '6': 'stage_6',
+  };
+  return stageMap[userStage] || userStage || '';
+};
 
 const Post = () => {
   const appSettings = useAppSettings();
@@ -55,7 +78,9 @@ const Post = () => {
   const [topic, setTopic] = useState('');
   const [text, setText] = useState('');
   const [department, setDepartment] = useState(user?.department || '');
-  const [stage, setStage] = useState(user?.stage || '');
+  const [stage, setStage] = useState(normalizeStageValue(user?.stage));
+  const [topicInputHeight, setTopicInputHeight] = useState(48);
+  const [textInputHeight, setTextInputHeight] = useState(96);
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState('');
   const [links, setLinks] = useState([]);
@@ -65,26 +90,22 @@ const Post = () => {
   
   const [showTags, setShowTags] = useState(false);
   const [showLinks, setShowLinks] = useState(false);
-  const [isPublic, setIsPublic] = useState(false);
+  const [visibility, setVisibility] = useState('department');
   const [canOthersRepost, setCanOthersRepost] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(null);
   const [pollChoices, setPollChoices] = useState(['', '']);
   const [isQuizPoll, setIsQuizPoll] = useState(false);
   const [correctPollOptionId, setCorrectPollOptionId] = useState('');
-  
-  const POST_TYPE_OPTIONS = [
-    { value: POST_TYPES.QUESTION, label: t('post.types.question'), icon: 'help-circle-outline', color: '#3B82F6' },
-    { value: POST_TYPES.DISCUSSION, label: t('post.types.discussion'), icon: 'chatbubbles-outline', color: '#8B5CF6' },
-    { value: POST_TYPES.NOTE, label: t('post.types.note'), icon: 'document-text-outline', color: '#10B981' },
-    { value: POST_TYPES.ANNOUNCEMENT, label: t('post.types.announcement'), icon: 'megaphone-outline', color: '#F59E0B' },
-    { value: POST_TYPES.POLL, label: t('post.types.poll'), icon: 'bar-chart-outline', color: '#EC4899' },
+
+  const postTypeOptions = [
+    ...POST_TYPE_OPTIONS,
+    { value: POST_TYPES.POLL, labelKey: 'post.types.poll' },
   ];
-  const firstRowPostTypes = POST_TYPE_OPTIONS.slice(0, 2);
-  const secondRowPostTypes = POST_TYPE_OPTIONS.slice(2);
+  const visibilityOptions = ['department', 'major', 'public'];
 
   useEffect(() => {
     if (user?.stage && !stage) {
-      setStage(user.stage);
+      setStage(normalizeStageValue(user.stage));
     }
   }, [user]);
 
@@ -97,6 +118,24 @@ const Post = () => {
   }, [department, user, stage]);
 
   const stageOptions = getStageOptionsForDepartment(department || user?.department || '');
+
+  const cycleVisibility = () => {
+    const currentIndex = visibilityOptions.indexOf(visibility);
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % visibilityOptions.length;
+    setVisibility(visibilityOptions[nextIndex]);
+  };
+
+  const getVisibilityLabel = () => {
+    if (visibility === 'major') return t('post.majorOnly');
+    if (visibility === 'public') return t('post.publicPost');
+    return t('post.departmentOnly');
+  };
+
+  const getVisibilityHelper = () => {
+    if (visibility === 'major') return t('post.majorOnlyHelper');
+    if (visibility === 'public') return t('post.publicPostHelper');
+    return t('post.departmentOnlyHelper');
+  };
 
   const handlePickImages = async () => {
     try {
@@ -147,7 +186,7 @@ const Post = () => {
     const hasImages = images.length > 0;
     
     if (!hasTopic && !hasText && !hasImages) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('post.contentRequired') || 'Please add a topic, description, or at least one image' });
+      showAlert({ type: 'error', title: t('common.error'), message: t('post.contentRequired') });
       return false;
     }
     if (!stage) {
@@ -235,7 +274,7 @@ const Post = () => {
           })
         : null;
       
-      const postDepartment = isPublic ? 'public' : (user?.department || '');
+      const postDepartment = visibility === 'public' ? 'public' : (user?.department || '');
 
       const newPost = await createPost({
         userId: user.$id,
@@ -281,6 +320,7 @@ const Post = () => {
       setLinkInput('');
       setImages([]);
       setPostType(POST_TYPES.DISCUSSION);
+      setVisibility('department');
       setCanOthersRepost(true);
       setPollChoices(['', '']);
       setIsQuizPoll(false);
@@ -295,92 +335,95 @@ const Post = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.createPost')}</Text>
-        <TouchableOpacity
-          onPress={handleCreatePost}
-          style={[styles.postButton, { backgroundColor: theme.primary }]}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.postButtonText}>{t('post.post')}</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}
+      <LinearGradient
+        colors={isDarkMode
+          ? ['#1a1a2e', '#16213e', '#0f3460']
+          : ['#FFFEF7', '#FFF9E6', '#FFF4D6']
+        }
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
-        <ScrollView style={styles.scrollView} contentContainerStyle={contentStyle} showsVerticalScrollIndicator={false}>
+        <AnimatedBackground particleCount={16} />
+        
+        <View style={[styles.header, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.createPost')}</Text>
+          <TouchableOpacity
+            onPress={handleCreatePost}
+            style={[styles.postButton, { backgroundColor: theme.primary }]}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.postButtonText}>{t('post.post')}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.flex}
+        >
+          <ScrollView style={styles.scrollView} contentContainerStyle={contentStyle} showsVerticalScrollIndicator={false}>
           
           <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: theme.text }]}>{t('post.postType')}</Text>
-            <View style={styles.postTypeGridRow}>
-              {firstRowPostTypes.map((type) => {
-                const isSelected = postType === type.value;
-                return (
-                  <TouchableOpacity
-                    key={type.value}
-                    style={[
-                      styles.postTypeButton,
-                      styles.postTypeButtonTwoPerRow,
-                      { borderColor: theme.border, backgroundColor: theme.card },
-                      isSelected && { backgroundColor: type.color, borderColor: type.color },
-                    ]}
-                    onPress={() => setPostType(type.value)}
-                    activeOpacity={0.7}
+            <View style={styles.topControlsRow}>
+              <View style={[styles.compactField, styles.postTypeField]}>
+                <Text style={[styles.compactLabel, { color: theme.textSecondary }]}> 
+                  {t('post.postType')}
+                </Text>
+                <SearchableDropdownNew
+                  items={postTypeOptions}
+                  value={postType}
+                  onSelect={setPostType}
+                  placeholder={t('post.postType')}
+                  icon={POST_ICONS[postType] || 'list-outline'}
+                  disabled={loading}
+                />
+              </View>
+
+              <View style={[styles.compactField, styles.compactFieldHalf]}>
+                <Text style={[styles.compactLabel, { color: theme.textSecondary }]}> 
+                  {t('post.stage')}
+                </Text>
+                <SearchableDropdownNew
+                  items={stageOptions}
+                  value={stage}
+                  onSelect={setStage}
+                  placeholder={t('post.selectStage')}
+                  icon="stats-chart-outline"
+                  disabled={loading}
+                  compact
+                />
+              </View>
+
+              <View style={[styles.compactField, styles.compactFieldHalf]}>
+                <Text style={[styles.compactLabel, { color: theme.textSecondary }]}> 
+                  {t('post.visibility')}
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.compactToggle,
+                    { backgroundColor: theme.inputBackground || theme.input?.background, borderColor: theme.border }
+                  ]}
+                  onPress={cycleVisibility}
+                  disabled={loading}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="eye-outline" size={14} color={theme.primary} />
+                  <Text
+                    style={[styles.compactToggleText, { color: theme.text }]}
+                    numberOfLines={1}
                   >
-                    <Ionicons
-                      name={type.icon}
-                      size={22}
-                      color={isSelected ? '#fff' : theme.textSecondary}
-                    />
-                    <Text style={[
-                      styles.postTypeText,
-                      { color: theme.textSecondary },
-                      isSelected && styles.postTypeTextSelected
-                    ]}>
-                      {type.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+                    {getVisibilityLabel()}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={[styles.postTypeGridRow, styles.postTypeGridRowSecond]}>
-              {secondRowPostTypes.map((type) => {
-                const isSelected = postType === type.value;
-                return (
-                  <TouchableOpacity
-                    key={type.value}
-                    style={[
-                      styles.postTypeButton,
-                      styles.postTypeButtonThreePerRow,
-                      { borderColor: theme.border, backgroundColor: theme.card },
-                      isSelected && { backgroundColor: type.color, borderColor: type.color },
-                    ]}
-                    onPress={() => setPostType(type.value)}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name={type.icon}
-                      size={22}
-                      color={isSelected ? '#fff' : theme.textSecondary}
-                    />
-                    <Text style={[
-                      styles.postTypeText,
-                      { color: theme.textSecondary },
-                      isSelected && styles.postTypeTextSelected
-                    ]}>
-                      {type.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <Text style={[styles.helperText, styles.compactHelper, { color: theme.textSecondary }]}>
+              {getVisibilityHelper()}
+            </Text>
           </View>
 
           <View style={styles.section}>
@@ -388,7 +431,9 @@ const Post = () => {
               {t('post.topic')}
             </Text>
             <TextInput
-              style={[styles.input, { 
+              style={[styles.input, styles.growingInput, {
+                minHeight: topicInputHeight,
+                height: topicInputHeight,
                 backgroundColor: theme.inputBackground,
                 borderColor: theme.border,
                 color: theme.text 
@@ -398,7 +443,14 @@ const Post = () => {
               placeholder={t('post.topicPlaceholder')}
               placeholderTextColor={theme.textSecondary}
               maxLength={200}
+              multiline
+              numberOfLines={1}
+              textAlignVertical="top"
               editable={!loading}
+              onContentSizeChange={(event) => {
+                const nextHeight = Math.max(48, Math.min(120, event.nativeEvent.contentSize.height + 16));
+                setTopicInputHeight(nextHeight);
+              }}
             />
             <Text style={[styles.charCount, { color: theme.textSecondary }]}>
               {topic.length}/200
@@ -410,7 +462,9 @@ const Post = () => {
               {t('post.description')}
             </Text>
             <TextInput
-              style={[styles.input, styles.textArea, {
+              style={[styles.input, styles.textArea, styles.growingInput, {
+                minHeight: textInputHeight,
+                height: textInputHeight,
                 backgroundColor: theme.inputBackground,
                 borderColor: theme.border,
                 color: theme.text
@@ -420,9 +474,13 @@ const Post = () => {
               placeholder={t('post.descriptionPlaceholder')}
               placeholderTextColor={theme.textSecondary}
               multiline
-              numberOfLines={8}
+              numberOfLines={3}
               textAlignVertical="top"
               editable={!loading}
+              onContentSizeChange={(event) => {
+                const nextHeight = Math.max(96, Math.min(280, event.nativeEvent.contentSize.height + 16));
+                setTextInputHeight(nextHeight);
+              }}
             />
             <Text style={[styles.charCount, { color: theme.textSecondary }]}>
               {text.length}/5000
@@ -534,75 +592,6 @@ const Post = () => {
           )}
 
           <View style={styles.section}>
-            <View style={styles.optionsRow}>
-              <View style={styles.stageDropdownContainer}>
-                <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
-                  {t('post.stage')}
-                </Text>
-                <View style={[styles.stageDropdown, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {stageOptions.map((stg) => (
-                      <TouchableOpacity
-                        key={stg.value}
-                        style={[
-                          styles.stageOption,
-                          stage === stg.value && { backgroundColor: theme.primary }
-                        ]}
-                        onPress={() => setStage(stg.value)}
-                      >
-                        <Text style={[
-                          styles.stageOptionText,
-                          { color: theme.textSecondary },
-                          stage === stg.value && { color: '#fff', fontWeight: '600' }
-                        ]}>
-                          {t(stg.labelKey)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              </View>
-
-              <View style={styles.publicToggleContainer}>
-                <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
-                  {t('post.public')}
-                </Text>
-                <TouchableOpacity
-                  style={[
-                    styles.toggleButton,
-                    { backgroundColor: theme.card, borderColor: theme.border },
-                    isPublic && { backgroundColor: theme.primary, borderColor: theme.primary }
-                  ]}
-                  onPress={() => setIsPublic(!isPublic)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={isPublic ? 'globe' : 'people'}
-                    size={20}
-                    color={isPublic ? '#fff' : theme.textSecondary}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.repostPermissionRow}>
-              <View style={styles.repostPermissionTextWrap}>
-                <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
-                  {t('post.allowReposts')}
-                </Text>
-                <Text style={[styles.repostPermissionHelper, { color: theme.textSecondary }]}>
-                  {t('post.allowRepostsHelper')}
-                </Text>
-              </View>
-              <Switch
-                value={canOthersRepost}
-                onValueChange={setCanOthersRepost}
-                disabled={loading}
-                trackColor={{ false: theme.border, true: `${theme.primary}88` }}
-                thumbColor={canOthersRepost ? theme.primary : '#f4f3f4'}
-              />
-            </View>
-
             <View style={styles.actionButtonsRow}>
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
@@ -803,9 +792,30 @@ const Post = () => {
             </View>
           )}
 
-          <View style={styles.bottomSpace} />
-        </ScrollView>
-      </KeyboardAvoidingView>
+          <View style={styles.section}>
+            <View style={styles.repostPermissionRow}>
+              <View style={styles.repostPermissionTextWrap}>
+                <Text style={[styles.optionLabel, { color: theme.textSecondary }]}> 
+                  {t('post.allowReposts')}
+                </Text>
+                <Text style={[styles.repostPermissionHelper, { color: theme.textSecondary }]}> 
+                  {t('post.allowRepostsHelper')}
+                </Text>
+              </View>
+              <Switch
+                value={canOthersRepost}
+                onValueChange={setCanOthersRepost}
+                disabled={loading}
+                trackColor={{ false: theme.border, true: `${theme.primary}88` }}
+                thumbColor={canOthersRepost ? theme.primary : '#f4f3f4'}
+              />
+            </View>
+          </View>
+
+            <View style={styles.bottomSpace} />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </LinearGradient>
 
       <Modal
         visible={selectedImageIndex !== null}
@@ -853,6 +863,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  gradient: {
+    flex: 1,
+  },
   flex: {
     flex: 1,
   },
@@ -889,6 +902,45 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 12,
   },
+  topControlsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  compactField: {
+    flex: 1,
+    minWidth: 90,
+  },
+  postTypeField: {
+    flexBasis: '100%',
+  },
+  compactFieldHalf: {
+    minWidth: 140,
+  },
+  compactLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  compactToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    minHeight: 40,
+  },
+  compactToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  compactHelper: {
+    marginTop: 6,
+  },
   sectionLabel: {
     fontSize: 16,
     fontWeight: '600',
@@ -898,49 +950,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '400',
   },
-  postTypeGridRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  postTypeGridRowSecond: {
-    marginTop: 10,
-  },
-  postTypeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  postTypeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    gap: 6,
-  },
-  postTypeButtonTwoPerRow: {
-    flex: 1,
-  },
-  postTypeButtonThreePerRow: {
-    flex: 1,
-  },
-  postTypeText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  postTypeTextSelected: {
-    color: '#fff',
-  },
   input: {
     borderWidth: 1,
     borderRadius: 10,
     padding: 14,
     fontSize: 16,
   },
+  growingInput: {
+    overflow: 'hidden',
+  },
   textArea: {
-    minHeight: 140,
+    minHeight: 96,
     textAlignVertical: 'top',
   },
   charCount: {
@@ -1031,44 +1051,10 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 5,
   },
-  optionsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  stageDropdownContainer: {
-    flex: 1,
-  },
   optionLabel: {
     fontSize: 12,
     fontWeight: '500',
     marginBottom: 8,
-  },
-  stageDropdown: {
-    borderRadius: 10,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  stageOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginHorizontal: 2,
-    borderRadius: 8,
-  },
-  stageOptionText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  publicToggleContainer: {
-    alignItems: 'flex-end',
-  },
-  toggleButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   actionButtonsRow: {
     flexDirection: 'row',
