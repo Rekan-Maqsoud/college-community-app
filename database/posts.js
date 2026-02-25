@@ -102,11 +102,7 @@ export const createPost = async (postData) => {
             throw new Error('Invalid post data');
         }
         
-        // Post must have userId and at least one of: topic, text, or images
-        if (!postData.userId) {
-            throw new Error('User ID is required');
-        }
-        
+        // Post must have at least one of: topic, text, or images
         const hasTopic = postData.topic && postData.topic.trim().length > 0;
         const hasText = postData.text && postData.text.trim().length > 0;
         const hasImages = postData.images && postData.images.length > 0;
@@ -123,9 +119,7 @@ export const createPost = async (postData) => {
         }
 
         const currentUserId = await getAuthenticatedUserId();
-        if (postData.userId !== currentUserId) {
-            throw new Error('User identity mismatch');
-        }
+        documentData.userId = currentUserId;
 
         enforceRateLimit({
             action: 'create_post',
@@ -141,25 +135,26 @@ export const createPost = async (postData) => {
             documentData,
             [
                 Permission.read(Role.users()),
+                Permission.update(Role.users()),
                 Permission.update(Role.user(currentUserId)),
                 Permission.delete(Role.user(currentUserId)),
             ]
         );
         
         // Invalidate posts cache for the department
-        await postsCacheManager.invalidatePostsCache(postData.department);
+        await postsCacheManager.invalidatePostsCache(documentData.department);
         
         // Send department match notifications in background (non-blocking)
-        if (postData.userId && postData.department) {
+        if (currentUserId && documentData.department) {
             notifyDepartmentPost(
-                postData.userId,
+                currentUserId,
                 userName || fullName || 'Someone',
                 posterPhoto || null,
                 post.$id,
-                postData.postType || 'post',
-                postData.topic || postData.text || '',
-                postData.department,
-                postData.stage || 'all'
+                documentData.postType || 'post',
+                documentData.topic || documentData.text || '',
+                documentData.department,
+                documentData.stage || 'all'
             ).catch(() => {
                 // Silent fail - should not break post creation
             });
@@ -562,18 +557,12 @@ export const createRepost = async (originalPostId, userId, repostData = {}) => {
             throw new Error('Invalid original post ID');
         }
 
-        if (!userId || typeof userId !== 'string') {
-            throw new Error('Invalid user ID');
-        }
-
         const currentUserId = await getAuthenticatedUserId();
-        if (currentUserId !== userId) {
-            throw new Error('User identity mismatch');
-        }
+        const effectiveUserId = currentUserId;
 
         enforceRateLimit({
             action: 'create_repost',
-            userId,
+            userId: effectiveUserId,
             maxActions: 4,
             windowMs: 60 * 1000,
         });
@@ -600,7 +589,7 @@ export const createRepost = async (originalPostId, userId, repostData = {}) => {
             throw new Error('Original post is not available');
         }
 
-        const canRepost = rootOriginal.userId === userId || rootOriginal.canOthersRepost !== false;
+        const canRepost = rootOriginal.userId === effectiveUserId || rootOriginal.canOthersRepost !== false;
         if (!canRepost) {
             throw new Error('Repost is not allowed for this post');
         }
@@ -609,7 +598,7 @@ export const createRepost = async (originalPostId, userId, repostData = {}) => {
             config.databaseId,
             config.postsCollectionId,
             [
-                Query.equal('userId', userId),
+                Query.equal('userId', effectiveUserId),
                 Query.equal('isRepost', true),
                 Query.equal('originalPostId', rootOriginal.$id),
                 Query.limit(1),
@@ -632,7 +621,7 @@ export const createRepost = async (originalPostId, userId, repostData = {}) => {
             : (rootOriginal.text || '');
 
         const post = await createPost({
-            userId,
+            userId: effectiveUserId,
             userName: repostData.userName || null,
             profilePicture: repostData.profilePicture || null,
             topic: repostTopic,
@@ -680,10 +669,7 @@ export const requestPostReview = async (postId, requesterUserId = null) => {
         }
 
         const currentUserId = await getAuthenticatedUserId();
-        const effectiveRequesterUserId = requesterUserId || currentUserId;
-        if (effectiveRequesterUserId !== currentUserId) {
-            throw new Error('User identity mismatch');
-        }
+        const effectiveRequesterUserId = currentUserId;
 
         const post = await databases.getDocument(
             config.databaseId,
@@ -755,7 +741,7 @@ export const requestPostReview = async (postId, requesterUserId = null) => {
             postId,
             {
                 reviewRequestedAt: new Date().toISOString(),
-                reviewRequestedBy: requesterUserId || post.userId,
+                reviewRequestedBy: currentUserId,
             }
         ).catch(() => {
             // Optional columns may not exist yet.
@@ -818,14 +804,8 @@ export const voteOnPostPoll = async (postId, userId, selectedOptionIds) => {
             throw new Error('Invalid post ID');
         }
 
-        if (!userId || typeof userId !== 'string') {
-            throw new Error('User ID is required');
-        }
-
         const currentUserId = await getAuthenticatedUserId();
-        if (currentUserId !== userId) {
-            throw new Error('User identity mismatch');
-        }
+        const effectiveUserId = currentUserId;
 
         const post = await databases.getDocument(
             config.databaseId,
@@ -838,7 +818,7 @@ export const voteOnPostPoll = async (postId, userId, selectedOptionIds) => {
             throw new Error('This post does not contain a valid poll');
         }
 
-        const nextPoll = applyPollVote(parsedPoll, userId, selectedOptionIds);
+        const nextPoll = applyPollVote(parsedPoll, effectiveUserId, selectedOptionIds);
 
         const updatedPost = await databases.updateDocument(
             config.databaseId,
@@ -945,14 +925,8 @@ export const togglePostLike = async (postId, userId) => {
             throw new Error('Invalid post ID');
         }
         
-        if (!userId || typeof userId !== 'string') {
-            throw new Error('Invalid user ID');
-        }
-        
         const currentUserId = await getAuthenticatedUserId();
-        if (userId !== currentUserId) {
-            throw new Error('User identity mismatch');
-        }
+        const effectiveUserId = currentUserId;
 
         enforceRateLimit({
             action: 'toggle_post_like',
@@ -963,13 +937,13 @@ export const togglePostLike = async (postId, userId) => {
 
         const post = await getPost(postId);
         const likedBy = post.likedBy || [];
-        const isLiked = likedBy.includes(userId);
+        const isLiked = likedBy.includes(effectiveUserId);
         
         let updatedLikedBy;
         if (isLiked) {
-            updatedLikedBy = likedBy.filter(id => id !== userId);
+            updatedLikedBy = likedBy.filter(id => id !== effectiveUserId);
         } else {
-            updatedLikedBy = [...likedBy, userId];
+            updatedLikedBy = [...likedBy, effectiveUserId];
         }
         
         const updatedPost = await databases.updateDocument(
@@ -1033,9 +1007,10 @@ export const createReply = async (postId, replyData) => {
         }
 
         const currentUserId = await getAuthenticatedUserId();
-        if (!replyData?.userId || replyData.userId !== currentUserId) {
-            throw new Error('User identity mismatch');
-        }
+        const effectiveReplyData = {
+            ...(replyData || {}),
+            userId: currentUserId,
+        };
 
         enforceRateLimit({
             action: 'create_reply',
@@ -1049,11 +1024,12 @@ export const createReply = async (postId, replyData) => {
             config.repliesCollectionId,
             ID.unique(),
             {
-                ...replyData,
+                ...effectiveReplyData,
                 postId
             },
             [
                 Permission.read(Role.users()),
+                Permission.update(Role.users()),
                 Permission.update(Role.user(currentUserId)),
                 Permission.delete(Role.user(currentUserId)),
             ]
@@ -1151,9 +1127,18 @@ export const deleteImage = async (fileId) => {
  */
 export const enrichPostsWithUserData = async (posts) => {
     if (!posts || posts.length === 0) return posts;
+
+    const shouldEnrichUserName = (value) => {
+        if (!value) return true;
+        const normalized = String(value).trim().toLowerCase();
+        return normalized === ''
+            || normalized === 'user'
+            || normalized === 'someone'
+            || normalized === 'unknown';
+    };
     
-    // Find posts missing userName
-    const postsNeedingUserData = posts.filter(post => !post.userName && post.userId);
+    // Find posts missing or placeholder userName
+    const postsNeedingUserData = posts.filter(post => shouldEnrichUserName(post?.userName) && post.userId);
     
     if (postsNeedingUserData.length === 0) return posts;
     
@@ -1178,7 +1163,7 @@ export const enrichPostsWithUserData = async (posts) => {
     
     // Enrich posts with user data
     return posts.map(post => {
-        if (!post.userName && post.userId && userDataMap[post.userId]) {
+        if (shouldEnrichUserName(post?.userName) && post.userId && userDataMap[post.userId]) {
             return {
                 ...post,
                 userName: userDataMap[post.userId].name,
@@ -1194,14 +1179,8 @@ export const reportPost = async (postId, userId, reason = '') => {
         if (!postId || typeof postId !== 'string') {
             throw new Error('Invalid post ID');
         }
-        if (!userId || typeof userId !== 'string') {
-            throw new Error('Invalid user ID');
-        }
-
         const currentUserId = await getAuthenticatedUserId();
-        if (currentUserId !== userId) {
-            throw new Error('User identity mismatch');
-        }
+        const effectiveUserId = currentUserId;
 
         enforceRateLimit({
             action: 'report_post',
@@ -1215,14 +1194,14 @@ export const reportPost = async (postId, userId, reason = '') => {
             return { success: true, alreadyHidden: true, reportCount: post?.reportCount || 0 };
         }
 
-        if (post.userId === userId) {
+        if (post.userId === effectiveUserId) {
             throw new Error('Users cannot report their own posts');
         }
 
         const moderationReason = sanitizeModerationReason(reason);
         const reportedBy = post.reportedBy || [];
 
-        if (reportedBy.includes(userId)) {
+        if (reportedBy.includes(effectiveUserId)) {
             return { alreadyReported: true };
         }
 
@@ -1235,7 +1214,7 @@ export const reportPost = async (postId, userId, reason = '') => {
                         ID.unique(),
                         {
                             postId,
-                            reporterId: userId,
+                            reporterId: effectiveUserId,
                             postOwnerId: post.userId,
                             reason: moderationReason,
                         }
@@ -1248,7 +1227,7 @@ export const reportPost = async (postId, userId, reason = '') => {
             return { success: true, treatedAsFeedback: true, reportCount: post.reportCount || 0 };
         }
 
-        const newReportedBy = [...new Set([...reportedBy, userId])];
+        const newReportedBy = [...new Set([...reportedBy, effectiveUserId])];
         const reportCount = newReportedBy.length;
         const reportReason = sanitizeReportReason(moderationReason);
         const existingReasons = Array.isArray(post.reportReasons) ? post.reportReasons : [];

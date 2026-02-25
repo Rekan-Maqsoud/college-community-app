@@ -39,14 +39,15 @@ export const createReply = async (replyData) => {
             throw new Error('Invalid reply data');
         }
         
-        if (!replyData.postId || !replyData.userId) {
+        if (!replyData.postId) {
             throw new Error('Missing required fields');
         }
 
         const currentUserId = await getAuthenticatedUserId();
-        if (replyData.userId !== currentUserId) {
-            throw new Error('User identity mismatch');
-        }
+        const effectiveReplyData = {
+            ...replyData,
+            userId: currentUserId,
+        };
 
         enforceRateLimit({
             action: 'create_reply',
@@ -59,18 +60,19 @@ export const createReply = async (replyData) => {
             config.databaseId,
             config.repliesCollectionId,
             ID.unique(),
-            replyData,
+            effectiveReplyData,
             [
                 Permission.read(Role.users()),
+                Permission.update(Role.users()),
                 Permission.update(Role.user(currentUserId)),
                 Permission.delete(Role.user(currentUserId)),
             ]
         );
 
-        await incrementPostReplyCount(replyData.postId);
+        await incrementPostReplyCount(effectiveReplyData.postId);
         
         // Invalidate replies cache for this post
-        await repliesCacheManager.invalidateReplies(replyData.postId);
+        await repliesCacheManager.invalidateReplies(effectiveReplyData.postId);
 
         return reply;
     } catch (error) {

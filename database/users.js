@@ -15,7 +15,7 @@ export const searchUsers = async (searchQuery, limit = 10) => {
         }
         
         const sanitizedQuery = sanitizeSearchQuery(searchQuery);
-        if (sanitizedQuery.length < 2) {
+        if (sanitizedQuery.length < 1) {
             return [];
         }
 
@@ -41,20 +41,45 @@ export const searchUsers = async (searchQuery, limit = 10) => {
             // Full-text search not available, fall back to contains query
         }
 
-        // Fallback: Use contains query on name (still server-side)
-        const containsQueries = [
-            Query.contains('name', [sanitizedQuery]),
-            Query.limit(limit),
+        // Fallback 1: startsWith (if available)
+        try {
+            if (typeof Query.startsWith === 'function') {
+                const startsWithQueries = [
+                    Query.startsWith('name', sanitizedQuery),
+                    Query.limit(limit),
+                    Query.orderDesc('$createdAt')
+                ];
+
+                const users = await databases.listDocuments(
+                    config.databaseId,
+                    config.usersCollectionId || '68fc7b42001bf7efbba3',
+                    startsWithQueries
+                );
+
+                if (users.documents.length > 0) {
+                    return users.documents;
+                }
+            }
+        } catch (startsWithError) {
+            // Ignore and continue to local filtering fallback
+        }
+
+        // Fallback 2: broad fetch + local substring match
+        const broadQueries = [
+            Query.limit(Math.max(limit * 4, 40)),
             Query.orderDesc('$createdAt')
         ];
 
-        const users = await databases.listDocuments(
+        const broadResult = await databases.listDocuments(
             config.databaseId,
             config.usersCollectionId || '68fc7b42001bf7efbba3',
-            containsQueries
+            broadQueries
         );
-        
-        return users.documents;
+
+        const lowered = sanitizedQuery.toLowerCase();
+        return (broadResult.documents || [])
+            .filter((user) => String(user?.name || '').toLowerCase().includes(lowered))
+            .slice(0, limit);
     } catch (error) {
         return [];
     }

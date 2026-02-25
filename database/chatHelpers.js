@@ -293,6 +293,26 @@ export const getUserCustomGroups = async (userId) => {
 
 export const getAllUserChats = async (userId, department, stage, useCache = true) => {
     const cacheKey = chatsCacheManager.generateCacheKey(userId, department, stage);
+
+    const hydratePrivateChatsWithOtherUser = async (privateChats = []) => {
+        return await Promise.all(
+            (privateChats || []).map(async (chat) => {
+                try {
+                    if (chat?.otherUser?.$id || chat?.otherUser?.userID) {
+                        return chat;
+                    }
+                    const otherUserId = chat?.participants?.find(id => id !== userId);
+                    if (!otherUserId) {
+                        return chat;
+                    }
+                    const otherUser = await getUserById(otherUserId);
+                    return { ...chat, otherUser };
+                } catch (error) {
+                    return chat;
+                }
+            })
+        );
+    };
     
     try {
         const results = {
@@ -309,7 +329,14 @@ export const getAllUserChats = async (userId, department, stage, useCache = true
         if (useCache) {
             const cached = await chatsCacheManager.getCachedChats(cacheKey);
             if (cached?.value) {
-                return cached.value;
+                const hydratedPrivateChats = await hydratePrivateChatsWithOtherUser(cached.value.privateChats || []);
+                const hydratedCached = {
+                    ...cached.value,
+                    privateChats: hydratedPrivateChats,
+                };
+
+                await chatsCacheManager.cacheChats(cacheKey, hydratedCached);
+                return hydratedCached;
             }
         }
 
@@ -323,20 +350,7 @@ export const getAllUserChats = async (userId, department, stage, useCache = true
         results.customGroups = await decryptChatPreviews(customGroups, userId);
         
         // Populate otherUser for private chats
-        const privateChatsWithOtherUser = await Promise.all(
-            privateChats.map(async (chat) => {
-                try {
-                    const otherUserId = chat.participants?.find(id => id !== userId);
-                    if (otherUserId) {
-                        const otherUser = await getUserById(otherUserId);
-                        return { ...chat, otherUser };
-                    }
-                    return chat;
-                } catch (error) {
-                    return chat;
-                }
-            })
-        );
+        const privateChatsWithOtherUser = await hydratePrivateChatsWithOtherUser(privateChats);
         
         results.privateChats = await decryptChatPreviews(privateChatsWithOtherUser, userId);
         

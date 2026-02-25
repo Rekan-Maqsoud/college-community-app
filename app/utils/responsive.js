@@ -50,10 +50,12 @@ export const moderateScale = (size, factor = 0.5) => size + (horizontalScale(siz
 export const normalize = (size) => {
   const scale = getWidthScale();
   const newSize = size * scale * _globalFontScale;
+  const rounded = Math.round(PixelRatio.roundToNearestPixel(newSize));
+  const BASE_TEXT_BUMP = 2;
   if (Platform.OS === 'ios') {
-    return Math.round(PixelRatio.roundToNearestPixel(newSize));
+    return rounded + BASE_TEXT_BUMP;
   }
-  return Math.round(PixelRatio.roundToNearestPixel(newSize)) - 2;
+  return rounded + BASE_TEXT_BUMP;
 };
 
 export const wp = (percentage) => {

@@ -1,6 +1,21 @@
 import { Client, Account, Databases, Storage } from 'appwrite';
 import realtimeDebugLogger from '../app/utils/realtimeDebugLogger';
 
+// Patch WebSocket.send to guard against INVALID_STATE_ERR.
+// The Appwrite SDK's internal heartbeat (setInterval) calls socket.send()
+// without checking readyState first. If the socket is CLOSING (2) or
+// CLOSED (3), React Native throws INVALID_STATE_ERR. This patch silently
+// ignores sends on non-OPEN sockets so the heartbeat can't crash the app.
+if (typeof globalThis !== 'undefined' && globalThis.WebSocket) {
+    const _origSend = globalThis.WebSocket.prototype.send;
+    globalThis.WebSocket.prototype.send = function safeSend(...args) {
+        if (this.readyState !== 1 /* OPEN */) {
+            return;
+        }
+        return _origSend.apply(this, args);
+    };
+}
+
 // Polyfill window.localStorage for the Appwrite web SDK.
 // The SDK's realtime handler accesses window.localStorage.getItem('cookieFallback')
 // without a guard, which crashes in React Native where localStorage doesn't exist.

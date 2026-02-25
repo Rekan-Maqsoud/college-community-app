@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Platform, ActivityIndicator, View, Animated, Image, StyleSheet, AppState, Modal, TouchableOpacity, Text } from 'react-native';
 import * as ExpoNotifications from 'expo-notifications';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import * as Updates from 'expo-updates';
 import { AppSettingsProvider, useAppSettings } from './context/AppSettingsContext';
@@ -143,6 +143,7 @@ const AnimatedTabIcon = ({ focused, iconName, color, size }) => {
 const TabNavigator = () => {
   const { t, theme, isDarkMode, loadUserChatSettings } = useAppSettings();
   const { user } = useUser();
+  const insets = useSafeAreaInsets();
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Load user-specific chat settings when user changes
@@ -216,8 +217,8 @@ const TabNavigator = () => {
           backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
           borderTopWidth: 0,
           elevation: 0,
-          height: Platform.OS === 'ios' ? 88 : 68,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+          height: Platform.OS === 'ios' ? (60 + Math.max(insets.bottom, 20)) : (56 + Math.max(insets.bottom, 10)),
+          paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 20) : Math.max(insets.bottom, 10),
           paddingTop: 8,
           position: 'absolute',
           shadowColor: '#000',

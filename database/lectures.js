@@ -493,7 +493,12 @@ export const createLectureChannel = async (payload = {}) => {
         settingsJson: JSON.stringify({
           muteUntil: null,
         }),
-      }
+      },
+      [
+        Permission.read(Role.users()),
+        Permission.update(Role.user(currentUserId)),
+        Permission.delete(Role.user(currentUserId)),
+      ]
     );
 
     logLecturesDb('createLectureChannel:success', {
@@ -829,7 +834,12 @@ export const requestJoinLectureChannel = async (channelId) => {
         settingsJson: JSON.stringify({
           muteUntil: null,
         }),
-      }
+      },
+      [
+        Permission.read(Role.users()),
+        Permission.update(Role.user(currentUserId)),
+        Permission.delete(Role.user(currentUserId)),
+      ]
     );
 
     await syncChannelCounts(channelId);
@@ -1408,7 +1418,12 @@ export const createLectureAsset = async ({
       config.databaseId,
       config.lectureAssetsCollectionId,
       ID.unique(),
-      data
+      data,
+      [
+        Permission.read(Role.users()),
+        Permission.update(Role.user(currentUserId)),
+        Permission.delete(Role.user(currentUserId)),
+      ]
     );
 
     notifyLectureUpload({
@@ -1872,7 +1887,12 @@ export const createLectureComment = async ({
         userId: currentUserId,
         text: commentText,
         parentCommentId: sanitizeText(parentCommentId),
-      }
+      },
+      [
+        Permission.read(Role.users()),
+        Permission.update(Role.user(currentUserId)),
+        Permission.delete(Role.user(currentUserId)),
+      ]
     );
 
     notifyLectureMentions({

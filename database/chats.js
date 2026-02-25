@@ -1004,10 +1004,6 @@ export const createChat = async (chatData) => {
 
         const currentUserId = await getAuthenticatedUserId();
         const participants = Array.from(new Set([...chatData.participants, currentUserId]));
-
-        if (chatData.createdBy && chatData.createdBy !== currentUserId) {
-            throw new Error('User identity mismatch');
-        }
         
         const chat = await databases.createDocument(
             config.databaseId,
@@ -1335,15 +1331,13 @@ export const sendMessage = async (chatId, messageData) => {
         if (!messageData || typeof messageData !== 'object') {
             throw new Error('Invalid message data');
         }
-        
-        if (!messageData.senderId) {
+
+        if (!messageData.senderName || typeof messageData.senderName !== 'string') {
             throw new Error('Missing required message fields');
         }
 
         const currentUserId = await getAuthenticatedUserId();
-        if (messageData.senderId !== currentUserId) {
-            throw new Error('User identity mismatch');
-        }
+        const senderId = currentUserId;
 
         enforceRateLimit({
             action: 'send_chat_message',
@@ -1360,21 +1354,21 @@ export const sendMessage = async (chatId, messageData) => {
             throw new Error('Message must have either content or an image');
         }
         
-        const canSend = await canUserSendMessage(chatId, messageData.senderId);
+        const canSend = await canUserSendMessage(chatId, senderId);
         if (!canSend) {
             throw new Error('User does not have permission to send messages in this chat');
         }
 
-        const chat = await ensureChatParticipant(chatId, messageData.senderId) || await getChat(chatId);
+        const chat = await ensureChatParticipant(chatId, senderId) || await getChat(chatId);
         // Cache the chat document to prevent redundant fetches during encryption pipeline
         setCachedChatDoc(chatId, chat);
 
         // If user had previously removed this private DM, restore it
         if (chat.type === 'private') {
-            restorePrivateChatForUser(chatId, messageData.senderId).catch(() => {});
+            restorePrivateChatForUser(chatId, senderId).catch(() => {});
         }
 
-        const chatKey = await ensureChatEncryption(chat, messageData.senderId);
+        const chatKey = await ensureChatEncryption(chat, senderId);
 
         // ensureChatEncryption already calls addMissingE2eeKeys, so we only
         // need to verify coverage without re-adding keys.
@@ -1405,7 +1399,7 @@ export const sendMessage = async (chatId, messageData) => {
         // Build document with only valid fields matching Appwrite schema
         const documentData = {
             chatId,
-            senderId: messageData.senderId,
+            senderId,
             senderName: messageData.senderName,
             content: encryptedContent,
             mentionsAll,
@@ -1455,7 +1449,7 @@ export const sendMessage = async (chatId, messageData) => {
             config.messagesCollectionId,
             ID.unique(),
             documentData,
-            buildParticipantPermissions(chat.participants || [messageData.senderId])
+            buildParticipantPermissions(chat.participants || [senderId])
         );
 
         const currentCount = chat.messageCount || 0;
@@ -1494,7 +1488,7 @@ export const sendMessage = async (chatId, messageData) => {
             {
                 lastMessage: lastMessagePreview,
                 lastMessageAt: lastMessageAtTimestamp,
-                lastMessageSenderId: messageData.senderId,
+                lastMessageSenderId: senderId,
                 messageCount: currentCount + 1,
             }
         );
@@ -1504,7 +1498,7 @@ export const sendMessage = async (chatId, messageData) => {
             lastMessage: lastMessagePreview,
             lastMessageAt: lastMessageAtTimestamp,
             messageCount: currentCount + 1,
-            lastSenderId: messageData.senderId,
+            lastSenderId: senderId,
         });
         
         // Add message to cache
@@ -1515,7 +1509,7 @@ export const sendMessage = async (chatId, messageData) => {
             await sendChatPushNotification({
                 chatId,
                 messageId: message.$id,
-                senderId: messageData.senderId,
+                senderId,
                 senderName: messageData.senderName,
                 content: notificationPreview,
                 chatName: chat.name,
@@ -1615,17 +1609,11 @@ export const voteOnMessagePoll = async (chatId, messageId, userId, selectedOptio
             throw new Error('Invalid message ID');
         }
 
-        if (!userId || typeof userId !== 'string') {
-            throw new Error('User ID is required');
-        }
-
         const currentUserId = await getAuthenticatedUserId();
-        if (currentUserId !== userId) {
-            throw new Error('User identity mismatch');
-        }
+        const effectiveUserId = currentUserId;
 
-        const chat = await ensureChatParticipant(chatId, userId);
-        const chatKey = await resolveChatKey(chat, userId);
+        const chat = await ensureChatParticipant(chatId, effectiveUserId);
+        const chatKey = await resolveChatKey(chat, effectiveUserId);
         const message = await databases.getDocument(
             config.databaseId,
             config.messagesCollectionId,
@@ -1646,7 +1634,7 @@ export const voteOnMessagePoll = async (chatId, messageId, userId, selectedOptio
             throw new Error('Invalid poll payload');
         }
 
-        const nextPoll = applyPollVote(parsedPoll, userId, selectedOptionIds);
+        const nextPoll = applyPollVote(parsedPoll, effectiveUserId, selectedOptionIds);
         const serializedPoll = JSON.stringify(nextPoll);
         const shouldEncrypt = chatKey && isEncryptedContent(message.content);
         const contentToSave = shouldEncrypt ? encryptContent(serializedPoll, chatKey) : serializedPoll;
@@ -1836,14 +1824,14 @@ const parseMessageReactions = (value) => {
 
 export const toggleMessageReaction = async (chatId, messageId, userId, emoji) => {
     try {
-        if (!messageId || !userId || !emoji) {
-            throw new Error('Message ID, user ID, and emoji are required');
+        if (!messageId || !emoji) {
+            throw new Error('Message ID and emoji are required');
         }
 
-        await assertActorIdentity(userId);
+        const currentUserId = await getAuthenticatedUserId();
         enforceRateLimit({
             action: 'toggle_message_reaction',
-            userId,
+            userId: currentUserId,
             maxActions: 25,
             windowMs: 60 * 1000,
         });
@@ -1860,15 +1848,15 @@ export const toggleMessageReaction = async (chatId, messageId, userId, emoji) =>
 
         const chat = await getChat(message.chatId, true);
         const participants = Array.isArray(chat?.participants) ? chat.participants : [];
-        if (!participants.includes(userId)) {
+        if (!participants.includes(currentUserId)) {
             throw new Error('Not authorized to react in this chat');
         }
 
         const reactions = parseMessageReactions(message.reactions);
         const current = Array.isArray(reactions[emoji]) ? reactions[emoji] : [];
-        const hasReacted = current.includes(userId);
+        const hasReacted = current.includes(currentUserId);
         const nextReactions = Object.entries(reactions).reduce((acc, [key, users]) => {
-            const filtered = Array.isArray(users) ? users.filter(id => id !== userId) : [];
+            const filtered = Array.isArray(users) ? users.filter(id => id !== currentUserId) : [];
             if (filtered.length > 0) {
                 acc[key] = filtered;
             }
@@ -1876,7 +1864,7 @@ export const toggleMessageReaction = async (chatId, messageId, userId, emoji) =>
         }, {});
 
         if (!hasReacted) {
-            nextReactions[emoji] = [...(nextReactions[emoji] || []), userId];
+            nextReactions[emoji] = [...(nextReactions[emoji] || []), currentUserId];
         }
 
         const updatedMessage = await databases.updateDocument(

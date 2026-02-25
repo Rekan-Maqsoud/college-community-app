@@ -700,6 +700,7 @@ const createUserDocument = async (userId, name, email, additionalData = {}) => {
                 userId,
                 payloadWithRole,
                 [
+                    Permission.read(Role.users()),
                     Permission.read(Role.user(userId)),
                     Permission.update(Role.user(userId)),
                     Permission.delete(Role.user(userId)),
@@ -713,6 +714,7 @@ const createUserDocument = async (userId, name, email, additionalData = {}) => {
                     userId,
                     basePayload,
                     [
+                        Permission.read(Role.users()),
                         Permission.read(Role.user(userId)),
                         Permission.update(Role.user(userId)),
                         Permission.delete(Role.user(userId)),
