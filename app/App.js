@@ -19,6 +19,7 @@ import { GlobalAlertProvider, useGlobalAlert } from './context/GlobalAlertContex
 import { wp, normalize, spacing } from './utils/responsive';
 import { borderRadius, shadows } from './theme/designTokens';
 import realtimeDebugLogger from './utils/realtimeDebugLogger';
+import telemetry from './utils/telemetry';
 import { getCurrentUser, getUserDocument, signOut } from '../database/auth';
 import { getAllUserChats } from '../database/chatHelpers';
 import { getTotalUnreadCount, getChat } from '../database/chats';
@@ -1062,6 +1063,7 @@ const GlobalCustomAlert = () => {
 export default function App() {
   const navigationRef = useNavigationContainerRef();
   const pendingRouteRef = useRef(null);
+  const coldStartTrace = useRef(telemetry.startTrace('app_cold_start'));
 
   try {
     return (
@@ -1075,6 +1077,10 @@ export default function App() {
                     <NavigationContainer
                       ref={navigationRef}
                       onReady={() => {
+                        if (coldStartTrace.current) {
+                          coldStartTrace.current.finish({ success: true });
+                          coldStartTrace.current = null;
+                        }
                         if (pendingRouteRef.current && navigationRef.isReady()) {
                           const { name, params } = pendingRouteRef.current;
                           pendingRouteRef.current = null;

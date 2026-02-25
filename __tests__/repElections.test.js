@@ -31,6 +31,12 @@ jest.mock('../database/auth', () => ({
   getCurrentUser: jest.fn(() => Promise.resolve({ $id: 'user-1' })),
 }));
 
+jest.mock('../app/utils/safeStorage', () => ({
+  getItem: jest.fn(() => Promise.resolve(null)),
+  setItem: jest.fn(() => Promise.resolve()),
+  removeItem: jest.fn(() => Promise.resolve()),
+}));
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 const makeElection = (overrides = {}) => ({
@@ -68,6 +74,7 @@ describe('repElections', () => {
       ACTIVE: 'active',
       COMPLETED: 'completed',
       RESELECTION_PENDING: 'reselection_pending',
+      TIEBREAKER: 'tiebreaker',
     });
   });
 
@@ -318,6 +325,9 @@ describe('repVotes', () => {
 
   describe('castVote', () => {
     it('creates a new vote when none exists', async () => {
+      // voteCountBefore
+      mockListDocuments.mockResolvedValueOnce({ documents: [] });
+      // existing vote for this voter
       mockListDocuments.mockResolvedValueOnce({ documents: [] });
       mockGetDocument.mockResolvedValueOnce(makeElection());
       mockCreateDocument.mockResolvedValueOnce({
@@ -333,6 +343,11 @@ describe('repVotes', () => {
     });
 
     it('deletes previous vote before creating new one', async () => {
+      // voteCountBefore
+      mockListDocuments.mockResolvedValueOnce({
+        documents: [{ $id: 'vote-any' }],
+      });
+      // existing vote for this voter
       mockListDocuments.mockResolvedValueOnce({
         documents: [{ $id: 'old-vote' }],
       });

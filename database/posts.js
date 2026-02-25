@@ -6,6 +6,7 @@ import { parsePollPayload, applyPollVote } from '../app/utils/pollUtils';
 import { getUserById } from './users';
 import { notifyDepartmentPost, notifyPostHiddenByReports } from './notifications';
 import { broadcastLikeCount, broadcastViewCount, broadcastPollVotes, seedPostCounters } from '../app/hooks/useFirebaseRealtime';
+import { enforceRateLimit } from './securityGuards';
 
 const REPORT_HIDE_THRESHOLD = 5;
 const REPORT_HIDE_MAX_VIEWS = 20;
@@ -125,6 +126,13 @@ export const createPost = async (postData) => {
         if (postData.userId !== currentUserId) {
             throw new Error('User identity mismatch');
         }
+
+        enforceRateLimit({
+            action: 'create_post',
+            userId: currentUserId,
+            maxActions: 4,
+            windowMs: 60 * 1000,
+        });
 
         const post = await databases.createDocument(
             config.databaseId,
@@ -558,6 +566,18 @@ export const createRepost = async (originalPostId, userId, repostData = {}) => {
             throw new Error('Invalid user ID');
         }
 
+        const currentUserId = await getAuthenticatedUserId();
+        if (currentUserId !== userId) {
+            throw new Error('User identity mismatch');
+        }
+
+        enforceRateLimit({
+            action: 'create_repost',
+            userId,
+            maxActions: 4,
+            windowMs: 60 * 1000,
+        });
+
         const directOriginal = await databases.getDocument(
             config.databaseId,
             config.postsCollectionId,
@@ -934,6 +954,13 @@ export const togglePostLike = async (postId, userId) => {
             throw new Error('User identity mismatch');
         }
 
+        enforceRateLimit({
+            action: 'toggle_post_like',
+            userId: currentUserId,
+            maxActions: 24,
+            windowMs: 60 * 1000,
+        });
+
         const post = await getPost(postId);
         const likedBy = post.likedBy || [];
         const isLiked = likedBy.includes(userId);
@@ -1009,6 +1036,13 @@ export const createReply = async (postId, replyData) => {
         if (!replyData?.userId || replyData.userId !== currentUserId) {
             throw new Error('User identity mismatch');
         }
+
+        enforceRateLimit({
+            action: 'create_reply',
+            userId: currentUserId,
+            maxActions: 8,
+            windowMs: 60 * 1000,
+        });
         
         const reply = await databases.createDocument(
             config.databaseId,
@@ -1164,6 +1198,18 @@ export const reportPost = async (postId, userId, reason = '') => {
             throw new Error('Invalid user ID');
         }
 
+        const currentUserId = await getAuthenticatedUserId();
+        if (currentUserId !== userId) {
+            throw new Error('User identity mismatch');
+        }
+
+        enforceRateLimit({
+            action: 'report_post',
+            userId: currentUserId,
+            maxActions: 8,
+            windowMs: 5 * 60 * 1000,
+        });
+
         const post = await getPost(postId);
         if (!post || post.isHidden) {
             return { success: true, alreadyHidden: true, reportCount: post?.reportCount || 0 };
@@ -1286,3 +1332,80 @@ export const reportPost = async (postId, userId, reason = '') => {
     }
 };
 
+// ─── Cursor-based pagination ─────────────────────────────────────────
+/**
+ * Fetch posts using cursor-based pagination.
+ * Uses `Query.cursorAfter` keyed on document `$id` so results are stable
+ * even when new posts are created between pages.
+ *
+ * @param {Object}  filters         - Same filter shape as getPosts.
+ * @param {number}  limit           - Page size (default 20).
+ * @param {string|null} afterCursor - The `$id` of the last document from the previous page.
+ * @param {string}  sortBy          - 'newest' | 'oldest' | 'popular'.
+ * @param {Array}   blockedUserIds  - User IDs to exclude.
+ * @param {string|null} currentUserId
+ * @returns {Promise<{documents: Array, lastCursor: string|null, hasMore: boolean}>}
+ */
+export const getPostsCursor = async (
+    filters = {},
+    limit = 20,
+    afterCursor = null,
+    sortBy = 'newest',
+    blockedUserIds = [],
+    currentUserId = null
+) => {
+    try {
+        const queries = [Query.limit(limit)];
+
+        if (afterCursor) {
+            queries.push(Query.cursorAfter(afterCursor));
+        }
+
+        if (sortBy === 'oldest') {
+            queries.push(Query.orderAsc('$createdAt'));
+        } else if (sortBy === 'popular') {
+            queries.push(Query.orderDesc('likeCount'));
+        } else {
+            queries.push(Query.orderDesc('$createdAt'));
+        }
+
+        if (filters.department) {
+            queries.push(Query.equal('department', Array.isArray(filters.department) ? filters.department : [filters.department]));
+        }
+        if (filters.stage && filters.stage !== 'all') {
+            queries.push(Query.equal('stage', filters.stage));
+        }
+        if (filters.postType && filters.postType !== 'all') {
+            queries.push(Query.equal('postType', filters.postType));
+        }
+        if (filters.answerStatus && filters.answerStatus !== 'all') {
+            queries.push(Query.equal('isResolved', filters.answerStatus === 'answered'));
+        }
+        if (filters.userId) {
+            queries.push(Query.equal('userId', filters.userId));
+        }
+
+        const response = await databases.listDocuments(
+            config.databaseId,
+            config.postsCollectionId,
+            queries
+        );
+
+        let documents = filterPostsByVisibility(response.documents, currentUserId);
+        if (Array.isArray(blockedUserIds) && blockedUserIds.length > 0) {
+            documents = documents.filter(post => !blockedUserIds.includes(post.userId));
+        }
+
+        seedPostCounters(documents);
+
+        const lastDoc = documents.length > 0 ? documents[documents.length - 1] : null;
+
+        return {
+            documents,
+            lastCursor: lastDoc?.$id || null,
+            hasMore: response.documents.length === limit,
+        };
+    } catch (error) {
+        throw error;
+    }
+};

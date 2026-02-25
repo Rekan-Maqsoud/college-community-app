@@ -1,6 +1,7 @@
 import { databases, config } from './config';
 import { ID, Query } from 'appwrite';
 import { userCacheManager } from '../app/utils/cacheManager';
+import { assertActorIdentity, enforceRateLimit } from './securityGuards';
 
 const sanitizeSearchQuery = (query) => {
     if (typeof query !== 'string') return '';
@@ -57,6 +58,39 @@ export const searchUsers = async (searchQuery, limit = 10) => {
     } catch (error) {
         return [];
     }
+};
+
+const filterBlockedUsersForViewer = async (users = [], viewerUserId = null) => {
+    if (!viewerUserId || !Array.isArray(users) || users.length === 0) {
+        return users;
+    }
+
+    let viewerDoc;
+    try {
+        viewerDoc = await getUserById(viewerUserId);
+    } catch (error) {
+        return users;
+    }
+
+    const viewerBlocked = Array.isArray(viewerDoc?.blockedUsers) ? viewerDoc.blockedUsers : [];
+    const viewerChatBlocked = Array.isArray(viewerDoc?.chatBlockedUsers) ? viewerDoc.chatBlockedUsers : [];
+    const excluded = new Set([...viewerBlocked, ...viewerChatBlocked]);
+
+    return users.filter((candidate) => {
+        const candidateId = candidate?.$id || candidate?.userID;
+        if (!candidateId || candidateId === viewerUserId || excluded.has(candidateId)) {
+            return false;
+        }
+
+        const candidateBlocked = Array.isArray(candidate?.blockedUsers) ? candidate.blockedUsers : [];
+        const candidateChatBlocked = Array.isArray(candidate?.chatBlockedUsers) ? candidate.chatBlockedUsers : [];
+        return !candidateBlocked.includes(viewerUserId) && !candidateChatBlocked.includes(viewerUserId);
+    });
+};
+
+export const searchUsersForViewer = async (searchQuery, viewerUserId, limit = 10) => {
+    const users = await searchUsers(searchQuery, limit);
+    return await filterBlockedUsersForViewer(users, viewerUserId);
 };
 
 export const getUserById = async (userId, skipCache = false) => {
@@ -197,6 +231,14 @@ export const followUser = async (followerId, followingId) => {
             throw new Error('Invalid follow request');
         }
 
+        await assertActorIdentity(followerId);
+        enforceRateLimit({
+            action: 'follow_user',
+            userId: followerId,
+            maxActions: 8,
+            windowMs: 60 * 1000,
+        });
+
         // Get both users
         const [follower, following] = await Promise.all([
             getUserById(followerId),
@@ -246,6 +288,14 @@ export const unfollowUser = async (followerId, followingId) => {
         if (!followerId || !followingId) {
             throw new Error('Invalid unfollow request');
         }
+
+        await assertActorIdentity(followerId);
+        enforceRateLimit({
+            action: 'unfollow_user',
+            userId: followerId,
+            maxActions: 8,
+            windowMs: 60 * 1000,
+        });
 
         const [follower, following] = await Promise.all([
             getUserById(followerId),
@@ -416,6 +466,14 @@ export const blockUser = async (userId, blockedUserId) => {
             throw new Error('Invalid block request');
         }
 
+        await assertActorIdentity(userId);
+        enforceRateLimit({
+            action: 'block_user',
+            userId,
+            maxActions: 6,
+            windowMs: 60 * 1000,
+        });
+
         const user = await getUserById(userId);
         const blockedUsers = user.blockedUsers || [];
 
@@ -472,6 +530,14 @@ export const blockUserChatOnly = async (userId, blockedUserId) => {
             throw new Error('Invalid chat block request');
         }
 
+        await assertActorIdentity(userId);
+        enforceRateLimit({
+            action: 'block_user_chat_only',
+            userId,
+            maxActions: 6,
+            windowMs: 60 * 1000,
+        });
+
         const user = await getUserById(userId);
         const chatBlockedUsers = user.chatBlockedUsers || [];
 
@@ -507,6 +573,8 @@ export const unblockUserChatOnly = async (userId, blockedUserId) => {
             throw new Error('Invalid chat unblock request');
         }
 
+        await assertActorIdentity(userId);
+
         const user = await getUserById(userId);
         const chatBlockedUsers = user.chatBlockedUsers || [];
         const newChatBlockedUsers = chatBlockedUsers.filter(id => id !== blockedUserId);
@@ -536,6 +604,8 @@ export const unblockUser = async (userId, blockedUserId) => {
         if (!userId || !blockedUserId) {
             throw new Error('Invalid unblock request');
         }
+
+        await assertActorIdentity(userId);
 
         const user = await getUserById(userId);
         const blockedUsers = user.blockedUsers || [];
@@ -764,6 +834,8 @@ export const updateUserPushToken = async (userId, token, platform = 'unknown') =
         if (!userId || !token) {
             return null;
         }
+
+        await assertActorIdentity(userId);
 
         // Check if user already has a token document
         const existing = await databases.listDocuments(

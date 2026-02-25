@@ -1,8 +1,39 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { AppState } from 'react-native';
 import { config, safeSubscribe } from '../../database/config';
 import { isDeleteEvent } from '../utils/realtimeHelpers';
 import realtimeDebugLogger from '../utils/realtimeDebugLogger';
+
+// ── Global realtime health tracker ───────────────────────────────────
+// Tracks whether *any* subscription is actively receiving events.
+// Components can read this via `useRealtimeHealth()` to decide whether
+// they need aggressive polling as a fallback.
+let _lastRealtimeEventTs = 0;
+const HEALTH_STALE_MS = 90_000; // consider unhealthy after 90 s of silence
+
+const touchRealtimeHealth = () => {
+  _lastRealtimeEventTs = Date.now();
+};
+
+/**
+ * Returns a boolean that is `true` when at least one realtime event has been
+ * received within the last HEALTH_STALE_MS window.  Re-evaluates every 15 s.
+ */
+export const useRealtimeHealth = () => {
+  const [healthy, setHealthy] = useState(_lastRealtimeEventTs > 0);
+
+  useEffect(() => {
+    const check = () => {
+      const isHealthy = Date.now() - _lastRealtimeEventTs < HEALTH_STALE_MS;
+      setHealthy(isHealthy);
+    };
+    check();
+    const id = setInterval(check, 15_000);
+    return () => clearInterval(id);
+  }, []);
+
+  return healthy;
+};
 
 /**
  * Custom hook for real-time subscription to Appwrite collections
@@ -64,6 +95,7 @@ export const useRealtimeSubscription = (
       }
 
       isConnectedRef.current = true;
+      touchRealtimeHealth();
 
       if (!isDeleteEvent(events)) {
         onUpdateRef.current?.(payload, events);
@@ -106,6 +138,7 @@ export const useRealtimeSubscription = (
         if (!events || !payload) return;
 
         isConnectedRef.current = true;
+        touchRealtimeHealth();
 
         if (!isDeleteEvent(events)) {
           onUpdateRef.current?.(payload, events);

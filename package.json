@@ -17,7 +17,8 @@
     "test:phase4": "jest --runInBand __tests__/lectureUtils.test.js __tests__/appwriteFileUpload.test.js __tests__/chatFileUtils.test.js",
     "test:firebase": "jest --runInBand --forceExit __tests__/firebaseRTDB.test.js",
     "test:critical": "jest --runInBand __tests__/realtimeEvents.test.js __tests__/chatRealtimeMessages.test.js __tests__/postsModerationRepost.test.js __tests__/networkErrorHandler.test.js __tests__/onlineStatus.test.js __tests__/safeStorage.test.js __tests__/cacheManager.test.js __tests__/postRanking.test.js __tests__/feedCategories.test.js",
-    "publish:prod": "eas update --branch native-app --channel production"
+    "publish:prod": "eas update --branch native-app --channel production",
+    "audit:acl": "node scripts/appwriteAclAudit.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

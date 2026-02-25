@@ -71,6 +71,7 @@ const MessageInput = ({
   canMentionEveryone = false,
   groupMembers = [],
   friends = [],
+  excludedMentionUserIds = [],
   showAlert,
 }) => {
   const { theme, isDarkMode, t } = useAppSettings();
@@ -912,6 +913,7 @@ const MessageInput = ({
     groupMembers,
     friends,
     mentionQuery,
+    excludedUserIds: excludedMentionUserIds,
   });
 
   const canSendMessage = (message.trim() || selectedImage || selectedFile) && !disabled && !uploading;

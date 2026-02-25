@@ -35,6 +35,7 @@ export const buildMentionSuggestions = ({
   groupMembers,
   friends,
   mentionQuery,
+  excludedUserIds = [],
 }) => {
   const suggestions = [];
   if (canMentionEveryone) {
@@ -54,7 +55,11 @@ export const buildMentionSuggestions = ({
   });
 
   const q = (mentionQuery || '').toLowerCase();
+  const excludedSet = new Set(Array.isArray(excludedUserIds) ? excludedUserIds : []);
   const filtered = allUsers.filter((user) => {
+    if (excludedSet.has(user.$id)) {
+      return false;
+    }
     const name = (user.name || user.fullName || '').toLowerCase();
     return name.includes(q);
   });

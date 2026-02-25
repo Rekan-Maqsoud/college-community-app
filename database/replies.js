@@ -2,6 +2,7 @@ import { account, databases, config } from './config';
 import { ID, Query, Permission, Role } from 'appwrite';
 import { repliesCacheManager } from '../app/utils/cacheManager';
 import { broadcastReplyCount } from '../app/hooks/useFirebaseRealtime';
+import { enforceRateLimit } from './securityGuards';
 
 const getAuthenticatedUserId = async () => {
     const currentUser = await account.get();
@@ -46,6 +47,13 @@ export const createReply = async (replyData) => {
         if (replyData.userId !== currentUserId) {
             throw new Error('User identity mismatch');
         }
+
+        enforceRateLimit({
+            action: 'create_reply',
+            userId: currentUserId,
+            maxActions: 8,
+            windowMs: 60 * 1000,
+        });
         
         const reply = await databases.createDocument(
             config.databaseId,

@@ -1,5 +1,6 @@
 import { databases, config } from './config';
-import { ID, Query } from 'appwrite';
+import { ID, Query, Permission, Role } from 'appwrite';
+import { assertActorIdentity } from './securityGuards';
 
 // Mute types
 export const MUTE_TYPES = {
@@ -52,6 +53,8 @@ export const getUserChatSettings = async (userId, chatId) => {
         if (!userId || !chatId) {
             return null;
         }
+
+        await assertActorIdentity(userId);
 
         if (!config.userChatSettingsCollectionId) {
             return getDefaultSettings(userId, chatId);
@@ -146,6 +149,8 @@ export const updateUserChatSettings = async (userId, chatId, updates) => {
             throw new Error('User ID and Chat ID are required');
         }
 
+        await assertActorIdentity(userId);
+
         if (!config.userChatSettingsCollectionId) {
             throw new Error('User chat settings collection not configured');
         }
@@ -180,7 +185,12 @@ export const updateUserChatSettings = async (userId, chatId, updates) => {
                     userId,
                     chatId,
                     ...updates,
-                }
+                },
+                [
+                    Permission.read(Role.user(userId)),
+                    Permission.update(Role.user(userId)),
+                    Permission.delete(Role.user(userId)),
+                ]
             );
             return created;
         }

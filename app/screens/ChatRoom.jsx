@@ -125,6 +125,11 @@ const ChatRoom = ({ route, navigation }) => {
   const isFullyBlockedChat = iBlockedThem || isBlockedByOtherUser;
   const isChatOnlyBlocked = iChatBlockedThem || isChatBlockedByOtherUser;
   const isBlockedChat = isFullyBlockedChat || isChatOnlyBlocked;
+  const excludedMentionUserIds = useMemo(() => {
+    const blockedUsers = Array.isArray(user?.blockedUsers) ? user.blockedUsers : [];
+    const chatBlockedUsers = Array.isArray(user?.chatBlockedUsers) ? user.chatBlockedUsers : [];
+    return Array.from(new Set([...blockedUsers, ...chatBlockedUsers]));
+  }, [user?.blockedUsers, user?.chatBlockedUsers]);
 
   // Search in chat state
   const [searchActive, setSearchActive] = useState(false);
@@ -759,6 +764,7 @@ const ChatRoom = ({ route, navigation }) => {
         canMentionEveryone={canMentionEveryone}
         groupMembers={groupMembers}
         friends={userFriends}
+        excludedMentionUserIds={excludedMentionUserIds}
         showAlert={showAlert}
       />
       )}

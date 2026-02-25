@@ -1,7 +1,8 @@
 import { databases, config } from './config';
-import { ID, Query } from 'appwrite';
+import { ID, Query, Permission, Role } from 'appwrite';
 import { sendGeneralPushNotification } from '../services/pushNotificationService';
 import { unreadCountCacheManager, notificationsCacheManager } from '../app/utils/cacheManager';
+import { getAuthenticatedUserId, hasBlockedRelationship } from './securityGuards';
 
 /**
  * Notification Types:
@@ -47,6 +48,25 @@ export const createNotification = async (notificationData) => {
             return null;
         }
 
+        if (notificationData.senderId && notificationData.senderId !== 'system') {
+            const currentUserId = await getAuthenticatedUserId();
+            if (currentUserId !== notificationData.senderId) {
+                return null;
+            }
+        }
+
+        const isMention = notificationData.type === NOTIFICATION_TYPES.MENTION;
+        if (notificationData.senderId && notificationData.senderId !== 'system') {
+            const blocked = await hasBlockedRelationship(
+                notificationData.userId,
+                notificationData.senderId,
+                { includeChatBlocks: isMention }
+            );
+            if (blocked) {
+                return null;
+            }
+        }
+
         // Build notification document with only valid fields
         const notificationDoc = {
             userId: notificationData.userId,
@@ -73,7 +93,12 @@ export const createNotification = async (notificationData) => {
             config.databaseId,
             config.notificationsCollectionId,
             ID.unique(),
-            notificationDoc
+            notificationDoc,
+            [
+                Permission.read(Role.user(notificationData.userId)),
+                Permission.update(Role.user(notificationData.userId)),
+                Permission.delete(Role.user(notificationData.userId)),
+            ]
         );
 
         await unreadCountCacheManager.invalidateNotificationUnreadCount(notificationData.userId);
@@ -95,6 +120,11 @@ export const createNotification = async (notificationData) => {
 export const getNotifications = async (userId, limit = 20, offset = 0, options = {}) => {
     try {
         if (!userId || typeof userId !== 'string') {
+            return [];
+        }
+
+        const currentUserId = await getAuthenticatedUserId();
+        if (currentUserId !== userId) {
             return [];
         }
 
@@ -145,6 +175,11 @@ export const getUnreadNotificationCount = async (userId, options = {}) => {
             return 0;
         }
 
+        const currentUserId = await getAuthenticatedUserId();
+        if (currentUserId !== userId) {
+            return 0;
+        }
+
         const { useCache = true } = options;
 
         if (useCache) {
@@ -187,6 +222,17 @@ export const markNotificationAsRead = async (notificationId) => {
             throw new Error('Invalid notification ID');
         }
 
+        const existing = await databases.getDocument(
+            config.databaseId,
+            config.notificationsCollectionId,
+            notificationId
+        );
+
+        const currentUserId = await getAuthenticatedUserId();
+        if (existing?.userId !== currentUserId) {
+            throw new Error('Not authorized to update this notification');
+        }
+
         const notification = await databases.updateDocument(
             config.databaseId,
             config.notificationsCollectionId,
@@ -212,6 +258,11 @@ export const markAllNotificationsAsRead = async (userId) => {
     try {
         if (!userId || typeof userId !== 'string') {
             throw new Error('Invalid user ID');
+        }
+
+        const currentUserId = await getAuthenticatedUserId();
+        if (currentUserId !== userId) {
+            throw new Error('User identity mismatch');
         }
 
         if (!config.notificationsCollectionId) {
@@ -267,6 +318,11 @@ export const deleteNotification = async (notificationId) => {
             notificationId
         );
 
+        const currentUserId = await getAuthenticatedUserId();
+        if (existing?.userId !== currentUserId) {
+            throw new Error('Not authorized to delete this notification');
+        }
+
         await databases.deleteDocument(
             config.databaseId,
             config.notificationsCollectionId,
@@ -291,6 +347,11 @@ export const deleteAllNotifications = async (userId) => {
     try {
         if (!userId || typeof userId !== 'string') {
             throw new Error('Invalid user ID');
+        }
+
+        const currentUserId = await getAuthenticatedUserId();
+        if (currentUserId !== userId) {
+            throw new Error('User identity mismatch');
         }
 
         if (!config.notificationsCollectionId) {
@@ -679,4 +740,51 @@ export const notifyPostHiddenByReports = async (postOwnerId, postId, postPreview
     });
 
     return notification;
+};
+
+// ─── Cursor-based notification pagination ────────────────────────────
+/**
+ * Fetch notifications using cursor-based pagination.
+ *
+ * @param {string}      userId       - Recipient user ID.
+ * @param {number}      limit        - Page size (default 20).
+ * @param {string|null} afterCursor  - `$id` of the last notification from the previous page.
+ * @returns {Promise<{documents: Array, lastCursor: string|null, hasMore: boolean}>}
+ */
+export const getNotificationsCursor = async (userId, limit = 20, afterCursor = null) => {
+    try {
+        if (!userId || typeof userId !== 'string') {
+            return { documents: [], lastCursor: null, hasMore: false };
+        }
+        if (!config.notificationsCollectionId || !config.databaseId) {
+            return { documents: [], lastCursor: null, hasMore: false };
+        }
+
+        const queries = [
+            Query.equal('userId', userId),
+            Query.orderDesc('$createdAt'),
+            Query.limit(Math.min(limit, 100)),
+        ];
+
+        if (afterCursor) {
+            queries.push(Query.cursorAfter(afterCursor));
+        }
+
+        const response = await databases.listDocuments(
+            config.databaseId,
+            config.notificationsCollectionId,
+            queries
+        );
+
+        const documents = response.documents || [];
+        const lastDoc = documents.length > 0 ? documents[documents.length - 1] : null;
+
+        return {
+            documents,
+            lastCursor: lastDoc?.$id || null,
+            hasMore: documents.length === limit,
+        };
+    } catch (error) {
+        return { documents: [], lastCursor: null, hasMore: false };
+    }
 };

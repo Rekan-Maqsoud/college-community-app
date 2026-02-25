@@ -11,6 +11,7 @@ import { uploadImage } from '../services/imgbbService';
 import { uploadFileToAppwrite } from '../services/appwriteFileUpload';
 import { parsePollPayload, applyPollVote } from '../app/utils/pollUtils';
 import { broadcastChatMeta } from '../app/hooks/useFirebaseRealtime';
+import { assertActorIdentity, enforceRateLimit } from './securityGuards';
 
 export const CHAT_TYPES = {
     STAGE_GROUP: 'stage_group',
@@ -138,6 +139,18 @@ const setCachedChatKey = (chatId, key) => {
 // In-memory cache for chat documents during sendMessage pipeline
 const chatDocCache = new Map();
 const CHAT_DOC_TTL = 10 * 1000; // 10 seconds
+
+const buildParticipantPermissions = (participantIds = []) => {
+    const uniqueParticipants = Array.from(new Set((participantIds || []).filter(Boolean)));
+    if (uniqueParticipants.length === 0) {
+        return [Permission.read(Role.users())];
+    }
+
+    const readPermissions = uniqueParticipants.map((userId) => Permission.read(Role.user(userId)));
+    const updatePermissions = uniqueParticipants.map((userId) => Permission.update(Role.user(userId)));
+    const deletePermissions = uniqueParticipants.map((userId) => Permission.delete(Role.user(userId)));
+    return [...readPermissions, ...updatePermissions, ...deletePermissions];
+};
 
 const getCachedChat = (chatId) => {
     const entry = chatDocCache.get(chatId);
@@ -401,6 +414,7 @@ const buildE2eeSettings = async (chat, creatorId) => {
     const chatKey = getSecureRandomBytes(nacl.secretbox.keyLength);
     if (!chatKey) return null;
     const keys = {};
+    const rotatedAt = new Date().toISOString();
 
     for (const participantId of participants) {
         const participantPublicKey =
@@ -435,10 +449,21 @@ const buildE2eeSettings = async (chat, creatorId) => {
         chatKey,
         e2ee: {
             version: 1,
+            keyVersion: 1,
+            rotatedAt,
             creatorId,
             creatorPublicKey,
             publicKeys,
             keys,
+            keyHistory: [
+                {
+                    keyVersion: 1,
+                    creatorId,
+                    creatorPublicKey,
+                    keys,
+                    rotatedAt,
+                },
+            ],
         },
     };
 };
@@ -473,28 +498,54 @@ const resolveChatKey = async (chat, userId, options = {}) => {
     if (!e2ee?.keys || !e2ee?.creatorPublicKey) return null;
 
     const entry = e2ee.keys[userId];
-    if (!entry?.nonce || !entry?.cipher) return null;
+    const keyHistory = Array.isArray(e2ee.keyHistory) ? e2ee.keyHistory : [];
+
+    const candidateEntries = [];
+    if (entry?.nonce && entry?.cipher) {
+        candidateEntries.push(entry);
+    }
+
+    for (let index = keyHistory.length - 1; index >= 0; index -= 1) {
+        const historyItem = keyHistory[index];
+        const historyEntry = historyItem?.keys?.[userId];
+        if (historyEntry?.nonce && historyEntry?.cipher) {
+            candidateEntries.push({
+                ...historyEntry,
+                senderPublicKey: historyEntry.senderPublicKey || historyItem?.creatorPublicKey,
+            });
+        }
+    }
+
+    if (candidateEntries.length === 0) return null;
 
     const keypair = await getOrCreateUserKeypair(userId);
     if (!keypair) return null;
     const userPublicKey = encodeBytes(keypair.publicKey);
     await ensureUserPublicKeyStored(userId, userPublicKey);
 
-    const senderPublicKey = entry.senderPublicKey || e2ee.creatorPublicKey;
-    if (!senderPublicKey) return null;
+    for (const candidate of candidateEntries) {
+        const senderPublicKey = candidate.senderPublicKey || e2ee.creatorPublicKey;
+        if (!senderPublicKey) {
+            continue;
+        }
 
-    const decrypted = decryptWithBox(
-        decodeBytes(entry.cipher),
-        decodeBytes(entry.nonce),
-        keypair.secretKey,
-        decodeBytes(senderPublicKey)
-    );
+        const decrypted = decryptWithBox(
+            decodeBytes(candidate.cipher),
+            decodeBytes(candidate.nonce),
+            keypair.secretKey,
+            decodeBytes(senderPublicKey)
+        );
 
-    if (!decrypted) return null;
+        if (!decrypted) {
+            continue;
+        }
 
-    await storeChatKey(chat.$id, decrypted);
-    setCachedChatKey(chat.$id, decrypted);
-    return decrypted;
+        await storeChatKey(chat.$id, decrypted);
+        setCachedChatKey(chat.$id, decrypted);
+        return decrypted;
+    }
+
+    return null;
 };
 
 const addMissingE2eeKeys = async (chat, chatKey, senderId) => {
@@ -603,6 +654,8 @@ export const ensureChatParticipant = async (chatId, userId) => {
             { participants: [...participants, userId] }
         );
 
+        await rotateChatE2eeKeys(chatId, userId).catch(() => null);
+
         return updatedChat;
     } catch (error) {
         return null;
@@ -651,6 +704,133 @@ const ensureChatEncryption = async (chat, userId) => {
     await storeChatKey(chat.$id, built.chatKey);
     setCachedChatKey(chat.$id, built.chatKey);
     return built.chatKey;
+};
+
+export const rotateChatE2eeKeys = async (chatId, actorUserId = null) => {
+    try {
+        if (!chatId || typeof chatId !== 'string') {
+            throw new Error('Invalid chat ID');
+        }
+
+        const currentUserId = actorUserId || await getAuthenticatedUserId();
+        await assertActorIdentity(currentUserId);
+
+        const chat = await getChat(chatId, true);
+        const participants = Array.isArray(chat?.participants) ? Array.from(new Set(chat.participants)) : [];
+        if (!participants.includes(currentUserId)) {
+            throw new Error('Not authorized to rotate chat keys');
+        }
+
+        const settings = parseChatSettings(chat.settings);
+        const previousE2ee = settings?.e2ee || {};
+        const previousHistory = Array.isArray(previousE2ee.keyHistory) ? previousE2ee.keyHistory : [];
+        const previousVersion = Number(previousE2ee.keyVersion || previousE2ee.version || 1);
+
+        const senderKeypair = await getOrCreateUserKeypair(currentUserId);
+        if (!senderKeypair) {
+            throw new Error('Unable to create encryption keypair');
+        }
+
+        const senderPublicKey = encodeBytes(senderKeypair.publicKey);
+        await ensureUserPublicKeyStored(currentUserId, senderPublicKey);
+
+        const nextChatKey = getSecureRandomBytes(nacl.secretbox.keyLength);
+        if (!nextChatKey) {
+            throw new Error('Unable to rotate chat key');
+        }
+
+        const publicKeys = {
+            ...(previousE2ee.publicKeys || {}),
+            [currentUserId]: senderPublicKey,
+        };
+
+        const nextKeys = {};
+        for (const participantId of participants) {
+            const participantPublicKey = participantId === currentUserId
+                ? senderPublicKey
+                : await getParticipantPublicKey({ e2ee: { publicKeys } }, participantId);
+            if (!participantPublicKey) {
+                continue;
+            }
+
+            if (!publicKeys[participantId]) {
+                publicKeys[participantId] = participantPublicKey;
+            }
+
+            const encrypted = encryptWithBox(
+                nextChatKey,
+                senderKeypair.secretKey,
+                decodeBytes(participantPublicKey)
+            );
+            if (!encrypted) {
+                continue;
+            }
+
+            nextKeys[participantId] = {
+                nonce: encodeBytes(encrypted.nonce),
+                cipher: encodeBytes(encrypted.cipher),
+                senderPublicKey,
+            };
+        }
+
+        const nextKeyVersion = previousVersion + 1;
+        const rotatedAt = new Date().toISOString();
+        const historyEntry = {
+            keyVersion: nextKeyVersion,
+            creatorId: currentUserId,
+            creatorPublicKey: senderPublicKey,
+            keys: nextKeys,
+            rotatedAt,
+        };
+
+        const nextHistory = [...previousHistory, historyEntry].slice(-5);
+        const nextSettings = {
+            ...settings,
+            e2ee: {
+                ...previousE2ee,
+                version: 1,
+                keyVersion: nextKeyVersion,
+                rotatedAt,
+                creatorId: currentUserId,
+                creatorPublicKey: senderPublicKey,
+                publicKeys,
+                keys: nextKeys,
+                keyHistory: nextHistory,
+            },
+        };
+
+        const updatedChat = await databases.updateDocument(
+            config.databaseId,
+            config.chatsCollectionId,
+            chatId,
+            { settings: JSON.stringify(nextSettings) }
+        );
+
+        await storeChatKey(chatId, nextChatKey);
+        setCachedChatKey(chatId, nextChatKey);
+        setCachedChatDoc(chatId, updatedChat);
+
+        return { success: true, keyVersion: nextKeyVersion };
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const recoverChatE2eeKey = async (chatId, userId = null) => {
+    try {
+        if (!chatId || typeof chatId !== 'string') {
+            return null;
+        }
+
+        const effectiveUserId = userId || await getAuthenticatedUserId();
+        await assertActorIdentity(effectiveUserId);
+
+        await clearStoredChatKey(chatId);
+        const chat = await getChat(chatId, true);
+        return await resolveChatKey(chat, effectiveUserId, { forceRefresh: true });
+    } catch (error) {
+        return null;
+    }
 };
 
 const decryptMessageFields = (message, chatKey) => {
@@ -787,6 +967,11 @@ export const createGroupChat = async (chatData) => {
         if (!chatData.name || typeof chatData.name !== 'string') {
             throw new Error('Chat name is required');
         }
+
+        const currentUserId = await getAuthenticatedUserId();
+        const participants = Array.isArray(chatData.participants)
+            ? Array.from(new Set([...chatData.participants, currentUserId]))
+            : [currentUserId];
         
         const chat = await databases.createDocument(
             config.databaseId,
@@ -794,9 +979,13 @@ export const createGroupChat = async (chatData) => {
             ID.unique(),
             {
                 ...chatData,
+                participants,
                 messageCount: 0,
-            }
+            },
+            buildParticipantPermissions(participants)
         );
+
+        await ensureChatEncryption(chat, currentUserId).catch(() => null);
         return chat;
     } catch (error) {
         throw error;
@@ -812,13 +1001,27 @@ export const createChat = async (chatData) => {
         if (!chatData.participants || !Array.isArray(chatData.participants)) {
             throw new Error('Participants array is required');
         }
+
+        const currentUserId = await getAuthenticatedUserId();
+        const participants = Array.from(new Set([...chatData.participants, currentUserId]));
+
+        if (chatData.createdBy && chatData.createdBy !== currentUserId) {
+            throw new Error('User identity mismatch');
+        }
         
         const chat = await databases.createDocument(
             config.databaseId,
             config.chatsCollectionId,
             ID.unique(),
-            chatData
+            {
+                ...chatData,
+                participants,
+                createdBy: currentUserId,
+            },
+            buildParticipantPermissions(participants)
         );
+
+        await ensureChatEncryption(chat, currentUserId).catch(() => null);
         return chat;
     } catch (error) {
         throw error;
@@ -1054,6 +1257,11 @@ export const canUserSendMessage = async (chatId, userId) => {
             config.chatsCollectionId,
             chatId
         );
+
+        const participants = Array.isArray(chat.participants) ? chat.participants : [];
+        if (!participants.includes(userId)) {
+            return false;
+        }
         
         if (chat.type === 'private') {
             if (!chat.participants?.includes(userId)) return false;
@@ -1078,7 +1286,7 @@ export const canUserSendMessage = async (chatId, userId) => {
                         return false;
                     }
                 } catch (e) {
-                    // If user doc fetch fails, allow sending (fail open for non-block errors)
+                    return false;
                 }
             }
             return true;
@@ -1109,7 +1317,7 @@ export const canUserSendMessage = async (chatId, userId) => {
         }
         
         if (!chat.requiresRepresentative) {
-            return true;
+            return participants.includes(userId);
         }
         
         return chat.representatives?.includes(userId) || false;
@@ -1136,6 +1344,13 @@ export const sendMessage = async (chatId, messageData) => {
         if (messageData.senderId !== currentUserId) {
             throw new Error('User identity mismatch');
         }
+
+        enforceRateLimit({
+            action: 'send_chat_message',
+            userId: currentUserId,
+            maxActions: 15,
+            windowMs: 10 * 1000,
+        });
 
         const hasContent = messageData.content && messageData.content.trim().length > 0;
         const hasImages = messageData.images && messageData.images.length > 0;
@@ -1239,7 +1454,8 @@ export const sendMessage = async (chatId, messageData) => {
             config.databaseId,
             config.messagesCollectionId,
             ID.unique(),
-            documentData
+            documentData,
+            buildParticipantPermissions(chat.participants || [messageData.senderId])
         );
 
         const currentCount = chat.messageCount || 0;
@@ -1578,6 +1794,19 @@ export const updateMessage = async (messageId, messageData) => {
         if (!messageData || typeof messageData !== 'object') {
             throw new Error('Invalid message data');
         }
+
+        const currentUserId = await getAuthenticatedUserId();
+        const existingMessage = await databases.getDocument(
+            config.databaseId,
+            config.messagesCollectionId,
+            messageId
+        );
+
+        const chat = await getChat(existingMessage.chatId, true);
+        const canEdit = existingMessage.senderId === currentUserId || canManageChat(chat, currentUserId);
+        if (!canEdit) {
+            throw new Error('Not authorized to update this message');
+        }
         
         const message = await databases.updateDocument(
             config.databaseId,
@@ -1611,11 +1840,29 @@ export const toggleMessageReaction = async (chatId, messageId, userId, emoji) =>
             throw new Error('Message ID, user ID, and emoji are required');
         }
 
+        await assertActorIdentity(userId);
+        enforceRateLimit({
+            action: 'toggle_message_reaction',
+            userId,
+            maxActions: 25,
+            windowMs: 60 * 1000,
+        });
+
         const message = await databases.getDocument(
             config.databaseId,
             config.messagesCollectionId,
             messageId
         );
+
+        if (chatId && message.chatId !== chatId) {
+            throw new Error('Message does not belong to this chat');
+        }
+
+        const chat = await getChat(message.chatId, true);
+        const participants = Array.isArray(chat?.participants) ? chat.participants : [];
+        if (!participants.includes(userId)) {
+            throw new Error('Not authorized to react in this chat');
+        }
 
         const reactions = parseMessageReactions(message.reactions);
         const current = Array.isArray(reactions[emoji]) ? reactions[emoji] : [];
@@ -2205,5 +2452,61 @@ export const getTotalUnreadCount = async (userId, chatIds, options = {}) => {
         return totalUnread;
     } catch (error) {
         return 0;
+    }
+};
+
+// ─── Cursor-based message pagination ─────────────────────────────────
+/**
+ * Fetch messages using cursor-based pagination.
+ * Avoids duplicate / missing items under concurrent writes.
+ *
+ * @param {string}      chatId       - Chat room ID.
+ * @param {string|null} userId       - Current user ID (for decryption).
+ * @param {number}      limit        - Page size (default 50).
+ * @param {string|null} afterCursor  - `$id` of the last document from the previous page.
+ * @returns {Promise<{documents: Array, lastCursor: string|null, hasMore: boolean}>}
+ */
+export const getMessagesCursor = async (chatId, userId = null, limit = 50, afterCursor = null) => {
+    try {
+        if (!chatId || typeof chatId !== 'string') {
+            throw new Error('Invalid chat ID');
+        }
+        if (!config.messagesCollectionId) {
+            throw new Error('Messages collection not configured');
+        }
+
+        const queries = [
+            Query.equal('chatId', chatId),
+            Query.orderDesc('$createdAt'),
+            Query.limit(Math.min(limit, 100)),
+        ];
+
+        if (afterCursor) {
+            queries.push(Query.cursorAfter(afterCursor));
+        }
+
+        const response = await databases.listDocuments(
+            config.databaseId,
+            config.messagesCollectionId,
+            queries
+        );
+
+        let documents = response.documents;
+
+        if (userId) {
+            const chat = await getChat(chatId);
+            const chatKey = await resolveChatKey(chat, userId);
+            documents = await decryptMessagesWithRecovery(chat, userId, documents, chatKey);
+        }
+
+        const lastDoc = documents.length > 0 ? documents[documents.length - 1] : null;
+
+        return {
+            documents,
+            lastCursor: lastDoc?.$id || null,
+            hasMore: response.documents.length === limit,
+        };
+    } catch (error) {
+        throw error;
     }
 };

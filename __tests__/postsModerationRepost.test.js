@@ -74,6 +74,13 @@ jest.mock('../database/users', () => ({
   getUserById: jest.fn(() => Promise.resolve(null)),
 }));
 
+jest.mock('../app/hooks/useFirebaseRealtime', () => ({
+  broadcastLikeCount: jest.fn(() => Promise.resolve()),
+  broadcastViewCount: jest.fn(() => Promise.resolve()),
+  broadcastPollVotes: jest.fn(() => Promise.resolve()),
+  seedPostCounters: jest.fn(() => Promise.resolve()),
+}));
+
 describe('posts moderation and repost flows', () => {
   const originalFetch = global.fetch;
 
@@ -87,6 +94,7 @@ describe('posts moderation and repost flows', () => {
   });
 
   it('hides post when moderation score or report count threshold is reached and views are less than 20', async () => {
+    account.get.mockResolvedValue({ $id: 'u5' });
     databases.getDocument.mockResolvedValue({
       $id: 'post-1',
       userId: 'owner-1',
@@ -115,6 +123,7 @@ describe('posts moderation and repost flows', () => {
   });
 
   it('does not hide post when views are 20 or more', async () => {
+    account.get.mockResolvedValue({ $id: 'u5' });
     databases.getDocument.mockResolvedValue({
       $id: 'post-2',
       userId: 'owner-2',
@@ -141,6 +150,7 @@ describe('posts moderation and repost flows', () => {
   });
 
   it('treats dont_like as feedback and does not count as moderation report', async () => {
+    account.get.mockResolvedValue({ $id: 'u5' });
     databases.getDocument.mockResolvedValue({
       $id: 'post-3',
       userId: 'owner-3',

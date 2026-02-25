@@ -57,7 +57,8 @@ import {
   moderateScale,
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
-import { useChatList } from '../hooks/useRealtimeSubscription';
+import { useChatList, useRealtimeHealth } from '../hooks/useRealtimeSubscription';
+import useAdaptivePolling from '../hooks/useAdaptivePolling';
 import { useFirebaseValue } from '../hooks/useFirebaseRealtime';
 import useLayout from '../hooks/useLayout';
 
@@ -307,37 +308,23 @@ const Chats = ({ navigation }) => {
   // Subscribe to chat list updates
   useChatList(user?.$id, handleRealtimeChatUpdate, !!user?.$id);
 
-  // --- Periodic refresh (every 3 minutes) ---
-  const refreshIntervalRef = useRef(null);
+  // --- Adaptive polling (healthy → 5 min, unhealthy → 30 s) + foreground refresh ---
+  const realtimeHealthy = useRealtimeHealth();
+  const adaptiveFetch = useCallback(() => {
+    loadChats(false, { forceUnreadNetwork: true });
+  }, [loadChats]);
+
+  useAdaptivePolling(adaptiveFetch, {
+    enabled: !!user?.$id,
+    realtimeHealthy,
+    healthyInterval: 5 * 60 * 1000,
+    unhealthyInterval: 30 * 1000,
+    backgroundGrace: 30 * 1000,
+  });
 
   useEffect(() => {
-    if (!user?.$id) return;
-    refreshIntervalRef.current = setInterval(() => {
-      loadChats(false, { forceUnreadNetwork: true });
-    }, 3 * 60 * 1000);
-
-    return () => {
-      if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
-    };
-  }, [user?.$id, user?.department]);
-
-  // --- Foreground refresh ---
-  const appStateRef = useRef(AppState.currentState);
-  const lastForegroundRefresh = useRef(Date.now());
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      if (
-        appStateRef.current?.match(/inactive|background/) &&
-        nextState === 'active' &&
-        user?.$id &&
-        Date.now() - lastForegroundRefresh.current > 30000
-      ) {
-        lastForegroundRefresh.current = Date.now();
-        loadChats(false, { forceUnreadNetwork: true });
-      }
-      appStateRef.current = nextState;
-    });
+    // Placeholder block kept for parity – adaptive polling handles foreground resume
+    const subscription = AppState.addEventListener('change', () => {});
     return () => subscription.remove();
   }, [user?.$id, user?.department]);
 
