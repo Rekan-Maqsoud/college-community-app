@@ -1,6 +1,7 @@
 import { account, databases, config } from './config';
 import { ID, Query, Permission, Role } from 'appwrite';
 import { repliesCacheManager } from '../app/utils/cacheManager';
+import { broadcastReplyCount } from '../app/hooks/useFirebaseRealtime';
 
 const getAuthenticatedUserId = async () => {
     const currentUser = await account.get();
@@ -375,12 +376,14 @@ const incrementPostReplyCount = async (postId) => {
     try {
         const { getPost } = require('./posts');
         const post = await getPost(postId);
+        const newCount = (post.replyCount || 0) + 1;
         await databases.updateDocument(
             config.databaseId,
             config.postsCollectionId,
             postId,
-            { replyCount: (post.replyCount || 0) + 1 }
+            { replyCount: newCount }
         );
+        broadcastReplyCount(postId, newCount);
     } catch (error) {
     }
 };
@@ -389,12 +392,14 @@ const decrementPostReplyCount = async (postId) => {
     try {
         const { getPost } = require('./posts');
         const post = await getPost(postId);
+        const newCount = Math.max(0, (post.replyCount || 0) - 1);
         await databases.updateDocument(
             config.databaseId,
             config.postsCollectionId,
             postId,
-            { replyCount: Math.max(0, (post.replyCount || 0) - 1) }
+            { replyCount: newCount }
         );
+        broadcastReplyCount(postId, newCount);
     } catch (error) {
     }
 };

@@ -5,6 +5,7 @@ import { postsCacheManager } from '../app/utils/cacheManager';
 import { parsePollPayload, applyPollVote } from '../app/utils/pollUtils';
 import { getUserById } from './users';
 import { notifyDepartmentPost, notifyPostHiddenByReports } from './notifications';
+import { broadcastLikeCount, broadcastViewCount, broadcastPollVotes } from '../app/hooks/useFirebaseRealtime';
 
 const REPORT_HIDE_THRESHOLD = 5;
 const REPORT_HIDE_MAX_VIEWS = 20;
@@ -821,6 +822,16 @@ export const voteOnPostPoll = async (postId, userId, selectedOptionIds) => {
 
         await postsCacheManager.invalidateSinglePost(postId);
 
+        // Broadcast poll vote counts to Firebase for active listeners
+        try {
+            const { getPollVoteCounts } = require('../app/utils/pollUtils');
+            const voteCounts = getPollVoteCounts(nextPoll);
+            const total = Object.values(voteCounts).reduce((s, n) => s + n, 0);
+            broadcastPollVotes(postId, voteCounts, total);
+        } catch (_) {
+            // Swallow — Firebase is a cache, not critical
+        }
+
         return updatedPost;
     } catch (error) {
         throw error;
@@ -883,13 +894,16 @@ export const incrementPostViewCount = async (postId, userId = null) => {
                     viewCount: viewedBy.length 
                 }
             );
+            broadcastViewCount(postId, viewedBy.length);
         } else if (!userId) {
+            const newCount = (post.viewCount || 0) + 1;
             await databases.updateDocument(
                 config.databaseId,
                 config.postsCollectionId,
                 postId,
-                { viewCount: (post.viewCount || 0) + 1 }
+                { viewCount: newCount }
             );
+            broadcastViewCount(postId, newCount);
         }
     } catch (error) {
         throw error;
@@ -934,10 +948,14 @@ export const togglePostLike = async (postId, userId) => {
 
         // Invalidate posts cache so refreshes show the updated like state
         await postsCacheManager.invalidatePostsCache();
-        
+
+        // Broadcast updated count to Firebase for active listeners
+        const finalLikeCount = updatedPost.likeCount ?? updatedLikedBy.length;
+        broadcastLikeCount(postId, finalLikeCount);
+
         return { 
             isLiked: !isLiked, 
-            likeCount: updatedPost.likeCount ?? updatedLikedBy.length,
+            likeCount: finalLikeCount,
             likedBy: updatedPost.likedBy ?? updatedLikedBy,
         };
     } catch (error) {

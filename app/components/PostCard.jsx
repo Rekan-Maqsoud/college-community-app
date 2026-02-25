@@ -30,6 +30,7 @@ import SharePostToChat from './SharePostToChat';
 import CustomAlert from './CustomAlert';
 import PostLikesModal from './PostLikesModal';
 import useCustomAlert from '../hooks/useCustomAlert';
+import { usePostLiveCounters } from '../hooks/useFirebaseRealtime';
 import { 
   postCardStyles as styles, 
   STAGE_COLORS, 
@@ -64,7 +65,6 @@ const PostCard = ({
   const [imageGalleryVisible, setImageGalleryVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [liked, setLiked] = useState(isLiked);
-  const [likeCount, setLikeCount] = useState(post.likeCount || 0);
   const [isLiking, setIsLiking] = useState(false);
   const [resolved, setResolved] = useState(post.isResolved || false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -74,6 +74,25 @@ const PostCard = ({
   const [pollData, setPollData] = useState(parsePollPayload(post.pollData));
   const [pollSubmitting, setPollSubmitting] = useState(false);
   const likeLongPressRef = useRef(false);
+
+  // Live counters from Firebase RTDB — falls back to static Appwrite values
+  const {
+    likeCount: liveLikeCount,
+    replyCount: liveReplyCount,
+    viewCount: liveViewCount,
+  } = usePostLiveCounters(post.$id, {
+    likeCount: post.likeCount || 0,
+    replyCount: post.replyCount || 0,
+    viewCount: post.viewCount || 0,
+  });
+
+  // Local like count tracks optimistic updates; seed from live counter
+  const [likeCount, setLikeCount] = useState(liveLikeCount);
+
+  // Sync local likeCount when live counter changes (external like/unlike)
+  useEffect(() => {
+    setLikeCount(liveLikeCount);
+  }, [liveLikeCount]);
 
 
   const postColor = POST_COLORS[post.postType] || '#6B7280';
@@ -123,8 +142,7 @@ const PostCard = ({
 
   useEffect(() => {
     setLiked(isLiked);
-    setLikeCount(post.likeCount || 0);
-  }, [isLiked, post.likeCount]);
+  }, [isLiked]);
 
   useEffect(() => {
     setResolved(post.isResolved || false);
@@ -668,7 +686,7 @@ const PostCard = ({
           >
             <Ionicons name="chatbubble-outline" size={footerIconSize} color={theme.textSecondary} />
             <Text style={[styles.actionText, { color: theme.textSecondary }]}>
-              {t('post.reply')} ({post.replyCount || 0})
+              {t('post.reply')} ({liveReplyCount})
             </Text>
           </TouchableOpacity>
 
@@ -692,7 +710,7 @@ const PostCard = ({
         <View style={styles.footerRight}>
           <View style={styles.statsItem}>
             <Ionicons name="eye-outline" size={footerStatsIconSize} color={theme.textTertiary} />
-            <Text style={[styles.statsText, { color: theme.textTertiary }]}>{post.viewCount || 0}</Text>
+            <Text style={[styles.statsText, { color: theme.textTertiary }]}>{liveViewCount}</Text>
           </View>
           {post.postType === 'question' && (
             <View style={styles.statsItem}>

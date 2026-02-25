@@ -31,6 +31,7 @@ import {
   checkInitialNotification,
   setBadgeCount,
 } from '../services/pushNotificationService';
+import { ensureFirebaseAuth } from '../services/firebase';
 
 import SignIn from './auth/SignIn';
 import SignUp from './auth/SignUp';
@@ -811,6 +812,14 @@ const NotificationSetup = ({ navigationRef }) => {
 const RealtimeLifecycleManager = () => {
   const resumeTimeoutRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
+
+  // Bootstrap Firebase anonymous auth early so RTDB listeners are ready.
+  // ensureFirebaseAuth() already handles timeouts and returns false on
+  // failure, but we add a .catch() guard for extra safety so no
+  // unhandled rejection can surface even on bad networks.
+  useEffect(() => {
+    ensureFirebaseAuth().catch(() => {});
+  }, []);
 
   const pauseRealtime = useCallback(() => {
     const realtime = appwriteClient?.realtime;
