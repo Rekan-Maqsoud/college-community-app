@@ -85,10 +85,17 @@ export const isFirebaseReady = () => _isAuthenticated;
 /* ------------------------------------------------------------------ */
 
 /**
+ * Returns the RTDB instance configured with the correct (non-default) URL.
+ * Our database lives in europe-west1, NOT the US default, so we MUST pass
+ * the URL explicitly — otherwise reads/writes silently go nowhere.
+ */
+const db = () => database(RTDB_URL);
+
+/**
  * Returns the root `database()` reference configured with the correct URL.
  * Consumers should always prefer the path-specific helpers below.
  */
-export const getDatabase = () => database().ref();
+export const getDatabase = () => db().ref();
 
 /**
  * Return a ref for a specific path inside RTDB.
@@ -96,7 +103,7 @@ export const getDatabase = () => database().ref();
  * @param {string} path  e.g. `posts/<postId>/likeCount`
  * @returns {import('@react-native-firebase/database').FirebaseDatabaseTypes.Reference}
  */
-export const dbRef = (path) => database().ref(path);
+export const dbRef = (path) => db().ref(path);
 
 /**
  * Convenience — returns the configured database URL for debugging.

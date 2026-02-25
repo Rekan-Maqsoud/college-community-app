@@ -35,6 +35,7 @@ import {
 import { CHAT_TYPES, getChats } from '../../database/chats';
 import { wp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import useLayout from '../hooks/useLayout';
 
 const CHANNEL_FILTERS = {
   ALL: 'all',
@@ -306,6 +307,7 @@ const Lecture = ({ navigation }) => {
   const { colors, isDarkMode } = useAppSettings();
   const { user } = useUser();
   const { t } = useTranslation();
+  const { contentStyle } = useLayout();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -845,7 +847,7 @@ const Lecture = ({ navigation }) => {
 
       <FlatList
         style={styles.list}
-        contentContainerStyle={[styles.listContent, { paddingBottom: spacing.xxl + insets.bottom }]}
+        contentContainerStyle={[styles.listContent, { paddingBottom: spacing.xxl + insets.bottom }, contentStyle]}
         data={listData}
         keyExtractor={(item) => item.$id}
         renderItem={renderChannelCard}

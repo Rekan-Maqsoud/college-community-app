@@ -16,12 +16,14 @@ import { useCustomAlert } from '../hooks/useCustomAlert';
 import { getPostsByUser, togglePostLike, setQuestionResolvedStatus, deletePost } from '../../database/posts';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import useLayout from '../hooks/useLayout';
 
 const Profile = ({ navigation, route }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user, isLoading, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
+  const { contentStyle } = useLayout();
   const { isUserRepresentative } = useRepDetection(user);
   const isMeRep = isUserRepresentative(user?.$id);
   const [imageKey, setImageKey] = useState(Date.now());
@@ -644,7 +646,7 @@ const Profile = ({ navigation, route }) => {
       <LinearGradient colors={isDarkMode ? ['#1a1a2e', '#16213e', '#0f3460'] : ['#e3f2fd', '#bbdefb', '#90caf9']} style={styles.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
         <ScrollView 
           style={styles.scrollView} 
-          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + spacing.sm }]} 
+          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + spacing.sm }, contentStyle]} 
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl

@@ -18,6 +18,7 @@ import { useUser } from '../../context/UserContext';
 import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import useLayout from '../../hooks/useLayout';
 import { getReactionDefaults, updateReactionDefaults, DEFAULT_REACTION_SET } from '../../../database/userChatSettings';
 
 const MIN_BUBBLE_RADIUS = 4;
@@ -74,6 +75,7 @@ const ChatSettings = ({ navigation, route }) => {
   } = useAppSettings();
   const { user } = useUser();
   const insets = useSafeAreaInsets();
+  const { contentStyle } = useLayout();
   const scrollRef = useRef(null);
   const { chatId, focusSection } = route?.params || {};
   const [reactionDraft, setReactionDraft] = useState('');
@@ -287,7 +289,7 @@ const ChatSettings = ({ navigation, route }) => {
         ref={scrollRef}
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}>
+        contentContainerStyle={[styles.scrollContent, contentStyle]}>
 
         {/* Bubble Settings Section with Preview */}
         <View style={styles.section}>

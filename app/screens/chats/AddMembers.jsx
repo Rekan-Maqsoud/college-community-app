@@ -29,11 +29,13 @@ import {
   moderateScale,
 } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
+import useLayout from '../../hooks/useLayout';
 
 const AddMembers = ({ navigation, route }) => {
   const { chat } = route.params || {};
   const { t, theme, isDarkMode } = useAppSettings();
   const { user: currentUser } = useUser();
+  const { contentStyle } = useLayout();
   const [searchQuery, setSearchQuery] = useState('');
   const [friends, setFriends] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
@@ -298,7 +300,7 @@ const AddMembers = ({ navigation, route }) => {
               data={displayUsers}
               keyExtractor={(item) => item.$id}
               renderItem={renderUserItem}
-              contentContainerStyle={styles.listContent}
+              contentContainerStyle={[styles.listContent, contentStyle]}
               showsVerticalScrollIndicator={false}
             />
           )}

@@ -57,11 +57,13 @@ import {
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { useChatList } from '../hooks/useRealtimeSubscription';
+import useLayout from '../hooks/useLayout';
 
 const Chats = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user, refreshUser } = useUser();
   const insets = useSafeAreaInsets();
+  const { contentStyle } = useLayout();
   const { needsRep, hasActiveElection, currentElection, isUserRepresentative, dismiss: dismissRepPopup } = useRepDetection(user);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -898,7 +900,7 @@ const Chats = ({ navigation }) => {
                   renderItem={renderChatItem}
                   renderSectionHeader={renderSectionHeader}
                   keyExtractor={(item) => item.$id}
-                  contentContainerStyle={styles.listContent}
+                  contentContainerStyle={[styles.listContent, contentStyle]}
                   ListHeaderComponent={renderHeader}
                   stickySectionHeadersEnabled={false}
                   windowSize={11}
@@ -920,7 +922,7 @@ const Chats = ({ navigation }) => {
                   renderItem={() => null}
                   ListHeaderComponent={renderHeader}
                   ListEmptyComponent={renderEmpty}
-                  contentContainerStyle={styles.listContent}
+                  contentContainerStyle={[styles.listContent, contentStyle]}
                   windowSize={8}
                   maxToRenderPerBatch={8}
                   initialNumToRender={1}

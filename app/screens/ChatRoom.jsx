@@ -34,6 +34,7 @@ import { borderRadius } from '../theme/designTokens';
 import { MuteModal, PinnedMessagesModal, ChatOptionsModal } from './chatRoom/ChatRoomModals';
 import { chatRoomStyles as styles } from './chatRoom/styles';
 import { useChatRoom } from './chatRoom/useChatRoom';
+import useLayout from '../hooks/useLayout';
 import PostViewModal from '../components/PostViewModal';
 import { isUserOnline, getLastSeenText } from '../utils/onlineStatus';
 import { getUserById } from '../../database/users';
@@ -44,6 +45,7 @@ const ChatRoom = ({ route, navigation }) => {
   const { user, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
+  const { chatStyle } = useLayout();
 
   const {
     messages,
@@ -661,7 +663,7 @@ const ChatRoom = ({ route, navigation }) => {
         data={memoizedMessages}
         renderItem={renderMessage}
         keyExtractor={(item, index) => item.$id || `message-${index}`}
-        contentContainerStyle={styles.messagesList}
+        contentContainerStyle={[styles.messagesList, chatStyle]}
         ListEmptyComponent={renderEmpty}
         onScrollToIndexFailed={handleScrollToIndexFailed}
         removeClippedSubviews={Platform.OS === 'android'}

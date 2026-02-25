@@ -21,9 +21,11 @@ import {
   moderateScale,
 } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
+import useLayout from '../../hooks/useLayout';
 
 const NewChat = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
+  const { contentStyle } = useLayout();
 
   const options = [
     {

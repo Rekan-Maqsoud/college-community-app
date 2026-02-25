@@ -20,12 +20,14 @@ import { getBlockedUsers, getChatBlockedUsers, unblockUser, unblockUserChatOnly 
 import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import useLayout from '../../hooks/useLayout';
 
 const BlockList = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
+  const { contentStyle } = useLayout();
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [chatBlockedUsers, setChatBlockedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -205,7 +207,7 @@ const BlockList = ({ navigation }) => {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}>
+        contentContainerStyle={[styles.scrollContent, contentStyle]}>
 
         {loading ? (
           <View style={styles.centerContainer}>

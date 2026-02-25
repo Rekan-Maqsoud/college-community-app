@@ -22,6 +22,7 @@ import { getPost } from '../../../database/posts';
 import { togglePostLike } from '../../../database/posts';
 import { wp, hp, fontSize, spacing, moderateScale } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
+import useLayout from '../../hooks/useLayout';
 
 
 
@@ -29,6 +30,7 @@ const SavedPosts = ({ navigation }) => {
   const { t, theme, isDarkMode, triggerHaptic } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const { contentStyle } = useLayout();
 
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -150,7 +152,7 @@ const SavedPosts = ({ navigation }) => {
             data={posts}
             renderItem={renderPost}
             keyExtractor={(item) => item.$id}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, contentStyle]}
             ListEmptyComponent={renderEmpty}
             windowSize={9}
             maxToRenderPerBatch={8}

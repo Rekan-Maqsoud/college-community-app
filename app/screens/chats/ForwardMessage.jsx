@@ -25,12 +25,14 @@ import {
   hp,
 } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
+import useLayout from '../../hooks/useLayout';
 
 const ForwardMessage = ({ navigation, route }) => {
   const { message } = route.params || {};
   const { t, theme, isDarkMode } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const { contentStyle } = useLayout();
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [forwarding, setForwarding] = useState(null);
@@ -215,7 +217,7 @@ const ForwardMessage = ({ navigation, route }) => {
             data={filteredChats}
             renderItem={renderChatItem}
             keyExtractor={(item) => item.$id}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, contentStyle]}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>

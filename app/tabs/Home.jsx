@@ -48,6 +48,7 @@ import { useCustomAlert } from '../hooks/useCustomAlert';
 import { usePosts, useNotifications } from '../hooks/useRealtimeSubscription';
 import { postsCacheManager } from '../utils/cacheManager';
 import { scheduleLocalNotification } from '../../services/pushNotificationService';
+import useLayout from '../hooks/useLayout';
 
 const POSTS_PER_PAGE = 15;
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
@@ -58,6 +59,7 @@ const Home = ({ navigation, route }) => {
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { needsRep, hasActiveElection, dismiss: dismissRepPopup } = useRepDetection(user);
   const insets = useSafeAreaInsets();
+  const { contentStyle } = useLayout();
   const [selectedFeed, setSelectedFeed] = useState(FEED_TYPES.DEPARTMENT);
   const [selectedStage, setSelectedStage] = useState('all');
   const [sortBy, setSortBy] = useState(SORT_OPTIONS.NEWEST);
@@ -839,7 +841,7 @@ const Home = ({ navigation, route }) => {
           </ReanimatedAnimated.View>
         )}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.postsListContent, { paddingTop: listTopPadding }]}
+        contentContainerStyle={[styles.postsListContent, { paddingTop: listTopPadding }, contentStyle]}
         ListHeaderComponent={<GreetingBanner />}
         refreshControl={
           <RefreshControl

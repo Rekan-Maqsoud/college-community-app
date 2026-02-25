@@ -45,12 +45,14 @@ import {
   moderateScale,
 } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
+import useLayout from '../../hooks/useLayout';
 
 const GroupSettings = ({ navigation, route }) => {
   const { chat } = route.params || {};
   const { t, theme, isDarkMode } = useAppSettings();
   const { user: currentUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const { contentStyle } = useLayout();
   
   const [groupName, setGroupName] = useState(chat?.name || '');
   const [description, setDescription] = useState(chat?.description || '');
@@ -684,6 +686,7 @@ const GroupSettings = ({ navigation, route }) => {
 
           <ScrollView 
             style={styles.scrollView}
+            contentContainerStyle={contentStyle}
             showsVerticalScrollIndicator={false}>
             
             {/* Group Info Section */}

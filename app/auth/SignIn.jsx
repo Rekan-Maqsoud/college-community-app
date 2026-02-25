@@ -32,6 +32,7 @@ import {
   moderateScale,
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import useLayout from '../hooks/useLayout';
 
 const SignIn = ({ navigation }) => {
   const googleLogoUri = 'https://www.gstatic.com/images/branding/product/1x/googleg_48dp.png';
@@ -47,6 +48,7 @@ const SignIn = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { setUserData } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const { formStyle } = useLayout();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -282,7 +284,7 @@ const SignIn = ({ navigation }) => {
           style={styles.keyboardAvoidingView}>
           
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, formStyle]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
           

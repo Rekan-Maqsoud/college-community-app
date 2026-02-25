@@ -60,6 +60,7 @@ import { getUserById, searchUsers } from '../../database/users';
 import { validateFileUploadSize } from '../utils/fileUploadUtils';
 import { wp, spacing, fontSize, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import useLayout from '../hooks/useLayout';
 import { extractYouTubeVideoId } from '../utils/lectureUtils';
 import AnimatedBackground from '../components/AnimatedBackground';
 import ProfilePicture from '../components/ProfilePicture';
@@ -258,6 +259,7 @@ const LectureChannel = ({ route, navigation }) => {
   const { colors, isDarkMode } = useAppSettings();
   const { user } = useUser();
   const { t } = useTranslation();
+  const { contentStyle } = useLayout();
 
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -1977,7 +1979,7 @@ const LectureChannel = ({ route, navigation }) => {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, contentStyle]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}>
         {!membership || membership.joinStatus !== 'approved' ? (
           <TouchableOpacity style={[styles.joinBtn, { backgroundColor: colors.primary }]} onPress={handleJoin}>

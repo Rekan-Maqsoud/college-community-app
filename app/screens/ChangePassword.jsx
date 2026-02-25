@@ -26,6 +26,7 @@ import {
 import { borderRadius } from '../theme/designTokens';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import CustomAlert from '../components/CustomAlert';
+import useLayout from '../hooks/useLayout';
 
 const ChangePassword = ({ navigation }) => {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -41,6 +42,7 @@ const ChangePassword = ({ navigation }) => {
   
   const { t, theme, isDarkMode } = useAppSettings();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const { formStyle } = useLayout();
 
   const getPasswordStrength = (pwd) => {
     if (!pwd || pwd.length < 8) return 'weak';
@@ -143,7 +145,7 @@ const ChangePassword = ({ navigation }) => {
           style={styles.keyboardAvoidingView}>
           
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, formStyle]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
             

@@ -33,6 +33,7 @@ import {
   moderateScale,
 } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
+import useLayout from '../../hooks/useLayout';
 import { pickAndCompressImages } from '../../utils/imageCompression';
 import { uploadToImgbb } from '../../../services/imgbbService';
 
@@ -40,6 +41,7 @@ const CreateGroup = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user: currentUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const { contentStyle } = useLayout();
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
   const [friends, setFriends] = useState([]);
@@ -299,6 +301,7 @@ const CreateGroup = ({ navigation }) => {
 
           <ScrollView 
             style={styles.scrollView}
+            contentContainerStyle={contentStyle}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
             

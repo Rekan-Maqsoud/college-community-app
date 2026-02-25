@@ -23,10 +23,12 @@ import { deleteUserPushToken } from '../../../database/users';
 import { cacheManager } from '../../utils/cacheManager';
 import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing } from '../../utils/responsive';
+import useLayout from '../../hooks/useLayout';
 
 const AccountSettings = ({ navigation }) => {
   const { t, theme, isDarkMode, resetSettings } = useAppSettings();
   const { user, clearUser } = useUser();
+  const { contentStyle } = useLayout();
   const [isClearingCache, setIsClearingCache] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
@@ -209,7 +211,7 @@ const AccountSettings = ({ navigation }) => {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}>
+        contentContainerStyle={[styles.scrollContent, contentStyle]}>
 
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>

@@ -41,6 +41,10 @@ yarn-error.*
 /ios
 /android
 
+# android build artifacts
+*.apk
+build-*.apk
+
 # IDE
 .vscode/settings.json
 .idea/

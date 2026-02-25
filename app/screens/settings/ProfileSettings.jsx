@@ -20,6 +20,7 @@ import { useUser } from '../../context/UserContext';
 import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import useLayout from '../../hooks/useLayout';
 import { uploadProfilePicture } from '../../../services/imgbbService';
 import { syncUserNameInChats, syncUserProfilePicture } from '../../../database/users';
 import SearchableDropdownNew from '../../components/SearchableDropdownNew';
@@ -50,6 +51,7 @@ const ProfileSettings = ({ navigation }) => {
   const { user, updateUser, updateProfilePicture, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
+  const { contentStyle } = useLayout();
 
   const bioInputRef = useRef(null);
   
@@ -454,7 +456,7 @@ const ProfileSettings = ({ navigation }) => {
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, contentStyle]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="none"
           nestedScrollEnabled={true}>

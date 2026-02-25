@@ -234,8 +234,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
+    alignItems: 'center',
   },
   container: {
+    width: '100%',
+    maxWidth: 700,
     maxHeight: hp(75),
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,

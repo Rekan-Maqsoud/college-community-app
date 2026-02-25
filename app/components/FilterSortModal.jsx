@@ -271,6 +271,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '100%',
+    maxWidth: 560,
     maxHeight: hp(84),
   },
   modalCard: {

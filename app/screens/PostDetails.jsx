@@ -27,11 +27,13 @@ import ImageGalleryModal from './postDetails/ImageGalleryModal';
 import ReplyItem from './postDetails/ReplyItem';
 import ReplyInputSection from './postDetails/ReplyInputSection';
 import { postDetailsStyles as styles } from './postDetails/styles';
+import useLayout from '../hooks/useLayout';
 
 const PostDetails = ({ navigation, route }) => {
   const { t, theme, isDarkMode, triggerHaptic } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const { contentStyle } = useLayout();
   const insets = useSafeAreaInsets();
   const { post: initialPost, postId: routePostId, replyId: routeReplyId, targetReplyId, onPostUpdate, source, autoFocusReply } = route.params || {};
 
@@ -774,7 +776,7 @@ const PostDetails = ({ navigation, route }) => {
         <ScrollView 
           ref={scrollViewRef}
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, contentStyle]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

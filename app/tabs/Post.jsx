@@ -33,6 +33,7 @@ import {
   isExtendedStageDepartment,
   MAX_IMAGES_PER_POST,
 } from '../constants/postConstants';
+import useLayout from '../hooks/useLayout';
 
 const Post = () => {
   const appSettings = useAppSettings();
@@ -48,6 +49,7 @@ const Post = () => {
   
   const { theme, isDarkMode, t } = appSettings;
   const { user } = useUser();
+  const { contentStyle } = useLayout();
 
   const [postType, setPostType] = useState(POST_TYPES.DISCUSSION);
   const [topic, setTopic] = useState('');
@@ -313,7 +315,7 @@ const Post = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
       >
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={contentStyle} showsVerticalScrollIndicator={false}>
           
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, { color: theme.text }]}>{t('post.postType')}</Text>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
   Pressable,
   Switch,
   Platform,
@@ -31,16 +31,21 @@ import {
   trendingStickers,
 } from '../../services/giphyService';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
 const NUM_COLUMNS = 2;
 const GRID_GAP = spacing.xs;
-const ITEM_WIDTH = (SCREEN_WIDTH - spacing.md * 2 - GRID_GAP) / NUM_COLUMNS;
 const DEBOUNCE_MS = 400;
 const GIF_SEND_COOLDOWN_MS = 300;
+const MAX_GRID_WIDTH = 700;
 
 const GiphyPickerModal = ({ visible, onClose, onSelect }) => {
   const { theme, isDarkMode, t } = useAppSettings();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const effectiveWidth = Math.min(screenWidth, MAX_GRID_WIDTH);
+  const itemWidth = useMemo(
+    () => (effectiveWidth - spacing.md * 2 - GRID_GAP) / NUM_COLUMNS,
+    [effectiveWidth]
+  );
   const [activeTab, setActiveTab] = useState('gifs');
   const [query, setQuery] = useState('');
   const [items, setItems] = useState([]);
@@ -183,14 +188,14 @@ const GiphyPickerModal = ({ visible, onClose, onSelect }) => {
   };
 
   const renderItem = ({ item }) => {
-    const itemHeight = ITEM_WIDTH / (item.aspectRatio || 1);
+    const itemHeight = itemWidth / (item.aspectRatio || 1);
     return (
       <TouchableOpacity
         style={[
           styles.gridItem,
           {
-            width: ITEM_WIDTH,
-            height: Math.min(itemHeight, ITEM_WIDTH * 1.5),
+            width: itemWidth,
+            height: Math.min(itemHeight, itemWidth * 1.5),
             backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
           },
         ]}

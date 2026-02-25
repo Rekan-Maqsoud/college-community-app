@@ -13,6 +13,7 @@ import { AppSettingsProvider, useAppSettings } from './context/AppSettingsContex
 import { UserProvider, useUser } from './context/UserContext';
 import { LanguageProvider } from './context/LanguageContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import PostViewModal from './components/PostViewModal';
 import CustomAlert from './components/CustomAlert';
 import { GlobalAlertProvider, useGlobalAlert } from './context/GlobalAlertContext';
 import { wp, normalize, spacing } from './utils/responsive';
@@ -20,7 +21,7 @@ import { borderRadius, shadows } from './theme/designTokens';
 import realtimeDebugLogger from './utils/realtimeDebugLogger';
 import { getCurrentUser, getUserDocument, signOut } from '../database/auth';
 import { getAllUserChats } from '../database/chatHelpers';
-import { getTotalUnreadCount } from '../database/chats';
+import { getTotalUnreadCount, getChat } from '../database/chats';
 import { updateUserPushToken, updateLastSeen } from '../database/users';
 import appwriteClient from '../database/config';
 import {
@@ -695,6 +696,46 @@ const NotificationSetup = ({ navigationRef }) => {
   const { notificationsEnabled, t } = useAppSettings();
   const notificationListenerRef = useRef();
   const responseListenerRef = useRef();
+  const [postViewModalPostId, setPostViewModalPostId] = useState(null);
+
+  // Navigate to chat by fetching the full chat document first
+  const navigateToChat = useCallback(async (chatId) => {
+    if (!navigationRef.current || !chatId) return;
+    try {
+      const chat = await getChat(chatId, true);
+      if (chat) {
+        navigationRef.current.navigate('ChatRoom', { chat });
+      }
+    } catch (error) {
+      navigationRef.current.navigate('Notifications');
+    }
+  }, [navigationRef]);
+
+  // Handle notification data for navigation
+  const handleNotificationData = useCallback(async (data) => {
+    if (!navigationRef.current || !data) return;
+    const type = data?.type || '';
+
+    if ((type === 'lecture_upload' || type === 'lecture_mention') && data.postId) {
+      navigationRef.current.navigate('LectureChannel', { channelId: data.postId });
+    } else if (data.postId) {
+      if (type === 'post_reply') {
+        const navParams = { postId: data.postId };
+        if (data.replyId) {
+          navParams.targetReplyId = data.replyId;
+        }
+        navigationRef.current.navigate('PostDetails', navParams);
+      } else {
+        setPostViewModalPostId(data.postId);
+      }
+    } else if (data.chatId) {
+      await navigateToChat(data.chatId);
+    } else if (data.userId && type === 'follow') {
+      navigationRef.current.navigate('UserProfile', { userId: data.userId });
+    } else if (type) {
+      navigationRef.current.navigate('Notifications');
+    }
+  }, [navigationRef, navigateToChat]);
 
   // Create Android notification channel at app startup (independent of permission)
   useEffect(() => {
@@ -749,47 +790,15 @@ const NotificationSetup = ({ navigationRef }) => {
     // Listen for user tapping on notifications
     responseListenerRef.current = addNotificationResponseListener(response => {
       const data = response?.notification?.request?.content?.data || {};
-      const type = data?.type || '';
-      
-      // Navigate based on notification type
-      if (navigationRef.current) {
-        if ((type === 'lecture_upload' || type === 'lecture_mention') && data.postId) {
-          navigationRef.current.navigate('LectureChannel', { channelId: data.postId });
-        } else if (data.postId) {
-          const navParams = { postId: data.postId };
-          if (data.replyId && (type === 'post_reply')) {
-            navParams.targetReplyId = data.replyId;
-          }
-          navigationRef.current.navigate('PostDetails', navParams);
-        } else if (data.chatId) {
-          navigationRef.current.navigate('ChatRoom', { chatId: data.chatId });
-        } else if (data.userId && type === 'follow') {
-          navigationRef.current.navigate('UserProfile', { userId: data.userId });
-        } else if (type) {
-          navigationRef.current.navigate('Notifications');
-        }
-      }
+      handleNotificationData(data);
     });
 
     // Check if app was opened from a notification
     const checkInitialNotificationHandler = async () => {
       const data = await checkInitialNotification();
       if (data && navigationRef.current) {
-        const type = data?.type || '';
         setTimeout(() => {
-          if ((type === 'lecture_upload' || type === 'lecture_mention') && data.postId) {
-            navigationRef.current.navigate('LectureChannel', { channelId: data.postId });
-          } else if (data.postId) {
-            const navParams = { postId: data.postId };
-            if (data.replyId && type === 'post_reply') {
-              navParams.targetReplyId = data.replyId;
-            }
-            navigationRef.current.navigate('PostDetails', navParams);
-          } else if (data.chatId) {
-            navigationRef.current.navigate('ChatRoom', { chatId: data.chatId });
-          } else if (data.userId && type === 'follow') {
-            navigationRef.current.navigate('UserProfile', { userId: data.userId });
-          }
+          handleNotificationData(data);
         }, 1000);
       }
     };
@@ -804,9 +813,23 @@ const NotificationSetup = ({ navigationRef }) => {
         responseListenerRef.current.remove();
       }
     };
-  }, [navigationRef]);
+  }, [navigationRef, handleNotificationData]);
 
-  return null;
+  return (
+    <PostViewModal
+      visible={!!postViewModalPostId}
+      onClose={() => setPostViewModalPostId(null)}
+      postId={postViewModalPostId}
+      navigation={navigationRef.current}
+      onViewReplies={() => {
+        const pid = postViewModalPostId;
+        setPostViewModalPostId(null);
+        if (navigationRef.current && pid) {
+          navigationRef.current.navigate('PostDetails', { postId: pid });
+        }
+      }}
+    />
+  );
 };
 
 const RealtimeLifecycleManager = () => {

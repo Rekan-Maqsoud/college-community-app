@@ -20,11 +20,13 @@ import { GlassContainer } from '../components/GlassComponents';
 import AnimatedBackground from '../components/AnimatedBackground';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import useLayout from '../hooks/useLayout';
 
 const FollowList = ({ route, navigation }) => {
   const { userId, initialTab = 'followers', userName } = route.params || {};
   const { t, theme, isDarkMode } = useAppSettings();
   const { user: currentUser } = useUser();
+  const { contentStyle } = useLayout();
   const [activeTab, setActiveTab] = useState(initialTab);
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
@@ -274,7 +276,7 @@ const FollowList = ({ route, navigation }) => {
             data={currentList}
             renderItem={renderUser}
             keyExtractor={(item) => item.$id}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, contentStyle]}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={renderEmptyState}
           />

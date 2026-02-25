@@ -2,7 +2,8 @@
   "project_info": {
     "project_number": "520148222335",
     "project_id": "college-community-5800d",
-    "storage_bucket": "college-community-5800d.firebasestorage.app"
+    "storage_bucket": "college-community-5800d.firebasestorage.app",
+    "firebase_url": "https://college-community-5800d-default-rtdb.europe-west1.firebasedatabase.app"
   },
   "client": [
     {

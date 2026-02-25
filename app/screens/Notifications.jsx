@@ -22,6 +22,7 @@ import { NotificationSkeleton } from '../components/SkeletonLoader';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import useLayout from '../hooks/useLayout';
 import safeStorage from '../utils/safeStorage';
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification, deleteAllNotifications } from '../../database/notifications';
 import { useNotifications } from '../hooks/useRealtimeSubscription';
@@ -458,6 +459,7 @@ const Notifications = ({ navigation }) => {
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
+  const { contentStyle } = useLayout();
   
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -898,6 +900,7 @@ const Notifications = ({ navigation }) => {
             contentContainerStyle={[
               styles.listContent,
               groupedNotifications.length === 0 && styles.emptyList,
+              contentStyle,
             ]}
             refreshControl={
               <RefreshControl

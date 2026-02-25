@@ -18,12 +18,14 @@ import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import useLayout from '../../hooks/useLayout';
 
 const MIN_FONT_PERCENT = 85;
 const MAX_FONT_PERCENT = 130;
 
 const PersonalizationSettings = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { contentStyle } = useLayout();
   const {
     t,
     theme,
@@ -155,7 +157,7 @@ const PersonalizationSettings = ({ navigation }) => {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}>
+        contentContainerStyle={[styles.scrollContent, contentStyle]}>
 
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>

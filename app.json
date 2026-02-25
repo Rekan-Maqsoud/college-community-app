@@ -6,7 +6,7 @@
       "collegecommunity",
       "appwrite-callback-6973c51d0000bdd71f7a"
     ],
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -19,6 +19,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.college.community",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "CFBundleURLTypes": [
           {
@@ -34,7 +35,7 @@
     },
     "android": {
       "package": "com.collegecommunity",
-      "versionCode": 3,
+      "versionCode": 4,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -81,9 +82,7 @@
         {
           "android": {
             "extraProguardRules": "",
-            "kotlinVersion": "1.9.25",
-            "extraMavenRepos": [],
-            "newArchEnabled": true
+            "extraMavenRepos": []
           }
         }
       ],
@@ -96,7 +95,7 @@
           "icon": "./assets/adaptive-icon.png",
           "color": "#007AFF",
           "sounds": [],
-          "mode": "development"
+          "mode": "production"
         }
       ],
       [
@@ -121,7 +120,6 @@
         }
       ],
       "expo-asset",
-      "expo-build-properties",
       "@react-native-firebase/app",
       "@react-native-firebase/auth"
     ],

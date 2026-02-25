@@ -165,6 +165,7 @@ const styles = StyleSheet.create({
   },
   container: {
     width: '100%',
+    maxWidth: 560,
     maxHeight: hp(70),
     borderRadius: borderRadius.lg,
     borderWidth: 1,

@@ -30,6 +30,7 @@ import {
   moderateScale,
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import useLayout from '../hooks/useLayout';
 
 const ForgotPassword = ({ navigation, route }) => {
   // Steps: 'email' -> 'checkEmail' -> 'newPassword'
@@ -52,6 +53,7 @@ const ForgotPassword = ({ navigation, route }) => {
   
   const { t, theme, isDarkMode } = useAppSettings();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const { formStyle } = useLayout();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -631,7 +633,7 @@ const ForgotPassword = ({ navigation, route }) => {
           style={styles.keyboardView}
         >
           <ScrollView 
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, formStyle]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >

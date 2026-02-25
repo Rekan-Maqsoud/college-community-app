@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
-  Dimensions,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,8 +13,6 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { borderRadius, shadows } from '../theme/designTokens';
 import { wp, fontSize, spacing } from '../utils/responsive';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const CustomAlert = ({
   visible,
@@ -261,8 +258,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   alertContainer: {
-    width: SCREEN_WIDTH - wp(20),
-    maxWidth: 340,
+    width: '85%',
+    maxWidth: 400,
   },
   alertContent: {
     borderRadius: borderRadius.xl,

@@ -33,12 +33,14 @@ import { uploadImage } from '../../services/imgbbService';
 import { updatePost } from '../../database/posts';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import useLayout from '../hooks/useLayout';
 
 const EditPost = ({ navigation, route }) => {
   const { t } = useTranslation();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { user } = useUser();
   const { theme, isDarkMode } = useAppSettings();
+  const { contentStyle } = useLayout();
   const { post } = route?.params || {};
 
   const [postType, setPostType] = useState(post?.postType || POST_TYPES.DISCUSSION);
@@ -298,6 +300,7 @@ const EditPost = ({ navigation, route }) => {
       >
         <ScrollView
           style={styles.scrollView}
+          contentContainerStyle={contentStyle}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

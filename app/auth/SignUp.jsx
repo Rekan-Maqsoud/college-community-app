@@ -33,6 +33,7 @@ import {
   moderateScale,
 } from '../utils/responsive';
 import { borderRadius, shadows } from '../theme/designTokens';
+import useLayout from '../hooks/useLayout';
 
 const SignUp = ({ navigation, route }) => {
   const oauthMode = route?.params?.oauthMode || false;
@@ -43,6 +44,7 @@ const SignUp = ({ navigation, route }) => {
   
   const { setUserData } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const { formStyle } = useLayout();
   const [fullName, setFullName] = useState(preservedData?.fullName || oauthName);
   const [email, setEmail] = useState(preservedData?.email || oauthEmail);
   const [age, setAge] = useState(preservedData?.age || '');
@@ -565,7 +567,7 @@ const SignUp = ({ navigation, route }) => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
         <ScrollView 
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, formStyle]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
           

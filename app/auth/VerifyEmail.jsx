@@ -36,6 +36,7 @@ import {
   moderateScale,
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import useLayout from '../hooks/useLayout';
 
 const VerifyEmail = ({ route, navigation }) => {
   const { email, expiresAt, formData } = route.params || {};
@@ -49,6 +50,7 @@ const VerifyEmail = ({ route, navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { setUserData } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const { formStyle } = useLayout();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
@@ -345,7 +347,7 @@ const VerifyEmail = ({ route, navigation }) => {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}>
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, formStyle]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
             

@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
-  Dimensions,
+  useWindowDimensions,
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,8 +14,6 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const ReplyCard = ({ 
   reply, 
@@ -30,6 +28,7 @@ const ReplyCard = ({
 }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user } = useUser();
+  const { width: screenWidth } = useWindowDimensions();
   const [showMenu, setShowMenu] = useState(false);
   const [imageGalleryVisible, setImageGalleryVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -286,7 +285,7 @@ const ReplyCard = ({
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            contentOffset={{ x: selectedImageIndex * SCREEN_WIDTH, y: 0 }}>
+            contentOffset={{ x: selectedImageIndex * screenWidth, y: 0 }}>
             {reply.images?.map((imageUrl, index) => (
               <Image
                 key={index}
@@ -458,7 +457,7 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   galleryImage: {
-    width: SCREEN_WIDTH,
+    width: '100%',
     height: '100%',
   },
   galleryCounter: {
