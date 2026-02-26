@@ -274,31 +274,11 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     }
 
     try {
-      // Stale-While-Revalidate: show cached messages immediately
-      const cached = await messagesCacheManager.getCachedMessages(chat.$id, 100);
-      let hasCachedData = false;
-      if (cached?.value && cached.value.length > 0) {
-        let cachedMessages = cached.value;
-        if (deletedMessageIds.current.size > 0) {
-          cachedMessages = cachedMessages.filter(m => !deletedMessageIds.current.has(m.$id));
-        }
-        if (clearedAt) {
-          const clearedDate = new Date(clearedAt);
-          cachedMessages = cachedMessages.filter(m => {
-            const msgDate = new Date(m.$createdAt || m.createdAt);
-            return msgDate > clearedDate;
-          });
-        }
-        if (hiddenMessageIds.length > 0) {
-          cachedMessages = cachedMessages.filter(m => !hiddenMessageIds.includes(m.$id));
-        }
-        // Reverse for inverted FlatList (newest first)
-        setMessages(cachedMessages.slice().reverse());
-        hasCachedData = true;
-        setLoading(false);
-      } else {
-        setLoading(true);
-      }
+      // Always show skeleton until fresh decrypted messages arrive.
+      // We do NOT display cached messages directly because they may contain
+      // encrypted content (enc:v1:...) from a prior failed decryption,
+      // which would flash on screen before the fresh decrypted fetch completes.
+      setLoading(true);
 
       // Fetch fresh data from server
       const fetchedMessages = await getMessages(chat.$id, user?.$id, 100, 0, false);

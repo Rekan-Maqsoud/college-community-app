@@ -398,14 +398,18 @@ const Chats = ({ navigation }) => {
       const stageValue = stageToValue(user.stage);
       
       const chats = await getAllUserChats(user.$id, user.department, stageValue, useCache);
-      setDefaultGroups(chats.defaultGroups || []);
-      setCustomGroups(chats.customGroups || []);
+      const normalizedDefaultGroups = Array.isArray(chats?.defaultGroups) ? chats.defaultGroups : [];
+      const normalizedCustomGroups = Array.isArray(chats?.customGroups) ? chats.customGroups : [];
+      const normalizedPrivateChats = Array.isArray(chats?.privateChats) ? chats.privateChats : [];
+
+      setDefaultGroups(normalizedDefaultGroups);
+      setCustomGroups(normalizedCustomGroups);
 
       // Filter out private chats where the partner is blocked or the user has removed the conversation
       const blockedUsers = user?.blockedUsers || [];
       const chatBlockedUsers = user?.chatBlockedUsers || [];
       const blockedSet = new Set([...blockedUsers, ...chatBlockedUsers]);
-      const allPrivateChats = chats.privateChats || [];
+      const allPrivateChats = normalizedPrivateChats;
       const filteredPrivateChats = allPrivateChats.filter(c => {
         // Filter out chats removed by the current user
         if (isChatRemovedByUser(c, user?.$id)) return false;
@@ -420,8 +424,8 @@ const Chats = ({ navigation }) => {
       
       // Load unread counts for all chats
       const allChats = [
-        ...(chats.defaultGroups || []),
-        ...(chats.customGroups || []),
+        ...normalizedDefaultGroups,
+        ...normalizedCustomGroups,
         ...filteredPrivateChats,
       ];
       setLoading(false);

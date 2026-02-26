@@ -1,6 +1,6 @@
 import { databases, config } from './config';
 import { ID, Query } from 'appwrite';
-import { CHAT_TYPES, createGroupChat, getUserGroupChats, decryptChatPreviews, ensureChatParticipant } from './chats';
+import { CHAT_TYPES, createChat, createGroupChat, getUserGroupChats, decryptChatPreviews, ensureChatParticipant } from './chats';
 import { getUserById } from './users';
 import { chatsCacheManager } from '../app/utils/cacheManager';
 import { seedChatMeta } from '../app/hooks/useFirebaseRealtime';
@@ -176,20 +176,15 @@ export const createPrivateChat = async (user1, user2) => {
         const sortedIds = [user1.$id, user2.$id].sort();
         const chatKey = `${sortedIds[0]}_${sortedIds[1]}`;
 
-        const chat = await databases.createDocument(
-            config.databaseId,
-            config.chatsCollectionId,
-            ID.unique(),
-            {
-                name: `${user1.name || user1.fullName} & ${user2.name || user2.fullName}`,
-                type: PRIVATE_CHAT_TYPE,
-                participants: [user1.$id, user2.$id],
-                chatKey: chatKey,
-                requiresRepresentative: false,
-                representatives: [],
-                messageCount: 0,
-            }
-        );
+        const chat = await createChat({
+            name: `${user1.name || user1.fullName} & ${user2.name || user2.fullName}`,
+            type: PRIVATE_CHAT_TYPE,
+            participants: [user1.$id, user2.$id],
+            chatKey,
+            requiresRepresentative: false,
+            representatives: [],
+            messageCount: 0,
+        });
 
         // Invalidate chat cache for both users
         await chatsCacheManager.invalidateChatsCache(user1.$id);
@@ -227,12 +222,7 @@ export const createCustomGroup = async (groupData, creatorId) => {
             settings: groupData.settings || null,
         };
 
-        const chat = await databases.createDocument(
-            config.databaseId,
-            config.chatsCollectionId,
-            ID.unique(),
-            documentData
-        );
+        const chat = await createChat(documentData);
 
         // Invalidate chat cache for all members
         for (const memberId of members) {
@@ -294,9 +284,70 @@ export const getUserCustomGroups = async (userId) => {
 export const getAllUserChats = async (userId, department, stage, useCache = true) => {
     const cacheKey = chatsCacheManager.generateCacheKey(userId, department, stage);
 
+    const ensureArray = (value) => (Array.isArray(value) ? value : []);
+
+    const dedupeById = (items = []) => {
+        const seen = new Set();
+        return ensureArray(items).filter((item) => {
+            const id = item?.$id;
+            if (!id || seen.has(id)) {
+                return false;
+            }
+            seen.add(id);
+            return true;
+        });
+    };
+
+    const dedupeDefaultGroups = (items = []) => {
+        const map = new Map();
+
+        ensureArray(items).forEach((chat) => {
+            if (!chat?.$id) {
+                return;
+            }
+
+            const key = [
+                chat?.type || '',
+                chat?.department || '',
+                chat?.stage || '',
+            ].join('|');
+
+            const existing = map.get(key);
+            if (!existing) {
+                map.set(key, chat);
+                return;
+            }
+
+            const existingTs = new Date(existing.lastMessageAt || existing.$updatedAt || existing.$createdAt || 0).getTime();
+            const candidateTs = new Date(chat.lastMessageAt || chat.$updatedAt || chat.$createdAt || 0).getTime();
+            if (candidateTs >= existingTs) {
+                map.set(key, chat);
+            }
+        });
+
+        return Array.from(map.values());
+    };
+
+    const normalizeChatsShape = (value) => {
+        const normalized = value && typeof value === 'object' ? value : {};
+        const fallbackChannels = ensureArray(normalized.channels);
+
+        const defaultGroups = ensureArray(normalized.defaultGroups).length > 0
+            ? ensureArray(normalized.defaultGroups)
+            : fallbackChannels.filter(
+                (chat) => chat?.type === CHAT_TYPES.STAGE_GROUP || chat?.type === CHAT_TYPES.DEPARTMENT_GROUP
+            );
+
+        return {
+            defaultGroups: dedupeDefaultGroups(defaultGroups),
+            customGroups: dedupeById(ensureArray(normalized.customGroups)),
+            privateChats: dedupeById(ensureArray(normalized.privateChats)),
+        };
+    };
+
     const hydratePrivateChatsWithOtherUser = async (privateChats = []) => {
         return await Promise.all(
-            (privateChats || []).map(async (chat) => {
+            ensureArray(privateChats).map(async (chat) => {
                 try {
                     if (chat?.otherUser?.$id || chat?.otherUser?.userID) {
                         return chat;
@@ -329,10 +380,11 @@ export const getAllUserChats = async (userId, department, stage, useCache = true
         if (useCache) {
             const cached = await chatsCacheManager.getCachedChats(cacheKey);
             if (cached?.value) {
-                const hydratedPrivateChats = await hydratePrivateChatsWithOtherUser(cached.value.privateChats || []);
+                const normalizedCached = normalizeChatsShape(cached.value);
+                const hydratedPrivateChats = await hydratePrivateChatsWithOtherUser(normalizedCached.privateChats);
                 const hydratedCached = {
-                    ...cached.value,
-                    privateChats: hydratedPrivateChats,
+                    ...normalizedCached,
+                    privateChats: dedupeById(hydratedPrivateChats),
                 };
 
                 await chatsCacheManager.cacheChats(cacheKey, hydratedCached);
@@ -346,13 +398,13 @@ export const getAllUserChats = async (userId, department, stage, useCache = true
             getUserPrivateChats(userId),
         ]);
 
-        results.defaultGroups = await decryptChatPreviews(groupChats, userId);
-        results.customGroups = await decryptChatPreviews(customGroups, userId);
+        results.defaultGroups = dedupeDefaultGroups(await decryptChatPreviews(ensureArray(groupChats), userId));
+        results.customGroups = dedupeById(await decryptChatPreviews(ensureArray(customGroups), userId));
         
         // Populate otherUser for private chats
-        const privateChatsWithOtherUser = await hydratePrivateChatsWithOtherUser(privateChats);
+        const privateChatsWithOtherUser = await hydratePrivateChatsWithOtherUser(dedupeById(ensureArray(privateChats)));
         
-        results.privateChats = await decryptChatPreviews(privateChatsWithOtherUser, userId);
+        results.privateChats = dedupeById(await decryptChatPreviews(privateChatsWithOtherUser, userId));
         
         // Seed chat metadata to Firebase RTDB so live listeners have data
         const allChats = [...results.defaultGroups, ...results.customGroups, ...results.privateChats];
@@ -366,7 +418,7 @@ export const getAllUserChats = async (userId, department, stage, useCache = true
         // On network error, try to return stale cache
         const cached = await chatsCacheManager.getCachedChats(cacheKey);
         if (cached?.value) {
-            return cached.value;
+            return normalizeChatsShape(cached.value);
         }
         return {
             defaultGroups: [],

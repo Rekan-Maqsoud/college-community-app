@@ -21,7 +21,8 @@
     "audit:acl": "node scripts/appwriteAclAudit.js",
     "fix:users-acl": "node scripts/fixUsersReadAcl.js",
     "fix:lectures-acl": "node scripts/fixLectureAcl.js",
-    "fix:interactive-acl": "node scripts/fixInteractiveAcl.js"
+    "fix:interactive-acl": "node scripts/fixInteractiveAcl.js",
+    "fix:chat-acl": "node scripts/fixChatAcl.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

@@ -273,7 +273,7 @@ export const createElection = async (department, stage, totalStudents = 0, seatN
 
     const permissions = [
       Permission.read(Role.users()),
-      Permission.write(Role.users()),
+      Permission.update(Role.users()),
     ];
 
     const election = await databases.createDocument(DB_ID(), COLLECTION_ID(), ID.unique(), {

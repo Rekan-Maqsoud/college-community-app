@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -73,8 +74,38 @@ import AdminOrganizerModal from './lectureChannel/AdminOrganizerModal';
 import { deleteLectureChannelWithCleanup } from '../../database/lectureCleanup';
 
 const buildYouTubeVideoId = (url = '') => extractYouTubeVideoId(url);
+const YOUTUBE_EMBED_ORIGIN = 'https://collegecommunity.app';
 const LECTURE_DOWNLOADS_DIR = 'lecture_downloads';
+const LECTURE_DOWNLOADS_ROOT_FOLDER = 'College Community';
 const LECTURE_DEVICE_DOWNLOADS_URI_KEY = 'lecture_device_downloads_uri';
+const LECTURE_DEVICE_APP_DOWNLOADS_URI_KEY = 'lecture_device_app_downloads_uri';
+
+const getYouTubeWatchUrl = (videoId = '') => {
+  const safeId = String(videoId || '').trim();
+  if (!safeId) {
+    return '';
+  }
+
+  return `https://www.youtube.com/watch?v=${safeId}`;
+};
+
+const getYouTubeThumbnailUrl = (snippet = null, videoId = '') => {
+  const thumbs = snippet?.thumbnails || {};
+
+  return (
+    thumbs.maxres?.url
+    || thumbs.standard?.url
+    || thumbs.high?.url
+    || thumbs.medium?.url
+    || thumbs.default?.url
+    || (videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : '')
+  );
+};
+
+const getLectureDeviceChannelDownloadsUriKey = (channelId = '') => {
+  const safeChannelId = String(channelId || '').trim() || 'default';
+  return `lecture_device_channel_downloads_uri_${safeChannelId}`;
+};
 
 const parseChannelSettings = (settingsJson) => {
   const normalizeFolders = (value) => {
@@ -147,8 +178,18 @@ const canLinkGroupToChannel = (chat, userId) => {
     return false;
   }
 
-  const participants = Array.isArray(chat.participants) ? chat.participants : [];
-  return participants.includes(userId);
+  if (chat.type === CHAT_TYPES.DEPARTMENT_GROUP) {
+    return false;
+  }
+
+  const representatives = Array.isArray(chat.representatives) ? chat.representatives : [];
+  const admins = Array.isArray(chat.admins) ? chat.admins : [];
+
+  if (chat.type === CHAT_TYPES.STAGE_GROUP) {
+    return representatives.includes(userId);
+  }
+
+  return admins.includes(userId) || representatives.includes(userId);
 };
 
 const formatBytesAsMb = (bytes = 0) => {
@@ -298,6 +339,7 @@ const LectureChannel = ({ route, navigation }) => {
   const [showGroupPicker, setShowGroupPicker] = useState(false);
 
   const [activeYoutubeAssetId, setActiveYoutubeAssetId] = useState('');
+  const [youtubePlaybackByAssetId, setYoutubePlaybackByAssetId] = useState({});
   const [commentsModalAsset, setCommentsModalAsset] = useState(null);
   const [assetComments, setAssetComments] = useState([]);
   const [newComment, setNewComment] = useState('');
@@ -306,6 +348,7 @@ const LectureChannel = ({ route, navigation }) => {
   const [downloadedFiles, setDownloadedFiles] = useState([]);
   const [activeDownloads, setActiveDownloads] = useState({});
   const [deviceDownloadsUri, setDeviceDownloadsUri] = useState('');
+  const [deviceChannelDownloadsUri, setDeviceChannelDownloadsUri] = useState('');
   const [assetMenuOpen, setAssetMenuOpen] = useState(false);
   const [assetMenuTarget, setAssetMenuTarget] = useState(null);
   const [assetStatsOpen, setAssetStatsOpen] = useState(false);
@@ -314,6 +357,7 @@ const LectureChannel = ({ route, navigation }) => {
   const autoSaveTimerRef = React.useRef(null);
   const managerSearchTimerRef = React.useRef(null);
   const userProfilesRef = React.useRef({});
+  const youtubePlaybackRef = React.useRef({});
   const loadingInFlightRef = React.useRef(false);
   const channelUnavailableRef = React.useRef(false);
   const hasShownUnavailableAlertRef = React.useRef(false);
@@ -322,9 +366,19 @@ const LectureChannel = ({ route, navigation }) => {
     userProfilesRef.current = userProfiles;
   }, [userProfiles]);
 
+  React.useEffect(() => {
+    youtubePlaybackRef.current = youtubePlaybackByAssetId;
+  }, [youtubePlaybackByAssetId]);
+
   const membership = membershipSummary?.membership || null;
 
   const activeDownloadsList = useMemo(() => Object.values(activeDownloads || {}), [activeDownloads]);
+  const safeChannelFolderName = useMemo(() => {
+    return sanitizeDownloadFileName(channel?.name || channelId || 'channel');
+  }, [channel?.name, channelId]);
+  const deviceChannelDownloadsUriKey = useMemo(() => {
+    return getLectureDeviceChannelDownloadsUriKey(channelId);
+  }, [channelId]);
 
   const orderedAssets = useMemo(() => {
     const list = Array.isArray(assets) ? [...assets] : [];
@@ -391,14 +445,23 @@ const LectureChannel = ({ route, navigation }) => {
     return output;
   }, [orderedAssets, settingsDraft.assetFolders, settingsDraft.assetFolderMap, t]);
 
-  const getDownloadsDirectory = useCallback(() => {
+  const getAppDownloadsDirectory = useCallback(() => {
     const baseDirectory = FileSystem.documentDirectory || FileSystem.cacheDirectory;
     if (!baseDirectory) {
       return '';
     }
 
-    return `${baseDirectory}${LECTURE_DOWNLOADS_DIR}/`;
+    return `${baseDirectory}${LECTURE_DOWNLOADS_DIR}/${LECTURE_DOWNLOADS_ROOT_FOLDER}/`;
   }, []);
+
+  const getDownloadsDirectory = useCallback(() => {
+    const appDownloadsDirectory = getAppDownloadsDirectory();
+    if (!appDownloadsDirectory) {
+      return '';
+    }
+
+    return `${appDownloadsDirectory}${safeChannelFolderName}/`;
+  }, [getAppDownloadsDirectory, safeChannelFolderName]);
 
   const ensureDeviceDownloadsUri = useCallback(async () => {
     if (Platform.OS !== 'android') {
@@ -414,7 +477,11 @@ const LectureChannel = ({ route, navigation }) => {
       return '';
     }
 
-    const permissions = await saf.requestDirectoryPermissionsAsync();
+    const initialDownloadsUri = saf.getUriForDirectoryInRoot
+      ? saf.getUriForDirectoryInRoot('Download')
+      : undefined;
+
+    const permissions = await saf.requestDirectoryPermissionsAsync(initialDownloadsUri);
     if (!permissions?.granted || !permissions?.directoryUri) {
       return '';
     }
@@ -424,6 +491,60 @@ const LectureChannel = ({ route, navigation }) => {
     await AsyncStorage.setItem(LECTURE_DEVICE_DOWNLOADS_URI_KEY, nextUri);
     return nextUri;
   }, [deviceDownloadsUri]);
+
+  const ensureDeviceChannelDownloadsUri = useCallback(async () => {
+    if (Platform.OS !== 'android') {
+      return '';
+    }
+
+    if (deviceChannelDownloadsUri) {
+      return deviceChannelDownloadsUri;
+    }
+
+    const saf = FileSystem.StorageAccessFramework;
+    if (!saf?.makeDirectoryAsync) {
+      return '';
+    }
+
+    const rootDirectoryUri = await ensureDeviceDownloadsUri();
+    if (!rootDirectoryUri) {
+      return '';
+    }
+
+    let appDirectoryUri = '';
+    try {
+      appDirectoryUri = await saf.makeDirectoryAsync(rootDirectoryUri, LECTURE_DOWNLOADS_ROOT_FOLDER);
+      await AsyncStorage.setItem(LECTURE_DEVICE_APP_DOWNLOADS_URI_KEY, appDirectoryUri);
+    } catch (error) {
+      const savedAppDirectoryUri = await AsyncStorage.getItem(LECTURE_DEVICE_APP_DOWNLOADS_URI_KEY);
+      if (savedAppDirectoryUri) {
+        appDirectoryUri = savedAppDirectoryUri;
+      } else {
+        throw error;
+      }
+    }
+
+    let channelDirectoryUri = '';
+    try {
+      channelDirectoryUri = await saf.makeDirectoryAsync(appDirectoryUri, safeChannelFolderName);
+      await AsyncStorage.setItem(deviceChannelDownloadsUriKey, channelDirectoryUri);
+    } catch (error) {
+      const savedChannelDirectoryUri = await AsyncStorage.getItem(deviceChannelDownloadsUriKey);
+      if (savedChannelDirectoryUri) {
+        channelDirectoryUri = savedChannelDirectoryUri;
+      } else {
+        throw error;
+      }
+    }
+
+    setDeviceChannelDownloadsUri(channelDirectoryUri);
+    return channelDirectoryUri;
+  }, [
+    deviceChannelDownloadsUri,
+    deviceChannelDownloadsUriKey,
+    ensureDeviceDownloadsUri,
+    safeChannelFolderName,
+  ]);
 
   const isManager = useMemo(() => {
     if (!channel || !user?.$id) {
@@ -674,16 +795,22 @@ const LectureChannel = ({ route, navigation }) => {
       }
 
       try {
-        const saved = await AsyncStorage.getItem(LECTURE_DEVICE_DOWNLOADS_URI_KEY);
-        if (saved) {
-          setDeviceDownloadsUri(saved);
+        const [savedDownloadsRootUri, savedChannelUri] = await Promise.all([
+          AsyncStorage.getItem(LECTURE_DEVICE_DOWNLOADS_URI_KEY),
+          AsyncStorage.getItem(deviceChannelDownloadsUriKey),
+        ]);
+        if (savedDownloadsRootUri) {
+          setDeviceDownloadsUri(savedDownloadsRootUri);
+        }
+        if (savedChannelUri) {
+          setDeviceChannelDownloadsUri(savedChannelUri);
         }
       } catch {
       }
     };
 
     loadSavedDeviceUri();
-  }, []);
+  }, [deviceChannelDownloadsUriKey]);
 
   const loadDownloadedFiles = useCallback(async () => {
     const downloadsDir = getDownloadsDirectory();
@@ -889,7 +1016,7 @@ const LectureChannel = ({ route, navigation }) => {
 
   const handleSaveSettings = async (overrides = {}) => {
     if (!isManager || savingSettings) {
-      return;
+      return false;
     }
 
     const draft = { ...settingsDraft, ...overrides };
@@ -931,8 +1058,10 @@ const LectureChannel = ({ route, navigation }) => {
         channelId,
         linkedChatId: chatId,
       });
+      return true;
     } catch (error) {
       logLectureChannelError('saveSettings:error', error, { channelId });
+      return false;
     } finally {
       setSavingSettings(false);
     }
@@ -1379,7 +1508,7 @@ const LectureChannel = ({ route, navigation }) => {
       return '';
     }
 
-    let directoryUri = await ensureDeviceDownloadsUri();
+    let directoryUri = await ensureDeviceChannelDownloadsUri();
     if (!directoryUri) {
       return '';
     }
@@ -1392,8 +1521,11 @@ const LectureChannel = ({ route, navigation }) => {
       targetUri = await saf.createFileAsync(directoryUri, targetName, targetMimeType);
     } catch {
       setDeviceDownloadsUri('');
+      setDeviceChannelDownloadsUri('');
       await AsyncStorage.removeItem(LECTURE_DEVICE_DOWNLOADS_URI_KEY);
-      directoryUri = await ensureDeviceDownloadsUri();
+      await AsyncStorage.removeItem(LECTURE_DEVICE_APP_DOWNLOADS_URI_KEY);
+      await AsyncStorage.removeItem(deviceChannelDownloadsUriKey);
+      directoryUri = await ensureDeviceChannelDownloadsUri();
       if (!directoryUri) {
         return '';
       }
@@ -1408,7 +1540,7 @@ const LectureChannel = ({ route, navigation }) => {
     });
 
     return targetUri;
-  }, [ensureDeviceDownloadsUri]);
+  }, [deviceChannelDownloadsUriKey, ensureDeviceChannelDownloadsUri]);
 
   const downloadLectureAssetFile = async (asset, { trackOpen = false } = {}) => {
     if (!asset || asset.uploadType !== LECTURE_UPLOAD_TYPES.FILE || !asset.fileUrl) {
@@ -1533,6 +1665,129 @@ const LectureChannel = ({ route, navigation }) => {
     }
   };
 
+  const resolveYoutubePlayback = useCallback(async (asset) => {
+    const assetId = String(asset?.$id || '').trim();
+    const youtubeUrl = String(asset?.youtubeUrl || '').trim();
+
+    if (!assetId || !youtubeUrl) {
+      return {
+        resolved: true,
+        loading: false,
+        embeddable: false,
+        videoId: '',
+        thumbnailUrl: '',
+        watchUrl: youtubeUrl,
+      };
+    }
+
+    const cached = youtubePlaybackRef.current[assetId];
+    if (cached?.resolved || cached?.loading) {
+      return cached;
+    }
+
+    const videoId = buildYouTubeVideoId(youtubeUrl);
+    const fallbackWatchUrl = getYouTubeWatchUrl(videoId) || youtubeUrl;
+    const fallbackThumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : '';
+
+    if (!videoId) {
+      const invalidState = {
+        resolved: true,
+        loading: false,
+        embeddable: false,
+        videoId: '',
+        thumbnailUrl: '',
+        watchUrl: fallbackWatchUrl,
+      };
+
+      setYoutubePlaybackByAssetId((prev) => ({
+        ...prev,
+        [assetId]: invalidState,
+      }));
+
+      return invalidState;
+    }
+
+    setYoutubePlaybackByAssetId((prev) => ({
+      ...prev,
+      [assetId]: {
+        ...(prev[assetId] || {}),
+        resolved: false,
+        loading: true,
+        embeddable: false,
+        videoId,
+        thumbnailUrl: fallbackThumbnailUrl,
+        watchUrl: fallbackWatchUrl,
+      },
+    }));
+
+    try {
+      const apiKey = String(config.youtubeApiKey || process.env.EXPO_PUBLIC_YOUTUBE_API_KEY || '').trim();
+
+      if (!apiKey) {
+        const missingKeyState = {
+          resolved: true,
+          loading: false,
+          embeddable: false,
+          videoId,
+          thumbnailUrl: fallbackThumbnailUrl,
+          watchUrl: fallbackWatchUrl,
+        };
+
+        setYoutubePlaybackByAssetId((prev) => ({
+          ...prev,
+          [assetId]: missingKeyState,
+        }));
+
+        return missingKeyState;
+      }
+
+      const response = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=status,snippet&id=${encodeURIComponent(videoId)}&key=${encodeURIComponent(apiKey)}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`YOUTUBE_STATUS_HTTP_${response.status}`);
+      }
+
+      const payload = await response.json();
+      const video = Array.isArray(payload?.items) ? payload.items[0] : null;
+      const embeddable = !!video?.status?.embeddable;
+      const thumbnailUrl = getYouTubeThumbnailUrl(video?.snippet, videoId);
+
+      const resolvedState = {
+        resolved: true,
+        loading: false,
+        embeddable,
+        videoId,
+        thumbnailUrl,
+        watchUrl: fallbackWatchUrl,
+      };
+
+      setYoutubePlaybackByAssetId((prev) => ({
+        ...prev,
+        [assetId]: resolvedState,
+      }));
+
+      return resolvedState;
+    } catch (error) {
+      const fallbackState = {
+        resolved: true,
+        loading: false,
+        embeddable: false,
+        videoId,
+        thumbnailUrl: fallbackThumbnailUrl,
+        watchUrl: fallbackWatchUrl,
+      };
+
+      setYoutubePlaybackByAssetId((prev) => ({
+        ...prev,
+        [assetId]: fallbackState,
+      }));
+
+      return fallbackState;
+    }
+  }, []);
+
   const openAsset = async (asset) => {
     if (!asset) {
       return;
@@ -1559,7 +1814,8 @@ const LectureChannel = ({ route, navigation }) => {
     }
 
     if (asset.uploadType === LECTURE_UPLOAD_TYPES.YOUTUBE && asset.youtubeUrl) {
-      const videoId = buildYouTubeVideoId(asset.youtubeUrl);
+      const playback = await resolveYoutubePlayback(asset);
+      const videoId = playback?.videoId || '';
       if (videoId) {
         await markAssetInteraction(asset, 'view');
         await markAssetInteraction(asset, 'open');
@@ -1567,7 +1823,14 @@ const LectureChannel = ({ route, navigation }) => {
           channelId,
           assetId: asset.$id,
           videoId,
+          embeddable: !!playback?.embeddable,
         });
+
+        if (!playback?.embeddable) {
+          setActiveYoutubeAssetId('');
+          return;
+        }
+
         setActiveYoutubeAssetId((prev) => (prev === asset.$id ? '' : asset.$id));
       } else {
         logLectureChannel('openAsset:youtubeInvalidId', {
@@ -1720,6 +1983,10 @@ const LectureChannel = ({ route, navigation }) => {
   };
 
   const handleOrganizerSave = async ({ folders, assetFolderMap, assetOrder }) => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+
     const overrides = {
       assetFolders: Array.isArray(folders) ? folders : [],
       assetFolderMap: assetFolderMap || {},
@@ -1730,8 +1997,10 @@ const LectureChannel = ({ route, navigation }) => {
       ...overrides,
     }));
 
-    await handleSaveSettings(overrides);
-    setOrganizerOpen(false);
+    const didSave = await handleSaveSettings(overrides);
+    if (didSave) {
+      setOrganizerOpen(false);
+    }
   };
 
   const renderStatCard = (label, value) => (
@@ -1769,9 +2038,13 @@ const LectureChannel = ({ route, navigation }) => {
         : colors.primary;
     const previewBg = `${accentColor}1A`;
     const youtubeVideoId = asset.uploadType === LECTURE_UPLOAD_TYPES.YOUTUBE
-      ? buildYouTubeVideoId(asset.youtubeUrl || '')
+      ? (youtubePlaybackByAssetId[asset.$id]?.videoId || buildYouTubeVideoId(asset.youtubeUrl || ''))
       : '';
-    const isYoutubePlaying = activeYoutubeAssetId === asset.$id && !!youtubeVideoId;
+    const youtubePlayback = youtubePlaybackByAssetId[asset.$id] || {};
+    const youtubeThumbUrl = youtubePlayback.thumbnailUrl || (youtubeVideoId ? `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg` : '');
+    const youtubeWatchUrl = youtubePlayback.watchUrl || getYouTubeWatchUrl(youtubeVideoId);
+    const isYoutubeBlocked = !!youtubePlayback.resolved && youtubePlayback.embeddable === false;
+    const isYoutubePlaying = activeYoutubeAssetId === asset.$id && !!youtubeVideoId && youtubePlayback.embeddable === true;
 
     const fileExtension = String(asset?.fileName || asset?.title || '')
       .split('.')
@@ -1782,14 +2055,35 @@ const LectureChannel = ({ route, navigation }) => {
     let previewContent = null;
 
     if (asset.uploadType === LECTURE_UPLOAD_TYPES.YOUTUBE) {
+      const onOpenYoutube = () => {
+        if (!youtubeWatchUrl) {
+          return;
+        }
+        Linking.openURL(youtubeWatchUrl).catch(() => {});
+      };
+
       previewContent = (
         <View style={[styles.previewContainer, styles.youtubePreviewContainer, { borderColor: accentColor, backgroundColor: previewBg }]}>
-          {!!youtubeVideoId && (
+          {!!youtubeThumbUrl && (
+            isYoutubeBlocked ? (
+              <TouchableOpacity activeOpacity={0.84} onPress={onOpenYoutube}>
+                <Image
+                  source={{ uri: youtubeThumbUrl }}
+                  style={styles.youtubeThumb}
+                  resizeMode="cover"
+                />
+                <View style={[styles.youtubeBlockedBadge, { backgroundColor: colors.card }]}> 
+                  <Ionicons name="alert-circle-outline" size={12} color={accentColor} />
+                  <Text style={[styles.youtubeBlockedText, { color: accentColor }]}>{t('lectures.youtubePlaybackRestricted')}</Text>
+                </View>
+              </TouchableOpacity>
+            ) : (
             <Image
-              source={{ uri: `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg` }}
+              source={{ uri: youtubeThumbUrl }}
               style={styles.youtubeThumb}
               resizeMode="cover"
             />
+            )
           )}
 
           <View style={styles.previewOverlayRow}>
@@ -1800,15 +2094,40 @@ const LectureChannel = ({ route, navigation }) => {
 
             <TouchableOpacity
               style={[styles.previewPlayButton, { borderColor: accentColor, backgroundColor: colors.card }]}
-              onPress={() => openAsset(asset)}
+              onPress={() => {
+                if (youtubePlayback.loading) {
+                  return;
+                }
+
+                if (isYoutubeBlocked) {
+                  onOpenYoutube();
+                  return;
+                }
+
+                openAsset(asset);
+              }}
             >
               <Ionicons
-                name={isYoutubePlaying ? 'pause' : 'play'}
+                name={
+                  youtubePlayback.loading
+                    ? 'time-outline'
+                    : isYoutubeBlocked
+                      ? 'open-outline'
+                      : isYoutubePlaying
+                        ? 'pause'
+                        : 'play'
+                }
                 size={14}
                 color={accentColor}
               />
               <Text style={[styles.previewPlayText, { color: accentColor }]}>
-                {isYoutubePlaying ? t('lectures.pauseVideo') : t('lectures.playVideo')}
+                {youtubePlayback.loading
+                  ? t('common.loading')
+                  : isYoutubeBlocked
+                    ? t('lectures.openInYoutube')
+                    : isYoutubePlaying
+                      ? t('lectures.pauseVideo')
+                      : t('lectures.playVideo')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1818,18 +2137,22 @@ const LectureChannel = ({ route, navigation }) => {
               <TouchableOpacity
                 style={[styles.youtubeExternalBtn, { borderColor: colors.border }]}
                 onPress={() => {
-                  const url = `https://www.youtube.com/watch?v=${youtubeVideoId}`;
-                  Linking.openURL(url).catch(() => {});
+                  onOpenYoutube();
                 }}
               >
                 <Ionicons name="open-outline" size={14} color={colors.primary} />
                 <Text style={[styles.youtubeExternalText, { color: colors.primary }]}>{t('lectures.openInYoutube')}</Text>
               </TouchableOpacity>
-              <Image
-                source={{ uri: `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg` }}
-                style={styles.youtubeInlineThumb}
-                resizeMode="cover"
-              />
+              <View style={[styles.youtubeInlineThumb, { overflow: 'hidden' }]}>
+                <WebView
+                  source={{ uri: `https://www.youtube-nocookie.com/embed/${youtubeVideoId}?autoplay=1&modestbranding=1&rel=0&playsinline=1&origin=${encodeURIComponent(YOUTUBE_EMBED_ORIGIN)}` }}
+                  style={{ flex: 1 }}
+                  allowsFullscreenVideo
+                  javaScriptEnabled
+                  mediaPlaybackRequiresUserAction={false}
+                  domStorageEnabled
+                />
+              </View>
             </View>
           )}
         </View>
@@ -2203,7 +2526,9 @@ const LectureChannel = ({ route, navigation }) => {
                 </>
               )}
 
-              <Text style={[styles.modalSectionTitle, { color: colors.text }]}>{t('lectures.linkedGroup')}</Text>
+              {(linkableGroups.length > 0 || !!connectedGroup) && (
+                <Text style={[styles.modalSectionTitle, { color: colors.text }]}>{t('lectures.linkedGroup')}</Text>
+              )}
               {connectedGroup ? (
                 <View style={[styles.optionCard, { borderColor: colors.primary, backgroundColor: colors.inputBackground }]}> 
                   <View style={styles.optionMeta}>
@@ -2212,23 +2537,27 @@ const LectureChannel = ({ route, navigation }) => {
                       {connectedGroup.type === CHAT_TYPES.STAGE_GROUP ? t('lectures.stageGroup') : t('lectures.customGroup')}
                     </Text>
                   </View>
-                  <TouchableOpacity style={[styles.unlinkBtn, { borderColor: colors.border }]} onPress={() => {
-                    setLinkedChatId('');
-                    clearTimeout(autoSaveTimerRef.current);
-                    autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ linkedChatId: '' }), 400);
-                  }}>
-                    <Text style={[styles.unlinkBtnText, { color: colors.text }]}>{t('lectures.disconnectGroup')}</Text>
-                  </TouchableOpacity>
+                  {linkableGroups.length > 0 && (
+                    <TouchableOpacity style={[styles.unlinkBtn, { borderColor: colors.border }]} onPress={() => {
+                      setLinkedChatId('');
+                      clearTimeout(autoSaveTimerRef.current);
+                      autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ linkedChatId: '' }), 400);
+                    }}>
+                      <Text style={[styles.unlinkBtnText, { color: colors.text }]}>{t('lectures.disconnectGroup')}</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-              ) : (
+              ) : linkableGroups.length > 0 ? (
                 <Text style={[styles.infoText, { color: colors.textSecondary }]}>{t('lectures.noConnectedGroups')}</Text>
-              )}
+              ) : null}
 
-              <TouchableOpacity
-                style={[styles.smallBtn, { borderColor: colors.border, alignSelf: 'flex-start', marginTop: spacing.xs }]}
-                onPress={() => setShowGroupPicker(prev => !prev)}>
-                <Text style={[styles.smallBtnText, { color: colors.text }]}>{t('lectures.addGroup')}</Text>
-              </TouchableOpacity>
+              {linkableGroups.length > 0 && (
+                <TouchableOpacity
+                  style={[styles.smallBtn, { borderColor: colors.border, alignSelf: 'flex-start', marginTop: spacing.xs }]}
+                  onPress={() => setShowGroupPicker(prev => !prev)}>
+                  <Text style={[styles.smallBtnText, { color: colors.text }]}>{t('lectures.addGroup')}</Text>
+                </TouchableOpacity>
+              )}
 
               {showGroupPicker && linkableGroups.map(group => (
                 <TouchableOpacity
@@ -2248,10 +2577,6 @@ const LectureChannel = ({ route, navigation }) => {
                   </View>
                 </TouchableOpacity>
               ))}
-
-              {showGroupPicker && !linkableGroups.length && (
-                <Text style={[styles.infoText, { color: colors.textSecondary }]}>{t('lectures.noEligibleGroups')}</Text>
-              )}
 
               <Text style={[styles.modalSectionTitle, { color: colors.text }]}>{t('lectures.managers')}</Text>
               <View style={styles.managerInputRow}>
@@ -2826,6 +3151,23 @@ const styles = StyleSheet.create({
   youtubeThumb: {
     width: '100%',
     height: moderateScale(132),
+  },
+  youtubeBlockedBadge: {
+    position: 'absolute',
+    left: spacing.xs,
+    right: spacing.xs,
+    bottom: spacing.xs,
+    borderRadius: borderRadius.round,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  youtubeBlockedText: {
+    fontSize: fontSize(10),
+    fontWeight: '700',
   },
   previewOverlayRow: {
     position: 'absolute',

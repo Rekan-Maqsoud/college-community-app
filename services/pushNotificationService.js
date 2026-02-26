@@ -144,7 +144,13 @@ export const requestNotificationPermissions = async () => {
     let finalStatus = existingStatus;
 
     if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
+      const { status } = await Notifications.requestPermissionsAsync({
+        ios: {
+          allowAlert: true,
+          allowBadge: true,
+          allowSound: true,
+        },
+      });
       finalStatus = status;
     }
 
@@ -667,18 +673,25 @@ export const registerAppwriteTarget = async () => {
       return null;
     }
 
-    // Get the NATIVE FCM token (NOT the Expo push token)
+    // Get native push token (APNs on iOS, FCM on Android)
     const nativeTokenData = await Notifications.getDevicePushTokenAsync();
-    const nativeFcmToken = nativeTokenData?.data;
+    const nativePushToken = nativeTokenData?.data;
 
-    if (!nativeFcmToken) {
+    if (!nativePushToken || typeof nativePushToken !== 'string') {
       return null;
     }
 
-    const { account } = require('../database/config');
+    const { account, config } = require('../database/config');
     const { ID } = require('appwrite');
 
-    const providerId = '69875a4c000d98d87272';
+    const providerId = Platform.OS === 'ios'
+      ? config.appwritePushProviderIdIos
+      : config.appwritePushProviderIdAndroid;
+
+    // Provider IDs are optional until Messaging providers are configured.
+    if (!providerId) {
+      return null;
+    }
 
     // Check if we have a previously stored target ID
     const storedTargetId = await safeStorage.getItem(APPWRITE_TARGET_ID_KEY);
@@ -686,7 +699,7 @@ export const registerAppwriteTarget = async () => {
     if (storedTargetId) {
       // Try to update existing target with current token
       try {
-        const updated = await account.updatePushTarget(storedTargetId, nativeFcmToken);
+        const updated = await account.updatePushTarget(storedTargetId, nativePushToken);
         return updated;
       } catch (updateErr) {
         await safeStorage.removeItem(APPWRITE_TARGET_ID_KEY);
@@ -696,7 +709,7 @@ export const registerAppwriteTarget = async () => {
     // Create a new target
     const targetId = ID.unique();
     try {
-      const target = await account.createPushTarget(targetId, nativeFcmToken, providerId);
+      const target = await account.createPushTarget(targetId, nativePushToken, providerId);
       await safeStorage.setItem(APPWRITE_TARGET_ID_KEY, target?.$id || targetId);
       return target;
     } catch (createErr) {
@@ -717,7 +730,7 @@ export const registerAppwriteTarget = async () => {
 
           if (pushTarget) {
             await safeStorage.setItem(APPWRITE_TARGET_ID_KEY, pushTarget.$id);
-            const updated = await account.updatePushTarget(pushTarget.$id, nativeFcmToken);
+            const updated = await account.updatePushTarget(pushTarget.$id, nativePushToken);
             return updated;
           }
         } catch (listErr) {

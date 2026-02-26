@@ -52,6 +52,47 @@ client
     .setEndpoint(endpoint)
     .setProject(projectId);
 
+const patchRealtimeMessageShape = () => {
+    const realtime = client?.realtime;
+    if (!realtime || typeof realtime.onMessage !== 'function' || realtime.__ccMessagePatchApplied) {
+        return;
+    }
+
+    const originalOnMessage = realtime.onMessage.bind(realtime);
+    realtime.onMessage = (event) => {
+        try {
+            const rawData = typeof event?.data === 'string' ? event.data : '';
+            if (!rawData) {
+                return originalOnMessage(event);
+            }
+
+            const message = JSON.parse(rawData);
+            if (message?.type !== 'event' || !message?.data || Array.isArray(message.data.channels)) {
+                return originalOnMessage(event);
+            }
+
+            const normalizedChannels = typeof message.data.channels === 'string'
+                ? [message.data.channels]
+                : [];
+            const patchedMessage = {
+                ...message,
+                data: {
+                    ...message.data,
+                    channels: normalizedChannels,
+                },
+            };
+
+            return originalOnMessage({ data: JSON.stringify(patchedMessage) });
+        } catch (error) {
+            return originalOnMessage(event);
+        }
+    };
+
+    realtime.__ccMessagePatchApplied = true;
+};
+
+patchRealtimeMessageShape();
+
 // Create a wrapper for realtime subscription with retry/backoff on disconnects
 export const safeSubscribe = (channel, callback) => {
     let unsubscribe = null;
@@ -162,11 +203,14 @@ export const config = {
     followsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_FOLLOWS_COLLECTION_ID,
     notificationsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_NOTIFICATIONS_COLLECTION_ID,
     pushTokensCollectionId: process.env.EXPO_PUBLIC_APPWRITE_PUSH_TOKENS_COLLECTION_ID,
+    appwritePushProviderIdAndroid: process.env.EXPO_PUBLIC_APPWRITE_PUSH_PROVIDER_ID_ANDROID,
+    appwritePushProviderIdIos: process.env.EXPO_PUBLIC_APPWRITE_PUSH_PROVIDER_ID_IOS,
     lectureChannelsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_LECTURE_CHANNELS_COLLECTION_ID,
     lectureMembershipsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_LECTURE_MEMBERSHIPS_COLLECTION_ID,
     lectureAssetsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_LECTURE_ASSETS_COLLECTION_ID,
     lectureCommentsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_LECTURE_COMMENTS_COLLECTION_ID,
     lectureStorageId: process.env.EXPO_PUBLIC_APPWRITE_LECTURE_STORAGE_ID,
+    youtubeApiKey: process.env.EXPO_PUBLIC_YOUTUBE_API_KEY,
     lectureGuardEndpoint: process.env.EXPO_PUBLIC_LECTURE_GUARD_ENDPOINT,
     voiceMessagesStorageId: process.env.EXPO_PUBLIC_APPWRITE_VOICE_MESSAGES_STORAGE_ID,
     postReportsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_POST_REPORTS_COLLECTION_ID,

@@ -491,67 +491,82 @@ const UserProfile = ({ route, navigation }) => {
     }
   };
 
+  const renderInfoRow = ({ iconName, iconColor, label, value }) => {
+    if (!value) {
+      return null;
+    }
+
+    return (
+      <View style={styles.infoRow}>
+        <View style={styles.infoIconWrap}>
+          <Ionicons name={iconName} size={moderateScale(16)} color={iconColor} />
+        </View>
+        <Text style={[styles.infoLabel, { color: theme.textSecondary }]} numberOfLines={1}>
+          {label}
+        </Text>
+        <Text style={[styles.infoValue, { color: theme.text }]} numberOfLines={2} ellipsizeMode="tail">
+          {value}
+        </Text>
+      </View>
+    );
+  };
+
   const renderAboutSection = () => (
     <View style={styles.sectionContainer}>
       <Text style={[styles.sectionHeader, { color: theme.text }]}>{t('profile.about')}</Text>
       <GlassContainer borderRadius={borderRadius.lg} style={styles.infoCard}>
-        <View style={styles.infoRow}>
-          <Ionicons name="mail-outline" size={moderateScale(20)} color={theme.primary} />
-          <View style={styles.infoTextContainer}>
-            <Text style={[styles.infoLabel, { fontSize: fontSize(10), color: theme.textSecondary }]}>{t('profile.email')}</Text>
-            <Text style={[styles.infoValue, { fontSize: fontSize(13), color: theme.text }]}>{userProfile.email}</Text>
-          </View>
-        </View>
+        {renderInfoRow({
+          iconName: 'mail-outline',
+          iconColor: theme.primary,
+          label: t('profile.email'),
+          value: userProfile.email,
+        })}
         
         {userProfile.university && (
           <>
-            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)' }]} />
-            <View style={styles.infoRow}>
-              <Ionicons name="school-outline" size={moderateScale(20)} color={theme.success} />
-              <View style={styles.infoTextContainer}>
-                <Text style={[styles.infoLabel, { fontSize: fontSize(10), color: theme.textSecondary }]}>{t('profile.university')}</Text>
-                <Text style={[styles.infoValue, { fontSize: fontSize(13), color: theme.text }]}>{userProfile.university}</Text>
-              </View>
-            </View>
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]} />
+            {renderInfoRow({
+              iconName: 'school-outline',
+              iconColor: theme.success,
+              label: t('profile.university'),
+              value: userProfile.university,
+            })}
           </>
         )}
         
         {userProfile.college && (
           <>
-            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)' }]} />
-            <View style={styles.infoRow}>
-              <Ionicons name="library-outline" size={moderateScale(20)} color={theme.warning} />
-              <View style={styles.infoTextContainer}>
-                <Text style={[styles.infoLabel, { fontSize: fontSize(10), color: theme.textSecondary }]}>{t('profile.college')}</Text>
-                <Text style={[styles.infoValue, { fontSize: fontSize(13), color: theme.text }]}>{userProfile.college}</Text>
-              </View>
-            </View>
-          </>
-        )}
-        
-        {userProfile.stage && (
-          <>
-            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)' }]} />
-            <View style={styles.infoRow}>
-              <Ionicons name="stats-chart-outline" size={moderateScale(20)} color={theme.secondary} />
-              <View style={styles.infoTextContainer}>
-                <Text style={[styles.infoLabel, { fontSize: fontSize(10), color: theme.textSecondary }]}>{t('profile.stage')}</Text>
-                <Text style={[styles.infoValue, { fontSize: fontSize(13), color: theme.text }]}>{userProfile.stage}</Text>
-              </View>
-            </View>
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]} />
+            {renderInfoRow({
+              iconName: 'library-outline',
+              iconColor: theme.warning,
+              label: t('profile.college'),
+              value: userProfile.college,
+            })}
           </>
         )}
         
         {userProfile.department && (
           <>
-            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)' }]} />
-            <View style={styles.infoRow}>
-              <Ionicons name="briefcase-outline" size={moderateScale(20)} color={theme.primary} />
-              <View style={styles.infoTextContainer}>
-                <Text style={[styles.infoLabel, { fontSize: fontSize(10), color: theme.textSecondary }]}>{t('auth.selectDepartment')}</Text>
-                <Text style={[styles.infoValue, { fontSize: fontSize(13), color: theme.text }]}>{userProfile.department}</Text>
-              </View>
-            </View>
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]} />
+            {renderInfoRow({
+              iconName: 'briefcase-outline',
+              iconColor: theme.primary,
+              label: t('profile.department'),
+              value: userProfile.department,
+            })}
+          </>
+        )}
+        
+        {userProfile.stage && (
+          <>
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]} />
+            {renderInfoRow({
+              iconName: 'stats-chart-outline',
+              iconColor: theme.secondary,
+              label: t('profile.stage'),
+              value: userProfile.stage,
+            })}
           </>
         )}
       </GlassContainer>
@@ -1030,11 +1045,39 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     overflow: 'hidden',
   }, 
-  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, paddingVertical: spacing.sm }, 
-  infoDivider: { height: 1, marginVertical: spacing.sm, width: '100%', alignSelf: 'stretch', marginHorizontal: -spacing.md },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: spacing.xs + 2,
+    minHeight: moderateScale(34),
+  }, 
+  infoIconWrap: {
+    width: moderateScale(20),
+    alignItems: 'center',
+    marginRight: spacing.xs,
+    paddingTop: moderateScale(1),
+  },
+  infoDivider: { height: 1, marginHorizontal: -spacing.md },
   infoTextContainer: { flex: 1, flexShrink: 1 }, 
-  infoLabel: { fontWeight: '600', marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.3 }, 
-  infoValue: { fontWeight: '500', flexWrap: 'wrap' }, 
+  infoLabel: {
+    fontWeight: '600',
+    fontSize: fontSize(10),
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    width: '34%',
+    minWidth: wp(24),
+    maxWidth: wp(34),
+    paddingRight: spacing.xs,
+    paddingTop: 1,
+  }, 
+  infoValue: {
+    flex: 1,
+    fontWeight: '500',
+    fontSize: fontSize(13),
+    textAlign: 'right',
+    lineHeight: fontSize(18),
+    flexShrink: 1,
+  }, 
   emptyCard: { 
     padding: spacing.lg, 
     alignItems: 'center',

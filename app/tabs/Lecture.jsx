@@ -88,8 +88,18 @@ const canLinkGroupToLectureChannel = (chat, userId) => {
     return false;
   }
 
-  const participants = Array.isArray(chat.participants) ? chat.participants : [];
-  return participants.includes(userId);
+  if (chat.type === CHAT_TYPES.DEPARTMENT_GROUP) {
+    return false;
+  }
+
+  const representatives = Array.isArray(chat.representatives) ? chat.representatives : [];
+  const admins = Array.isArray(chat.admins) ? chat.admins : [];
+
+  if (chat.type === CHAT_TYPES.STAGE_GROUP) {
+    return representatives.includes(userId);
+  }
+
+  return admins.includes(userId) || representatives.includes(userId);
 };
 
 const CreateChannelModal = ({
@@ -101,6 +111,7 @@ const CreateChannelModal = ({
   creating,
   groups,
   canCreateOfficial,
+  canLinkGroups,
 }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -232,44 +243,48 @@ const CreateChannelModal = ({
             </TouchableOpacity>
           )}
 
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('lectures.chooseLinkedGroup')}</Text>
+          {canLinkGroups && (
+            <>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('lectures.chooseLinkedGroup')}</Text>
 
-          <TouchableOpacity
-            style={[
-              styles.groupOption,
-              {
-                borderColor: linkedGroupId ? colors.border : colors.primary,
-                backgroundColor: colors.inputBackground,
-              },
-            ]}
-            onPress={() => setLinkedGroupId('')}>
-            <Text style={[styles.groupOptionText, { color: colors.text }]}>{t('lectures.noLink')}</Text>
-            {!linkedGroupId && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.groupOption,
+                  {
+                    borderColor: linkedGroupId ? colors.border : colors.primary,
+                    backgroundColor: colors.inputBackground,
+                  },
+                ]}
+                onPress={() => setLinkedGroupId('')}>
+                <Text style={[styles.groupOptionText, { color: colors.text }]}>{t('lectures.noLink')}</Text>
+                {!linkedGroupId && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
+              </TouchableOpacity>
 
-          {groups.map(group => (
-            <TouchableOpacity
-              key={group.$id}
-              style={[
-                styles.groupOption,
-                {
-                  borderColor: linkedGroupId === group.$id ? colors.primary : colors.border,
-                  backgroundColor: colors.inputBackground,
-                },
-              ]}
-              onPress={() => setLinkedGroupId(group.$id)}>
-              <View style={styles.groupOptionMeta}>
-                <Text style={[styles.groupOptionText, { color: colors.text }]} numberOfLines={1}>{group.name}</Text>
-                <Text style={[styles.groupOptionHint, { color: colors.textSecondary }]} numberOfLines={1}>
-                  {group.type === CHAT_TYPES.STAGE_GROUP ? t('lectures.stageGroup') : t('lectures.customGroup')}
-                </Text>
-              </View>
-              {linkedGroupId === group.$id && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
-            </TouchableOpacity>
-          ))}
+              {groups.map(group => (
+                <TouchableOpacity
+                  key={group.$id}
+                  style={[
+                    styles.groupOption,
+                    {
+                      borderColor: linkedGroupId === group.$id ? colors.primary : colors.border,
+                      backgroundColor: colors.inputBackground,
+                    },
+                  ]}
+                  onPress={() => setLinkedGroupId(group.$id)}>
+                  <View style={styles.groupOptionMeta}>
+                    <Text style={[styles.groupOptionText, { color: colors.text }]} numberOfLines={1}>{group.name}</Text>
+                    <Text style={[styles.groupOptionHint, { color: colors.textSecondary }]} numberOfLines={1}>
+                      {group.type === CHAT_TYPES.STAGE_GROUP ? t('lectures.stageGroup') : t('lectures.customGroup')}
+                    </Text>
+                  </View>
+                  {linkedGroupId === group.$id && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
 
-          {groups.length === 0 && (
-            <Text style={[styles.emptyGroupText, { color: colors.textSecondary }]}>{t('lectures.noEligibleGroups')}</Text>
+              {groups.length === 0 && (
+                <Text style={[styles.emptyGroupText, { color: colors.textSecondary }]}>{t('lectures.noEligibleGroups')}</Text>
+              )}
+            </>
           )}
 
           <View style={styles.modalButtons}>
@@ -891,6 +906,7 @@ const Lecture = ({ navigation }) => {
         creating={createLoading}
         groups={availableGroups}
         canCreateOfficial={canCreateOfficial}
+        canLinkGroups={isRepresentative}
       />
 
       <Modal

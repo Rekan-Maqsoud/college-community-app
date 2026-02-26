@@ -347,18 +347,33 @@ export const MessageListSkeleton = ({ count = 8 }) => {
     ? 'rgba(255, 255, 255, 0.12)'
     : 'rgba(0, 0, 0, 0.08)';
 
+  // Realistic chat-bubble pattern: alternating sides with varied widths & heights
+  const BUBBLE_PATTERNS = [
+    { mine: false, width: '70%', height: moderateScale(44) },
+    { mine: false, width: '52%', height: moderateScale(44) },
+    { mine: true,  width: '60%', height: moderateScale(60) },
+    { mine: true,  width: '44%', height: moderateScale(44) },
+    { mine: false, width: '76%', height: moderateScale(80) },
+    { mine: false, width: '58%', height: moderateScale(44) },
+    { mine: true,  width: '65%', height: moderateScale(96) },
+    { mine: false, width: '48%', height: moderateScale(44) },
+    { mine: true,  width: '54%', height: moderateScale(60) },
+    { mine: false, width: '80%', height: moderateScale(44) },
+    { mine: true,  width: '42%', height: moderateScale(44) },
+    { mine: false, width: '66%', height: moderateScale(64) },
+  ];
+
   return (
     <View>
       {Array.from({ length: count }).map((_, index) => {
-        const isMine = index % 3 === 0;
-        const width = isMine ? '62%' : index % 2 === 0 ? '74%' : '56%';
+        const { mine, width, height } = BUBBLE_PATTERNS[index % BUBBLE_PATTERNS.length];
 
         return (
           <View
             key={`message-skeleton-${index}`}
             style={[
               styles.messageSkeletonRow,
-              { justifyContent: isMine ? 'flex-end' : 'flex-start' },
+              { justifyContent: mine ? 'flex-end' : 'flex-start' },
             ]}
           >
             <Animated.View
@@ -368,6 +383,7 @@ export const MessageListSkeleton = ({ count = 8 }) => {
                   backgroundColor: skeletonColor,
                   opacity,
                   width,
+                  height,
                 },
               ]}
             />
@@ -492,20 +508,19 @@ const styles = StyleSheet.create({
   listSkeletonTitle: {
     height: moderateScale(14),
     borderRadius: 4,
-    width: '55%',
+    width: '62%',
     marginBottom: spacing.xs,
   },
   listSkeletonSubtitle: {
     height: moderateScale(12),
     borderRadius: 4,
-    width: '40%',
+    width: '78%',
   },
   messageSkeletonRow: {
     width: '100%',
     marginBottom: spacing.sm,
   },
   messageSkeletonBubble: {
-    height: moderateScale(48),
     borderRadius: borderRadius.lg,
   },
   postContainer: {

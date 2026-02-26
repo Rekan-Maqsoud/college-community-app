@@ -62,8 +62,23 @@ const request = async (method, requestPath, body = null) => {
   return json;
 };
 
-const listDocuments = async (collectionId) => {
-  return request('GET', `/databases/${databaseId}/collections/${collectionId}/documents`);
+const listAllDocuments = async (collectionId, limit = 100) => {
+  let offset = 0;
+  const documents = [];
+
+  while (true) {
+    const page = await request(
+      'GET',
+      `/databases/${databaseId}/collections/${collectionId}/documents?limit=${limit}&offset=${offset}`,
+    );
+    const docs = page?.documents || [];
+    documents.push(...docs);
+
+    if (docs.length < limit) break;
+    offset += limit;
+  }
+
+  return documents;
 };
 
 const updatePermissions = async (collectionId, docId, permissions) => {
@@ -95,8 +110,7 @@ const runKind = async (kind, collectionId) => {
     return;
   }
 
-  const page = await listDocuments(collectionId);
-  const docs = page?.documents || [];
+  const docs = await listAllDocuments(collectionId);
   let updated = 0;
 
   for (const doc of docs) {

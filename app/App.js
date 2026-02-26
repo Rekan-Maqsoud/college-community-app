@@ -838,6 +838,28 @@ const RealtimeLifecycleManager = () => {
   const resumeTimeoutRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
 
+  const reconnectRealtimeSafely = useCallback((realtime) => {
+    if (!realtime || typeof realtime.connect !== 'function') {
+      return;
+    }
+
+    const channels = realtime.channels instanceof Set
+      ? Array.from(realtime.channels)
+      : Array.isArray(realtime.channels)
+        ? realtime.channels
+        : [];
+
+    if (channels.length === 0) {
+      return;
+    }
+
+    try {
+      realtime.connect();
+    } catch (error) {
+      // Avoid calling connect() without channels to prevent SDK shape mismatch errors
+    }
+  }, []);
+
   // Bootstrap Firebase anonymous auth early so RTDB listeners are ready.
   // ensureFirebaseAuth() already handles timeouts and returns false on
   // failure, but we add a .catch() guard for extra safety so no
@@ -887,13 +909,19 @@ const RealtimeLifecycleManager = () => {
     try {
       realtime.reconnect = true;
 
-      if (realtime.channels?.size > 0 && (!realtime.socket || realtime.socket.readyState > 1)) {
-        realtime.connect?.();
+      const hasChannels = realtime.channels instanceof Set
+        ? realtime.channels.size > 0
+        : Array.isArray(realtime.channels)
+          ? realtime.channels.length > 0
+          : false;
+
+      if (hasChannels && (!realtime.socket || realtime.socket.readyState > 1)) {
+        reconnectRealtimeSafely(realtime);
       }
     } catch (error) {
       // Ignore realtime startup errors
     }
-  }, []);
+  }, [reconnectRealtimeSafely]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {

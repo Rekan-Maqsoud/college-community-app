@@ -100,7 +100,8 @@ export const castVote = async (electionId, candidateId) => {
       candidateId,
     }, [
       Permission.read(Role.users()),
-      Permission.write(Role.users()),
+      Permission.update(Role.user(voterId)),
+      Permission.delete(Role.user(voterId)),
     ]);
 
     if (isFirstVote) {

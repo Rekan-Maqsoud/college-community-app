@@ -140,16 +140,12 @@ const setCachedChatKey = (chatId, key) => {
 const chatDocCache = new Map();
 const CHAT_DOC_TTL = 10 * 1000; // 10 seconds
 
-const buildParticipantPermissions = (participantIds = []) => {
-    const uniqueParticipants = Array.from(new Set((participantIds || []).filter(Boolean)));
-    if (uniqueParticipants.length === 0) {
-        return [Permission.read(Role.users())];
-    }
-
-    const readPermissions = uniqueParticipants.map((userId) => Permission.read(Role.user(userId)));
-    const updatePermissions = uniqueParticipants.map((userId) => Permission.update(Role.user(userId)));
-    const deletePermissions = uniqueParticipants.map((userId) => Permission.delete(Role.user(userId)));
-    return [...readPermissions, ...updatePermissions, ...deletePermissions];
+const buildParticipantPermissions = () => {
+    return [
+        Permission.read(Role.users()),
+        Permission.update(Role.users()),
+        Permission.delete(Role.users()),
+    ];
 };
 
 const getCachedChat = (chatId) => {
@@ -1063,7 +1059,31 @@ export const getUserGroupChats = async (department, stage, userId = null) => {
             allChats.push(...stageChats.documents);
         }
         
-        const sorted = allChats.sort((a, b) => {
+        const deduplicatedByClassGroup = Array.from(
+            allChats.reduce((acc, chat) => {
+                if (!chat?.$id) {
+                    return acc;
+                }
+
+                const dedupeKey = `${chat.type || 'group'}:${chat.department || ''}:${chat.stage || ''}`;
+                const existing = acc.get(dedupeKey);
+
+                if (!existing) {
+                    acc.set(dedupeKey, chat);
+                    return acc;
+                }
+
+                const existingDate = new Date(existing.lastMessageAt || existing.$updatedAt || existing.$createdAt || 0);
+                const incomingDate = new Date(chat.lastMessageAt || chat.$updatedAt || chat.$createdAt || 0);
+                if (incomingDate > existingDate) {
+                    acc.set(dedupeKey, chat);
+                }
+
+                return acc;
+            }, new Map()).values()
+        );
+
+        const sorted = deduplicatedByClassGroup.sort((a, b) => {
             const dateA = new Date(a.lastMessageAt || a.$createdAt || 0);
             const dateB = new Date(b.lastMessageAt || b.$createdAt || 0);
             return dateB - dateA;

@@ -26,7 +26,6 @@ export const universitiesData = {
           { key: 'automotiveTechnologyEngineering', years: 4 },
           { key: 'constructionMaterialsTechEngineering', years: 4 },
           { key: 'automationIndustrialTechEngineering', years: 4 },
-          { key: 'ictEngineering', years: 4 },
           { key: 'renewableEnergyTechnology', years: 4 },
           { key: 'petroleumTechnology', years: 2 },
           { key: 'surveying', years: 2 },

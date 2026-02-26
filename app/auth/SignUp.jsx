@@ -55,6 +55,7 @@ const SignUp = ({ navigation, route }) => {
   const [department, setDepartment] = useState(preservedData?.department || '');
   const [stage, setStage] = useState(preservedData?.stage || '');
   const [accountRole, setAccountRole] = useState(preservedData?.accountRole || 'student');
+  const isTeacherSignupEnabled = false;
   const [currentStep, setCurrentStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -149,6 +150,12 @@ const SignUp = ({ navigation, route }) => {
       setStage('');
     }
   }, [university, college, department, stage]);
+
+  useEffect(() => {
+    if (!isTeacherSignupEnabled && accountRole === 'teacher') {
+      setAccountRole('student');
+    }
+  }, [accountRole, isTeacherSignupEnabled]);
 
   const getPasswordStrength = (pwd) => {
     if (!pwd || pwd.length < 8) return 'weak';
@@ -925,18 +932,42 @@ const SignUp = ({ navigation, route }) => {
                   <TouchableOpacity
                     style={[
                       styles.roleOption,
+                      !isTeacherSignupEnabled && styles.roleOptionDisabled,
                       {
-                        borderColor: accountRole === 'teacher' ? theme.primary : theme.border,
+                        borderColor: (!isTeacherSignupEnabled || accountRole !== 'teacher') ? theme.border : theme.primary,
                       },
                     ]}
-                    onPress={() => setAccountRole('teacher')}
+                    disabled={!isTeacherSignupEnabled}
+                    onPress={() => {
+                      if (isTeacherSignupEnabled) {
+                        setAccountRole('teacher');
+                      }
+                    }}
                     activeOpacity={0.8}
                   >
                     <View style={styles.roleOptionContent}>
-                      <Ionicons name="book-outline" size={moderateScale(20)} color={theme.text} />
-                      <Text style={[styles.roleOptionText, { color: theme.text }]}>{t('auth.teacherRole')}</Text>
+                      <Ionicons
+                        name="book-outline"
+                        size={moderateScale(20)}
+                        color={!isTeacherSignupEnabled ? theme.textSecondary : theme.text}
+                      />
+                      <View style={styles.roleTextContainer}>
+                        <Text
+                          style={[
+                            styles.roleOptionText,
+                            { color: !isTeacherSignupEnabled ? theme.textSecondary : theme.text },
+                          ]}
+                        >
+                          {t('auth.teacherRole')}
+                        </Text>
+                        {!isTeacherSignupEnabled && (
+                          <Text style={[styles.roleOptionMeta, { color: theme.textSecondary }]}>
+                            {t('auth.teacherSignupComingSoon')}
+                          </Text>
+                        )}
+                      </View>
                     </View>
-                    {accountRole === 'teacher' && (
+                    {isTeacherSignupEnabled && accountRole === 'teacher' && (
                       <Ionicons name="checkmark-circle" size={moderateScale(20)} color={theme.primary} />
                     )}
                   </TouchableOpacity>
@@ -1234,10 +1265,21 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     flex: 1,
   },
+  roleOptionDisabled: {
+    opacity: 0.55,
+  },
+  roleTextContainer: {
+    flex: 1,
+  },
   roleOptionText: {
     fontSize: fontSize(15),
     fontWeight: '600',
     flexShrink: 1,
+  },
+  roleOptionMeta: {
+    marginTop: spacing.xs / 2,
+    fontSize: fontSize(12),
+    fontWeight: '500',
   },
   signUpButtonText: {
     color: '#FFFFFF',
