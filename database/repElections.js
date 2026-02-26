@@ -11,13 +11,13 @@
  * | $id                  | string   | auto     | —       | Document ID                                  |
  * | department           | string   | ✓        | —       | Department key                               |
  * | stage                | string   | ✓        | —       | Stage key (firstYear, secondYear, …)         |
- * | status               | string   | ✓        | active  | active | completed | reselection_pending   |
+ * | status               | string   | ✓        | idle    | idle | active | completed | reselection_pending |
  * | seatNumber           | integer  | ✓        | 1       | Which rep seat (1, 2, or 3)                  |
  * | winner               | string   | —        | null    | Single user ID elected as representative     |
  * | totalStudents        | integer  | —        | 0       | Snapshot of class size at election time       |
  * | reselectionVoters    | string[] | —        | []      | Users who requested reselection              |
  * | reselectionThreshold | integer  | —        | 0       | Half of totalStudents (cached)               |
- * | startedAt            | datetime | —        | now     | When election started                        |
+ * | startedAt            | datetime | —        | null    | When election started (set on first vote)    |
  * | endedAt              | datetime | —        | null    | When election was finalized                  |
  * | $createdAt           | datetime | auto     | —       | Creation timestamp                           |
  * | $updatedAt           | datetime | auto     | —       | Last update timestamp                        |
@@ -33,6 +33,7 @@ const COLLECTION_ID = () => config.repElectionsCollectionId;
 const DB_ID = () => config.databaseId;
 
 export const ELECTION_STATUS = {
+  IDLE: 'idle',
   ACTIVE: 'active',
   COMPLETED: 'completed',
   RESELECTION_PENDING: 'reselection_pending',
@@ -258,10 +259,17 @@ export const ensureActiveElectionsForAllClasses = async () => {
  */
 export const createElection = async (department, stage, totalStudents = 0, seatNumber = 1) => {
   try {
-    // Check if there's already an active election for this seat
-    const existing = await getActiveElection(department, stage, seatNumber);
-    if (existing) {
-      return existing;
+    // Reuse existing open election (idle/active/tiebreaker) for this seat
+    const latest = await getLatestElection(department, stage, seatNumber);
+    if (
+      latest
+      && (
+        latest.status === ELECTION_STATUS.IDLE
+        || latest.status === ELECTION_STATUS.ACTIVE
+        || latest.status === ELECTION_STATUS.TIEBREAKER
+      )
+    ) {
+      return latest;
     }
 
     // Enforce max reps
@@ -279,13 +287,13 @@ export const createElection = async (department, stage, totalStudents = 0, seatN
     const election = await databases.createDocument(DB_ID(), COLLECTION_ID(), ID.unique(), {
       department,
       stage,
-      status: ELECTION_STATUS.ACTIVE,
+      status: ELECTION_STATUS.IDLE,
       seatNumber,
       winner: null,
       totalStudents,
       reselectionVoters: [],
       reselectionThreshold: threshold,
-      startedAt: new Date().toISOString(),
+      startedAt: null,
       endedAt: null,
     }, permissions);
     return election;

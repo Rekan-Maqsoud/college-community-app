@@ -170,7 +170,44 @@ export const postCardStyles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  pollFooterActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  pollFooterIconButton: {
+    width: moderateScale(22),
+    height: moderateScale(22),
+    borderRadius: moderateScale(11),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   pollMetaText: {
+    fontSize: fontSize(10),
+    fontWeight: '500',
+  },
+  pollExplanationWrap: {
+    marginTop: spacing.xs,
+    borderWidth: 1,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  pollExplanationText: {
+    fontSize: fontSize(11),
+    lineHeight: fontSize(11) * 1.45,
+    fontWeight: '500',
+  },
+  pollVotersInlineWrap: {
+    marginTop: spacing.xs / 2,
+    marginLeft: moderateScale(22),
+    gap: 2,
+  },
+  pollVotersInlineCount: {
+    fontSize: fontSize(10),
+    fontWeight: '600',
+  },
+  pollVotersInlineNames: {
     fontSize: fontSize(10),
     fontWeight: '500',
   },

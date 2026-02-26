@@ -721,7 +721,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: '#111827',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
   },
   textInput: {
     borderWidth: 1,
@@ -731,7 +731,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: '#111827',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     minHeight: 150,
   },
   charCount: {
@@ -759,7 +759,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     gap: 6,
   },
   visibilityButtonSelected: {
@@ -784,7 +784,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#F8FAFC',
   },
   visibilityToggleText: {
     fontSize: 14,
@@ -809,7 +809,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     minHeight: 48,
     gap: 8,
   },
@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     color: '#111827',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
   },
   addLinkButton: {
     padding: 4,
@@ -918,7 +918,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     color: '#111827',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
   },
   bottomSpace: {
     height: 40,

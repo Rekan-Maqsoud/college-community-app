@@ -14,12 +14,14 @@ import { useNavigation } from '@react-navigation/native';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { createRepost, requestPostReview, voteOnPostPoll } from '../../database/posts';
+import { getUserById } from '../../database/users';
 import { moderateScale, fontSize, getResponsiveSize } from '../utils/responsive';
 import { POST_COLORS, POST_ICONS } from '../constants/postConstants';
 import {
   parsePollPayload,
   applyPollVote,
   getPollVoteCounts,
+  getPollVotersByOption,
   getUserPollSelection,
   isUserPollAnswerCorrect,
 } from '../utils/pollUtils';
@@ -73,6 +75,9 @@ const PostCard = ({
   const [showLikesModal, setShowLikesModal] = useState(false);
   const [pollData, setPollData] = useState(parsePollPayload(post.pollData));
   const [pollSubmitting, setPollSubmitting] = useState(false);
+  const [showPollExplanation, setShowPollExplanation] = useState(false);
+  const [showPollVoters, setShowPollVoters] = useState(false);
+  const [pollVoterNames, setPollVoterNames] = useState({});
   const likeLongPressRef = useRef(false);
 
   // Live counters from Firebase RTDB — falls back to static Appwrite values
@@ -150,7 +155,53 @@ const PostCard = ({
 
   useEffect(() => {
     setPollData(parsePollPayload(post.pollData));
+    setShowPollExplanation(false);
+    setShowPollVoters(false);
   }, [post.pollData]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const hydratePollVoterNames = async () => {
+      if (!pollData?.showVoters || !showPollVoters) {
+        return;
+      }
+
+      const votersByOption = getPollVotersByOption(pollData);
+      const voterIds = Array.from(new Set(Object.values(votersByOption).flat()));
+      const unknownVoterIds = voterIds.filter((voterId) => voterId && !pollVoterNames[voterId]);
+
+      if (unknownVoterIds.length === 0) {
+        return;
+      }
+
+      const resolvedEntries = await Promise.all(
+        unknownVoterIds.map(async (voterId) => {
+          try {
+            const userDoc = await getUserById(voterId, true);
+            return [voterId, userDoc?.name || userDoc?.fullName || voterId];
+          } catch (error) {
+            return [voterId, voterId];
+          }
+        })
+      );
+
+      if (!isMounted) {
+        return;
+      }
+
+      setPollVoterNames((prevNames) => ({
+        ...prevNames,
+        ...Object.fromEntries(resolvedEntries),
+      }));
+    };
+
+    hydratePollVoterNames();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [pollData, showPollVoters, pollVoterNames]);
 
   // Check if post is bookmarked on mount
   useEffect(() => {
@@ -296,6 +347,11 @@ const PostCard = ({
 
     const previousPollData = pollData;
     const currentSelections = getUserPollSelection(pollData, user.$id);
+
+    if (pollData.isQuiz && currentSelections.length > 0) {
+      return;
+    }
+
     let nextSelections = [];
 
     if (pollData.allowMultiple) {
@@ -340,6 +396,7 @@ const PostCard = ({
     const mySelections = getUserPollSelection(pollData, user?.$id);
     const hasAnswered = mySelections.length > 0;
     const answerIsCorrect = isUserPollAnswerCorrect(pollData, user?.$id);
+    const votersByOption = getPollVotersByOption(pollData);
 
     return (
       <View style={[styles.pollContainer, { borderColor: theme.border, backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }]}>
@@ -363,7 +420,7 @@ const PostCard = ({
               style={[styles.pollOptionButton, { borderColor: theme.border, backgroundColor: selectionColor }]}
               activeOpacity={0.8}
               onPress={() => handleVotePollOption(option.id)}
-              disabled={pollSubmitting}
+              disabled={pollSubmitting || (pollData.isQuiz && hasAnswered)}
             >
               <View style={styles.pollOptionRow}>
                 <View style={styles.pollOptionLeft}>
@@ -376,6 +433,23 @@ const PostCard = ({
                 </View>
                 <Text style={[styles.pollOptionPercent, { color: theme.textSecondary }]}>{percentage}%</Text>
               </View>
+
+              {pollData.showVoters && hasAnswered && showPollVoters && (
+                <View style={styles.pollVotersInlineWrap}>
+                  <Text style={[styles.pollVotersInlineCount, { color: theme.textSecondary }]}>
+                    {t('post.poll.votersCount').replace('{count}', String((votersByOption[option.id] || []).length))}
+                  </Text>
+                  {(votersByOption[option.id] || []).length > 0 && (
+                    <Text style={[styles.pollVotersInlineNames, { color: theme.textSecondary }]} numberOfLines={2}>
+                      {(votersByOption[option.id] || []).map((voterId) => (
+                        voterId === user?.$id
+                          ? t('common.you')
+                          : (pollVoterNames[voterId] || voterId)
+                      )).join(' • ')}
+                    </Text>
+                  )}
+                </View>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -384,12 +458,43 @@ const PostCard = ({
           <Text style={[styles.pollMetaText, { color: theme.textSecondary }]}>
             {t('post.poll.totalVotes').replace('{count}', String(totalVotes))}
           </Text>
-          {pollData.isQuiz && hasAnswered && answerIsCorrect !== null && (
-            <Text style={[styles.pollMetaText, { color: answerIsCorrect ? '#10B981' : '#EF4444' }]}>
-              {answerIsCorrect ? t('post.poll.correct') : t('post.poll.incorrect')}
-            </Text>
-          )}
+
+          <View style={styles.pollFooterActions}>
+            {pollData.showVoters && hasAnswered && (
+              <TouchableOpacity
+                style={styles.pollFooterIconButton}
+                onPress={() => setShowPollVoters((prev) => !prev)}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="people-outline" size={14} color={theme.textSecondary} />
+              </TouchableOpacity>
+            )}
+
+            {pollData.isQuiz && hasAnswered && pollData.explanation && (
+              <TouchableOpacity
+                style={styles.pollFooterIconButton}
+                onPress={() => setShowPollExplanation((prev) => !prev)}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="information-circle-outline" size={15} color={theme.textSecondary} />
+              </TouchableOpacity>
+            )}
+
+            {pollData.isQuiz && hasAnswered && answerIsCorrect !== null && (
+              <Text style={[styles.pollMetaText, { color: answerIsCorrect ? '#10B981' : '#EF4444' }]}>
+                {answerIsCorrect ? t('post.poll.correct') : t('post.poll.incorrect')}
+              </Text>
+            )}
+          </View>
         </View>
+
+        {pollData.isQuiz && hasAnswered && pollData.explanation && showPollExplanation && (
+          <View style={[styles.pollExplanationWrap, { borderColor: theme.border, backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
+            <Text style={[styles.pollExplanationText, { color: theme.textSecondary }]}>
+              {pollData.explanation}
+            </Text>
+          </View>
+        )}
       </View>
     );
   };

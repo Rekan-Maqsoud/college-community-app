@@ -1521,22 +1521,17 @@ export const sendMessage = async (chatId, messageData) => {
             lastSenderId: senderId,
         });
         
-        // Add message to cache
-        await messagesCacheManager.addMessageToCache(chatId, message, 100);
-        
-        // Send push notifications to other participants
-        try {
-            await sendChatPushNotification({
-                chatId,
-                messageId: message.$id,
-                senderId,
-                senderName: messageData.senderName,
-                content: notificationPreview,
-                chatName: chat.name,
-                chatType: chat.type,
-            });
-        } catch {
-        }
+        // Add message to cache and notify in background to keep send path fast
+        messagesCacheManager.addMessageToCache(chatId, message, 100).catch(() => {});
+        sendChatPushNotification({
+            chatId,
+            messageId: message.$id,
+            senderId,
+            senderName: messageData.senderName,
+            content: notificationPreview,
+            chatName: chat.name,
+            chatType: chat.type,
+        }).catch(() => {});
         
         return decryptMessageFields(message, chatKey);
     } catch (error) {

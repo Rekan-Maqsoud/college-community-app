@@ -50,7 +50,6 @@ const ChatRoom = ({ route, navigation }) => {
   const {
     messages,
     loading,
-    sending,
     canSend,
     userCache,
     replyingTo,
@@ -752,7 +751,7 @@ const ChatRoom = ({ route, navigation }) => {
           triggerHaptic('light');
           return handleSendMessage(...args);
         }}
-        disabled={sending || !canSend}
+        disabled={!canSend}
         placeholder={
           canSend 
             ? t('chats.typeMessage')

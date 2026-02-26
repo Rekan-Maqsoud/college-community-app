@@ -71,6 +71,8 @@ export const createPollPayload = ({
   maxSelections = 1,
   isQuiz = false,
   correctOptionId = '',
+  showVoters = false,
+  explanation = '',
 }) => {
   const normalizedQuestion = toSafeString(question);
   const normalizedOptions = (Array.isArray(options) ? options : [])
@@ -94,6 +96,7 @@ export const createPollPayload = ({
   const normalizedCorrectOptionId = isQuiz && optionIds.includes(correctOptionId)
     ? correctOptionId
     : '';
+  const normalizedExplanation = toSafeString(explanation);
 
   if (isQuiz && !normalizedCorrectOptionId) {
     throw new Error('Correct option is required for quiz');
@@ -106,6 +109,8 @@ export const createPollPayload = ({
     maxSelections: normalizedMaxSelections,
     isQuiz: Boolean(isQuiz),
     correctOptionId: normalizedCorrectOptionId,
+    showVoters: Boolean(showVoters),
+    explanation: normalizedExplanation,
     votesByUser: {},
   };
 };
@@ -146,6 +151,8 @@ export const parsePollPayload = (pollPayload) => {
   const correctOptionId = isQuiz && optionIds.includes(parsed.correctOptionId)
     ? parsed.correctOptionId
     : '';
+  const showVoters = Boolean(parsed.showVoters);
+  const explanation = toSafeString(parsed.explanation);
   const votesByUser = normalizeVotesByUser(parsed.votesByUser, optionIds);
 
   return {
@@ -155,6 +162,8 @@ export const parsePollPayload = (pollPayload) => {
     maxSelections,
     isQuiz,
     correctOptionId,
+    showVoters,
+    explanation,
     votesByUser,
   };
 };
@@ -193,6 +202,29 @@ export const getPollVoteCounts = (pollPayload) => {
   return voteCounts;
 };
 
+export const getPollVotersByOption = (pollPayload) => {
+  const normalizedPoll = parsePollPayload(pollPayload);
+
+  if (!normalizedPoll) {
+    return {};
+  }
+
+  const votersByOption = normalizedPoll.options.reduce((accumulator, option) => {
+    accumulator[option.id] = [];
+    return accumulator;
+  }, {});
+
+  Object.entries(normalizedPoll.votesByUser).forEach(([userId, selections]) => {
+    selections.forEach((selection) => {
+      if (Array.isArray(votersByOption[selection])) {
+        votersByOption[selection].push(userId);
+      }
+    });
+  });
+
+  return votersByOption;
+};
+
 export const hasUserAnsweredPoll = (pollPayload, userId) => {
   return getUserPollSelection(pollPayload, userId).length > 0;
 };
@@ -227,6 +259,11 @@ export const applyPollVote = (pollPayload, userId, selectionInput) => {
     throw new Error('User ID is required');
   }
 
+  const existingSelection = normalizedPoll.votesByUser[normalizedUserId] || [];
+  if (normalizedPoll.isQuiz && existingSelection.length > 0) {
+    throw new Error('Quiz vote is locked');
+  }
+
   const validOptionIds = new Set(normalizedPoll.options.map((option) => option.id));
   const selections = parseSelectionInput(selectionInput)
     .filter((selection) => validOptionIds.has(selection));
@@ -237,6 +274,10 @@ export const applyPollVote = (pollPayload, userId, selectionInput) => {
 
   if (!normalizedPoll.allowMultiple && selections.length > 1) {
     throw new Error('Only one option can be selected');
+  }
+
+  if (normalizedPoll.isQuiz && selections.length !== 1) {
+    throw new Error('Quiz requires one answer');
   }
 
   if (selections.length > normalizedPoll.maxSelections) {

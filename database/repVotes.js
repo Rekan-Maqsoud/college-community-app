@@ -107,6 +107,7 @@ export const castVote = async (electionId, candidateId) => {
     if (isFirstVote) {
       try {
         await databases.updateDocument(config.databaseId, config.repElectionsCollectionId, electionId, {
+          status: ELECTION_STATUS.ACTIVE,
           startedAt: new Date().toISOString(),
         });
 

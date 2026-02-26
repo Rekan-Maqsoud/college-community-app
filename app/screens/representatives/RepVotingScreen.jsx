@@ -188,7 +188,7 @@ const RepVotingScreen = ({ navigation, route }) => {
 
   const handleVote = useCallback(async (candidateId) => {
     if (!election || voting) return;
-    const isVotingPhase = election.status === ELECTION_STATUS.ACTIVE || election.status === ELECTION_STATUS.TIEBREAKER;
+    const isVotingPhase = election.status === ELECTION_STATUS.IDLE || election.status === ELECTION_STATUS.ACTIVE || election.status === ELECTION_STATUS.TIEBREAKER;
     if (!isVotingPhase) return;
 
     // Block voting after timer expired (client-side guard)
@@ -273,6 +273,7 @@ const RepVotingScreen = ({ navigation, route }) => {
 
   const isCompleted = election?.status === ELECTION_STATUS.COMPLETED;
   const isInTiebreaker = election?.status === ELECTION_STATUS.TIEBREAKER;
+  const isIdle = election?.status === ELECTION_STATUS.IDLE;
   const isActive = election?.status === ELECTION_STATUS.ACTIVE;
   const winner = election?.winner || null;
   const currentSeat = election?.seatNumber || routeSeatNumber || nextSeat || 1;
@@ -295,7 +296,7 @@ const RepVotingScreen = ({ navigation, route }) => {
   const isVotingDisabled = isCompleted || timerExpiredDuringVoting;
 
   // When reps exist and no active/tiebreaker election, show rep-only view (no voting)
-  const hasRepNoActiveElection = classReps.length > 0 && !isActive && !isInTiebreaker;
+  const hasRepNoActiveElection = classReps.length > 0 && !isIdle && !isActive && !isInTiebreaker;
 
   const canRequestReselection = !!election && isCompleted;
   const canElectNextRep = !!nextSeat && nextSeat <= MAX_REPS_PER_CLASS && classReps.length >= 1 && classReps.length < MAX_REPS_PER_CLASS;
@@ -370,7 +371,7 @@ const RepVotingScreen = ({ navigation, route }) => {
       )}
 
       {/* Active voting banner (not tiebreaker) */}
-      {isActive && !isInTiebreaker && (
+      {(isIdle || isActive) && !isInTiebreaker && (
         <View style={[styles.activeBanner, { backgroundColor: theme.primary + '15', borderColor: theme.primary + '40' }]}>
           <Ionicons name="hand-left-outline" size={fontSize(18)} color={theme.primary} />
           <Text style={[styles.activeBannerText, { color: theme.primary }]}>

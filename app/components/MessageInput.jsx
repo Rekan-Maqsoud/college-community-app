@@ -91,13 +91,16 @@ const MessageInput = ({
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [pollAllowMultiple, setPollAllowMultiple] = useState(false);
   const [pollMaxSelections, setPollMaxSelections] = useState('2');
+  const [pollShowVoters, setPollShowVoters] = useState(false);
   const [pollIsQuiz, setPollIsQuiz] = useState(false);
   const [pollCorrectOptionId, setPollCorrectOptionId] = useState('');
+  const [pollExplanation, setPollExplanation] = useState('');
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionStartIndex, setMentionStartIndex] = useState(-1);
   const [isRecording, setIsRecording] = useState(false);
   const [isRecordingLocked, setIsRecordingLocked] = useState(false);
+  const [isRecordingPaused, setIsRecordingPaused] = useState(false);
   const [recordingDurationMs, setRecordingDurationMs] = useState(0);
   const [recordingWaveform, setRecordingWaveform] = useState(Array(VOICE_WAVE_BARS).fill(0.15));
   const [recordingSlideOffsetX, setRecordingSlideOffsetX] = useState(0);
@@ -114,6 +117,8 @@ const MessageInput = ({
   const recordingWaveformHistoryRef = useRef([]);
   const isRecordingRef = useRef(false);
   const isRecordingLockedRef = useRef(false);
+  const isRecordingPausedRef = useRef(false);
+  const recordingAccumulatedMsRef = useRef(0);
   const disabledRef = useRef(disabled);
   const uploadingRef = useRef(uploading);
   const isPanGestureActiveRef = useRef(false);
@@ -142,6 +147,10 @@ const MessageInput = ({
   useEffect(() => {
     isRecordingLockedRef.current = isRecordingLocked;
   }, [isRecordingLocked]);
+
+  useEffect(() => {
+    isRecordingPausedRef.current = isRecordingPaused;
+  }, [isRecordingPaused]);
 
   useEffect(() => {
     recordingWaveformRef.current = recordingWaveform;
@@ -177,7 +186,7 @@ const MessageInput = ({
       if (!isRecordingRef.current || !recordingStartedAtRef.current) {
         return;
       }
-      const elapsed = Date.now() - recordingStartedAtRef.current;
+      const elapsed = recordingAccumulatedMsRef.current + (Date.now() - recordingStartedAtRef.current);
       setRecordingDurationMs((prev) => Math.max(prev, elapsed));
     }, 250);
   };
@@ -201,6 +210,7 @@ const MessageInput = ({
     clearRecordingTicker();
     setIsRecording(false);
     setIsRecordingLocked(false);
+    setIsRecordingPaused(false);
     setRecordingDurationMs(0);
     setRecordingWaveform(Array(VOICE_WAVE_BARS).fill(0.15));
     setRecordingSlideOffsetX(0);
@@ -209,10 +219,12 @@ const MessageInput = ({
     recordingDeltaXRef.current = 0;
     recordingGestureCancelledRef.current = false;
     recordingStartedAtRef.current = 0;
+    recordingAccumulatedMsRef.current = 0;
     recordingWaveformHistoryRef.current = [];
     isPanGestureActiveRef.current = false;
     isRecordingRef.current = false;
     isRecordingLockedRef.current = false;
+    isRecordingPausedRef.current = false;
   };
 
   const isWithinLockTarget = (deltaY, deltaX) => {
@@ -245,7 +257,7 @@ const MessageInput = ({
   };
 
   useEffect(() => {
-    if (!isRecording) {
+    if (!isRecording || isRecordingPaused) {
       return;
     }
 
@@ -264,7 +276,40 @@ const MessageInput = ({
       const previous = recordingWaveformHistoryRef.current[recordingWaveformHistoryRef.current.length - 1] || 0.12;
       appendWaveSample(Math.max(0.08, previous * 0.985));
     }
-  }, [isRecording, recorderState?.durationMillis, recorderState?.metering]);
+  }, [isRecording, isRecordingPaused, recorderState?.durationMillis, recorderState?.metering]);
+
+  const togglePauseVoiceRecording = async () => {
+    if (!isRecordingRef.current || !isRecordingLockedRef.current) {
+      return;
+    }
+
+    try {
+      if (isRecordingPausedRef.current) {
+        await audioRecorder.record();
+        recordingStartedAtRef.current = Date.now();
+        setIsRecordingPaused(false);
+        startRecordingTicker();
+        return;
+      }
+
+      if (typeof audioRecorder.pause !== 'function') {
+        triggerAlert(t('common.error'), t('chats.voiceRecordingFailed'));
+        return;
+      }
+
+      await audioRecorder.pause();
+
+      if (recordingStartedAtRef.current) {
+        recordingAccumulatedMsRef.current += Date.now() - recordingStartedAtRef.current;
+      }
+
+      recordingStartedAtRef.current = 0;
+      setIsRecordingPaused(true);
+      clearRecordingTicker();
+    } catch (error) {
+      triggerAlert(t('common.error'), t('chats.voiceRecordingFailed'));
+    }
+  };
 
   const startVoiceRecording = async () => {
     if (disabled || uploading || isRecordingRef.current || message.trim() || selectedImage || selectedFile) {
@@ -288,15 +333,27 @@ const MessageInput = ({
         shouldRouteThroughEarpiece: false,
       });
 
-      await audioRecorder.prepareToRecordAsync();
+      try {
+        await audioRecorder.prepareToRecordAsync();
+      } catch (prepareError) {
+        const prepareMessage = String(prepareError?.message || '').toLowerCase();
+        const isAlreadyPrepared = prepareMessage.includes('prepared') || prepareMessage.includes('already');
+        if (!isAlreadyPrepared) {
+          await audioRecorder.stop().catch(() => {});
+          await audioRecorder.prepareToRecordAsync();
+        }
+      }
+
       await audioRecorder.record();
 
       recordingStartedAtRef.current = Date.now();
+      recordingAccumulatedMsRef.current = 0;
       recordingWaveformHistoryRef.current = [];
       setRecordingDurationMs(0);
       setRecordingWaveform(Array(VOICE_WAVE_BARS).fill(0.15));
       setIsRecording(true);
       setIsRecordingLocked(false);
+      setIsRecordingPaused(false);
       setIsLockTargetActive(false);
       startRecordingTicker();
     } catch (error) {
@@ -322,7 +379,7 @@ const MessageInput = ({
       const durationMillis = Math.max(
         Number(finalStatus?.durationMillis || 0),
         Number(recordingDurationMs || 0),
-        recordingStartedAtRef.current ? (Date.now() - recordingStartedAtRef.current) : 0
+        recordingAccumulatedMsRef.current + (recordingStartedAtRef.current ? (Date.now() - recordingStartedAtRef.current) : 0)
       );
       const recordingUri = audioRecorder.uri || finalStatus?.url || null;
       const waveformForPayload = serializeVoiceWaveform(
@@ -667,8 +724,10 @@ const MessageInput = ({
     setPollOptions(['', '']);
     setPollAllowMultiple(false);
     setPollMaxSelections('2');
+    setPollShowVoters(false);
     setPollIsQuiz(false);
     setPollCorrectOptionId('');
+    setPollExplanation('');
   };
 
   const handleOpenPollComposer = () => {
@@ -727,6 +786,8 @@ const MessageInput = ({
           : 1,
         isQuiz: pollIsQuiz,
         correctOptionId: pollCorrectOptionId,
+        showVoters: pollShowVoters,
+        explanation: pollIsQuiz ? pollExplanation : '',
       });
 
       await onSend('', null, 'poll', payload);
@@ -1291,6 +1352,11 @@ const MessageInput = ({
             <Text style={[styles.voiceRecordingTime, { color: theme.text }]}>
               {formatVoiceDuration(recordingDurationMs)}
             </Text>
+              {isRecordingPaused && (
+                <Text style={[styles.voiceRecordingHint, { color: theme.textSecondary }]}>
+                  {t('chats.recordingPaused')}
+                </Text>
+              )}
             {!isRecordingLocked && (
               <View style={styles.voiceHintsContainer}>
                 <Text style={[styles.voiceRecordingHint, { color: theme.textSecondary }]}>
@@ -1342,6 +1408,23 @@ const MessageInput = ({
 
           {isRecording && (
             <View style={styles.voiceRecordingActions}>
+              {isRecordingLocked && (
+                <TouchableOpacity
+                  style={[styles.voiceActionButton, { borderColor: borderColor }]}
+                  onPress={togglePauseVoiceRecording}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={isRecordingPaused ? 'play-outline' : 'pause-outline'}
+                    size={moderateScale(16)}
+                    color={theme.text}
+                  />
+                  <Text style={[styles.voiceActionText, { color: theme.text }]}>
+                    {isRecordingPaused ? t('chats.resumeRecording') : t('chats.pauseRecording')}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 style={[styles.voiceActionButton, { borderColor: borderColor }]}
                 onPress={() => stopVoiceRecording({ shouldSend: false })}
@@ -1553,6 +1636,18 @@ const MessageInput = ({
               </>
             )}
 
+            <TouchableOpacity
+              style={styles.pollComposerModeItem}
+              onPress={() => setPollShowVoters((prev) => !prev)}
+            >
+              <Ionicons
+                name={pollShowVoters ? 'checkbox' : 'square-outline'}
+                size={20}
+                color={pollShowVoters ? theme.primary : theme.textSecondary}
+              />
+              <Text style={[styles.pollComposerModeText, { color: theme.text }]}>{t('chats.showVoters')}</Text>
+            </TouchableOpacity>
+
             {pollIsQuiz && (
               <View style={styles.pollComposerCorrectWrap}>
                 <Text style={[styles.pollComposerMaxLabel, { color: theme.textSecondary }]}>{t('chats.correctAnswer')}</Text>
@@ -1578,6 +1673,26 @@ const MessageInput = ({
                     </TouchableOpacity>
                   );
                 })}
+
+                <TextInput
+                  style={[
+                    styles.pollComposerInput,
+                    {
+                      borderColor: borderColor,
+                      color: theme.text,
+                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                      minHeight: moderateScale(72),
+                      textAlignVertical: 'top',
+                    },
+                  ]}
+                  value={pollExplanation}
+                  onChangeText={setPollExplanation}
+                  placeholder={t('chats.pollExplanationPlaceholder')}
+                  placeholderTextColor={theme.textSecondary}
+                  multiline
+                  numberOfLines={3}
+                  maxLength={300}
+                />
               </View>
             )}
 

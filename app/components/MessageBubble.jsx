@@ -39,9 +39,11 @@ import {
 } from '../utils/responsive';
 import { formatFileSize, getFilePreviewDescriptor } from '../utils/fileTypes';
 import { config, storage } from '../../database/config';
+import { getUserById } from '../../database/users';
 import {
   parsePollPayload,
   getPollVoteCounts,
+  getPollVotersByOption,
   getUserPollSelection,
   isUserPollAnswerCorrect,
 } from '../utils/pollUtils';
@@ -117,6 +119,9 @@ const MessageBubble = ({
   const [voiceDurationMs, setVoiceDurationMs] = useState(0);
   const [voicePositionMs, setVoicePositionMs] = useState(0);
   const [voiceLoading, setVoiceLoading] = useState(false);
+  const [showPollExplanation, setShowPollExplanation] = useState(false);
+  const [showPollVoters, setShowPollVoters] = useState(false);
+  const [pollVoterNames, setPollVoterNames] = useState({});
   const voicePlayerRef = useRef(null);
   const voicePlayerListenerRef = useRef(null);
   const voicePlayerUrlRef = useRef('');
@@ -345,9 +350,67 @@ const MessageBubble = ({
   const pollVoteCounts = React.useMemo(() => getPollVoteCounts(pollData), [pollData]);
   const pollUserSelections = React.useMemo(() => getUserPollSelection(pollData, currentUserId), [pollData, currentUserId]);
   const pollAnswerCorrect = React.useMemo(() => isUserPollAnswerCorrect(pollData, currentUserId), [pollData, currentUserId]);
+  const pollVotersByOption = React.useMemo(() => getPollVotersByOption(pollData), [pollData]);
+
+  useEffect(() => {
+    setShowPollExplanation(false);
+    setShowPollVoters(false);
+  }, [message.$id, message.content]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const hydratePollVoterNames = async () => {
+      if (!pollData?.showVoters || !showPollVoters) {
+        return;
+      }
+
+      const voterIds = Array.from(new Set(Object.values(pollVotersByOption).flat()));
+      const unresolvedIds = voterIds.filter((voterId) => voterId && !pollVoterNames[voterId]);
+
+      if (unresolvedIds.length === 0) {
+        return;
+      }
+
+      const resolvedEntries = await Promise.all(
+        unresolvedIds.map(async (voterId) => {
+          const knownMember = groupMembers.find((member) => member?.$id === voterId || member?.id === voterId);
+          if (knownMember) {
+            return [voterId, knownMember.name || knownMember.fullName || voterId];
+          }
+
+          try {
+            const userDoc = await getUserById(voterId, true);
+            return [voterId, userDoc?.name || userDoc?.fullName || voterId];
+          } catch (error) {
+            return [voterId, voterId];
+          }
+        })
+      );
+
+      if (!isMounted) {
+        return;
+      }
+
+      setPollVoterNames((prevNames) => ({
+        ...prevNames,
+        ...Object.fromEntries(resolvedEntries),
+      }));
+    };
+
+    hydratePollVoterNames();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [groupMembers, pollData, pollVoterNames, pollVotersByOption, showPollVoters]);
 
   const handlePollOptionPress = async (optionId) => {
     if (!pollData || !onPollVote || !currentUserId || selectionMode) {
+      return;
+    }
+
+    if (pollData.isQuiz && pollUserSelections.length > 0) {
       return;
     }
 
@@ -1348,7 +1411,7 @@ const MessageBubble = ({
                 key={`${message.$id}_${option.id}`}
                 style={[styles.pollOption, { borderColor: isCurrentUser ? 'rgba(255,255,255,0.16)' : theme.border, backgroundColor: optionBg }]}
                 onPress={() => handlePollOptionPress(option.id)}
-                disabled={selectionMode}
+                disabled={selectionMode || (pollData.isQuiz && pollUserSelections.length > 0)}
                 activeOpacity={0.75}
               >
                 <View style={styles.pollOptionLeft}>
@@ -1364,6 +1427,23 @@ const MessageBubble = ({
                 <Text style={[styles.pollOptionPercent, { color: isCurrentUser ? 'rgba(255,255,255,0.75)' : theme.textSecondary }]}>
                   {percent}%
                 </Text>
+
+                {pollData.showVoters && pollUserSelections.length > 0 && showPollVoters && (
+                  <View style={styles.pollVotersInlineWrap}>
+                    <Text style={[styles.pollVotersInlineCount, { color: isCurrentUser ? 'rgba(255,255,255,0.75)' : theme.textSecondary }]}>
+                      {t('post.poll.votersCount').replace('{count}', String((pollVotersByOption[option.id] || []).length))}
+                    </Text>
+                    {(pollVotersByOption[option.id] || []).length > 0 && (
+                      <Text style={[styles.pollVotersInlineNames, { color: isCurrentUser ? 'rgba(255,255,255,0.72)' : theme.textSecondary }]} numberOfLines={2}>
+                        {(pollVotersByOption[option.id] || []).map((voterId) => (
+                          voterId === currentUserId
+                            ? t('common.you')
+                            : (pollVoterNames[voterId] || voterId)
+                        )).join(' • ')}
+                      </Text>
+                    )}
+                  </View>
+                )}
               </TouchableOpacity>
             );
           })}
@@ -1372,12 +1452,53 @@ const MessageBubble = ({
             <Text style={[styles.pollMetaText, { color: isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.textSecondary }]}>
               {t('post.poll.totalVotes').replace('{count}', String(Object.values(pollVoteCounts).reduce((sum, count) => sum + count, 0)))}
             </Text>
-            {pollData.isQuiz && pollUserSelections.length > 0 && pollAnswerCorrect !== null && (
-              <Text style={[styles.pollMetaText, { color: pollAnswerCorrect ? '#10B981' : '#EF4444' }]}>
-                {pollAnswerCorrect ? t('post.poll.correct') : t('post.poll.incorrect')}
-              </Text>
-            )}
+
+            <View style={styles.pollFooterActions}>
+              {pollData.showVoters && pollUserSelections.length > 0 && (
+                <TouchableOpacity
+                  style={styles.pollFooterIconButton}
+                  onPress={() => setShowPollVoters((prev) => !prev)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="people-outline" size={14} color={isCurrentUser ? 'rgba(255,255,255,0.75)' : theme.textSecondary} />
+                </TouchableOpacity>
+              )}
+
+              {pollData.isQuiz && pollUserSelections.length > 0 && pollData.explanation && (
+                <TouchableOpacity
+                  style={styles.pollFooterIconButton}
+                  onPress={() => setShowPollExplanation((prev) => !prev)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="information-circle-outline" size={15} color={isCurrentUser ? 'rgba(255,255,255,0.75)' : theme.textSecondary} />
+                </TouchableOpacity>
+              )}
+
+              {pollData.isQuiz && pollUserSelections.length > 0 && pollAnswerCorrect !== null && (
+                <Text style={[styles.pollMetaText, { color: pollAnswerCorrect ? '#10B981' : '#EF4444' }]}>
+                  {pollAnswerCorrect ? t('post.poll.correct') : t('post.poll.incorrect')}
+                </Text>
+              )}
+            </View>
           </View>
+
+          {pollData.isQuiz && pollUserSelections.length > 0 && pollData.explanation && showPollExplanation && (
+            <View
+              style={[
+                styles.pollExplanationWrap,
+                {
+                  borderColor: isCurrentUser ? 'rgba(255,255,255,0.16)' : theme.border,
+                  backgroundColor: isCurrentUser
+                    ? 'rgba(255,255,255,0.1)'
+                    : (isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'),
+                },
+              ]}
+            >
+              <Text style={[styles.pollExplanationText, { color: isCurrentUser ? 'rgba(255,255,255,0.86)' : theme.textSecondary }]}>
+                {pollData.explanation}
+              </Text>
+            </View>
+          )}
         </View>
       )}
 

@@ -71,6 +71,7 @@ describe('repElections', () => {
 
   it('exposes correct ELECTION_STATUS values', () => {
     expect(repElections.ELECTION_STATUS).toEqual({
+      IDLE: 'idle',
       ACTIVE: 'active',
       COMPLETED: 'completed',
       RESELECTION_PENDING: 'reselection_pending',

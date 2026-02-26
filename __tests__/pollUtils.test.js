@@ -91,6 +91,19 @@ describe('pollUtils', () => {
     expect(isUserPollAnswerCorrect(answeredRight, 'u2')).toBe(true);
   });
 
+  it('locks quiz vote after first answer', () => {
+    const quiz = createPollPayload({
+      question: 'Capital of France?',
+      options: ['Berlin', 'Paris', 'Rome'],
+      isQuiz: true,
+      correctOptionId: 'opt_2',
+    });
+
+    const firstAnswer = applyPollVote(quiz, 'u1', ['opt_1']);
+
+    expect(() => applyPollVote(firstAnswer, 'u1', ['opt_2'])).toThrow('Quiz vote is locked');
+  });
+
   it('parses serialized payload safely', () => {
     const base = createPollPayload({
       question: 'Safe parse',

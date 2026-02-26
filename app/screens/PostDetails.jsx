@@ -71,36 +71,24 @@ const PostDetails = ({ navigation, route }) => {
 
   // Handle going back and updating the parent screen with new reply count
   const handleGoBack = useCallback(() => {
-    // Check if reply count changed and update the parent screens
-    if (currentReplyCount !== (post?.replyCount || 0)) {
-      // Get the parent route to know where we came from
-      const routes = navigation.getState()?.routes;
-      const currentIndex = navigation.getState()?.index;
-      
-      if (currentIndex > 0) {
-        const parentRoute = routes[currentIndex - 1];
-        
-        // Navigate back with params based on where we came from
-        if (parentRoute?.name === 'Profile' || parentRoute?.name === 'MainTabs') {
-          // For tabs, we need to pass to both Home and Profile
-          navigation.navigate('MainTabs', {
-            screen: 'Home',
-            params: {
-              updatedPostId: post?.$id,
-              updatedReplyCount: currentReplyCount,
-            }
-          });
-        } else {
-          navigation.goBack();
-        }
-      } else {
-        navigation.goBack();
-      }
-    } else {
-      navigation.goBack();
+    const hasReplyCountChanged = currentReplyCount !== (post?.replyCount || 0);
+
+    if (hasReplyCountChanged) {
+      onPostUpdate?.({
+        ...post,
+        replyCount: currentReplyCount,
+      });
+
+      // Keep legacy params update support for screens that consume focus params.
+      navigation.setParams({
+        updatedPostId: post?.$id,
+        updatedReplyCount: currentReplyCount,
+      });
     }
+
+    navigation.goBack();
     return true;
-  }, [currentReplyCount, post, navigation]);
+  }, [currentReplyCount, post, navigation, onPostUpdate]);
 
   // Handle Android hardware back button
   useEffect(() => {

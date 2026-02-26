@@ -94,8 +94,11 @@ const Post = () => {
   const [canOthersRepost, setCanOthersRepost] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(null);
   const [pollChoices, setPollChoices] = useState(['', '']);
+  const [pollAllowMultiple, setPollAllowMultiple] = useState(false);
+  const [pollShowVoters, setPollShowVoters] = useState(false);
   const [isQuizPoll, setIsQuizPoll] = useState(false);
   const [correctPollOptionId, setCorrectPollOptionId] = useState('');
+  const [pollExplanation, setPollExplanation] = useState('');
 
   const postTypeOptions = [
     ...POST_TYPE_OPTIONS,
@@ -267,10 +270,14 @@ const Post = () => {
         ? createPollPayload({
             question: topic.trim() || text.trim() || t('post.poll.defaultQuestion'),
             options: pollChoices,
-            allowMultiple: false,
-            maxSelections: 1,
+            allowMultiple: pollAllowMultiple && !isQuizPoll,
+            maxSelections: pollAllowMultiple && !isQuizPoll
+              ? Math.max(1, pollChoices.filter((choice) => choice.trim()).length)
+              : 1,
             isQuiz: isQuizPoll,
             correctOptionId: correctPollOptionId,
+            showVoters: pollShowVoters,
+            explanation: isQuizPoll ? pollExplanation : '',
           })
         : null;
       
@@ -323,8 +330,11 @@ const Post = () => {
       setVisibility('department');
       setCanOthersRepost(true);
       setPollChoices(['', '']);
+      setPollAllowMultiple(false);
+      setPollShowVoters(false);
       setIsQuizPoll(false);
       setCorrectPollOptionId('');
+      setPollExplanation('');
     } catch (error) {
       showAlert({ type: 'error', title: t('common.error'), message: t('post.createError') });
     } finally {
@@ -521,7 +531,7 @@ const Post = () => {
               ))}
 
               <TouchableOpacity
-                style={[styles.pollAddChoiceButton, { borderColor: theme.border, backgroundColor: theme.card }]}
+                style={[styles.pollAddChoiceButton, { borderColor: theme.border, backgroundColor: theme.inputBackground }]}
                 onPress={handleAddPollChoice}
                 disabled={loading}
               >
@@ -547,7 +557,10 @@ const Post = () => {
 
                 <TouchableOpacity
                   style={styles.pollModeItem}
-                  onPress={() => setIsQuizPoll(true)}
+                  onPress={() => {
+                    setIsQuizPoll(true);
+                    setPollAllowMultiple(false);
+                  }}
                 >
                   <Ionicons
                     name={isQuizPoll ? 'checkbox' : 'square-outline'}
@@ -556,6 +569,36 @@ const Post = () => {
                   />
                   <Text style={[styles.pollModeText, { color: theme.text }]}>{t('post.poll.modeQuestion')}</Text>
                 </TouchableOpacity>
+              </View>
+
+              <View style={styles.pollToggleRow}>
+                <View style={[styles.pollToggleItem, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
+                  <View style={styles.pollToggleLabelWrap}>
+                    <Ionicons name="checkbox-outline" size={14} color={theme.primary} />
+                    <Text style={[styles.pollToggleLabel, { color: theme.text }]}>{t('post.poll.multiAnswer')}</Text>
+                  </View>
+                  <Switch
+                    value={pollAllowMultiple && !isQuizPoll}
+                    onValueChange={setPollAllowMultiple}
+                    disabled={loading || isQuizPoll}
+                    trackColor={{ false: theme.border, true: `${theme.primary}88` }}
+                    thumbColor={pollAllowMultiple && !isQuizPoll ? theme.primary : '#f4f3f4'}
+                  />
+                </View>
+
+                <View style={[styles.pollToggleItem, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
+                  <View style={styles.pollToggleLabelWrap}>
+                    <Ionicons name="people-outline" size={14} color={theme.primary} />
+                    <Text style={[styles.pollToggleLabel, { color: theme.text }]}>{t('post.poll.showVoters')}</Text>
+                  </View>
+                  <Switch
+                    value={pollShowVoters}
+                    onValueChange={setPollShowVoters}
+                    disabled={loading}
+                    trackColor={{ false: theme.border, true: `${theme.primary}88` }}
+                    thumbColor={pollShowVoters ? theme.primary : '#f4f3f4'}
+                  />
+                </View>
               </View>
 
               {isQuizPoll && (
@@ -586,6 +629,26 @@ const Post = () => {
                       </TouchableOpacity>
                     );
                   })}
+
+                  <TextInput
+                    style={[
+                      styles.pollExplanationInput,
+                      {
+                        backgroundColor: theme.inputBackground,
+                        borderColor: theme.border,
+                        color: theme.text,
+                      },
+                    ]}
+                    value={pollExplanation}
+                    onChangeText={setPollExplanation}
+                    placeholder={t('post.poll.explanationPlaceholder')}
+                    placeholderTextColor={theme.textSecondary}
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                    maxLength={300}
+                    editable={!loading}
+                  />
                 </View>
               )}
             </View>
@@ -594,7 +657,7 @@ const Post = () => {
           <View style={styles.section}>
             <View style={styles.actionButtonsRow}>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+                style={[styles.actionButton, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}
                 onPress={() => setShowTags(!showTags)}
                 activeOpacity={0.7}
               >
@@ -605,7 +668,7 @@ const Post = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+                style={[styles.actionButton, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}
                 onPress={() => setShowLinks(!showLinks)}
                 activeOpacity={0.7}
               >
@@ -616,7 +679,7 @@ const Post = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+                style={[styles.actionButton, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}
                 onPress={handlePickImages}
                 disabled={loading || images.length >= MAX_IMAGES_PER_POST}
                 activeOpacity={0.7}
@@ -1139,6 +1202,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  pollToggleRow: {
+    marginTop: 12,
+    gap: 8,
+  },
+  pollToggleItem: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pollToggleLabelWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pollToggleLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
   pollCorrectAnswerWrap: {
     marginTop: 12,
   },
@@ -1150,6 +1235,15 @@ const styles = StyleSheet.create({
   },
   pollCorrectAnswerText: {
     flex: 1,
+    fontSize: 14,
+  },
+  pollExplanationInput: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 80,
     fontSize: 14,
   },
   modalContainer: {

@@ -7,11 +7,13 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { getActiveElection, getLatestElection, getClassRepresentatives, getNextSeatNumber, ensureActiveElectionsForAllClasses, ELECTION_STATUS } from '../../database/repElections';
+import { getActiveElection, getLatestElection, getClassRepresentatives, ELECTION_STATUS } from '../../database/repElections';
 import { getMyVote } from '../../database/repVotes';
+import { getClassStudents } from '../../database/users';
 import safeStorage from '../utils/safeStorage';
 
 const DISMISS_KEY = 'rep_popup_dismissed';
+const MIN_CLASS_SIZE_FOR_REP_POPUP = 5;
 
 const useRepDetection = (user) => {
   const [needsRep, setNeedsRep] = useState(false);
@@ -31,24 +33,32 @@ const useRepDetection = (user) => {
     }
 
     try {
-      await ensureActiveElectionsForAllClasses();
       setLoading(true);
 
-      // Check dismissal cache (per dept+stage, expires after 24h)
+      // Check dismissal cache (per dept+stage, expires at next local day)
       const cacheKey = `${DISMISS_KEY}_${department}_${stage}`;
-      const dismissedAt = await safeStorage.getItem(cacheKey);
-      if (dismissedAt) {
-        const elapsed = Date.now() - parseInt(dismissedAt, 10);
-        if (elapsed < 24 * 60 * 60 * 1000) {
+      const snoozeUntil = await safeStorage.getItem(cacheKey);
+      if (snoozeUntil) {
+        const until = parseInt(snoozeUntil, 10);
+        if (Number.isFinite(until) && Date.now() < until) {
           setDismissed(true);
         }
       }
 
       // Get all current reps for this class (from completed elections)
       const reps = await getClassRepresentatives(department, stage);
+      const classStudents = await getClassStudents(department, stage);
+      const stageStudentCount = Array.isArray(classStudents) ? classStudents.length : 0;
       const repIds = reps.map((r) => r.userId);
       setCurrentWinners(repIds);
       setTotalReps(reps.length);
+
+      // Never show popup for very small stages
+      if (stageStudentCount < MIN_CLASS_SIZE_FOR_REP_POPUP) {
+        setNeedsRep(false);
+        setCurrentElection(null);
+        return;
+      }
 
       // Check if there's an active election (status=active only)
       const activeElection = await getActiveElection(department, stage);
@@ -90,7 +100,11 @@ const useRepDetection = (user) => {
     setNeedsRep(false);
     if (department && stage) {
       const cacheKey = `${DISMISS_KEY}_${department}_${stage}`;
-      await safeStorage.setItem(cacheKey, String(Date.now()));
+      const now = new Date();
+      const nextDay = new Date(now);
+      nextDay.setDate(now.getDate() + 1);
+      nextDay.setHours(0, 0, 0, 0);
+      await safeStorage.setItem(cacheKey, String(nextDay.getTime()));
     }
   }, [department, stage]);
 
