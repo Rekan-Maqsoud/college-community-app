@@ -375,6 +375,66 @@ export const clearAllNotifications = async () => {
 };
 
 /**
+ * Dismiss delivered notifications that match a navigation target.
+ * Useful when user opens a chat/post/profile and related notifications
+ * should disappear immediately.
+ */
+export const dismissPresentedNotificationsByTarget = async ({
+  chatId = null,
+  postId = null,
+  senderId = null,
+  types = [],
+} = {}) => {
+  try {
+    const activeTypes = Array.isArray(types)
+      ? types.filter((value) => typeof value === 'string' && value.trim().length > 0)
+      : [];
+
+    const delivered = await Notifications.getPresentedNotificationsAsync();
+    if (!Array.isArray(delivered) || delivered.length === 0) {
+      return 0;
+    }
+
+    const shouldDismiss = (notification) => {
+      const data = notification?.request?.content?.data || {};
+
+      if (chatId && data.chatId === chatId) {
+        return true;
+      }
+
+      if (postId && data.postId === postId) {
+        return true;
+      }
+
+      if (senderId && data.senderId === senderId && data.type === 'follow') {
+        return true;
+      }
+
+      if (activeTypes.length > 0 && activeTypes.includes(data.type)) {
+        if (postId && data.postId === postId) return true;
+        if (senderId && data.senderId === senderId) return true;
+        if (!postId && !senderId && !chatId) return true;
+      }
+
+      return false;
+    };
+
+    const matching = delivered.filter(shouldDismiss);
+    if (matching.length === 0) {
+      return 0;
+    }
+
+    await Promise.all(
+      matching.map((notification) => Notifications.dismissNotificationAsync(notification.request.identifier))
+    );
+
+    return matching.length;
+  } catch (error) {
+    return 0;
+  }
+};
+
+/**
  * Add a listener for received notifications (when app is in foreground)
  * @param {Function} callback Function to call when notification is received
  * @returns {Object} Subscription that can be removed

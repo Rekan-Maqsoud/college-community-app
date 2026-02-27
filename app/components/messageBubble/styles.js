@@ -275,7 +275,6 @@ const styles = StyleSheet.create({
   reactionQuickRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
@@ -319,7 +318,7 @@ const styles = StyleSheet.create({
   },
   reactionPickerContent: {
     width: '100%',
-    maxWidth: wp(70),
+    maxWidth: wp(90),
     borderRadius: borderRadius.lg,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
@@ -331,10 +330,9 @@ const styles = StyleSheet.create({
   },
   reactionPickerRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
+    alignItems: 'center',
+    paddingBottom: spacing.xs,
   },
   userMentionText: {
     fontWeight: '600',

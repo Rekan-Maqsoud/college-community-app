@@ -25,7 +25,6 @@ import {
   POST_TYPE_OPTIONS,
   DEPARTMENTS,
   getStageOptionsForDepartment,
-  isExtendedStageDepartment,
   VALIDATION_RULES,
   MAX_IMAGES_PER_POST,
 } from '../constants/postConstants';
@@ -87,14 +86,13 @@ const CreatePost = ({ navigation, route }) => {
     }
   }, [user]);
 
+  const stageOptions = getStageOptionsForDepartment(department);
+
   useEffect(() => {
-    const allowExtendedStages = isExtendedStageDepartment(department);
-    if (!allowExtendedStages && (stage === 'stage_5' || stage === 'stage_6')) {
+    if (stage && !stageOptions.some((option) => option.value === stage)) {
       setStage('');
     }
-  }, [department, stage]);
-
-  const stageOptions = getStageOptionsForDepartment(department);
+  }, [stage, stageOptions]);
 
   const visibilityOptions = ['department', 'major', 'public'];
 

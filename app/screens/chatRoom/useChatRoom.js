@@ -259,6 +259,19 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     }
   }, [chat?.$id, reactionDefaults, user?.$id]);
 
+  const handleReloadReactionDefaults = useCallback(async () => {
+    if (!user?.$id || !chat?.$id) {
+      return;
+    }
+
+    try {
+      const defaults = await getReactionDefaults(user.$id, chat.$id);
+      setReactionDefaultsState(defaults || DEFAULT_REACTION_SET);
+    } catch (error) {
+      setReactionDefaultsState(DEFAULT_REACTION_SET);
+    }
+  }, [chat?.$id, user?.$id]);
+
   const checkPermissions = async () => {
     try {
       const hasPermission = await canUserSendMessage(chat.$id, user.$id);
@@ -1040,6 +1053,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     handleVotePollMessage,
     handleToggleReaction,
     handleUpdateReactionDefaults,
+    handleReloadReactionDefaults,
     handleVisitProfile,
     handleBlockUser,
     handleClearChat,

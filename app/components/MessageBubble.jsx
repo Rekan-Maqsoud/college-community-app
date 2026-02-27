@@ -14,6 +14,7 @@ import {
   UIManager,
   Platform as RNPlatform,
   Linking,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -1762,7 +1763,11 @@ const MessageBubble = ({
             { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' }
           ]}>
             {onToggleReaction && (
-              <View style={styles.reactionQuickRow}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.reactionQuickRow}
+              >
                 {quickReactions.map((emoji) => (
                   <TouchableOpacity
                     key={emoji}
@@ -1788,7 +1793,7 @@ const MessageBubble = ({
                     <Ionicons name="settings-outline" size={moderateScale(16)} color={theme.textSecondary} />
                   </TouchableOpacity>
                 )}
-              </View>
+              </ScrollView>
             )}
             {actionButtons.map((btn, index) => (
               <TouchableOpacity
@@ -1839,7 +1844,11 @@ const MessageBubble = ({
               {t('chats.addReaction')}
             </Text>
 
-            <View style={styles.reactionPickerRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.reactionPickerRow}
+            >
               {quickReactions.map((emoji) => (
                 <TouchableOpacity
                   key={`picker-${emoji}`}
@@ -1850,7 +1859,20 @@ const MessageBubble = ({
                   <Text style={styles.reactionEmojiText}>{emoji}</Text>
                 </TouchableOpacity>
               ))}
-            </View>
+
+              {onEditReactions && (
+                <TouchableOpacity
+                  style={styles.reactionQuickIcon}
+                  onPress={() => {
+                    setReactionPickerVisible(false);
+                    setTimeout(onEditReactions, 100);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="settings-outline" size={moderateScale(16)} color={theme.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </ScrollView>
 
           </Pressable>
         </Pressable>

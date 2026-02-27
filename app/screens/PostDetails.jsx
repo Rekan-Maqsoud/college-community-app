@@ -22,7 +22,8 @@ import { uploadImage } from '../../services/imgbbService';
 import { createReply, getRepliesByPost, updateReply, deleteReply, markReplyAsAccepted, unmarkReplyAsAccepted } from '../../database/replies';
 import { getUserDocument } from '../../database/auth';
 import { incrementPostViewCount, getPost } from '../../database/posts';
-import { notifyPostReply } from '../../database/notifications';
+import { notifyPostReply, markNotificationsAsReadByContext } from '../../database/notifications';
+import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
 import ImageGalleryModal from './postDetails/ImageGalleryModal';
 import ReplyItem from './postDetails/ReplyItem';
 import ReplyInputSection from './postDetails/ReplyInputSection';
@@ -126,6 +127,18 @@ const PostDetails = ({ navigation, route }) => {
       trackView();
     }
   }, [post?.$id]);
+
+  useEffect(() => {
+    if (!user?.$id || !post?.$id) return;
+
+    markNotificationsAsReadByContext(user.$id, {
+      postId: post.$id,
+    }).catch(() => {});
+
+    dismissPresentedNotificationsByTarget({
+      postId: post.$id,
+    }).catch(() => {});
+  }, [user?.$id, post?.$id]);
 
   const trackView = async () => {
     if (!post?.$id || !user?.$id || post.userId === user.$id) return;

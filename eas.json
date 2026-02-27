@@ -16,6 +16,10 @@
     },
     "production": {
       "channel": "production",
+      "env": {
+        "NODE_ENV": "production",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      },
       "android": {
         "buildType": "app-bundle"
       }

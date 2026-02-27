@@ -1008,7 +1008,6 @@ export const createChat = async (chatData) => {
             {
                 ...chatData,
                 participants,
-                createdBy: currentUserId,
             },
             buildParticipantPermissions(participants)
         );
@@ -1472,7 +1471,11 @@ export const sendMessage = async (chatId, messageData) => {
             buildParticipantPermissions(chat.participants || [senderId])
         );
 
-        const currentCount = chat.messageCount || 0;
+        const latestChatDoc = await getChat(chatId, true);
+        const currentCount = Math.max(
+            Number(chat.messageCount || 0),
+            Number(latestChatDoc?.messageCount || 0)
+        );
         
         // Build smart lastMessage preview based on message type
         let lastMessagePreview = '';

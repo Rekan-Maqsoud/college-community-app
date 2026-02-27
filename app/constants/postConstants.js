@@ -1,3 +1,5 @@
+import { universitiesData } from '../data/universitiesData';
+
 export const POST_TYPES = {
   QUESTION: 'question',
   DISCUSSION: 'discussion',
@@ -52,17 +54,66 @@ export const STAGES = [
 
 const EXTENDED_STAGE_KEYWORDS = ['medical', 'dental', 'law'];
 
+const DEPARTMENT_STAGE_YEARS = (() => {
+  const stageYearsByDepartment = {};
+
+  Object.values(universitiesData).forEach((university) => {
+    const colleges = university?.colleges || {};
+    Object.values(colleges).forEach((college) => {
+      const departments = Array.isArray(college?.departments) ? college.departments : [];
+      departments.forEach((departmentEntry) => {
+        const departmentKey = typeof departmentEntry === 'string'
+          ? departmentEntry
+          : departmentEntry?.key;
+
+        if (!departmentKey) {
+          return;
+        }
+
+        const requestedYears = typeof departmentEntry === 'object'
+          ? Number(departmentEntry?.years)
+          : 4;
+        const normalizedYears = Number.isFinite(requestedYears)
+          ? Math.max(1, Math.min(6, Math.trunc(requestedYears)))
+          : 4;
+
+        stageYearsByDepartment[departmentKey] = Math.max(
+          stageYearsByDepartment[departmentKey] || 0,
+          normalizedYears,
+        );
+      });
+    });
+  });
+
+  return stageYearsByDepartment;
+})();
+
+const getDepartmentStageYears = (departmentKey) => {
+  if (!departmentKey) {
+    return 4;
+  }
+
+  const mappedYears = DEPARTMENT_STAGE_YEARS[departmentKey];
+  if (mappedYears) {
+    return mappedYears;
+  }
+
+  const normalizedDepartment = departmentKey.toLowerCase();
+  return EXTENDED_STAGE_KEYWORDS.some((keyword) => normalizedDepartment.includes(keyword))
+    ? 6
+    : 4;
+};
+
 export const isExtendedStageDepartment = (departmentKey) => {
-  if (!departmentKey) return false;
-  const normalized = departmentKey.toLowerCase();
-  return EXTENDED_STAGE_KEYWORDS.some((keyword) => normalized.includes(keyword));
+  return getDepartmentStageYears(departmentKey) > 4;
 };
 
 export const getStageOptionsForDepartment = (departmentKey) => {
-  const allowExtendedStages = isExtendedStageDepartment(departmentKey);
+  const maxStage = getDepartmentStageYears(departmentKey);
   return STAGES.filter((stage) => {
-    if (stage.value === 'stage_5' || stage.value === 'stage_6') {
-      return allowExtendedStages;
+    if (stage.value.startsWith('stage_')) {
+      const stageNumber = Number(stage.value.replace('stage_', ''));
+      return stageNumber <= maxStage;
     }
     return true;
   });

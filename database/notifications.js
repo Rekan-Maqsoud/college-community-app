@@ -788,3 +788,83 @@ export const getNotificationsCursor = async (userId, limit = 20, afterCursor = n
         return { documents: [], lastCursor: null, hasMore: false };
     }
 };
+
+/**
+ * Mark matching notifications as read for a user.
+ * Supports efficient contextual dismissal when user opens target content.
+ *
+ * @param {string} userId
+ * @param {Object} filters
+ * @param {string|null} filters.postId
+ * @param {string|null} filters.senderId
+ * @param {Array<string>} filters.types
+ * @returns {Promise<number>} Number of notifications marked as read
+ */
+export const markNotificationsAsReadByContext = async (userId, filters = {}) => {
+    try {
+        if (!userId || typeof userId !== 'string') {
+            return 0;
+        }
+
+        const currentUserId = await getAuthenticatedUserId();
+        if (currentUserId !== userId) {
+            return 0;
+        }
+
+        if (!config.notificationsCollectionId || !config.databaseId) {
+            return 0;
+        }
+
+        const { postId = null, senderId = null } = filters || {};
+        const types = Array.isArray(filters?.types)
+            ? filters.types.filter((type) => typeof type === 'string' && type.trim().length > 0)
+            : [];
+
+        const queries = [
+            Query.equal('userId', userId),
+            Query.equal('isRead', false),
+            Query.limit(100),
+        ];
+
+        if (postId) {
+            queries.push(Query.equal('postId', postId));
+        }
+
+        if (senderId) {
+            queries.push(Query.equal('senderId', senderId));
+        }
+
+        if (types.length > 0) {
+            queries.push(Query.equal('type', types));
+        }
+
+        const result = await databases.listDocuments(
+            config.databaseId,
+            config.notificationsCollectionId,
+            queries
+        );
+
+        const unread = result?.documents || [];
+        if (unread.length === 0) {
+            return 0;
+        }
+
+        await Promise.all(
+            unread.map((notification) =>
+                databases.updateDocument(
+                    config.databaseId,
+                    config.notificationsCollectionId,
+                    notification.$id,
+                    { isRead: true }
+                )
+            )
+        );
+
+        await unreadCountCacheManager.invalidateNotificationUnreadCount(userId);
+        await notificationsCacheManager.invalidateUserNotifications(userId);
+
+        return unread.length;
+    } catch (error) {
+        return 0;
+    }
+};

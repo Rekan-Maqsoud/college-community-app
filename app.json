@@ -6,7 +6,7 @@
       "collegecommunity",
       "appwrite-callback-6973c51d0000bdd71f7a"
     ],
-    "version": "1.0.7",
+    "version": "1.0.8",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -122,6 +122,7 @@
         }
       ],
       "expo-asset",
+      "@sentry/react-native/expo",
       "@react-native-firebase/app",
       "@react-native-firebase/auth"
     ],

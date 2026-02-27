@@ -214,6 +214,7 @@ export const config = {
     lectureGuardEndpoint: process.env.EXPO_PUBLIC_LECTURE_GUARD_ENDPOINT,
     voiceMessagesStorageId: process.env.EXPO_PUBLIC_APPWRITE_VOICE_MESSAGES_STORAGE_ID,
     postReportsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_POST_REPORTS_COLLECTION_ID,
+    suggestionsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_SUGGESTIONS_COLLECTION_ID,
     reportReviewEndpoint: process.env.EXPO_PUBLIC_REPORT_REVIEW_ENDPOINT,
     repElectionsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_REP_ELECTIONS_COLLECTION_ID,
     repVotesCollectionId: process.env.EXPO_PUBLIC_APPWRITE_REP_VOTES_COLLECTION_ID,

@@ -61,6 +61,8 @@ const collectionEnvMap = {
     process.env.APPWRITE_LECTURE_ASSETS_COLLECTION_ID || process.env.EXPO_PUBLIC_APPWRITE_LECTURE_ASSETS_COLLECTION_ID,
   lectureComments:
     process.env.APPWRITE_LECTURE_COMMENTS_COLLECTION_ID || process.env.EXPO_PUBLIC_APPWRITE_LECTURE_COMMENTS_COLLECTION_ID,
+  suggestions:
+    process.env.APPWRITE_SUGGESTIONS_COLLECTION_ID || process.env.EXPO_PUBLIC_APPWRITE_SUGGESTIONS_COLLECTION_ID,
 };
 
 const policyMap = {
@@ -80,6 +82,7 @@ const policyMap = {
   lectureAssets: { allowBroadReadRows: true, requireRowSecurity: true },
   lectureComments: { allowBroadReadRows: true, requireRowSecurity: true },
   lectureMemberships: { allowBroadReadRows: false, requireRowSecurity: true },
+  suggestions: { allowBroadReadRows: false, requireRowSecurity: true },
 };
 
 const broadRolePatterns = [/\("any"\)/i, /\("users"\)/i, /\("guests"\)/i];

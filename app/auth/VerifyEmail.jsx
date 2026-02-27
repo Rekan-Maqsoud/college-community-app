@@ -38,6 +38,18 @@ import {
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 
+const getAcademicChangesCountFromProfileViews = (profileViews) => {
+  if (!profileViews) return 0;
+
+  try {
+    const parsed = JSON.parse(profileViews);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return 0;
+    return Number(parsed.academicChangesCount) || 0;
+  } catch (e) {
+    return 0;
+  }
+};
+
 const VerifyEmail = ({ route, navigation }) => {
   const { email, expiresAt, formData } = route.params || {};
   const [isVerifying, setIsVerifying] = useState(false);
@@ -208,6 +220,7 @@ const VerifyEmail = ({ route, navigation }) => {
       const completeUserData = await getCompleteUserData();
       
       if (completeUserData) {
+        const academicChangesCount = getAcademicChangesCountFromProfileViews(completeUserData.profileViews);
         const userData = {
           $id: completeUserData.$id,
           email: completeUserData.email,
@@ -224,6 +237,7 @@ const VerifyEmail = ({ route, navigation }) => {
           followingCount: completeUserData.followingCount || 0,
           isEmailVerified: true,
           lastAcademicUpdate: completeUserData.lastAcademicUpdate || null,
+          academicChangesCount,
         };
         
         await setUserData(userData);

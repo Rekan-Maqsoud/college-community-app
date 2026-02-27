@@ -35,6 +35,18 @@ import {
 import { borderRadius, shadows } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 
+const getAcademicChangesCountFromProfileViews = (profileViews) => {
+  if (!profileViews) return 0;
+
+  try {
+    const parsed = JSON.parse(profileViews);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return 0;
+    return Number(parsed.academicChangesCount) || 0;
+  } catch (e) {
+    return 0;
+  }
+};
+
 const SignUp = ({ navigation, route }) => {
   const oauthMode = route?.params?.oauthMode || false;
   const oauthEmail = route?.params?.oauthEmail || '';
@@ -386,6 +398,7 @@ const SignUp = ({ navigation, route }) => {
         await clearPendingOAuthSignup();
         
         if (result.success) {
+          const academicChangesCount = getAcademicChangesCountFromProfileViews(result.userDoc.profileViews);
           const userData = {
             $id: result.userDoc.$id,
             email: result.userDoc.email,
@@ -402,6 +415,7 @@ const SignUp = ({ navigation, route }) => {
             followingCount: result.userDoc.followingCount || 0,
             isEmailVerified: true,
             lastAcademicUpdate: result.userDoc.lastAcademicUpdate || null,
+            academicChangesCount,
           };
           
           await setUserData(userData);

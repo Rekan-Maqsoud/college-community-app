@@ -20,6 +20,7 @@ import { wp, normalize, spacing } from './utils/responsive';
 import { borderRadius, shadows } from './theme/designTokens';
 import realtimeDebugLogger from './utils/realtimeDebugLogger';
 import telemetry from './utils/telemetry';
+import { initCrashReporting, setCrashReportingUser } from './utils/crashReporting';
 import { getCurrentUser, getUserDocument, signOut } from '../database/auth';
 import { getAllUserChats } from '../database/chatHelpers';
 import { getTotalUnreadCount, getChat } from '../database/chats';
@@ -32,7 +33,9 @@ import {
   addNotificationResponseListener,
   checkInitialNotification,
   setBadgeCount,
+  dismissPresentedNotificationsByTarget,
 } from '../services/pushNotificationService';
+import { markNotificationsAsReadByContext } from '../database/notifications';
 import { ensureFirebaseAuth } from '../services/firebase';
 
 import SignIn from './auth/SignIn';
@@ -51,6 +54,7 @@ import ChangePassword from './screens/ChangePassword';
 import ProfileSettings from './screens/settings/ProfileSettings';
 import PersonalizationSettings from './screens/settings/PersonalizationSettings';
 import NotificationSettings from './screens/settings/NotificationSettings';
+import SuggestionSettings from './screens/settings/SuggestionSettings';
 import AccountSettings from './screens/settings/AccountSettings';
 import ChatSettings from './screens/settings/ChatSettings';
 import BlockList from './screens/settings/BlockList';
@@ -65,6 +69,8 @@ import { RepVotingScreen, ReselectionRequestScreen } from './screens/representat
 import Notifications from './screens/Notifications';
 import LectureChannel from './screens/LectureChannel';
 import { NewChat, UserSearch, CreateGroup, GroupSettings, ForwardMessage, AddMembers } from './screens/chats';
+
+initCrashReporting();
 
 const shouldIgnoreAppwriteServerError = (args) => {
   if (!Array.isArray(args)) {
@@ -361,6 +367,11 @@ const MainStack = () => {
       <Stack.Screen 
         name="NotificationSettings" 
         component={NotificationSettings}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="SuggestionSettings"
+        component={SuggestionSettings}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
@@ -718,6 +729,36 @@ const NotificationSetup = ({ navigationRef }) => {
     if (!navigationRef.current || !data) return;
     const type = data?.type || '';
 
+    const runDismissByContext = async () => {
+      const currentUserId = user?.$id;
+      if (!currentUserId) return;
+
+      if (data.chatId) {
+        await dismissPresentedNotificationsByTarget({ chatId: data.chatId });
+        return;
+      }
+
+      if (data.postId) {
+        await Promise.all([
+          dismissPresentedNotificationsByTarget({ postId: data.postId }),
+          markNotificationsAsReadByContext(currentUserId, { postId: data.postId }),
+        ]);
+        return;
+      }
+
+      if (type === 'follow' && data.senderId) {
+        await Promise.all([
+          dismissPresentedNotificationsByTarget({ senderId: data.senderId, types: ['follow'] }),
+          markNotificationsAsReadByContext(currentUserId, {
+            senderId: data.senderId,
+            types: ['follow'],
+          }),
+        ]);
+      }
+    };
+
+    runDismissByContext().catch(() => {});
+
     if ((type === 'lecture_upload' || type === 'lecture_mention') && data.postId) {
       navigationRef.current.navigate('LectureChannel', { channelId: data.postId });
     } else if (data.postId) {
@@ -737,7 +778,7 @@ const NotificationSetup = ({ navigationRef }) => {
     } else if (type) {
       navigationRef.current.navigate('Notifications');
     }
-  }, [navigationRef, navigateToChat]);
+  }, [navigationRef, navigateToChat, user?.$id]);
 
   // Create Android notification channel at app startup (independent of permission)
   useEffect(() => {
@@ -986,6 +1027,16 @@ const LastSeenTracker = () => {
   return null;
 };
 
+const CrashReportingUserSync = () => {
+  const { user } = useUser();
+
+  useEffect(() => {
+    setCrashReportingUser(user || null);
+  }, [user]);
+
+  return null;
+};
+
 // Component to handle deep links for password recovery
 const DeepLinkHandler = ({ navigationRef, pendingRouteRef }) => {
   useEffect(() => {
@@ -1117,6 +1168,7 @@ export default function App() {
                         }
                       }}>
                       <RealtimeLifecycleManager />
+                      <CrashReportingUserSync />
                       <LastSeenTracker />
                       <NotificationSetup navigationRef={navigationRef} />
                       <DeepLinkHandler navigationRef={navigationRef} pendingRouteRef={pendingRouteRef} />

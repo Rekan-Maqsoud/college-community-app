@@ -19,17 +19,41 @@ export const MUTE_DURATIONS = {
 };
 
 export const DEFAULT_REACTION_SET = ['👍', '❤️', '😂', '😡', '😕'];
+export const MAX_REACTION_DEFAULTS = 7;
+
+const containsEmoji = (value) => /\p{Extended_Pictographic}/u.test(value);
+
+const hasLettersOrNumbers = (value) => /[\p{L}\p{N}]/u.test(value);
+
+const isValidReactionEmoji = (value) => {
+    if (typeof value !== 'string') {
+        return false;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return false;
+    }
+
+    if (hasLettersOrNumbers(trimmed)) {
+        return false;
+    }
+
+    return containsEmoji(trimmed);
+};
 
 const parseReactionDefaults = (value) => {
     if (Array.isArray(value)) {
-        return value.filter(Boolean);
+        const normalizedArray = normalizeReactionDefaults(value);
+        return normalizedArray.length > 0 ? normalizedArray : DEFAULT_REACTION_SET;
     }
 
     if (typeof value === 'string') {
         try {
             const parsed = JSON.parse(value);
             if (Array.isArray(parsed)) {
-                return parsed.filter(Boolean);
+                const normalizedParsed = normalizeReactionDefaults(parsed);
+                return normalizedParsed.length > 0 ? normalizedParsed : DEFAULT_REACTION_SET;
             }
         } catch (error) {
             return DEFAULT_REACTION_SET;
@@ -41,8 +65,9 @@ const parseReactionDefaults = (value) => {
 
 const normalizeReactionDefaults = (value) => {
     const list = Array.isArray(value) ? value : [];
-    const unique = Array.from(new Set(list.map(item => `${item}`.trim()).filter(Boolean)));
-    return unique.length > 0 ? unique : DEFAULT_REACTION_SET;
+    const unique = Array.from(new Set(list.map(item => `${item}`.trim()).filter(isValidReactionEmoji)));
+    const limited = unique.slice(0, MAX_REACTION_DEFAULTS);
+    return limited.length > 0 ? limited : DEFAULT_REACTION_SET;
 };
 
 /**
@@ -137,6 +162,66 @@ export const updateReactionDefaults = async (userId, chatId, reactions = []) => 
     await updateUserChatSettings(userId, chatId, {
         reactionDefaults: JSON.stringify(normalized),
     });
+    return normalized;
+};
+
+export const updateReactionDefaultsForAllChats = async (userId, reactions = [], currentChatId = null) => {
+    const normalized = normalizeReactionDefaults(reactions);
+
+    if (!userId) {
+        throw new Error('User ID is required');
+    }
+
+    await assertActorIdentity(userId);
+
+    if (!config.userChatSettingsCollectionId) {
+        if (currentChatId) {
+            await updateReactionDefaults(userId, currentChatId, normalized);
+        }
+        return normalized;
+    }
+
+    let offset = 0;
+    let hasMore = true;
+    const existingChatIds = new Set();
+
+    while (hasMore) {
+        const settings = await databases.listDocuments(
+            config.databaseId,
+            config.userChatSettingsCollectionId,
+            [
+                Query.equal('userId', userId),
+                Query.limit(100),
+                Query.offset(offset),
+            ]
+        );
+
+        const documents = settings.documents || [];
+        if (documents.length === 0) {
+            hasMore = false;
+            break;
+        }
+
+        await Promise.all(
+            documents.map(async (item) => {
+                existingChatIds.add(item.chatId);
+                await databases.updateDocument(
+                    config.databaseId,
+                    config.userChatSettingsCollectionId,
+                    item.$id,
+                    { reactionDefaults: JSON.stringify(normalized) }
+                );
+            })
+        );
+
+        offset += documents.length;
+        hasMore = documents.length === 100;
+    }
+
+    if (currentChatId && !existingChatIds.has(currentChatId)) {
+        await updateReactionDefaults(userId, currentChatId, normalized);
+    }
+
     return normalized;
 };
 

@@ -52,6 +52,14 @@ const Settings = ({ navigation }) => {
       screen: 'NotificationSettings',
     },
     {
+      id: 'suggestions',
+      title: t('settings.suggestions'),
+      description: t('settings.suggestionsDesc'),
+      icon: 'bulb-outline',
+      color: theme.primary,
+      screen: 'SuggestionSettings',
+    },
+    {
       id: 'blocklist',
       title: t('settings.blockedUsers') || 'Blocked Users',
       description: t('settings.blockedUsersDesc') || 'Manage your blocked users list',

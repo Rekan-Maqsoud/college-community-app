@@ -17,6 +17,31 @@ export const UserProvider = ({ children }) => {
     return text;
   };
 
+  const parseProfileMetadata = (profileViews) => {
+    const defaults = {
+      links: null,
+      visibility: 'everyone',
+      academicChangesCount: 0,
+    };
+
+    if (!profileViews) return defaults;
+
+    try {
+      const parsed = JSON.parse(profileViews);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return defaults;
+      }
+
+      return {
+        links: parsed.links || null,
+        visibility: parsed.visibility || 'everyone',
+        academicChangesCount: Number(parsed.academicChangesCount) || 0,
+      };
+    } catch (e) {
+      return defaults;
+    }
+  };
+
   useEffect(() => {
     initializeUser();
   }, []);
@@ -35,14 +60,7 @@ export const UserProvider = ({ children }) => {
         
         if (completeUserData) {
           // Parse socialLinks from profileViews field (stored as JSON string)
-          let socialLinksData = { links: null, visibility: 'everyone' };
-          if (completeUserData.profileViews) {
-            try {
-              socialLinksData = JSON.parse(completeUserData.profileViews);
-            } catch (e) {
-              socialLinksData = { links: null, visibility: 'everyone' };
-            }
-          }
+          const socialLinksData = parseProfileMetadata(completeUserData.profileViews);
           
           const userData = {
             $id: completeUserData.$id,
@@ -63,6 +81,7 @@ export const UserProvider = ({ children }) => {
             lastAcademicUpdate: completeUserData.lastAcademicUpdate || null,
             socialLinks: socialLinksData.links || null,
             socialLinksVisibility: socialLinksData.visibility || 'everyone',
+            academicChangesCount: socialLinksData.academicChangesCount || 0,
             blockedUsers: completeUserData.blockedUsers || [],
             chatBlockedUsers: completeUserData.chatBlockedUsers || [],
           };
@@ -110,14 +129,7 @@ export const UserProvider = ({ children }) => {
         
         if (completeUserData) {
           // Parse socialLinks from profileViews field (stored as JSON string)
-          let socialLinksData = { links: null, visibility: 'everyone' };
-          if (completeUserData.profileViews) {
-            try {
-              socialLinksData = JSON.parse(completeUserData.profileViews);
-            } catch (e) {
-              socialLinksData = { links: null, visibility: 'everyone' };
-            }
-          }
+          const socialLinksData = parseProfileMetadata(completeUserData.profileViews);
           
           const userData = {
             $id: completeUserData.$id,
@@ -138,6 +150,7 @@ export const UserProvider = ({ children }) => {
             lastAcademicUpdate: completeUserData.lastAcademicUpdate || null,
             socialLinks: socialLinksData.links || null,
             socialLinksVisibility: socialLinksData.visibility || 'everyone',
+            academicChangesCount: socialLinksData.academicChangesCount || 0,
             blockedUsers: completeUserData.blockedUsers || [],
             chatBlockedUsers: completeUserData.chatBlockedUsers || [],
           };
@@ -220,10 +233,13 @@ export const UserProvider = ({ children }) => {
         if (updates.gender !== undefined) appwriteUpdates.gender = updates.gender;
         
         // Store socialLinks and visibility as JSON in profileViews field
-        if (updates.socialLinks !== undefined || updates.socialLinksVisibility !== undefined) {
+        if (updates.socialLinks !== undefined || updates.socialLinksVisibility !== undefined || updates.academicChangesCount !== undefined) {
           const socialLinksData = {
             links: updates.socialLinks !== undefined ? updates.socialLinks : updatedData.socialLinks,
             visibility: updates.socialLinksVisibility !== undefined ? updates.socialLinksVisibility : updatedData.socialLinksVisibility,
+            academicChangesCount: updates.academicChangesCount !== undefined
+              ? updates.academicChangesCount
+              : (updatedData.academicChangesCount || 0),
           };
           appwriteUpdates.profileViews = JSON.stringify(socialLinksData);
         }

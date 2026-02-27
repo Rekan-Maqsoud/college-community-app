@@ -34,7 +34,6 @@ import {
   POST_TYPE_OPTIONS,
   POST_ICONS,
   getStageOptionsForDepartment,
-  isExtendedStageDepartment,
   MAX_IMAGES_PER_POST,
 } from '../constants/postConstants';
 import useLayout from '../hooks/useLayout';
@@ -112,15 +111,13 @@ const Post = () => {
     }
   }, [user]);
 
+  const stageOptions = getStageOptionsForDepartment(department || user?.department || '');
+
   useEffect(() => {
-    const departmentKey = department || user?.department || '';
-    const allowExtendedStages = isExtendedStageDepartment(departmentKey);
-    if (!allowExtendedStages && (stage === 'stage_5' || stage === 'stage_6')) {
+    if (stage && !stageOptions.some((option) => option.value === stage)) {
       setStage('');
     }
-  }, [department, user, stage]);
-
-  const stageOptions = getStageOptionsForDepartment(department || user?.department || '');
+  }, [stage, stageOptions]);
 
   const cycleVisibility = () => {
     const currentIndex = visibilityOptions.indexOf(visibility);

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { captureException } from '../utils/crashReporting';
 
 // Note: ErrorBoundary is a class component and cannot use hooks for translations.
 // Basic multi-language strings are hardcoded here as a fallback when the app crashes.
@@ -19,7 +20,10 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // Log to error reporting service in production
+    captureException(error, {
+      componentStack: errorInfo?.componentStack,
+      source: 'ErrorBoundary',
+    });
   }
 
   render() {

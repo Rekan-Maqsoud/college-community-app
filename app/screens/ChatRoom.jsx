@@ -38,6 +38,7 @@ import useLayout from '../hooks/useLayout';
 import PostViewModal from '../components/PostViewModal';
 import { isUserOnline, getLastSeenText } from '../utils/onlineStatus';
 import { getUserById } from '../../database/users';
+import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
 
 const ChatRoom = ({ route, navigation }) => {
   const { chat } = route.params;
@@ -91,6 +92,7 @@ const ChatRoom = ({ route, navigation }) => {
     handleRetryMessage,
     handleVotePollMessage,
     handleToggleReaction,
+    handleReloadReactionDefaults,
     handleVisitProfile,
     handleBlockUser,
     handleClearChat,
@@ -152,6 +154,11 @@ const ChatRoom = ({ route, navigation }) => {
   const otherUserOnline = showActivityStatus && isUserOnline(otherUserLastSeen);
 
   useEffect(() => {
+    if (!chat?.$id) return;
+    dismissPresentedNotificationsByTarget({ chatId: chat.$id }).catch(() => {});
+  }, [chat?.$id]);
+
+  useEffect(() => {
     if (chat.type !== 'private' || !showActivityStatus) return;
     const otherUserId = chat.otherUser?.$id;
     if (!otherUserId) return;
@@ -186,6 +193,14 @@ const ChatRoom = ({ route, navigation }) => {
       focusSection: 'reactions',
     });
   }, [chat.$id, navigation]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      handleReloadReactionDefaults();
+    });
+
+    return unsubscribe;
+  }, [handleReloadReactionDefaults, navigation]);
 
   const handlePinnedMessagePress = useCallback((messageId) => {
     setShowPinnedModal(false);

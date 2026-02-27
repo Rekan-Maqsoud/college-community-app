@@ -29,6 +29,7 @@ import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { getUniversityKeys, getCollegesForUniversity, getDepartmentsForCollege, getStagesForDepartment } from '../../data/universitiesData';
 
 const COOLDOWN_DAYS = 30;
+const FREE_ACADEMIC_CHANGES = 2;
 
 const GlassCard = memo(({ children, style, isDarkMode }) => (
   <BlurView
@@ -73,6 +74,7 @@ const ProfileSettings = ({ navigation }) => {
     gender: '',
     profilePicture: '',
     lastAcademicUpdate: null,
+    academicChangesCount: 0,
     socialLinks: {
       instagram: '',
       twitter: '',
@@ -86,6 +88,14 @@ const ProfileSettings = ({ navigation }) => {
   const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   const checkAcademicCooldown = () => {
+    const academicChangesCount = Number(profileData.academicChangesCount) || 0;
+
+    if (academicChangesCount < FREE_ACADEMIC_CHANGES) {
+      setCanEditAcademic(true);
+      setCooldownInfo(null);
+      return;
+    }
+
     if (!profileData.lastAcademicUpdate) {
       setCanEditAcademic(true);
       setCooldownInfo(null);
@@ -140,6 +150,7 @@ const ProfileSettings = ({ navigation }) => {
           gender: user.gender || '',
           profilePicture: user.profilePicture || '',
           lastAcademicUpdate: user.lastAcademicUpdate || null,
+          academicChangesCount: Number(user.academicChangesCount) || 0,
           socialLinks: user.socialLinks || { instagram: '', twitter: '', linkedin: '', github: '', website: '' },
           socialLinksVisibility: user.socialLinksVisibility || 'everyone',
         });
@@ -158,6 +169,7 @@ const ProfileSettings = ({ navigation }) => {
             gender: parsedData.gender || '',
             profilePicture: parsedData.profilePicture || '',
             lastAcademicUpdate: parsedData.lastAcademicUpdate || null,
+            academicChangesCount: Number(parsedData.academicChangesCount) || 0,
             socialLinks: parsedData.socialLinks || { instagram: '', twitter: '', linkedin: '', github: '', website: '' },
             socialLinksVisibility: parsedData.socialLinksVisibility || 'everyone',
           });
@@ -173,12 +185,14 @@ const ProfileSettings = ({ navigation }) => {
     setIsSaving(true);
     try {
       const hasAcademicChanges = 
-        profileData.university !== user.university ||
-        profileData.college !== user.college ||
-        profileData.department !== user.department ||
-        profileData.stage !== user.stage;
+        profileData.university !== (user?.university || '') ||
+        profileData.college !== (user?.college || '') ||
+        profileData.department !== (user?.department || '') ||
+        profileData.stage !== (user?.stage || '');
 
-      if (hasAcademicChanges && !canEditAcademic) {
+      const currentAcademicChangesCount = Number(profileData.academicChangesCount) || 0;
+
+      if (hasAcademicChanges && !canEditAcademic && currentAcademicChangesCount >= FREE_ACADEMIC_CHANGES) {
         showAlert({
           type: 'error',
           title: t('common.error'),
@@ -190,7 +204,12 @@ const ProfileSettings = ({ navigation }) => {
 
       const updatedData = { ...profileData };
       if (hasAcademicChanges) {
-        updatedData.lastAcademicUpdate = new Date().toISOString();
+        const nextAcademicChangesCount = currentAcademicChangesCount + 1;
+        updatedData.academicChangesCount = nextAcademicChangesCount;
+
+        if (nextAcademicChangesCount >= FREE_ACADEMIC_CHANGES) {
+          updatedData.lastAcademicUpdate = new Date().toISOString();
+        }
       }
 
       const success = await updateUser(updatedData);
@@ -210,7 +229,10 @@ const ProfileSettings = ({ navigation }) => {
 
         setProfileData({
           ...updatedData,
-          lastAcademicUpdate: hasAcademicChanges ? updatedData.lastAcademicUpdate : profileData.lastAcademicUpdate
+          lastAcademicUpdate: hasAcademicChanges ? updatedData.lastAcademicUpdate : profileData.lastAcademicUpdate,
+          academicChangesCount: hasAcademicChanges
+            ? (Number(updatedData.academicChangesCount) || 0)
+            : (Number(profileData.academicChangesCount) || 0),
         });
         showAlert({
           type: 'success',

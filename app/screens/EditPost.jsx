@@ -28,7 +28,6 @@ import {
   POST_TYPE_OPTIONS,
   POST_ICONS,
   getStageOptionsForDepartment,
-  isExtendedStageDepartment,
   VALIDATION_RULES,
   MAX_IMAGES_PER_POST,
 } from '../constants/postConstants';
@@ -124,14 +123,14 @@ const EditPost = ({ navigation, route }) => {
     }
   }, []);
 
+  const stageOptions = getStageOptionsForDepartment(department);
+
   useEffect(() => {
-    const allowExtendedStages = isExtendedStageDepartment(department);
-    if (!allowExtendedStages && (stage === 'stage_5' || stage === 'stage_6')) {
+    if (stage && !stageOptions.some((option) => option.value === stage)) {
       setStage('');
     }
-  }, [department, stage]);
+  }, [stage, stageOptions]);
 
-  const stageOptions = getStageOptionsForDepartment(department);
   const postTypeOptions = [
     ...POST_TYPE_OPTIONS,
     { value: POST_TYPES.POLL, labelKey: 'post.types.poll' },

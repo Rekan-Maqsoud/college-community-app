@@ -24,9 +24,17 @@ import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 import safeStorage from '../utils/safeStorage';
-import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification, deleteAllNotifications } from '../../database/notifications';
+import {
+  getNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification,
+  deleteAllNotifications,
+  markNotificationsAsReadByContext,
+} from '../../database/notifications';
 import { useNotifications } from '../hooks/useRealtimeSubscription';
 import PostViewModal from '../components/PostViewModal';
+import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
 
 const NOTIFICATION_TYPES = {
   POST_LIKE: 'post_like',
@@ -618,6 +626,9 @@ const Notifications = ({ navigation }) => {
 
     // Navigate based on notification type
     if (notificationData.postId) {
+      dismissPresentedNotificationsByTarget({ postId: notificationData.postId }).catch(() => {});
+      markNotificationsAsReadByContext(user?.$id, { postId: notificationData.postId }).catch(() => {});
+
       if (notificationData.type === NOTIFICATION_TYPES.LECTURE_UPLOAD || notificationData.type === NOTIFICATION_TYPES.LECTURE_MENTION) {
         navigation.navigate('LectureChannel', {
           channelId: notificationData.postId,
@@ -645,6 +656,13 @@ const Notifications = ({ navigation }) => {
         setPostModalVisible(true);
       }
     } else if (notificationData.senderId) {
+      if (notificationData.type === NOTIFICATION_TYPES.FOLLOW) {
+        dismissPresentedNotificationsByTarget({ senderId: notificationData.senderId, types: [NOTIFICATION_TYPES.FOLLOW] }).catch(() => {});
+        markNotificationsAsReadByContext(user?.$id, {
+          senderId: notificationData.senderId,
+          types: [NOTIFICATION_TYPES.FOLLOW],
+        }).catch(() => {});
+      }
       navigation.navigate('UserProfile', { userId: notificationData.senderId });
     }
   };
@@ -792,6 +810,8 @@ const Notifications = ({ navigation }) => {
     }
 
     // Show post view modal for grouped like notifications
+    dismissPresentedNotificationsByTarget({ postId: group.postId }).catch(() => {});
+    markNotificationsAsReadByContext(user?.$id, { postId: group.postId }).catch(() => {});
     setPostModalPostId(group.postId);
     setPostModalVisible(true);
   };
@@ -861,6 +881,19 @@ const Notifications = ({ navigation }) => {
             <View style={styles.placeholder} />
           )}
         </View>
+
+        {(notifications.length > 0 || unreadCount > 0) && (
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryChip, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.85)', borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
+              <Ionicons name="mail-unread-outline" size={moderateScale(14)} color={theme.primary} />
+              <Text style={[styles.summaryValue, { color: theme.text }]}>{unreadCount}</Text>
+            </View>
+            <View style={[styles.summaryChip, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.85)', borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
+              <Ionicons name="notifications-outline" size={moderateScale(14)} color={theme.textSecondary} />
+              <Text style={[styles.summaryValue, { color: theme.text }]}>{notifications.length}</Text>
+            </View>
+          </View>
+        )}
 
         {isLoading ? (
           <View style={styles.loadingContainer}>
@@ -988,6 +1021,25 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
     gap: spacing.xs,
   },
+  summaryRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  summaryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.sm,
+  },
+  summaryValue: {
+    fontSize: fontSize(12),
+    fontWeight: '700',
+  },
   emptyList: {
     flex: 1,
   },
@@ -996,7 +1048,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    paddingVertical: spacing.sm + 2,
+    paddingVertical: spacing.sm + 3,
     paddingHorizontal: spacing.sm,
   },
   notificationItem: {

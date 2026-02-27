@@ -17,8 +17,9 @@ import { ProfileSkeleton, PostCardSkeleton } from '../components/SkeletonLoader'
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { getPostsByUser, togglePostLike } from '../../database/posts';
 import { getUserById, followUser, unfollowUser, isFollowing as checkIsFollowing, blockUser, blockUserChatOnly } from '../../database/users';
-import { notifyFollow } from '../../database/notifications';
+import { notifyFollow, markNotificationsAsReadByContext } from '../../database/notifications';
 import { createPrivateChat } from '../../database/chatHelpers';
+import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
@@ -142,6 +143,20 @@ const UserProfile = ({ route, navigation }) => {
       }
     };
     checkFollowStatus();
+  }, [currentUser?.$id, userId]);
+
+  useEffect(() => {
+    if (!currentUser?.$id || !userId || currentUser.$id === userId) return;
+
+    markNotificationsAsReadByContext(currentUser.$id, {
+      senderId: userId,
+      types: ['follow'],
+    }).catch(() => {});
+
+    dismissPresentedNotificationsByTarget({
+      senderId: userId,
+      types: ['follow'],
+    }).catch(() => {});
   }, [currentUser?.$id, userId]);
 
   // Fetch user data if not provided

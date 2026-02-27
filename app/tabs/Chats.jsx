@@ -61,6 +61,7 @@ import { useChatList, useRealtimeHealth } from '../hooks/useRealtimeSubscription
 import useAdaptivePolling from '../hooks/useAdaptivePolling';
 import { useFirebaseValue } from '../hooks/useFirebaseRealtime';
 import useLayout from '../hooks/useLayout';
+import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
 
 const Chats = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
@@ -135,6 +136,32 @@ const Chats = ({ navigation }) => {
       ? await decryptChatPreview(payload, user.$id)
       : payload;
     
+    const mergeChatState = (existingChat, incomingChat) => {
+      if (!existingChat) return incomingChat;
+
+      const existingTs = new Date(existingChat.lastMessageAt || existingChat.$updatedAt || existingChat.$createdAt || 0).getTime();
+      const incomingTs = new Date(incomingChat.lastMessageAt || incomingChat.$updatedAt || incomingChat.$createdAt || 0).getTime();
+      const hasFreshMessage = incomingTs >= existingTs;
+
+      return {
+        ...existingChat,
+        ...incomingChat,
+        lastMessage: hasFreshMessage
+          ? (incomingChat.lastMessage ?? existingChat.lastMessage)
+          : existingChat.lastMessage,
+        lastMessageAt: hasFreshMessage
+          ? (incomingChat.lastMessageAt || existingChat.lastMessageAt)
+          : existingChat.lastMessageAt,
+        lastMessageSenderId: hasFreshMessage
+          ? (incomingChat.lastMessageSenderId || existingChat.lastMessageSenderId)
+          : existingChat.lastMessageSenderId,
+        messageCount: Math.max(
+          Number(existingChat.messageCount || 0),
+          Number(incomingChat.messageCount || 0)
+        ),
+      };
+    };
+
     // Update the chat in the appropriate list using functional state updates
     // to avoid stale closure issues
     const updateChatInList = (setList) => {
@@ -144,7 +171,7 @@ const Chats = ({ navigation }) => {
         if (index < 0) return prev;
         found = true;
         const updated = [...prev];
-        updated[index] = { ...updated[index], ...resolvedPayload };
+        updated[index] = mergeChatState(updated[index], resolvedPayload);
         return updated.sort((a, b) => {
           const dateA = new Date(a.lastMessageAt || a.$createdAt || 0);
           const dateB = new Date(b.lastMessageAt || b.$createdAt || 0);
@@ -252,12 +279,16 @@ const Chats = ({ navigation }) => {
         if (updatedAt > 0 && prevUpdatedAt >= updatedAt) continue;
 
         const currentChat = chatMap.get(chatId);
+        const existingCount = Number(currentChat.messageCount || 0);
+        const incomingCount = Number.isFinite(meta.messageCount) ? Number(meta.messageCount) : existingCount;
+        const nextCount = Math.max(existingCount, incomingCount);
+
         let nextChat = {
           ...currentChat,
           lastMessage: typeof meta.lastMessage === 'string' ? meta.lastMessage : (currentChat.lastMessage || ''),
           lastMessageAt: meta.lastMessageAt || currentChat.lastMessageAt || currentChat.$updatedAt || currentChat.$createdAt,
           lastMessageSenderId: meta.lastSenderId || currentChat.lastMessageSenderId || '',
-          messageCount: Number.isFinite(meta.messageCount) ? meta.messageCount : (currentChat.messageCount || 0),
+          messageCount: nextCount,
         };
 
         nextChat = await decryptChatPreview(nextChat, user.$id);
@@ -484,6 +515,8 @@ const Chats = ({ navigation }) => {
   };
 
   const handleChatPress = (chat) => {
+    setUnreadCounts((prev) => ({ ...prev, [chat.$id]: 0 }));
+    dismissPresentedNotificationsByTarget({ chatId: chat.$id }).catch(() => {});
     navigation.navigate('ChatRoom', { chat });
   };
 

@@ -9,4 +9,5 @@ export * from './lectures';
 export * from './lectureCleanup';
 export * from './repElections';
 export * from './repVotes';
+export * from './suggestions';
 export { config } from './config';
