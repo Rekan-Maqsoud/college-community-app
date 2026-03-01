@@ -1,0 +1,223 @@
+{
+  "usageBefore": {
+    "usingLegacyUserID": [],
+    "usingStandardUserId": [
+      {
+        "collectionId": "68ff7914000948dbd572",
+        "collectionName": "posts"
+      },
+      {
+        "collectionId": "68ff7b8f000492463724",
+        "collectionName": "replies"
+      },
+      {
+        "collectionId": "69500c9c000bd955c984",
+        "collectionName": "userChatSettings"
+      },
+      {
+        "collectionId": "69554fd5001d447c8c1c",
+        "collectionName": "notifications"
+      },
+      {
+        "collectionId": "pushtokens",
+        "collectionName": "pushTokens"
+      },
+      {
+        "collectionId": "699734170003f998b862",
+        "collectionName": "Lecture Memberships"
+      },
+      {
+        "collectionId": "69973f680024de7fd9fe",
+        "collectionName": "lectureComments"
+      },
+      {
+        "collectionId": "suggestions",
+        "collectionName": "Suggestions"
+      }
+    ],
+    "usingBoth": []
+  },
+  "usageAfter": {
+    "usingLegacyUserID": [],
+    "usingStandardUserId": [
+      {
+        "collectionId": "68ff7914000948dbd572",
+        "collectionName": "posts"
+      },
+      {
+        "collectionId": "68ff7b8f000492463724",
+        "collectionName": "replies"
+      },
+      {
+        "collectionId": "69500c9c000bd955c984",
+        "collectionName": "userChatSettings"
+      },
+      {
+        "collectionId": "69554fd5001d447c8c1c",
+        "collectionName": "notifications"
+      },
+      {
+        "collectionId": "pushtokens",
+        "collectionName": "pushTokens"
+      },
+      {
+        "collectionId": "699734170003f998b862",
+        "collectionName": "Lecture Memberships"
+      },
+      {
+        "collectionId": "69973f680024de7fd9fe",
+        "collectionName": "lectureComments"
+      },
+      {
+        "collectionId": "suggestions",
+        "collectionName": "Suggestions"
+      }
+    ],
+    "usingBoth": []
+  },
+  "migrationLog": [
+    {
+      "collectionId": "68fc7b42001bf7efbba3",
+      "collectionName": "users",
+      "action": "recovered_missing_userId_from_document_id",
+      "documentsTotal": 20,
+      "valuesMigrated": 20,
+      "ensuredUserIdSize": 255
+    }
+  ],
+  "backups": {
+    "generatedAt": "2026-03-01T19:16:11.530Z",
+    "databaseId": "68fc78fd0030f049a781",
+    "notes": "Temporary backup for legacy userID to userId schema refactor",
+    "collections": [
+      {
+        "collectionId": "68fc7b42001bf7efbba3",
+        "collectionName": "users",
+        "legacyAttribute": null,
+        "rows": [
+          {
+            "documentId": "68fc9ae50018901f57d8",
+            "source": "$id",
+            "inferredUserId": "68fc9ae50018901f57d8",
+            "currentStandardValue": "68fc9ae50018901f57d8"
+          },
+          {
+            "documentId": "690093ed0024f12635c0",
+            "source": "$id",
+            "inferredUserId": "690093ed0024f12635c0",
+            "currentStandardValue": "690093ed0024f12635c0"
+          },
+          {
+            "documentId": "6953c9c40030838f6ff1",
+            "source": "$id",
+            "inferredUserId": "6953c9c40030838f6ff1",
+            "currentStandardValue": "6953c9c40030838f6ff1"
+          },
+          {
+            "documentId": "69805e8a00108eb7a281",
+            "source": "$id",
+            "inferredUserId": "69805e8a00108eb7a281",
+            "currentStandardValue": "69805e8a00108eb7a281"
+          },
+          {
+            "documentId": "6982ff430020e64b0b0a",
+            "source": "$id",
+            "inferredUserId": "6982ff430020e64b0b0a",
+            "currentStandardValue": "6982ff430020e64b0b0a"
+          },
+          {
+            "documentId": "69843362000c1893888a",
+            "source": "$id",
+            "inferredUserId": "69843362000c1893888a",
+            "currentStandardValue": "69843362000c1893888a"
+          },
+          {
+            "documentId": "6989868265ac70ada9a7",
+            "source": "$id",
+            "inferredUserId": "6989868265ac70ada9a7",
+            "currentStandardValue": "6989868265ac70ada9a7"
+          },
+          {
+            "documentId": "6989892caf83b340c671",
+            "source": "$id",
+            "inferredUserId": "6989892caf83b340c671",
+            "currentStandardValue": "6989892caf83b340c671"
+          },
+          {
+            "documentId": "69898ac7873ffcd55d50",
+            "source": "$id",
+            "inferredUserId": "69898ac7873ffcd55d50",
+            "currentStandardValue": "69898ac7873ffcd55d50"
+          },
+          {
+            "documentId": "6989a1521a00f0415b37",
+            "source": "$id",
+            "inferredUserId": "6989a1521a00f0415b37",
+            "currentStandardValue": "6989a1521a00f0415b37"
+          },
+          {
+            "documentId": "698ba3e3001b871b2013",
+            "source": "$id",
+            "inferredUserId": "698ba3e3001b871b2013",
+            "currentStandardValue": "698ba3e3001b871b2013"
+          },
+          {
+            "documentId": "698d712c003aecb4cda8",
+            "source": "$id",
+            "inferredUserId": "698d712c003aecb4cda8",
+            "currentStandardValue": "698d712c003aecb4cda8"
+          },
+          {
+            "documentId": "699e698c00197b231c67",
+            "source": "$id",
+            "inferredUserId": "699e698c00197b231c67",
+            "currentStandardValue": "699e698c00197b231c67"
+          },
+          {
+            "documentId": "699f3f24003b7dc73b82",
+            "source": "$id",
+            "inferredUserId": "699f3f24003b7dc73b82",
+            "currentStandardValue": "699f3f24003b7dc73b82"
+          },
+          {
+            "documentId": "69a01d7d22c25a273af2",
+            "source": "$id",
+            "inferredUserId": "69a01d7d22c25a273af2",
+            "currentStandardValue": "69a01d7d22c25a273af2"
+          },
+          {
+            "documentId": "69a04fee002d61ab2285",
+            "source": "$id",
+            "inferredUserId": "69a04fee002d61ab2285",
+            "currentStandardValue": "69a04fee002d61ab2285"
+          },
+          {
+            "documentId": "69a06a78003ca67d7542",
+            "source": "$id",
+            "inferredUserId": "69a06a78003ca67d7542",
+            "currentStandardValue": "69a06a78003ca67d7542"
+          },
+          {
+            "documentId": "69a18afa001e0b29bccf",
+            "source": "$id",
+            "inferredUserId": "69a18afa001e0b29bccf",
+            "currentStandardValue": "69a18afa001e0b29bccf"
+          },
+          {
+            "documentId": "69a199490020e8aadf3f",
+            "source": "$id",
+            "inferredUserId": "69a199490020e8aadf3f",
+            "currentStandardValue": "69a199490020e8aadf3f"
+          },
+          {
+            "documentId": "69a32abb0029625c1c31",
+            "source": "$id",
+            "inferredUserId": "69a32abb0029625c1c31",
+            "currentStandardValue": "69a32abb0029625c1c31"
+          }
+        ],
+        "recoveryNote": "Recovered missing userId by inferring from document $id"
+      }
+    ]
+  }
+}

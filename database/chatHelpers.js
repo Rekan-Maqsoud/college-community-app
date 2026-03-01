@@ -2,8 +2,6 @@ import { databases, config } from './config';
 import { ID, Query } from 'appwrite';
 import { CHAT_TYPES, createChat, createGroupChat, getUserGroupChats, decryptChatPreviews, ensureChatParticipant } from './chats';
 import { getUserById } from './users';
-import { chatsCacheManager } from '../app/utils/cacheManager';
-import { seedChatMeta } from '../app/hooks/useFirebaseRealtime';
 
 export const PRIVATE_CHAT_TYPE = 'private';
 export const CUSTOM_GROUP_TYPE = 'custom_group';
@@ -186,10 +184,6 @@ export const createPrivateChat = async (user1, user2) => {
             messageCount: 0,
         });
 
-        // Invalidate chat cache for both users
-        await chatsCacheManager.invalidateChatsCache(user1.$id);
-        await chatsCacheManager.invalidateChatsCache(user2.$id);
-
         // Return with otherUser populated for proper display
         return { ...chat, otherUser: user2 };
     } catch (error) {
@@ -223,11 +217,6 @@ export const createCustomGroup = async (groupData, creatorId) => {
         };
 
         const chat = await createChat(documentData);
-
-        // Invalidate chat cache for all members
-        for (const memberId of members) {
-            await chatsCacheManager.invalidateChatsCache(memberId);
-        }
 
         return chat;
     } catch (error) {
@@ -281,9 +270,7 @@ export const getUserCustomGroups = async (userId) => {
     }
 };
 
-export const getAllUserChats = async (userId, department, stage, useCache = true) => {
-    const cacheKey = chatsCacheManager.generateCacheKey(userId, department, stage);
-
+export const getAllUserChats = async (userId, department, stage) => {
     const ensureArray = (value) => (Array.isArray(value) ? value : []);
 
     const dedupeById = (items = []) => {
@@ -376,22 +363,6 @@ export const getAllUserChats = async (userId, department, stage, useCache = true
             return results;
         }
 
-        // Try to get cached data first
-        if (useCache) {
-            const cached = await chatsCacheManager.getCachedChats(cacheKey);
-            if (cached?.value) {
-                const normalizedCached = normalizeChatsShape(cached.value);
-                const hydratedPrivateChats = await hydratePrivateChatsWithOtherUser(normalizedCached.privateChats);
-                const hydratedCached = {
-                    ...normalizedCached,
-                    privateChats: dedupeById(hydratedPrivateChats),
-                };
-
-                await chatsCacheManager.cacheChats(cacheKey, hydratedCached);
-                return hydratedCached;
-            }
-        }
-
         const [groupChats, customGroups, privateChats] = await Promise.all([
             department ? getUserGroupChats(department, stage, userId) : Promise.resolve([]),
             getUserCustomGroups(userId),
@@ -405,21 +376,9 @@ export const getAllUserChats = async (userId, department, stage, useCache = true
         const privateChatsWithOtherUser = await hydratePrivateChatsWithOtherUser(dedupeById(ensureArray(privateChats)));
         
         results.privateChats = dedupeById(await decryptChatPreviews(privateChatsWithOtherUser, userId));
-        
-        // Seed chat metadata to Firebase RTDB so live listeners have data
-        const allChats = [...results.defaultGroups, ...results.customGroups, ...results.privateChats];
-        seedChatMeta(allChats);
-
-        // Cache the results
-        await chatsCacheManager.cacheChats(cacheKey, results);
 
         return results;
     } catch (error) {
-        // On network error, try to return stale cache
-        const cached = await chatsCacheManager.getCachedChats(cacheKey);
-        if (cached?.value) {
-            return normalizeChatsShape(cached.value);
-        }
         return {
             defaultGroups: [],
             customGroups: [],
@@ -559,9 +518,6 @@ export const addGroupMember = async (chatId, userId) => {
                 chatId,
                 { participants }
             );
-            
-            // Invalidate cache for the new member
-            await chatsCacheManager.invalidateChatsCache(userId);
         }
         return true;
     } catch (error) {
@@ -641,10 +597,7 @@ export const leaveGroup = async (chatId, userId) => {
                 representatives: newRepresentatives 
             }
         );
-        
-        // Invalidate cache
-        await chatsCacheManager.invalidateChatsCache(userId);
-        
+
         return true;
     } catch (error) {
         throw error;

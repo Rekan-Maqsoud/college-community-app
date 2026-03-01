@@ -86,10 +86,6 @@ jest.mock('../services/pushNotificationService', () => ({
   sendGeneralPushNotification: jest.fn(),
 }));
 
-jest.mock('../services/firebase', () => ({
-  ensureFirebaseAuth: jest.fn(),
-}));
-
 jest.mock('../app/utils/cacheManager', () => ({
   userCacheManager: {
     getCachedUser: jest.fn().mockResolvedValue(null),

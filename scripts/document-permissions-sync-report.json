@@ -1,0 +1,149 @@
+{
+  "timestamp": "2026-03-01T21:13:43.839Z",
+  "sourceProject": "6973c51d0000bdd71f7a",
+  "targetProject": "69a46b6f0020cf0d5e4b",
+  "collectionCount": 15,
+  "processedDocuments": 186,
+  "updatedDocuments": 0,
+  "missingInTarget": [],
+  "missingInSource": [],
+  "mismatchesAfterSync": [],
+  "updatesByCollection": {
+    "68fc7b42001bf7efbba3": {
+      "collectionName": "users",
+      "sourceCount": 20,
+      "targetCount": 20,
+      "updated": 0,
+      "unchanged": 20,
+      "missingInTarget": 0,
+      "missingInSource": 0
+    },
+    "68ff7914000948dbd572": {
+      "collectionName": "posts",
+      "sourceCount": 23,
+      "targetCount": 23,
+      "updated": 0,
+      "unchanged": 23,
+      "missingInTarget": 0,
+      "missingInSource": 0
+    },
+    "68ff7b8f000492463724": {
+      "collectionName": "replies",
+      "sourceCount": 12,
+      "targetCount": 12,
+      "updated": 0,
+      "unchanged": 12,
+      "missingInTarget": 0,
+      "missingInSource": 0
+    },
+    "chats": {
+      "collectionName": "chats",
+      "sourceCount": 25,
+      "targetCount": 25,
+      "updated": 0,
+      "unchanged": 25,
+      "missingInTarget": 0,
+      "missingInSource": 0
+    },
+    "messages": {
+      "collectionName": "messages",
+      "sourceCount": 25,
+      "targetCount": 25,
+      "updated": 0,
+      "unchanged": 25,
+      "missingInTarget": 0,
+      "missingInSource": 0
+    },
+    "69500c9c000bd955c984": {
+      "collectionName": "userChatSettings",
+      "sourceCount": 17,
+      "targetCount": 17,
+      "updated": 0,
+      "unchanged": 17,
+      "missingInTarget": 0,
+      "missingInSource": 0
+    },
+    "69554fd5001d447c8c1c": {
+      "collectionName": "notifications",
+      "sourceCount": 25,
+      "targetCount": 25,
+      "updated": 0,
+      "unchanged": 25,
+      "missingInTarget": 0,
+      "missingInSource": 0
+    },
+    "pushtokens": {
+      "collectionName": "pushTokens",
+      "sourceCount": 15,
+      "targetCount": 15,
+      "updated": 0,
+      "unchanged": 15,
+      "missingInTarget": 0,
+      "missingInSource": 0
+    },
+    "699733ee001cbf86e7a4": {
+      "collectionName": "Lecture Channels",
+      "sourceCount": 2,
+      "targetCount": 2,
+      "updated": 0,
+      "unchanged": 2,
+      "missingInTarget": 0,
+      "missingInSource": 0
+    },
+    "699734170003f998b862": {
+      "collectionName": "Lecture Memberships",
+      "sourceCount": 9,
+      "targetCount": 9,
+      "updated": 0,
+      "unchanged": 9,
+      "missingInTarget": 0,
+      "missingInSource": 0
+    },
+    "6997342b0012ee32448b": {
+      "collectionName": "Lecture Assets",
+      "sourceCount": 3,
+      "targetCount": 3,
+      "updated": 0,
+      "unchanged": 3,
+      "missingInTarget": 0,
+      "missingInSource": 0
+    },
+    "69973f680024de7fd9fe": {
+      "collectionName": "lectureComments",
+      "sourceCount": 0,
+      "targetCount": 0,
+      "updated": 0,
+      "unchanged": 0,
+      "missingInTarget": 0,
+      "missingInSource": 0
+    },
+    "6999f9de00313552a9c9": {
+      "collectionName": "repElections",
+      "sourceCount": 8,
+      "targetCount": 8,
+      "updated": 0,
+      "unchanged": 8,
+      "missingInTarget": 0,
+      "missingInSource": 0
+    },
+    "6999fed2001ac021d056": {
+      "collectionName": "repVotes",
+      "sourceCount": 2,
+      "targetCount": 2,
+      "updated": 0,
+      "unchanged": 2,
+      "missingInTarget": 0,
+      "missingInSource": 0
+    },
+    "suggestions": {
+      "collectionName": "Suggestions",
+      "sourceCount": 0,
+      "targetCount": 0,
+      "updated": 0,
+      "unchanged": 0,
+      "missingInTarget": 0,
+      "missingInSource": 0
+    }
+  },
+  "errors": []
+}

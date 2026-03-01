@@ -5,7 +5,6 @@ import { postsCacheManager } from '../app/utils/cacheManager';
 import { parsePollPayload, applyPollVote } from '../app/utils/pollUtils';
 import { getUserById } from './users';
 import { notifyDepartmentPost, notifyPostHiddenByReports } from './notifications';
-import { broadcastLikeCount, broadcastViewCount, broadcastPollVotes, seedPostCounters } from '../app/hooks/useFirebaseRealtime';
 import { enforceRateLimit } from './securityGuards';
 
 const REPORT_HIDE_THRESHOLD = 5;
@@ -252,9 +251,6 @@ export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = 
             results = results.filter(post => !blockedUserIds.includes(post.userId));
         }
 
-        // Seed counters to Firebase RTDB so live listeners have data
-        seedPostCounters(results);
-        
         return results;
     } catch (error) {
         // On network error, try to return stale cache
@@ -329,9 +325,6 @@ export const getPostsByDepartments = async (departments = [], stage = 'all', lim
             deptResults = deptResults.filter(post => !blockedUserIds.includes(post.userId));
         }
 
-        // Seed counters to Firebase RTDB so live listeners have data
-        seedPostCounters(deptResults);
-        
         return deptResults;
     } catch (error) {
         // On network error, try to return stale cache
@@ -401,9 +394,6 @@ export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, u
             publicResults = publicResults.filter(post => !blockedUserIds.includes(post.userId));
         }
 
-        // Seed counters to Firebase RTDB so live listeners have data
-        seedPostCounters(publicResults);
-        
         return publicResults;
     } catch (error) {
         // On network error, try to return stale cache
@@ -700,6 +690,8 @@ export const requestPostReview = async (postId, requesterUserId = null) => {
         if (!reviewEndpoint) {
             throw new Error('Review endpoint is not configured');
         }
+        const isExecutionEndpoint =
+            reviewEndpoint.includes('/functions/') && reviewEndpoint.includes('/executions');
 
         const jwt = await account.createJWT();
         const jwtToken = jwt?.jwt;
@@ -722,17 +714,56 @@ export const requestPostReview = async (postId, requesterUserId = null) => {
             },
         };
 
-        const response = await fetch(reviewEndpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${jwtToken}`,
-            },
-            body: JSON.stringify(payload),
-        });
+        if (isExecutionEndpoint) {
+            const response = await fetch(reviewEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Appwrite-Project': config.projectId,
+                },
+                body: JSON.stringify({
+                    async: false,
+                    method: 'POST',
+                    path: '/',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${jwtToken}`,
+                    },
+                    body: JSON.stringify(payload),
+                }),
+            });
 
-        if (!response.ok) {
-            throw new Error('Failed to send review request');
+            let execution = null;
+            try {
+                execution = await response.json();
+            } catch {
+                execution = null;
+            }
+
+            const executionStatus = Number(execution?.responseStatusCode || 0);
+            let executionBody = null;
+            try {
+                executionBody = execution?.responseBody ? JSON.parse(execution.responseBody) : null;
+            } catch {
+                executionBody = null;
+            }
+
+            if (!response.ok || executionStatus >= 400 || executionBody?.success === false) {
+                throw new Error(executionBody?.error || 'Failed to send review request');
+            }
+        } else {
+            const response = await fetch(reviewEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${jwtToken}`,
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to send review request');
+            }
         }
 
         await databases.updateDocument(
@@ -831,16 +862,6 @@ export const voteOnPostPoll = async (postId, userId, selectedOptionIds) => {
 
         await postsCacheManager.invalidateSinglePost(postId);
 
-        // Broadcast poll vote counts to Firebase for active listeners
-        try {
-            const { getPollVoteCounts } = require('../app/utils/pollUtils');
-            const voteCounts = getPollVoteCounts(nextPoll);
-            const total = Object.values(voteCounts).reduce((s, n) => s + n, 0);
-            broadcastPollVotes(postId, voteCounts, total);
-        } catch (_) {
-            // Swallow — Firebase is a cache, not critical
-        }
-
         return updatedPost;
     } catch (error) {
         throw error;
@@ -903,7 +924,6 @@ export const incrementPostViewCount = async (postId, userId = null) => {
                     viewCount: viewedBy.length 
                 }
             );
-            broadcastViewCount(postId, viewedBy.length);
         } else if (!userId) {
             const newCount = (post.viewCount || 0) + 1;
             await databases.updateDocument(
@@ -912,7 +932,6 @@ export const incrementPostViewCount = async (postId, userId = null) => {
                 postId,
                 { viewCount: newCount }
             );
-            broadcastViewCount(postId, newCount);
         }
     } catch (error) {
         throw error;
@@ -959,9 +978,7 @@ export const togglePostLike = async (postId, userId) => {
         // Invalidate posts cache so refreshes show the updated like state
         await postsCacheManager.invalidatePostsCache();
 
-        // Broadcast updated count to Firebase for active listeners
         const finalLikeCount = updatedPost.likeCount ?? updatedLikedBy.length;
-        broadcastLikeCount(postId, finalLikeCount);
 
         return { 
             isLiked: !isLiked, 
@@ -1374,8 +1391,6 @@ export const getPostsCursor = async (
         if (Array.isArray(blockedUserIds) && blockedUserIds.length > 0) {
             documents = documents.filter(post => !blockedUserIds.includes(post.userId));
         }
-
-        seedPostCounters(documents);
 
         const lastDoc = documents.length > 0 ? documents[documents.length - 1] : null;
 

@@ -15,7 +15,6 @@
     "test:moderation": "jest --runInBand __tests__/postsModerationRepost.test.js",
     "test:lectures": "jest --runInBand __tests__/lectureUtils.test.js",
     "test:phase4": "jest --runInBand __tests__/lectureUtils.test.js __tests__/appwriteFileUpload.test.js __tests__/chatFileUtils.test.js",
-    "test:firebase": "jest --runInBand --forceExit __tests__/firebaseRTDB.test.js",
     "test:critical": "jest --runInBand __tests__/realtimeEvents.test.js __tests__/chatRealtimeMessages.test.js __tests__/postsModerationRepost.test.js __tests__/networkErrorHandler.test.js __tests__/onlineStatus.test.js __tests__/safeStorage.test.js __tests__/cacheManager.test.js __tests__/postRanking.test.js __tests__/feedCategories.test.js",
     "publish:prod": "eas update --branch native-app --channel production",
     "audit:acl": "node scripts/appwriteAclAudit.js",
@@ -31,9 +30,6 @@
     "@giphy/js-fetch-api": "^5.7.0",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/slider": "5.0.1",
-    "@react-native-firebase/app": "^23.8.6",
-    "@react-native-firebase/auth": "^23.8.6",
-    "@react-native-firebase/database": "^23.8.6",
     "@react-native-picker/picker": "2.11.1",
     "@react-navigation/bottom-tabs": "^7.4.9",
     "@react-navigation/native": "^7.1.18",
@@ -101,7 +97,8 @@
     "install": {
       "exclude": [
         "typescript",
-        "@types/react"
+        "@types/react",
+        "@sentry/react-native"
       ]
     },
     "scheme": "college-community"

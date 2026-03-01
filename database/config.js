@@ -1,5 +1,4 @@
 import { Client, Account, Databases, Storage } from 'appwrite';
-import realtimeDebugLogger from '../app/utils/realtimeDebugLogger';
 
 // Patch WebSocket.send to guard against INVALID_STATE_ERR.
 // The Appwrite SDK's internal heartbeat (setInterval) calls socket.send()
@@ -92,97 +91,6 @@ const patchRealtimeMessageShape = () => {
 };
 
 patchRealtimeMessageShape();
-
-// Create a wrapper for realtime subscription with retry/backoff on disconnects
-export const safeSubscribe = (channel, callback) => {
-    let unsubscribe = null;
-    let retryTimer = null;
-    let retryCount = 0;
-    let isActive = true;
-
-    const clearRetryTimer = () => {
-        if (retryTimer) {
-            clearTimeout(retryTimer);
-            retryTimer = null;
-        }
-    };
-
-    const cleanupSubscription = () => {
-        if (unsubscribe) {
-            try {
-                unsubscribe();
-            } catch (e) {
-                // Ignore cleanup errors
-            }
-            unsubscribe = null;
-        }
-    };
-
-    const scheduleRetry = () => {
-        if (!isActive) {
-            return;
-        }
-
-        cleanupSubscription();
-
-        const cappedRetry = Math.min(retryCount, 5);
-        const delay = Math.min(30000, 1000 * Math.pow(2, cappedRetry));
-        retryCount += 1;
-
-        realtimeDebugLogger.warn('realtime_retry_scheduled', {
-            channel,
-            retryCount,
-            delay,
-        });
-
-        clearRetryTimer();
-        retryTimer = setTimeout(() => {
-            subscribe();
-        }, delay);
-    };
-
-    const subscribe = () => {
-        if (!isActive) {
-            return;
-        }
-
-        try {
-            realtimeDebugLogger.trace('realtime_subscribe_start', { channel });
-            unsubscribe = client.subscribe(channel, (response) => {
-                if (!isActive) {
-                    return;
-                }
-
-                if (response?.code && response?.message) {
-                    realtimeDebugLogger.warn('realtime_response_error', {
-                        channel,
-                        code: response.code,
-                        message: response.message,
-                    });
-                    scheduleRetry();
-                    return;
-                }
-
-                retryCount = 0;
-                callback(response);
-            });
-        } catch (error) {
-            realtimeDebugLogger.error('realtime_subscribe_error', {
-                channel,
-                message: error?.message,
-            });
-            scheduleRetry();
-        }
-    };
-
-    subscribe();
-
-    return () => {
-        isActive = false;
-        clearRetryTimer();
-        cleanupSubscription();
-    };
-};
 
 export const account = new Account(client);
 export const databases = new Databases(client);

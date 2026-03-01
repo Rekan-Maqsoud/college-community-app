@@ -10,6 +10,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { getActiveElection, getLatestElection, getClassRepresentatives, ELECTION_STATUS } from '../../database/repElections';
 import { getMyVote } from '../../database/repVotes';
 import { getClassStudents } from '../../database/users';
+import { config } from '../../database/config';
+import { useRealtimeSubscription } from './useRealtimeSubscription';
 import safeStorage from '../utils/safeStorage';
 
 const DISMISS_KEY = 'rep_popup_dismissed';
@@ -94,6 +96,34 @@ const useRepDetection = (user) => {
   useEffect(() => {
     check();
   }, [check]);
+
+  const handleElectionRealtimeChange = useCallback((payload) => {
+    if (!payload || payload.department !== department || payload.stage !== stage) {
+      return;
+    }
+    check();
+  }, [check, department, stage]);
+
+  const handleVoteRealtimeChange = useCallback((payload) => {
+    if (!payload || payload.department !== department || payload.stage !== stage) {
+      return;
+    }
+    check();
+  }, [check, department, stage]);
+
+  useRealtimeSubscription(
+    config.repElectionsCollectionId,
+    handleElectionRealtimeChange,
+    handleElectionRealtimeChange,
+    { enabled: !!department && !!stage && !!config.repElectionsCollectionId }
+  );
+
+  useRealtimeSubscription(
+    config.repVotesCollectionId,
+    handleVoteRealtimeChange,
+    handleVoteRealtimeChange,
+    { enabled: !!department && !!stage && !!config.repVotesCollectionId }
+  );
 
   const dismiss = useCallback(async () => {
     setDismissed(true);

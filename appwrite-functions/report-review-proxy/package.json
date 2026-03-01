@@ -5,6 +5,7 @@
   "type": "module",
   "main": "src/main.js",
   "dependencies": {
-    "node-appwrite": "^15.0.1"
+    "node-appwrite": "^15.0.1",
+    "node-fetch": "^3.3.2"
   }
 }

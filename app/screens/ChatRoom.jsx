@@ -34,6 +34,7 @@ import { borderRadius } from '../theme/designTokens';
 import { MuteModal, PinnedMessagesModal, ChatOptionsModal } from './chatRoom/ChatRoomModals';
 import { chatRoomStyles as styles } from './chatRoom/styles';
 import { useChatRoom } from './chatRoom/useChatRoom';
+import { useUserProfile } from '../hooks/useRealtimeSubscription';
 import useLayout from '../hooks/useLayout';
 import PostViewModal from '../components/PostViewModal';
 import { isUserOnline, getLastSeenText } from '../utils/onlineStatus';
@@ -151,7 +152,18 @@ const ChatRoom = ({ route, navigation }) => {
   const [otherUserLastSeen, setOtherUserLastSeen] = useState(
     chat.type === 'private' ? chat.otherUser?.lastSeen || null : null
   );
+  const otherUserId = chat.type === 'private' ? chat.otherUser?.$id : null;
   const otherUserOnline = showActivityStatus && isUserOnline(otherUserLastSeen);
+
+  const handleOtherUserProfileUpdate = useCallback((profile) => {
+    setOtherUserLastSeen(profile?.lastSeen || null);
+  }, []);
+
+  useUserProfile(
+    otherUserId,
+    handleOtherUserProfileUpdate,
+    Boolean(showActivityStatus && otherUserId)
+  );
 
   useEffect(() => {
     if (!chat?.$id) return;
@@ -160,7 +172,6 @@ const ChatRoom = ({ route, navigation }) => {
 
   useEffect(() => {
     if (chat.type !== 'private' || !showActivityStatus) return;
-    const otherUserId = chat.otherUser?.$id;
     if (!otherUserId) return;
 
     let active = true;

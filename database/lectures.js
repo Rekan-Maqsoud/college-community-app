@@ -169,10 +169,56 @@ const invokeLectureGuard = async (action, payload = {}) => {
     return null;
   }
 
+  const isExecutionEndpoint = endpoint.includes('/functions/') && endpoint.includes('/executions');
+
   const jwt = await account.createJWT();
   const token = jwt?.jwt;
   if (!token) {
     throw new Error('Failed to authorize lecture guard request');
+  }
+
+  if (isExecutionEndpoint) {
+    const executionResponse = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Appwrite-Project': config.projectId,
+      },
+      body: JSON.stringify({
+        async: false,
+        method: 'POST',
+        path: '/',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action,
+          payload,
+        }),
+      }),
+    });
+
+    let execution = null;
+    try {
+      execution = await executionResponse.json();
+    } catch {
+      execution = null;
+    }
+
+    const executionStatus = Number(execution?.responseStatusCode || 0);
+    let data = null;
+    try {
+      data = execution?.responseBody ? JSON.parse(execution.responseBody) : null;
+    } catch {
+      data = null;
+    }
+
+    if (!executionResponse.ok || executionStatus >= 400 || data?.success === false) {
+      throw new Error(data?.error || 'Lecture guard request failed');
+    }
+
+    return data;
   }
 
   const response = await fetch(endpoint, {

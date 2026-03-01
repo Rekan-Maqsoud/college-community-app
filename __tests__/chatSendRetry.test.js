@@ -121,10 +121,6 @@ jest.mock('../app/utils/cacheManager', () => ({
   },
 }));
 
-jest.mock('../app/hooks/useFirebaseRealtime', () => ({
-  broadcastChatMeta: jest.fn(),
-}));
-
 jest.mock('../app/utils/pollUtils', () => ({
   parsePollPayload: jest.fn(),
   applyPollVote: jest.fn(),

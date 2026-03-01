@@ -36,7 +36,6 @@ import {
   dismissPresentedNotificationsByTarget,
 } from '../services/pushNotificationService';
 import { markNotificationsAsReadByContext } from '../database/notifications';
-import { ensureFirebaseAuth } from '../services/firebase';
 
 import SignIn from './auth/SignIn';
 import SignUp from './auth/SignUp';
@@ -183,10 +182,7 @@ const TabNavigator = () => {
         ...(chats.privateChats || []),
       ];
       const chatIds = allChats.map(c => c.$id);
-      const total = await getTotalUnreadCount(user.$id, chatIds, {
-        useCache: true,
-        cacheOnly: true,
-      });
+      const total = await getTotalUnreadCount(user.$id, chatIds);
       setUnreadCount(total);
     } catch (error) {
       // Silently fail
@@ -899,25 +895,6 @@ const RealtimeLifecycleManager = () => {
     } catch (error) {
       // Avoid calling connect() without channels to prevent SDK shape mismatch errors
     }
-  }, []);
-
-  // Bootstrap Firebase anonymous auth early so RTDB listeners are ready.
-  // ensureFirebaseAuth() already handles timeouts and returns false on
-  // failure, but we add a .catch() guard for extra safety so no
-  // unhandled rejection can surface even on bad networks.
-  useEffect(() => {
-    console.log('[Firebase] App bootstrap: calling ensureFirebaseAuth()...');
-    ensureFirebaseAuth()
-      .then((ok) => {
-        if (ok) {
-          console.log('[Firebase] ✅ App bootstrap: Firebase auth ready');
-        } else {
-          console.warn('[Firebase] ⚠️ App bootstrap: Firebase auth returned false — RTDB disabled');
-        }
-      })
-      .catch((err) => {
-        console.warn('[Firebase] ❌ App bootstrap: ensureFirebaseAuth threw:', err?.message);
-      });
   }, []);
 
   const pauseRealtime = useCallback(() => {

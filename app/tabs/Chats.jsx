@@ -11,7 +11,6 @@ import {
   SectionList,
   Modal,
   Alert,
-  AppState,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,7 +47,6 @@ import {
   MUTE_DURATIONS,
   MUTE_TYPES,
 } from '../../database/userChatSettings';
-import { chatsCacheManager } from '../utils/cacheManager';
 import { 
   wp, 
   hp, 
@@ -57,9 +55,8 @@ import {
   moderateScale,
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
-import { useChatList, useRealtimeHealth } from '../hooks/useRealtimeSubscription';
-import useAdaptivePolling from '../hooks/useAdaptivePolling';
-import { useFirebaseValue } from '../hooks/useFirebaseRealtime';
+import { useChatList, useRealtimeSubscription } from '../hooks/useRealtimeSubscription';
+import { config } from '../../database/config';
 import useLayout from '../hooks/useLayout';
 import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
 
@@ -84,11 +81,12 @@ const Chats = ({ navigation }) => {
   const [selectedChat, setSelectedChat] = useState(null);
   const [chatMenuVisible, setChatMenuVisible] = useState(false);
   const [muteModalVisible, setMuteModalVisible] = useState(false);
-  const [chatMetaAppliedAt, setChatMetaAppliedAt] = useState({});
 
   const defaultGroupsRef = useRef([]);
   const customGroupsRef = useRef([]);
   const privateChatsRef = useRef([]);
+  const unreadSyncTimersRef = useRef({});
+  const processedMessageIdsRef = useRef({});
 
   useEffect(() => {
     defaultGroupsRef.current = defaultGroups;
@@ -102,7 +100,45 @@ const Chats = ({ navigation }) => {
     privateChatsRef.current = privateChats;
   }, [privateChats]);
 
-  const { value: chatMetaMap } = useFirebaseValue(user?.$id ? 'chatMeta' : null, null);
+  useEffect(() => {
+    return () => {
+      const timers = unreadSyncTimersRef.current;
+      Object.keys(timers).forEach((chatId) => {
+        if (timers[chatId]) {
+          clearTimeout(timers[chatId]);
+        }
+      });
+      unreadSyncTimersRef.current = {};
+      processedMessageIdsRef.current = {};
+    };
+  }, []);
+
+  const hasProcessedMessageEvent = useCallback((messageId) => {
+    if (!messageId) {
+      return false;
+    }
+
+    const now = Date.now();
+    const processedMap = processedMessageIdsRef.current;
+    const previousTs = processedMap[messageId];
+
+    if (previousTs && now - previousTs < 2 * 60 * 1000) {
+      return true;
+    }
+
+    processedMap[messageId] = now;
+
+    const keys = Object.keys(processedMap);
+    if (keys.length > 800) {
+      keys.forEach((key) => {
+        if (now - Number(processedMap[key] || 0) > 2 * 60 * 1000) {
+          delete processedMap[key];
+        }
+      });
+    }
+
+    return false;
+  }, []);
 
   const sortChatsByActivity = useCallback((chats = []) => {
     return [...chats].sort((a, b) => {
@@ -127,11 +163,6 @@ const Chats = ({ navigation }) => {
 
   // Real-time subscription for chat updates (new messages, unread count changes)
   const handleRealtimeChatUpdate = useCallback(async (payload) => {
-    // Invalidate chats cache since data changed
-    if (user?.$id) {
-      await chatsCacheManager.invalidateChatsCache(user.$id);
-    }
-
     const resolvedPayload = user?.$id
       ? await decryptChatPreview(payload, user.$id)
       : payload;
@@ -255,109 +286,100 @@ const Chats = ({ navigation }) => {
 
   }, [user?.$id]);
 
-  useEffect(() => {
-    if (!user?.$id || !chatMetaMap || typeof chatMetaMap !== 'object') return;
+  const syncUnreadCountForChat = useCallback(async (chatId) => {
+    if (!chatId || !user?.$id) {
+      return;
+    }
 
-    const processChatMeta = async () => {
-      const currentChats = [
-        ...defaultGroupsRef.current,
-        ...customGroupsRef.current,
-        ...privateChatsRef.current,
-      ];
+    try {
+      const unread = await getUnreadCount(chatId, user.$id);
+      setUnreadCounts((prev) => {
+        const previousCount = Number(prev[chatId] || 0);
+        if (previousCount === unread) {
+          return prev;
+        }
 
-      if (currentChats.length === 0) return;
-
-      const chatMap = new Map(currentChats.map(chat => [chat.$id, chat]));
-      const updatedAtPatch = {};
-      const payloadById = {};
-
-      for (const [chatId, meta] of Object.entries(chatMetaMap)) {
-        if (!chatMap.has(chatId) || !meta || typeof meta !== 'object') continue;
-
-        const updatedAt = Number(meta.updatedAt || 0);
-        const prevUpdatedAt = Number(chatMetaAppliedAt[chatId] || 0);
-        if (updatedAt > 0 && prevUpdatedAt >= updatedAt) continue;
-
-        const currentChat = chatMap.get(chatId);
-        const existingCount = Number(currentChat.messageCount || 0);
-        const incomingCount = Number.isFinite(meta.messageCount) ? Number(meta.messageCount) : existingCount;
-        const nextCount = Math.max(existingCount, incomingCount);
-
-        let nextChat = {
-          ...currentChat,
-          lastMessage: typeof meta.lastMessage === 'string' ? meta.lastMessage : (currentChat.lastMessage || ''),
-          lastMessageAt: meta.lastMessageAt || currentChat.lastMessageAt || currentChat.$updatedAt || currentChat.$createdAt,
-          lastMessageSenderId: meta.lastSenderId || currentChat.lastMessageSenderId || '',
-          messageCount: nextCount,
+        return {
+          ...prev,
+          [chatId]: unread,
         };
+      });
+    } catch (error) {
+      // Silent fail - unread count will refresh on next sync
+    }
+  }, [user?.$id]);
 
-        nextChat = await decryptChatPreview(nextChat, user.$id);
+  const scheduleUnreadSyncForChat = useCallback((chatId, delayMs = 250) => {
+    if (!chatId || !user?.$id) {
+      return;
+    }
 
-        payloadById[chatId] = nextChat;
-        updatedAtPatch[chatId] = updatedAt > 0 ? updatedAt : Date.now();
+    const timers = unreadSyncTimersRef.current;
+    if (timers[chatId]) {
+      clearTimeout(timers[chatId]);
+    }
+
+    timers[chatId] = setTimeout(() => {
+      delete timers[chatId];
+      syncUnreadCountForChat(chatId);
+    }, delayMs);
+  }, [syncUnreadCountForChat, user?.$id]);
+
+  const handleRealtimeMessageUpdate = useCallback((payload, events = []) => {
+    const chatId = payload?.chatId;
+    if (!chatId || !user?.$id) {
+      return;
+    }
+
+    const isCreate = events.some((event) => event.includes('.create'));
+    const isUpdate = events.some((event) => event.includes('.update'));
+
+    if (isCreate) {
+      if (hasProcessedMessageEvent(payload?.$id)) {
+        return;
       }
 
-      const hasUpdates = Object.keys(payloadById).length > 0;
-      if (!hasUpdates) return;
-
-      const applyUpdates = (prev) => {
-        let changed = false;
-        const next = prev.map((chat) => {
-          const updatedChat = payloadById[chat.$id];
-          if (!updatedChat) return chat;
-          changed = true;
-          return { ...chat, ...updatedChat };
-        });
-        if (!changed) return prev;
-        return sortChatsByActivity(next);
-      };
-
-      setDefaultGroups(applyUpdates);
-      setCustomGroups(applyUpdates);
-      setPrivateChats(applyUpdates);
-
-      setChatMetaAppliedAt((prev) => ({ ...prev, ...updatedAtPatch }));
-
-      const selfSentIds = Object.entries(payloadById)
-        .filter(([, value]) => value.lastMessageSenderId && value.lastMessageSenderId === user.$id)
-        .map(([chatId]) => chatId);
-
-      if (selfSentIds.length > 0) {
+      if (payload?.senderId === user.$id) {
+        setUnreadCounts((prev) => ({ ...prev, [chatId]: 0 }));
+      } else {
         setUnreadCounts((prev) => {
-          const next = { ...prev };
-          selfSentIds.forEach((chatId) => {
-            next[chatId] = 0;
-          });
-          return next;
+          const previousCount = Number(prev[chatId] || 0);
+          return {
+            ...prev,
+            [chatId]: previousCount + 1,
+          };
         });
+        scheduleUnreadSyncForChat(chatId, 600);
       }
-    };
+      return;
+    }
 
-    processChatMeta();
-  }, [chatMetaMap, chatMetaAppliedAt, sortChatsByActivity, user?.$id]);
+    if (isUpdate) {
+      scheduleUnreadSyncForChat(chatId);
+      return;
+    }
+
+    scheduleUnreadSyncForChat(chatId);
+  }, [hasProcessedMessageEvent, scheduleUnreadSyncForChat, user?.$id]);
+
+  const handleRealtimeMessageDelete = useCallback((payload) => {
+    const chatId = payload?.chatId;
+    if (!chatId) {
+      return;
+    }
+    scheduleUnreadSyncForChat(chatId);
+  }, [scheduleUnreadSyncForChat]);
 
   // Subscribe to chat list updates
   useChatList(user?.$id, handleRealtimeChatUpdate, !!user?.$id);
 
-  // --- Adaptive polling (healthy → 5 min, unhealthy → 30 s) + foreground refresh ---
-  const realtimeHealthy = useRealtimeHealth();
-  const adaptiveFetch = useCallback(() => {
-    loadChats(false, { forceUnreadNetwork: true });
-  }, [loadChats]);
-
-  useAdaptivePolling(adaptiveFetch, {
-    enabled: !!user?.$id,
-    realtimeHealthy,
-    healthyInterval: 5 * 60 * 1000,
-    unhealthyInterval: 30 * 1000,
-    backgroundGrace: 30 * 1000,
-  });
-
-  useEffect(() => {
-    // Placeholder block kept for parity – adaptive polling handles foreground resume
-    const subscription = AppState.addEventListener('change', () => {});
-    return () => subscription.remove();
-  }, [user?.$id, user?.department]);
+  // Subscribe to message-level realtime updates to keep unread badges live
+  useRealtimeSubscription(
+    config.messagesCollectionId,
+    handleRealtimeMessageUpdate,
+    handleRealtimeMessageDelete,
+    { enabled: !!user?.$id && !!config.messagesCollectionId }
+  );
 
   useEffect(() => {
     if (user?.department) {
@@ -376,25 +398,20 @@ const Chats = ({ navigation }) => {
       await initializeUserGroups(user.department, stageValue, user.$id);
       
       setInitializing(false);
-      await loadChats(true);
+      await loadChats();
     } catch (error) {
       setInitializing(false);
       setLoading(false);
     }
   };
 
-  const loadUnreadCounts = async (allChats, options = {}) => {
+  const loadUnreadCounts = async (allChats) => {
     if (!user?.$id || allChats.length === 0) return;
-
-    const { forceNetwork = false } = options;
     
     const counts = {};
     await Promise.all(
       allChats.map(async (chat) => {
-        const count = await getUnreadCount(chat.$id, user.$id, {
-          useCache: true,
-          cacheOnly: !forceNetwork,
-        });
+        const count = await getUnreadCount(chat.$id, user.$id);
         counts[chat.$id] = count;
       })
     );
@@ -416,19 +433,17 @@ const Chats = ({ navigation }) => {
     setClearedAtMap(timestamps);
   };
 
-  const loadChats = async (useCache = true, options = {}) => {
+  const loadChats = async () => {
     if (!user?.department) {
       setLoading(false);
       return;
     }
 
-    const { forceUnreadNetwork = false } = options;
-
     try {
       setLoading(true);
       const stageValue = stageToValue(user.stage);
       
-      const chats = await getAllUserChats(user.$id, user.department, stageValue, useCache);
+      const chats = await getAllUserChats(user.$id, user.department, stageValue);
       const normalizedDefaultGroups = Array.isArray(chats?.defaultGroups) ? chats.defaultGroups : [];
       const normalizedCustomGroups = Array.isArray(chats?.customGroups) ? chats.customGroups : [];
       const normalizedPrivateChats = Array.isArray(chats?.privateChats) ? chats.privateChats : [];
@@ -463,7 +478,7 @@ const Chats = ({ navigation }) => {
 
       const loadAuxiliaryData = async () => {
         await Promise.all([
-          loadUnreadCounts(allChats, { forceNetwork: forceUnreadNetwork }),
+          loadUnreadCounts(allChats),
           loadClearedAtTimestamps(allChats),
         ]);
 
@@ -510,7 +525,7 @@ const Chats = ({ navigation }) => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadChats(false, { forceUnreadNetwork: true });
+    await loadChats();
     setRefreshing(false);
   };
 
@@ -619,7 +634,7 @@ const Chats = ({ navigation }) => {
             try {
               await deleteChat(selectedChat.$id, user.$id);
               setChatMenuVisible(false);
-              await loadChats(false);
+              await loadChats();
             } catch {
               Alert.alert(t('common.error'), t('chats.deleteConversationError'));
             }
@@ -653,7 +668,7 @@ const Chats = ({ navigation }) => {
               await removePrivateChatForUser(selectedChat.$id, user.$id);
               await refreshUser?.();
               setChatMenuVisible(false);
-              await loadChats(false);
+              await loadChats();
             } catch (error) {
               if (error?.code === 'CHAT_BLOCK_COLUMN_MISSING') {
                 Alert.alert(t('common.error'), t('chats.chatBlockNeedsColumn'));
@@ -671,7 +686,7 @@ const Chats = ({ navigation }) => {
               await blockUser(user.$id, otherUserId);
               await refreshUser?.();
               setChatMenuVisible(false);
-              await loadChats(false);
+              await loadChats();
             } catch {
               Alert.alert(t('common.error'), t('chats.blockError'));
             }
@@ -720,7 +735,7 @@ const Chats = ({ navigation }) => {
             try {
               await leaveGroup(selectedChat.$id, user.$id);
               setChatMenuVisible(false);
-              await loadChats(false);
+              await loadChats();
             } catch {
               Alert.alert(t('common.error'), t('chats.leaveGroupError'));
             }

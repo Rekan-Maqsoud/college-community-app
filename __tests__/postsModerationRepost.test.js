@@ -74,13 +74,6 @@ jest.mock('../database/users', () => ({
   getUserById: jest.fn(() => Promise.resolve(null)),
 }));
 
-jest.mock('../app/hooks/useFirebaseRealtime', () => ({
-  broadcastLikeCount: jest.fn(() => Promise.resolve()),
-  broadcastViewCount: jest.fn(() => Promise.resolve()),
-  broadcastPollVotes: jest.fn(() => Promise.resolve()),
-  seedPostCounters: jest.fn(() => Promise.resolve()),
-}));
-
 describe('posts moderation and repost flows', () => {
   const originalFetch = global.fetch;
 

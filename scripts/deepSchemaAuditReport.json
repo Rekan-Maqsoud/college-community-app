@@ -1,0 +1,325 @@
+{
+  "scannedCollections": 15,
+  "scannedAttributes": 203,
+  "caseConflictsInCollection": [],
+  "caseVariantsGlobal": [],
+  "nearNameClusters": [],
+  "nonAvailableInitial": [],
+  "remediated": [],
+  "remediationFailures": [],
+  "sized16384String": [
+    {
+      "collectionId": "68fc7b42001bf7efbba3",
+      "collectionName": "users",
+      "key": "department",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "68fc7b42001bf7efbba3",
+      "collectionName": "users",
+      "key": "profileViews",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "68fc7b42001bf7efbba3",
+      "collectionName": "users",
+      "key": "publicKey",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "68ff7914000948dbd572",
+      "collectionName": "posts",
+      "key": "text",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "68ff7914000948dbd572",
+      "collectionName": "posts",
+      "key": "department",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "68ff7914000948dbd572",
+      "collectionName": "posts",
+      "key": "stage",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "68ff7914000948dbd572",
+      "collectionName": "posts",
+      "key": "images",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "68ff7914000948dbd572",
+      "collectionName": "posts",
+      "key": "imageDeleteUrls",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "68ff7914000948dbd572",
+      "collectionName": "posts",
+      "key": "tags",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "68ff7914000948dbd572",
+      "collectionName": "posts",
+      "key": "links",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "68ff7b8f000492463724",
+      "collectionName": "replies",
+      "key": "images",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "68ff7b8f000492463724",
+      "collectionName": "replies",
+      "key": "imageDeleteUrls",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "68ff7b8f000492463724",
+      "collectionName": "replies",
+      "key": "links",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "chats",
+      "collectionName": "chats",
+      "key": "department",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "chats",
+      "collectionName": "chats",
+      "key": "stage",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "chats",
+      "collectionName": "chats",
+      "key": "representatives",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "chats",
+      "collectionName": "chats",
+      "key": "description",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "chats",
+      "collectionName": "chats",
+      "key": "lastMessage",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "chats",
+      "collectionName": "chats",
+      "key": "admins",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "chats",
+      "collectionName": "chats",
+      "key": "settings",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "chats",
+      "collectionName": "chats",
+      "key": "groupPhoto",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "chats",
+      "collectionName": "chats",
+      "key": "pinnedMessages",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "chats",
+      "collectionName": "chats",
+      "key": "typingUsers",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "messages",
+      "collectionName": "messages",
+      "key": "content",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "messages",
+      "collectionName": "messages",
+      "key": "images",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "messages",
+      "collectionName": "messages",
+      "key": "imageUrl",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "messages",
+      "collectionName": "messages",
+      "key": "mentions",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "messages",
+      "collectionName": "messages",
+      "key": "reactions",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "69500c9c000bd955c984",
+      "collectionName": "userChatSettings",
+      "key": "bookmarkedMsgs",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "69554fd5001d447c8c1c",
+      "collectionName": "notifications",
+      "key": "postPreview",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "69554fd5001d447c8c1c",
+      "collectionName": "notifications",
+      "key": "new_follower",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "699733ee001cbf86e7a4",
+      "collectionName": "Lecture Channels",
+      "key": "description",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "699733ee001cbf86e7a4",
+      "collectionName": "Lecture Channels",
+      "key": "settingsJson",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "6997342b0012ee32448b",
+      "collectionName": "Lecture Assets",
+      "key": "description",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "6997342b0012ee32448b",
+      "collectionName": "Lecture Assets",
+      "key": "youtubeUrl",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "6997342b0012ee32448b",
+      "collectionName": "Lecture Assets",
+      "key": "externalUrl",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "6997342b0012ee32448b",
+      "collectionName": "Lecture Assets",
+      "key": "fileUrl",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "69973f680024de7fd9fe",
+      "collectionName": "lectureComments",
+      "key": "text",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    },
+    {
+      "collectionId": "suggestions",
+      "collectionName": "Suggestions",
+      "key": "message",
+      "type": "string",
+      "status": "available",
+      "size": 16384
+    }
+  ],
+  "potentialConflicts": []
+}

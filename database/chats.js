@@ -4,13 +4,11 @@ import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import nacl from 'tweetnacl';
 import { encodeBase64, decodeBase64, encodeUTF8, decodeUTF8 } from 'tweetnacl-util';
-import { messagesCacheManager, unreadCountCacheManager } from '../app/utils/cacheManager';
 import { sendChatPushNotification } from '../services/pushNotificationService';
 import { getUserById, updateUserPublicKey } from './users';
 import { uploadImage } from '../services/imgbbService';
 import { uploadFileToAppwrite } from '../services/appwriteFileUpload';
 import { parsePollPayload, applyPollVote } from '../app/utils/pollUtils';
-import { broadcastChatMeta } from '../app/hooks/useFirebaseRealtime';
 import { assertActorIdentity, enforceRateLimit } from './securityGuards';
 
 export const CHAT_TYPES = {
@@ -118,48 +116,12 @@ const CHAT_KEY_PREFIX = 'e2ee_chat_key_';
 const PUBLIC_KEY_PREFIX = 'e2ee_public_key_';
 const PRIVATE_KEY_PREFIX = 'e2ee_private_key_';
 
-// In-memory cache for resolved chat keys to avoid repeated SecureStore reads
-const chatKeyMemCache = new Map();
-const CHAT_KEY_MEM_TTL = 5 * 60 * 1000; // 5 minutes
-
-const getCachedChatKey = (chatId) => {
-    const entry = chatKeyMemCache.get(chatId);
-    if (!entry) return null;
-    if (Date.now() - entry.ts > CHAT_KEY_MEM_TTL) {
-        chatKeyMemCache.delete(chatId);
-        return null;
-    }
-    return entry.key;
-};
-
-const setCachedChatKey = (chatId, key) => {
-    chatKeyMemCache.set(chatId, { key, ts: Date.now() });
-};
-
-// In-memory cache for chat documents during sendMessage pipeline
-const chatDocCache = new Map();
-const CHAT_DOC_TTL = 10 * 1000; // 10 seconds
-
 const buildParticipantPermissions = () => {
     return [
         Permission.read(Role.users()),
         Permission.update(Role.users()),
         Permission.delete(Role.users()),
     ];
-};
-
-const getCachedChat = (chatId) => {
-    const entry = chatDocCache.get(chatId);
-    if (!entry) return null;
-    if (Date.now() - entry.ts > CHAT_DOC_TTL) {
-        chatDocCache.delete(chatId);
-        return null;
-    }
-    return entry.doc;
-};
-
-const setCachedChatDoc = (chatId, doc) => {
-    chatDocCache.set(chatId, { doc, ts: Date.now() });
 };
 
 const getAuthenticatedUserId = async () => {
@@ -376,7 +338,6 @@ const getStoredChatKey = async (chatId) => {
 
 const clearStoredChatKey = async (chatId) => {
     if (!chatId) return;
-    chatKeyMemCache.delete(chatId);
     const key = getSecureStoreKey(CHAT_KEY_PREFIX, chatId);
     try {
         await SecureStore.deleteItemAsync(key);
@@ -469,12 +430,6 @@ const resolveChatKey = async (chat, userId, options = {}) => {
 
     const { forceRefresh = false } = options;
 
-    // Check in-memory cache first (fastest)
-    if (!forceRefresh) {
-        const memCached = getCachedChatKey(chat.$id);
-        if (memCached) return memCached;
-    }
-
     const publicKeyResult = await ensureChatPublicKeyStored(chat, userId);
     // Use updated settings string without mutating the (possibly frozen) chat object
     const settingsStr = publicKeyResult?.settings
@@ -484,7 +439,6 @@ const resolveChatKey = async (chat, userId, options = {}) => {
     if (!forceRefresh) {
         const cached = await getStoredChatKey(chat.$id);
         if (cached) {
-            setCachedChatKey(chat.$id, cached);
             return cached;
         }
     }
@@ -537,7 +491,6 @@ const resolveChatKey = async (chat, userId, options = {}) => {
         }
 
         await storeChatKey(chat.$id, decrypted);
-        setCachedChatKey(chat.$id, decrypted);
         return decrypted;
     }
 
@@ -670,9 +623,6 @@ const ensureChatEncryption = async (chat, userId) => {
     const existingKey = await resolveChatKey(chat, userId);
     if (existingKey) {
         await addMissingE2eeKeys(chat, existingKey, userId);
-        // Refresh the doc cache after potential settings write
-        const refreshed = await getChat(chat.$id, true);
-        setCachedChatDoc(chat.$id, refreshed);
         return existingKey;
     }
 
@@ -695,10 +645,8 @@ const ensureChatEncryption = async (chat, userId) => {
         chat.$id,
         { settings: JSON.stringify(nextSettings) }
     );
-    setCachedChatDoc(chat.$id, updatedChat);
 
     await storeChatKey(chat.$id, built.chatKey);
-    setCachedChatKey(chat.$id, built.chatKey);
     return built.chatKey;
 };
 
@@ -795,7 +743,7 @@ export const rotateChatE2eeKeys = async (chatId, actorUserId = null) => {
             },
         };
 
-        const updatedChat = await databases.updateDocument(
+        await databases.updateDocument(
             config.databaseId,
             config.chatsCollectionId,
             chatId,
@@ -803,8 +751,6 @@ export const rotateChatE2eeKeys = async (chatId, actorUserId = null) => {
         );
 
         await storeChatKey(chatId, nextChatKey);
-        setCachedChatKey(chatId, nextChatKey);
-        setCachedChatDoc(chatId, updatedChat);
 
         return { success: true, keyVersion: nextKeyVersion };
     } catch (error) {
@@ -1118,15 +1064,10 @@ export const getChats = async (userId) => {
     }
 };
 
-export const getChat = async (chatId, skipCache = false) => {
+export const getChat = async (chatId) => {
     try {
         if (!chatId || typeof chatId !== 'string') {
             throw new Error('Invalid chat ID');
-        }
-
-        if (!skipCache) {
-            const cached = getCachedChat(chatId);
-            if (cached) return cached;
         }
         
         const chat = await databases.getDocument(
@@ -1134,7 +1075,6 @@ export const getChat = async (chatId, skipCache = false) => {
             config.chatsCollectionId,
             chatId
         );
-        setCachedChatDoc(chatId, chat);
         return chat;
     } catch (error) {
         throw error;
@@ -1163,9 +1103,6 @@ export const deleteChat = async (chatId, actorUserId = null) => {
             config.chatsCollectionId,
             chatId
         );
-
-        chatKeyMemCache.delete(chatId);
-        chatDocCache.delete(chatId);
         await SecureStore.deleteItemAsync(getSecureStoreKey(CHAT_KEY_PREFIX, chatId));
     } catch (error) {
         throw error;
@@ -1379,8 +1316,6 @@ export const sendMessage = async (chatId, messageData) => {
         }
 
         const chat = await ensureChatParticipant(chatId, senderId) || await getChat(chatId);
-        // Cache the chat document to prevent redundant fetches during encryption pipeline
-        setCachedChatDoc(chatId, chat);
 
         // If user had previously removed this private DM, restore it
         if (chat.type === 'private') {
@@ -1393,7 +1328,7 @@ export const sendMessage = async (chatId, messageData) => {
         // need to verify coverage without re-adding keys.
         let shouldEncrypt = false;
         if (chatKey) {
-            const refreshed = getCachedChat(chatId) || await getChat(chatId);
+            const refreshed = await getChat(chatId, true);
             const covSettings = parseChatSettings(refreshed.settings);
             const covKeys = covSettings?.e2ee?.keys || {};
             const participants = Array.isArray(chat.participants) ? chat.participants : [];
@@ -1516,16 +1451,7 @@ export const sendMessage = async (chatId, messageData) => {
             }
         );
 
-        // Broadcast to Firebase so other clients update instantly
-        broadcastChatMeta(chatId, {
-            lastMessage: lastMessagePreview,
-            lastMessageAt: lastMessageAtTimestamp,
-            messageCount: currentCount + 1,
-            lastSenderId: senderId,
-        });
-        
-        // Add message to cache and notify in background to keep send path fast
-        messagesCacheManager.addMessageToCache(chatId, message, 100).catch(() => {});
+        // Notify in background to keep send path fast
         sendChatPushNotification({
             chatId,
             messageId: message.$id,
@@ -1542,11 +1468,10 @@ export const sendMessage = async (chatId, messageData) => {
     }
 };
 
-export const getMessages = async (chatId, userIdOrLimit = 50, limitOrOffset = 0, offsetOrUseCache = 0, useCache = true) => {
+export const getMessages = async (chatId, userIdOrLimit = 50, limitOrOffset = 0, offsetArg = 0) => {
     let userId = null;
     let limit = 50;
     let offset = 0;
-    let shouldUseCache = true;
 
     try {
         if (!chatId || typeof chatId !== 'string') {
@@ -1560,25 +1485,10 @@ export const getMessages = async (chatId, userIdOrLimit = 50, limitOrOffset = 0,
         if (typeof userIdOrLimit === 'string') {
             userId = userIdOrLimit;
             limit = typeof limitOrOffset === 'number' ? limitOrOffset : 50;
-            offset = typeof offsetOrUseCache === 'number' ? offsetOrUseCache : 0;
-            shouldUseCache = typeof useCache === 'boolean' ? useCache : true;
+            offset = typeof offsetArg === 'number' ? offsetArg : 0;
         } else {
             limit = typeof userIdOrLimit === 'number' ? userIdOrLimit : 50;
             offset = typeof limitOrOffset === 'number' ? limitOrOffset : 0;
-            shouldUseCache = typeof offsetOrUseCache === 'boolean' ? offsetOrUseCache : true;
-        }
-
-        // Try to get cached data first (only for initial load without offset)
-        if (shouldUseCache && offset === 0) {
-            const cached = await messagesCacheManager.getCachedMessages(chatId, limit);
-            if (cached?.value && !cached.isStale) {
-                if (userId) {
-                    const chat = await getChat(chatId);
-                    const chatKey = await resolveChatKey(chat, userId);
-                    return await decryptMessagesWithRecovery(chat, userId, cached.value, chatKey);
-                }
-                return cached.value;
-            }
         }
         
         const messages = await databases.listDocuments(
@@ -1598,21 +1508,9 @@ export const getMessages = async (chatId, userIdOrLimit = 50, limitOrOffset = 0,
             const chatKey = await resolveChatKey(chat, userId);
             documents = await decryptMessagesWithRecovery(chat, userId, documents, chatKey);
         }
-
-        // Cache the messages for initial load
-        if (offset === 0) {
-            await messagesCacheManager.cacheMessages(chatId, documents, limit);
-        }
         
         return documents;
     } catch (error) {
-        // On network error, try to return stale cache
-        if (offset === 0) {
-            const cached = await messagesCacheManager.getCachedMessages(chatId, limit);
-            if (cached?.value) {
-                return cached.value;
-            }
-        }
         throw error;
     }
 };
@@ -1665,8 +1563,6 @@ export const voteOnMessagePoll = async (chatId, messageId, userId, selectedOptio
                 content: contentToSave,
             }
         );
-
-        await messagesCacheManager.invalidateChatMessages(chatId);
 
         if (chatKey) {
             return decryptMessageFields(updatedMessage, chatKey);
@@ -1782,9 +1678,6 @@ export const clearChatMessages = async (chatId, actorUserId = null) => {
             }
         }
         
-        // Clear messages cache for this chat
-        await messagesCacheManager.invalidateChatMessages(chatId);
-        
         return { success: true, deletedCount };
     } catch (error) {
         throw error;
@@ -1892,10 +1785,6 @@ export const toggleMessageReaction = async (chatId, messageId, userId, emoji) =>
             { reactions: JSON.stringify(nextReactions) }
         );
 
-        if (chatId) {
-            await messagesCacheManager.invalidateChatMessages(chatId);
-        }
-
         return updatedMessage;
     } catch (error) {
         throw error;
@@ -1996,7 +1885,6 @@ export const markAllMessagesAsRead = async (chatId, userId) => {
             .map(msg => markMessageAsRead(msg.$id, userId));
         
         await Promise.all(updatePromises);
-        await unreadCountCacheManager.cacheChatUnreadCount(chatId, userId, 0);
     } catch (error) {
         // Silently fail
     }
@@ -2354,19 +2242,6 @@ export const getUnreadCount = async (chatId, userId, options = {}) => {
             return 0;
         }
 
-        const { useCache = true, cacheOnly = false } = options;
-
-        if (useCache) {
-            const cached = await unreadCountCacheManager.getCachedChatUnreadCount(chatId, userId);
-            if (cached && typeof cached.value === 'number') {
-                return cached.value;
-            }
-        }
-
-        if (cacheOnly) {
-            return 0;
-        }
-
         // Get recent messages that the user hasn't read
         const messages = await databases.listDocuments(
             config.databaseId,
@@ -2388,8 +2263,6 @@ export const getUnreadCount = async (chatId, userId, options = {}) => {
                 }
             }
         }
-
-        await unreadCountCacheManager.cacheChatUnreadCount(chatId, userId, unreadCount);
 
         return unreadCount;
     } catch (error) {
@@ -2432,7 +2305,6 @@ export const markChatAsRead = async (chatId, userId) => {
             });
 
         await Promise.all(updatePromises);
-        await unreadCountCacheManager.cacheChatUnreadCount(chatId, userId, 0);
     } catch (error) {
         // Silently fail - reading messages is not critical
     }
@@ -2447,11 +2319,9 @@ export const getTotalUnreadCount = async (userId, chatIds, options = {}) => {
             return 0;
         }
 
-        const { useCache = true, cacheOnly = false } = options;
-
         let totalUnread = 0;
         for (const chatId of chatIds) {
-            const count = await getUnreadCount(chatId, userId, { useCache, cacheOnly });
+            const count = await getUnreadCount(chatId, userId);
             totalUnread += count;
         }
 

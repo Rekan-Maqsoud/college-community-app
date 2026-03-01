@@ -38,8 +38,9 @@ import {
   DEFAULT_REACTION_SET,
 } from '../../../database/userChatSettings';
 import { useChatMessages } from '../../hooks/useRealtimeSubscription';
-import { messagesCacheManager } from '../../utils/cacheManager';
 import { normalizeRealtimeMessage } from '../../utils/realtimeHelpers';
+
+const INITIAL_CHAT_MESSAGES_LIMIT = 20;
 
 export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, refreshUser }) => {
   // Deep-clone chat once to avoid mutating the frozen route.params object
@@ -85,8 +86,14 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   const flatListRef = useRef(null);
   const lastMessageId = useRef(null);
   const userCacheRef = useRef({});
-  const isRealtimeActive = useRef(false);
   const deletedMessageIds = useRef(new Set());
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const getChatDisplayName = useCallback(() => {
     if (chat.type === 'private' && chat.otherUser) {
@@ -100,8 +107,6 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   }, [chat.$id]);
 
   const handleRealtimeNewMessage = useCallback(async (payload) => {
-    isRealtimeActive.current = true;
-
     const normalizedPayload = getNormalizedRealtimeMessage(payload);
     if (!normalizedPayload) {
       return;
@@ -114,9 +119,11 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       decryptedPayload = normalizedPayload;
     }
 
-    await messagesCacheManager.addMessageToCache(chat.$id, decryptedPayload, 100);
-
     // Insert at beginning for inverted FlatList (newest first)
+    if (!isMountedRef.current) {
+      return;
+    }
+
     setMessages(prev => {
       // Check if message already exists by server ID
       if (prev.some(m => m.$id === decryptedPayload.$id)) {
@@ -145,7 +152,9 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       try {
         const userData = await getUserById(decryptedPayload.senderId);
         userCacheRef.current[decryptedPayload.senderId] = userData;
-        setUserCache({ ...userCacheRef.current });
+        if (isMountedRef.current) {
+          setUserCache({ ...userCacheRef.current });
+        }
       } catch (e) {
         userCacheRef.current[decryptedPayload.senderId] = { name: decryptedPayload.senderName || 'Unknown' };
       }
@@ -153,16 +162,16 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   }, [chat.$id, getNormalizedRealtimeMessage, user?.$id]);
 
   const handleRealtimeMessageDeleted = useCallback(async (payload) => {
-    isRealtimeActive.current = true;
-    // Track deleted ID to prevent ghost re-appearance from polling
+    // Track deleted ID to prevent ghost re-appearance from later fetches
     deletedMessageIds.current.add(payload.$id);
-    // Invalidate messages cache since data changed
-    await messagesCacheManager.invalidateChatMessages(chat.$id);
-    setMessages(prev => prev.filter(m => m.$id !== payload.$id));
+    if (isMountedRef.current) {
+      setMessages(prev => prev.filter(m => m.$id !== payload.$id));
+    }
   }, [chat.$id]);
 
   useChatMessages(
     chat.$id,
+    handleRealtimeNewMessage,
     handleRealtimeNewMessage,
     handleRealtimeMessageDeleted,
     !!chat.$id && !!user?.$id
@@ -287,18 +296,11 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     }
 
     try {
-      // Always show skeleton until fresh decrypted messages arrive.
-      // We do NOT display cached messages directly because they may contain
-      // encrypted content (enc:v1:...) from a prior failed decryption,
-      // which would flash on screen before the fresh decrypted fetch completes.
       setLoading(true);
 
-      // Fetch fresh data from server
-      const fetchedMessages = await getMessages(chat.$id, user?.$id, 100, 0, false);
+      // Fetch fresh data from server (RAM-safe initial page)
+      const fetchedMessages = await getMessages(chat.$id, user?.$id, INITIAL_CHAT_MESSAGES_LIMIT, 0);
       let freshMessages = fetchedMessages.reverse(); // chronological (oldest first)
-
-      // Cache the freshly fetched messages (in chronological order)
-      await messagesCacheManager.cacheMessages(chat.$id, freshMessages, 100);
 
       // Filter out messages deleted via realtime to prevent ghost re-appearance
       if (deletedMessageIds.current.size > 0) {
@@ -323,6 +325,10 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
 
       // Reverse for inverted FlatList (newest first)
       const invertedFresh = freshMessages.slice().reverse();
+
+      if (!isMountedRef.current) {
+        return;
+      }
 
       // Merge silently: only update if there are meaningful changes
       setMessages(prev => {
@@ -371,7 +377,9 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       }
       
       userCacheRef.current = newUserCache;
-      setUserCache(newUserCache);
+      if (isMountedRef.current) {
+        setUserCache(newUserCache);
+      }
       
       // Mark messages as read when loading
       if (user?.$id) {
@@ -435,6 +443,8 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     if (!chatSettingsLoaded) {
       return;
     }
@@ -445,6 +455,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     loadMembersAndFriends();
 
     return () => {
+      isMountedRef.current = false;
     };
   }, [chat.$id, chatSettingsLoaded]);
 
@@ -954,8 +965,6 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
                 setHiddenMessageIds(merged);
               }
 
-              // Invalidate local cache so stale messages don't reappear
-              await messagesCacheManager.invalidateChatMessages(chat.$id);
               setMessages([]);
               triggerAlert(t('common.success'), t('chats.chatClearedLocal'), 'success');
             } catch (error) {

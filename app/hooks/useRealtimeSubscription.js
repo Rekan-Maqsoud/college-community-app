@@ -1,43 +1,11 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { AppState } from 'react-native';
-import { config, safeSubscribe } from '../../database/config';
+import client, { config } from '../../database/config';
 import { isDeleteEvent } from '../utils/realtimeHelpers';
 import realtimeDebugLogger from '../utils/realtimeDebugLogger';
 
-// ── Global realtime health tracker ───────────────────────────────────
-// Tracks whether *any* subscription is actively receiving events.
-// Components can read this via `useRealtimeHealth()` to decide whether
-// they need aggressive polling as a fallback.
-let _lastRealtimeEventTs = 0;
-const HEALTH_STALE_MS = 90_000; // consider unhealthy after 90 s of silence
-
-const touchRealtimeHealth = () => {
-  _lastRealtimeEventTs = Date.now();
-};
-
-/**
- * Returns a boolean that is `true` when at least one realtime event has been
- * received within the last HEALTH_STALE_MS window.  Re-evaluates every 15 s.
- */
-export const useRealtimeHealth = () => {
-  const [healthy, setHealthy] = useState(_lastRealtimeEventTs > 0);
-
-  useEffect(() => {
-    const check = () => {
-      const isHealthy = Date.now() - _lastRealtimeEventTs < HEALTH_STALE_MS;
-      setHealthy(isHealthy);
-    };
-    check();
-    const id = setInterval(check, 15_000);
-    return () => clearInterval(id);
-  }, []);
-
-  return healthy;
-};
-
 /**
  * Custom hook for real-time subscription to Appwrite collections
- * With graceful fallback when realtime is not available
  * 
  * @param {string} collectionId - The collection to subscribe to
  * @param {Function} onUpdate - Callback when data is created/updated
@@ -53,9 +21,9 @@ export const useRealtimeSubscription = (
   { documentId = null, enabled = true } = {}
 ) => {
   const unsubscribeRef = useRef(null);
+  const [isConnected, setIsConnected] = useState(false);
   const onUpdateRef = useRef(onUpdate);
   const onDeleteRef = useRef(onDelete);
-  const isConnectedRef = useRef(false);
 
   // Keep refs updated to avoid stale closures
   useEffect(() => {
@@ -83,7 +51,7 @@ export const useRealtimeSubscription = (
       ? `databases.${config.databaseId}.collections.${collectionId}.documents.${documentId}`
       : `databases.${config.databaseId}.collections.${collectionId}.documents`;
 
-    unsubscribeRef.current = safeSubscribe(channel, (response) => {
+    const handleRealtimeEvent = (response) => {
       const { events, payload } = response || {};
       if (!events || !payload) {
         realtimeDebugLogger.warn('realtime_missing_payload', {
@@ -94,8 +62,7 @@ export const useRealtimeSubscription = (
         return;
       }
 
-      isConnectedRef.current = true;
-      touchRealtimeHealth();
+      setIsConnected(true);
 
       if (!isDeleteEvent(events)) {
         onUpdateRef.current?.(payload, events);
@@ -104,9 +71,9 @@ export const useRealtimeSubscription = (
       if (isDeleteEvent(events) && onDeleteRef.current) {
         onDeleteRef.current?.(payload, events);
       }
-    });
+    };
 
-    return () => {
+    const cleanupSubscription = () => {
       if (unsubscribeRef.current) {
         try {
           unsubscribeRef.current();
@@ -115,51 +82,21 @@ export const useRealtimeSubscription = (
         }
         unsubscribeRef.current = null;
       }
-      isConnectedRef.current = false;
+      setIsConnected(false);
     };
-  }, [collectionId, documentId, enabled]);
 
-  // Handle app resume from background - safely reconnect subscription
-  useEffect(() => {
-    if (!enabled || !collectionId) return;
+    const subscribe = () => {
+      cleanupSubscription();
+      unsubscribeRef.current = client.subscribe(channel, handleRealtimeEvent);
+    };
+
+    subscribe();
 
     const appStateRef = { current: AppState.currentState };
 
-    const buildChannel = () => (documentId
-      ? `databases.${config.databaseId}.collections.${collectionId}.documents.${documentId}`
-      : `databases.${config.databaseId}.collections.${collectionId}.documents`
-    );
-
-    const subscribe = () => {
-      const channel = buildChannel();
-      realtimeDebugLogger.trace('realtime_resubscribe_start', { channel });
-      unsubscribeRef.current = safeSubscribe(channel, (response) => {
-        const { events, payload } = response || {};
-        if (!events || !payload) return;
-
-        isConnectedRef.current = true;
-        touchRealtimeHealth();
-
-        if (!isDeleteEvent(events)) {
-          onUpdateRef.current?.(payload, events);
-        }
-        if (isDeleteEvent(events) && onDeleteRef.current) {
-          onDeleteRef.current?.(payload, events);
-        }
-      });
-    };
-
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState?.match(/inactive|background/)) {
-        if (unsubscribeRef.current) {
-          try {
-            unsubscribeRef.current();
-          } catch (e) {
-            // Ignore cleanup errors on stale subscription
-          }
-          unsubscribeRef.current = null;
-        }
-        isConnectedRef.current = false;
+        cleanupSubscription();
         realtimeDebugLogger.trace('realtime_app_background', { collectionId, documentId });
       }
 
@@ -171,10 +108,13 @@ export const useRealtimeSubscription = (
       appStateRef.current = nextAppState;
     });
 
-    return () => subscription.remove();
+    return () => {
+      subscription.remove();
+      cleanupSubscription();
+    };
   }, [collectionId, documentId, enabled]);
 
-  return { isConnected: isConnectedRef.current };
+  return { isConnected };
 };
 
 /**
@@ -182,19 +122,36 @@ export const useRealtimeSubscription = (
  * Automatically updates when new messages arrive or are updated
  * Passes events array to callback for distinguishing create vs update
  */
-export const useChatMessages = (chatId, onNewMessage, onMessageDeleted, enabled = true) => {
-  const onNewMessageRef = useRef(onNewMessage);
+export const useChatMessages = (chatId, onMessageCreated, onMessageUpdated, onMessageDeleted, enabled = true) => {
+  const onMessageCreatedRef = useRef(onMessageCreated);
+  const onMessageUpdatedRef = useRef(onMessageUpdated);
   const onMessageDeletedRef = useRef(onMessageDeleted);
 
   useEffect(() => {
-    onNewMessageRef.current = onNewMessage;
+    onMessageCreatedRef.current = onMessageCreated;
+    onMessageUpdatedRef.current = onMessageUpdated;
     onMessageDeletedRef.current = onMessageDeleted;
-  }, [onNewMessage, onMessageDeleted]);
+  }, [onMessageCreated, onMessageUpdated, onMessageDeleted]);
 
-  const handleCreate = useCallback((payload, events) => {
-    if (payload?.chatId === chatId) {
-      onNewMessageRef.current?.(payload, events);
+  const handleUpdate = useCallback((payload, events = []) => {
+    if (payload?.chatId !== chatId) {
+      return;
     }
+
+    const isCreate = events?.some(event => event.includes('.create'));
+    const isUpdate = events?.some(event => event.includes('.update'));
+
+    if (isCreate) {
+      onMessageCreatedRef.current?.(payload, events);
+      return;
+    }
+
+    if (isUpdate) {
+      onMessageUpdatedRef.current?.(payload, events);
+      return;
+    }
+
+    onMessageCreatedRef.current?.(payload, events);
   }, [chatId]);
 
   const handleDelete = useCallback((payload, events) => {
@@ -205,7 +162,7 @@ export const useChatMessages = (chatId, onNewMessage, onMessageDeleted, enabled 
 
   useRealtimeSubscription(
     config.messagesCollectionId,
-    handleCreate,
+    handleUpdate,
     onMessageDeleted ? handleDelete : null,
     { enabled: enabled && !!chatId }
   );

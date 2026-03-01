@@ -1,0 +1,47 @@
+{
+  "usage": {
+    "usingLegacyUserID": [],
+    "usingStandardUserId": [
+      {
+        "collectionId": "68ff7914000948dbd572",
+        "collectionName": "posts"
+      },
+      {
+        "collectionId": "68ff7b8f000492463724",
+        "collectionName": "replies"
+      },
+      {
+        "collectionId": "69500c9c000bd955c984",
+        "collectionName": "userChatSettings"
+      },
+      {
+        "collectionId": "69554fd5001d447c8c1c",
+        "collectionName": "notifications"
+      },
+      {
+        "collectionId": "pushtokens",
+        "collectionName": "pushTokens"
+      },
+      {
+        "collectionId": "699734170003f998b862",
+        "collectionName": "Lecture Memberships"
+      },
+      {
+        "collectionId": "69973f680024de7fd9fe",
+        "collectionName": "lectureComments"
+      },
+      {
+        "collectionId": "suggestions",
+        "collectionName": "Suggestions"
+      }
+    ],
+    "usingBoth": []
+  },
+  "migrationLog": [],
+  "backups": {
+    "generatedAt": "2026-03-01T04:55:31.015Z",
+    "databaseId": "68fc78fd0030f049a781",
+    "notes": "Temporary backup for legacy userID to userId schema refactor",
+    "collections": []
+  }
+}

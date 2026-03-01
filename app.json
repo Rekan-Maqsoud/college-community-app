@@ -18,9 +18,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "7",
+      "buildNumber": "8",
       "bundleIdentifier": "com.college.community",
-      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "CFBundleURLTypes": [
           {
@@ -36,8 +35,7 @@
     },
     "android": {
       "package": "com.collegecommunity",
-      "versionCode": 7,
-      "googleServicesFile": "./google-services.json",
+      "versionCode": 8,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a1a2e"
@@ -82,6 +80,7 @@
         "expo-build-properties",
         {
           "android": {
+            "ndkVersion": "26.1.10909125",
             "extraProguardRules": "",
             "extraMavenRepos": []
           }
@@ -122,9 +121,7 @@
         }
       ],
       "expo-asset",
-      "@sentry/react-native/expo",
-      "@react-native-firebase/app",
-      "@react-native-firebase/auth"
+      "@sentry/react-native/expo"
     ],
     "extra": {
       "eas": {

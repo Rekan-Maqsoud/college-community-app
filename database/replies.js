@@ -1,7 +1,6 @@
 import { account, databases, config } from './config';
 import { ID, Query, Permission, Role } from 'appwrite';
 import { repliesCacheManager } from '../app/utils/cacheManager';
-import { broadcastReplyCount } from '../app/hooks/useFirebaseRealtime';
 import { enforceRateLimit } from './securityGuards';
 
 const getAuthenticatedUserId = async () => {
@@ -393,7 +392,6 @@ const incrementPostReplyCount = async (postId) => {
             postId,
             { replyCount: newCount }
         );
-        broadcastReplyCount(postId, newCount);
     } catch (error) {
     }
 };
@@ -409,7 +407,6 @@ const decrementPostReplyCount = async (postId) => {
             postId,
             { replyCount: newCount }
         );
-        broadcastReplyCount(postId, newCount);
     } catch (error) {
     }
 };

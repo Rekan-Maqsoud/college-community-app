@@ -128,14 +128,6 @@ jest.mock('../services/appwriteFileUpload', () => ({
   uploadFileToAppwrite: jest.fn(),
 }));
 
-jest.mock('../app/hooks/useFirebaseRealtime', () => ({
-  broadcastChatMeta: jest.fn(),
-  broadcastLikeCount: jest.fn(),
-  broadcastViewCount: jest.fn(),
-  broadcastPollVotes: jest.fn(),
-  seedPostCounters: jest.fn(),
-}));
-
 jest.mock('../app/utils/pollUtils', () => ({
   parsePollPayload: jest.fn(),
   applyPollVote: jest.fn(),

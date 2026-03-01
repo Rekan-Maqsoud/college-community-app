@@ -1,4 +1,5 @@
 import { Client, Account } from 'node-appwrite';
+import fetch from 'node-fetch';
 
 const json = (res, status, payload) => {
   return res.json(payload, status);

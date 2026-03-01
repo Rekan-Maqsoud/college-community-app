@@ -1,0 +1,12 @@
+{
+  "timestamp": "2026-03-01T21:09:18.887Z",
+  "sourceProject": "6973c51d0000bdd71f7a",
+  "targetProject": "69a46b6f0020cf0d5e4b",
+  "sourceCollectionCount": 15,
+  "targetCollectionCount": 15,
+  "updatedCount": 0,
+  "unchangedCount": 15,
+  "missingInTarget": [],
+  "verificationMismatches": [],
+  "updated": []
+}

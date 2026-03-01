@@ -21,7 +21,6 @@ import {
   spacing,
   moderateScale,
 } from '../utils/responsive';
-import { usePostLiveCounters } from '../hooks/useFirebaseRealtime';
 
 const PostViewModal = ({
   visible,
@@ -39,12 +38,6 @@ const PostViewModal = ({
   const [post, setPost] = useState(initialPost || null);
   const [loading, setLoading] = useState(!initialPost);
   const [error, setError] = useState(null);
-
-  // Live counters from Firebase RTDB
-  const { replyCount: liveReplyCount } = usePostLiveCounters(
-    visible ? (post?.$id || postId) : null,
-    { replyCount: post?.replyCount || 0 },
-  );
 
   // Fetch post data
   useEffect(() => {
@@ -209,7 +202,7 @@ const PostViewModal = ({
         >
           <Ionicons name="chatbubbles-outline" size={20} color="#FFFFFF" />
           <Text style={styles.viewRepliesText}>
-            {t('post.viewReplies') || 'View Replies'} ({liveReplyCount})
+            {t('post.viewReplies') || 'View Replies'} ({post?.replyCount || 0})
           </Text>
           <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
         </TouchableOpacity>
