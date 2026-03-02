@@ -80,6 +80,8 @@ const SignUp = ({ navigation, route }) => {
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
   
   const { t, theme, isDarkMode } = useAppSettings();
+  const isCompactPhone = hp(100) < 700;
+  const isWidePhone = !isTablet() && wp(100) > 430;
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -121,6 +123,29 @@ const SignUp = ({ navigation, route }) => {
       if (oauthName) setFullName(oauthName);
     }
   }, [oauthMode, oauthEmail, oauthName]);
+
+  useEffect(() => {
+    const handleOAuthDomainGuard = async () => {
+      if (!oauthMode || !oauthEmail) return;
+
+      if (!isEducationalEmail(oauthEmail)) {
+        showAlert({
+          type: 'error',
+          title: t('common.error'),
+          message: t('auth.educationalEmailRequired'),
+        });
+
+        try {
+          await clearPendingOAuthSignup();
+        } catch (error) {
+        }
+
+        navigation.replace('SignIn');
+      }
+    };
+
+    handleOAuthDomainGuard();
+  }, [oauthMode, oauthEmail, navigation, showAlert, t]);
 
   useEffect(() => {
     Animated.parallel([
@@ -600,6 +625,7 @@ const SignUp = ({ navigation, route }) => {
             style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
+              width: '100%',
             }}>
             
             <View style={styles.headerContainer}>
@@ -612,7 +638,11 @@ const SignUp = ({ navigation, route }) => {
             </View>
 
             <GlassContainer 
-              style={styles.formContainer}
+              style={[
+                styles.formContainer,
+                isCompactPhone && styles.formContainerCompact,
+                isWidePhone && styles.formContainerWidePhone,
+              ]}
               intensity={isTablet() ? 30 : 25}
               borderRadius={borderRadius.xl}
             >
@@ -988,10 +1018,17 @@ const SignUp = ({ navigation, route }) => {
                 </>
               )}
 
-              <View style={styles.navigationButtonsRow}>
+              <View style={[
+                styles.navigationButtonsRow,
+                isCompactPhone && styles.navigationButtonsRowCompact,
+              ]}>
                 {currentStep > 1 && (
                   <TouchableOpacity
-                    style={[styles.secondaryButton, { borderColor: 'rgba(255,255,255,0.3)' }]}
+                    style={[
+                      styles.secondaryButton,
+                      isCompactPhone && styles.secondaryButtonCompact,
+                      { borderColor: 'rgba(255,255,255,0.3)' },
+                    ]}
                     onPress={handlePreviousStep}
                     activeOpacity={0.85}
                   >
@@ -1000,7 +1037,12 @@ const SignUp = ({ navigation, route }) => {
                 )}
 
                 <TouchableOpacity
-                  style={[styles.signUpButton, shadows.large, { flex: 1 }]}
+                  style={[
+                    styles.signUpButton,
+                    shadows.large,
+                    { flex: 1 },
+                    isCompactPhone && styles.signUpButtonCompact,
+                  ]}
                   onPress={currentStep < 3 ? handleNextStep : handleSignUp}
                   disabled={isLoading || (currentStep === 3 && !isFormValid())}
                   activeOpacity={0.85}
@@ -1028,12 +1070,14 @@ const SignUp = ({ navigation, route }) => {
                             ? t('common.next')
                             : (oauthMode ? t('common.next') : t('auth.createAccount'))}
                         </Text>
-                        <Ionicons
-                          name="arrow-forward"
-                          size={moderateScale(20)}
-                          color="#FFFFFF"
-                          style={[styles.buttonIcon, { opacity: (currentStep === 3 && !isFormValid()) ? 0.6 : 1 }]}
-                        />
+                        {!isCompactPhone && (
+                          <Ionicons
+                            name="arrow-forward"
+                            size={moderateScale(20)}
+                            color="#FFFFFF"
+                            style={[styles.buttonIcon, { opacity: (currentStep === 3 && !isFormValid()) ? 0.6 : 1 }]}
+                          />
+                        )}
                       </>
                     )}
                   </LinearGradient>
@@ -1041,7 +1085,7 @@ const SignUp = ({ navigation, route }) => {
               </View>
             </GlassContainer>
 
-            <View style={styles.footer}>
+            <View style={[styles.footer, isCompactPhone && styles.footerCompact]}>
               <Text style={[
                 styles.footerText, 
                 { fontSize: fontSize(15) }
@@ -1065,7 +1109,7 @@ const SignUp = ({ navigation, route }) => {
             </View>
           </Animated.View>
 
-          <View style={{ height: hp(10) }} />
+          <View style={{ height: isCompactPhone ? hp(5) : hp(8) }} />
         </ScrollView>
       </KeyboardAvoidingView>
       </LinearGradient>
@@ -1095,19 +1139,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: Platform.OS === 'ios' ? hp(8) : hp(6),
-    paddingHorizontal: wp(3),
+    paddingTop: Platform.OS === 'ios' ? hp(7) : hp(5.5),
+    paddingHorizontal: wp(4),
     paddingBottom: hp(4),
+    alignItems: 'center',
   },
   languageContainer: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? hp(5.5) : hp(4.5),
-    right: wp(5),
+    top: Platform.OS === 'ios' ? hp(4.8) : hp(4),
+    right: wp(4),
     zIndex: 1000,
   },
   headerContainer: {
     marginBottom: spacing.lg,
-    maxWidth: isTablet() ? 700 : '100%',
+    maxWidth: isTablet() ? 700 : 560,
     alignSelf: 'center',
     width: '100%',
   },
@@ -1126,9 +1171,15 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     padding: isTablet() ? spacing.xxl : spacing.lg,
-    maxWidth: isTablet() ? 700 : '100%',
+    maxWidth: isTablet() ? 700 : 560,
     alignSelf: 'center',
     width: '100%',
+  },
+  formContainerCompact: {
+    padding: spacing.md,
+  },
+  formContainerWidePhone: {
+    maxWidth: 620,
   },
   stepIndicatorRow: {
     flexDirection: 'row',
@@ -1228,12 +1279,18 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
   },
+  signUpButtonCompact: {
+    minHeight: moderateScale(46),
+  },
   navigationButtonsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
     marginTop: spacing.lg,
+  },
+  navigationButtonsRowCompact: {
+    gap: spacing.xs,
   },
   secondaryButton: {
     borderWidth: 1,
@@ -1243,6 +1300,10 @@ const styles = StyleSheet.create({
     minWidth: moderateScale(96),
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  secondaryButtonCompact: {
+    minWidth: moderateScale(78),
+    paddingHorizontal: spacing.md,
   },
   secondaryButtonText: {
     fontWeight: '700',
@@ -1314,6 +1375,10 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     marginTop: spacing.xl,
     paddingHorizontal: spacing.sm,
+  },
+  footerCompact: {
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
   footerText: {
     color: 'rgba(255, 255, 255, 0.8)',

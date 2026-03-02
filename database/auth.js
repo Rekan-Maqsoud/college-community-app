@@ -351,16 +351,52 @@ const getAppwriteProjectId = () => {
 // Appwrite expects callbacks in the format: appwrite-callback-[PROJECT_ID]://
 const getOAuthRedirectUrl = () => {
     const projectId = getAppwriteProjectId();
-    // Appwrite's expected OAuth callback format for mobile apps
-    // This scheme is automatically recognized by Appwrite without needing
-    // to register it as a separate platform
-    return `appwrite-callback-${projectId}://`;
+    const appwriteCallbackUrl = `appwrite-callback-${projectId}://`;
+
+    // Appwrite validates success/failure URLs against project platforms.
+    // During migrations, this can be overridden via env without code changes.
+    const overrideRedirectUrl = (process.env.EXPO_PUBLIC_APPWRITE_OAUTH_REDIRECT_URL || '').trim();
+    return overrideRedirectUrl || appwriteCallbackUrl;
+};
+
+const parseOAuthCallbackParams = (callbackUrl = '') => {
+    try {
+        const parsedUrl = new URL(callbackUrl);
+        const querySecret = parsedUrl.searchParams.get('secret');
+        const queryUserId = parsedUrl.searchParams.get('userId');
+        const queryError = parsedUrl.searchParams.get('error');
+
+        let hashSecret = null;
+        let hashUserId = null;
+        let hashError = null;
+
+        if (parsedUrl.hash) {
+            const hashParams = new URLSearchParams(parsedUrl.hash.replace(/^#/, ''));
+            hashSecret = hashParams.get('secret');
+            hashUserId = hashParams.get('userId');
+            hashError = hashParams.get('error');
+        }
+
+        const secret = querySecret || hashSecret;
+        const userId = queryUserId || hashUserId;
+        const error = queryError || hashError;
+
+        return { secret, userId, error };
+    } catch (parseError) {
+        return { secret: null, userId: null, error: null };
+    }
 };
 
 // Start Google OAuth flow using the Token-based approach (recommended for React Native)
 export const signInWithGoogle = async () => {
     try {
         const redirectUrl = getOAuthRedirectUrl();
+        console.log('[GoogleAuth] Starting OAuth flow', {
+            redirectUrl,
+            redirectUrlKind: redirectUrl?.startsWith('appwrite-callback-') ? 'appwrite-callback' : 'app-scheme',
+            projectId: getAppwriteProjectId(),
+            endpoint: config.endpoint,
+        });
 
         // Use createOAuth2Token for React Native - it returns userId and secret
         // that we use to create a session manually
@@ -379,31 +415,50 @@ export const signInWithGoogle = async () => {
             }
         );
 
+        console.log('[GoogleAuth] Browser session result', {
+            type: result?.type,
+            hasUrl: Boolean(result?.url),
+            urlPreview: result?.url ? String(result.url).slice(0, 120) : null,
+        });
+
         if (result.type === 'success' && result.url) {
-            // Parse the callback URL to extract userId and secret
-            const url = new URL(result.url);
-            const secret = url.searchParams.get('secret');
-            const userId = url.searchParams.get('userId');
+            const { secret, userId, error } = parseOAuthCallbackParams(result.url);
+
+            console.log('[GoogleAuth] Parsed callback params', {
+                hasSecret: Boolean(secret),
+                hasUserId: Boolean(userId),
+                hasError: Boolean(error),
+            });
 
             if (secret && userId) {
                 // Create a session using the token
                 await account.createSession(userId, secret);
+                console.log('[GoogleAuth] Session created successfully');
                 return { success: true };
             }
 
             // Check for error in URL parameters
-            const error = url.searchParams.get('error');
             if (error) {
+                console.log('[GoogleAuth] OAuth provider returned error', { error });
                 return { success: false, error: error };
             }
+
+            console.log('[GoogleAuth] OAuth callback missing required params');
         }
 
         if (result.type === 'cancel' || result.type === 'dismiss') {
+            console.log('[GoogleAuth] OAuth flow cancelled by user/app switch');
             return { success: false, cancelled: true };
         }
 
+        console.log('[GoogleAuth] OAuth flow ended without success');
         return { success: false };
     } catch (error) {
+        console.log('[GoogleAuth] OAuth flow threw error', {
+            code: error?.code,
+            type: error?.type,
+            message: error?.message,
+        });
         if (error.code === 401) {
             return { success: false, cancelled: true };
         }

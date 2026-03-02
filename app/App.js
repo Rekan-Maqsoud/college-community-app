@@ -21,6 +21,7 @@ import { borderRadius, shadows } from './theme/designTokens';
 import realtimeDebugLogger from './utils/realtimeDebugLogger';
 import telemetry from './utils/telemetry';
 import { initCrashReporting, setCrashReportingUser } from './utils/crashReporting';
+import { REFRESH_TOPICS, publishRefreshEvent, subscribeToRefreshTopic } from './utils/dataRefreshBus';
 import { getCurrentUser, getUserDocument, signOut } from '../database/auth';
 import { getAllUserChats } from '../database/chatHelpers';
 import { getTotalUnreadCount, getChat } from '../database/chats';
@@ -150,6 +151,8 @@ const TabNavigator = () => {
   const { user } = useUser();
   const insets = useSafeAreaInsets();
   const [unreadCount, setUnreadCount] = useState(0);
+  const lastUnreadSyncAtRef = useRef(0);
+  const isUnreadSyncInFlightRef = useRef(false);
 
   // Load user-specific chat settings when user changes
   useEffect(() => {
@@ -173,7 +176,10 @@ const TabNavigator = () => {
 
   const fetchUnreadCount = useCallback(async () => {
     if (!user?.$id || !user?.department) return;
+    if (isUnreadSyncInFlightRef.current) return;
+
     try {
+      isUnreadSyncInFlightRef.current = true;
       const stageValue = stageToValue(user.stage);
       const chats = await getAllUserChats(user.$id, user.department, stageValue);
       const allChats = [
@@ -186,12 +192,46 @@ const TabNavigator = () => {
       setUnreadCount(total);
     } catch (error) {
       // Silently fail
+    } finally {
+      isUnreadSyncInFlightRef.current = false;
     }
   }, [user?.$id, user?.department, user?.stage]);
+
+  const scheduleUnreadSync = useCallback((minIntervalMs = 3000) => {
+    const now = Date.now();
+    if (now - lastUnreadSyncAtRef.current < minIntervalMs) {
+      return;
+    }
+
+    lastUnreadSyncAtRef.current = now;
+    fetchUnreadCount();
+  }, [fetchUnreadCount]);
 
   useEffect(() => {
     fetchUnreadCount();
   }, [fetchUnreadCount]);
+
+  useEffect(() => {
+    const unsubChats = subscribeToRefreshTopic(REFRESH_TOPICS.CHATS, () => {
+      scheduleUnreadSync(2500);
+    });
+
+    const unsubNotifications = subscribeToRefreshTopic(REFRESH_TOPICS.NOTIFICATIONS, () => {
+      scheduleUnreadSync(4000);
+    });
+
+    const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        scheduleUnreadSync(5000);
+      }
+    });
+
+    return () => {
+      unsubChats();
+      unsubNotifications();
+      appStateSubscription?.remove();
+    };
+  }, [scheduleUnreadSync]);
   
   return (
     <Tab.Navigator
@@ -725,6 +765,21 @@ const NotificationSetup = ({ navigationRef }) => {
     if (!navigationRef.current || !data) return;
     const type = data?.type || '';
 
+    if (data.chatId || type === 'chat_message' || type === 'direct_chat' || type === 'group_chat') {
+      publishRefreshEvent(REFRESH_TOPICS.CHATS, {
+        source: 'push_open',
+        chatId: data.chatId || null,
+        type,
+      });
+    }
+
+    publishRefreshEvent(REFRESH_TOPICS.NOTIFICATIONS, {
+      source: 'push_open',
+      type,
+      postId: data.postId || null,
+      senderId: data.senderId || null,
+    });
+
     const runDismissByContext = async () => {
       const currentUserId = user?.$id;
       if (!currentUserId) return;
@@ -823,7 +878,24 @@ const NotificationSetup = ({ navigationRef }) => {
 
   useEffect(() => {
     // Listen for notifications received while app is foregrounded
-    notificationListenerRef.current = addNotificationReceivedListener(() => {
+    notificationListenerRef.current = addNotificationReceivedListener((notification) => {
+      const data = notification?.request?.content?.data || {};
+      const type = data?.type || '';
+
+      publishRefreshEvent(REFRESH_TOPICS.NOTIFICATIONS, {
+        source: 'push_foreground',
+        type,
+        postId: data.postId || null,
+        senderId: data.senderId || null,
+      });
+
+      if (data.chatId || type === 'chat_message' || type === 'direct_chat' || type === 'group_chat') {
+        publishRefreshEvent(REFRESH_TOPICS.CHATS, {
+          source: 'push_foreground',
+          chatId: data.chatId || null,
+          type,
+        });
+      }
     });
 
     // Listen for user tapping on notifications

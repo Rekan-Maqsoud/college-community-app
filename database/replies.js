@@ -2,6 +2,8 @@ import { account, databases, config } from './config';
 import { ID, Query, Permission, Role } from 'appwrite';
 import { repliesCacheManager } from '../app/utils/cacheManager';
 import { enforceRateLimit } from './securityGuards';
+import { getUserById } from './users';
+import { notifyPostReply, notifyReplyLike, notifyReplyReply } from './notifications';
 
 const getAuthenticatedUserId = async () => {
     const currentUser = await account.get();
@@ -69,6 +71,54 @@ export const createReply = async (replyData) => {
         );
 
         await incrementPostReplyCount(effectiveReplyData.postId);
+
+        try {
+            const [actor, post] = await Promise.all([
+                getUserById(currentUserId),
+                databases.getDocument(config.databaseId, config.postsCollectionId, effectiveReplyData.postId),
+            ]);
+
+            const actorName = actor?.name || actor?.fullName || 'Someone';
+            const actorPhoto = actor?.profilePicture || null;
+            const replyTextPreview = (effectiveReplyData.text || '').trim();
+
+            if (effectiveReplyData.parentReplyId) {
+                const parentReply = await databases.getDocument(
+                    config.databaseId,
+                    config.repliesCollectionId,
+                    effectiveReplyData.parentReplyId
+                );
+
+                if (parentReply?.userId && parentReply.userId !== currentUserId) {
+                    notifyReplyReply(
+                        parentReply.userId,
+                        currentUserId,
+                        actorName,
+                        actorPhoto,
+                        effectiveReplyData.postId,
+                        replyTextPreview,
+                        parentReply.$id,
+                        reply?.$id
+                    ).catch(() => {
+                        // Silent fail - reply creation should not fail on notify
+                    });
+                }
+            } else if (post?.userId && post.userId !== currentUserId) {
+                notifyPostReply(
+                    post.userId,
+                    currentUserId,
+                    actorName,
+                    actorPhoto,
+                    effectiveReplyData.postId,
+                    replyTextPreview,
+                    reply?.$id
+                ).catch(() => {
+                    // Silent fail - reply creation should not fail on notify
+                });
+            }
+        } catch (notificationError) {
+            // Silent fail - reply creation should not fail on notify
+        }
         
         // Invalidate replies cache for this post
         await repliesCacheManager.invalidateReplies(effectiveReplyData.postId);
@@ -226,6 +276,29 @@ export const updateReply = async (replyId, replyData, postId = null) => {
             replyData.downvotedBy = nextDownvotedBy;
             replyData.upCount = nextUpvotedBy.length;
             replyData.downCount = nextDownvotedBy.length;
+
+            const nowUpvoted = nextUpvotedBy.includes(currentUserId);
+            const wasUpvoted = currentUpvotedBy.includes(currentUserId);
+            const didAddUpvote = nowUpvoted && !wasUpvoted;
+
+            if (didAddUpvote && existingReply.userId && existingReply.userId !== currentUserId) {
+                try {
+                    const actor = await getUserById(currentUserId);
+                    notifyReplyLike(
+                        existingReply.userId,
+                        currentUserId,
+                        actor?.name || actor?.fullName || 'Someone',
+                        actor?.profilePicture || null,
+                        existingReply.postId,
+                        existingReply.$id,
+                        (existingReply.text || '').trim()
+                    ).catch(() => {
+                        // Silent fail - voting should not fail on notify
+                    });
+                } catch (notificationError) {
+                    // Silent fail - voting should not fail on notify
+                }
+            }
         }
 
         delete replyData.userId;

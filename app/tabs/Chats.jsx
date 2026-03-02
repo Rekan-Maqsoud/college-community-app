@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
+  AppState,
   View, 
   Text, 
   StyleSheet,
@@ -12,6 +13,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -59,12 +61,14 @@ import { useChatList, useRealtimeSubscription } from '../hooks/useRealtimeSubscr
 import { config } from '../../database/config';
 import useLayout from '../hooks/useLayout';
 import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
+import { REFRESH_TOPICS, subscribeToRefreshTopic } from '../utils/dataRefreshBus';
 
 const Chats = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user, refreshUser } = useUser();
   const insets = useSafeAreaInsets();
   const { contentStyle } = useLayout();
+  const isFocused = useIsFocused();
   const { needsRep, hasActiveElection, currentElection, isUserRepresentative, dismiss: dismissRepPopup } = useRepDetection(user);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -87,6 +91,10 @@ const Chats = ({ navigation }) => {
   const privateChatsRef = useRef([]);
   const unreadSyncTimersRef = useRef({});
   const processedMessageIdsRef = useRef({});
+  const appStateRef = useRef(AppState.currentState);
+  const [appStateStatus, setAppStateStatus] = useState(AppState.currentState);
+  const lastNetworkSyncAtRef = useRef(0);
+  const isSyncInFlightRef = useRef(false);
 
   useEffect(() => {
     defaultGroupsRef.current = defaultGroups;
@@ -112,6 +120,19 @@ const Chats = ({ navigation }) => {
       processedMessageIdsRef.current = {};
     };
   }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      appStateRef.current = nextState;
+      setAppStateStatus(nextState);
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
+
+  const isScreenActive = isFocused && appStateStatus === 'active';
 
   const hasProcessedMessageEvent = useCallback((messageId) => {
     if (!messageId) {
@@ -371,14 +392,14 @@ const Chats = ({ navigation }) => {
   }, [scheduleUnreadSyncForChat]);
 
   // Subscribe to chat list updates
-  useChatList(user?.$id, handleRealtimeChatUpdate, !!user?.$id);
+  useChatList(user?.$id, handleRealtimeChatUpdate, !!user?.$id && isScreenActive);
 
   // Subscribe to message-level realtime updates to keep unread badges live
   useRealtimeSubscription(
     config.messagesCollectionId,
     handleRealtimeMessageUpdate,
     handleRealtimeMessageDelete,
-    { enabled: !!user?.$id && !!config.messagesCollectionId }
+    { enabled: !!user?.$id && !!config.messagesCollectionId && isScreenActive }
   );
 
   useEffect(() => {
@@ -433,14 +454,18 @@ const Chats = ({ navigation }) => {
     setClearedAtMap(timestamps);
   };
 
-  const loadChats = async () => {
+  const loadChats = async (options = {}) => {
+    const { showLoader = true } = options;
+
     if (!user?.department) {
       setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
+      if (showLoader) {
+        setLoading(true);
+      }
       const stageValue = stageToValue(user.stage);
       
       const chats = await getAllUserChats(user.$id, user.department, stageValue);
@@ -474,7 +499,9 @@ const Chats = ({ navigation }) => {
         ...normalizedCustomGroups,
         ...filteredPrivateChats,
       ];
-      setLoading(false);
+      if (showLoader) {
+        setLoading(false);
+      }
 
       const loadAuxiliaryData = async () => {
         await Promise.all([
@@ -523,9 +550,56 @@ const Chats = ({ navigation }) => {
     }
   };
 
+  const triggerSmartRefresh = useCallback(async (
+    reason,
+    { minIntervalMs = 12000, force = false } = {}
+  ) => {
+    if (!user?.$id || !user?.department || !isScreenActive) {
+      return;
+    }
+
+    if (isSyncInFlightRef.current) {
+      return;
+    }
+
+    const now = Date.now();
+    if (!force && now - lastNetworkSyncAtRef.current < minIntervalMs) {
+      return;
+    }
+
+    isSyncInFlightRef.current = true;
+    try {
+      await loadChats({ showLoader: false });
+      lastNetworkSyncAtRef.current = Date.now();
+    } finally {
+      isSyncInFlightRef.current = false;
+    }
+  }, [isScreenActive, user?.$id, user?.department, user?.stage]);
+
+  useEffect(() => {
+    if (!isScreenActive) {
+      return;
+    }
+
+    triggerSmartRefresh('screen-active', { minIntervalMs: 6000 });
+  }, [isScreenActive, triggerSmartRefresh]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToRefreshTopic(REFRESH_TOPICS.CHATS, (payload = {}) => {
+      if (payload?.chatId) {
+        scheduleUnreadSyncForChat(payload.chatId, 300);
+      }
+
+      triggerSmartRefresh('push-chat', { minIntervalMs: 3500 });
+    });
+
+    return unsubscribe;
+  }, [scheduleUnreadSyncForChat, triggerSmartRefresh]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadChats();
+    await loadChats({ showLoader: false });
+    lastNetworkSyncAtRef.current = Date.now();
     setRefreshing(false);
   };
 

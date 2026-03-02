@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
+  AppState,
   View,
   Text,
   StyleSheet,
@@ -9,6 +10,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,22 +37,67 @@ import {
 import { useNotifications } from '../hooks/useRealtimeSubscription';
 import PostViewModal from '../components/PostViewModal';
 import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
+import { REFRESH_TOPICS, subscribeToRefreshTopic } from '../utils/dataRefreshBus';
 
 const NOTIFICATION_TYPES = {
   POST_LIKE: 'post_like',
   POST_REPLY: 'post_reply',
+  REPLY_LIKE: 'reply_like',
+  REPLY_REPLY: 'reply_reply',
   MENTION: 'mention',
   FRIEND_POST: 'friend_post',
   FOLLOW: 'follow',
   DEPARTMENT_POST: 'department_post',
   POST_HIDDEN_REPORT: 'post_hidden_report',
+  POST_LIKE_BATCH: 'post_like_batch',
+  POST_REPLY_BATCH: 'post_reply_batch',
+  REPLY_LIKE_BATCH: 'reply_like_batch',
+  REPLY_REPLY_BATCH: 'reply_reply_batch',
   LECTURE_UPLOAD: 'lecture_upload',
   LECTURE_MENTION: 'lecture_mention',
 };
 
-// Group notifications by post and type
-// Only group LIKES on the same post within 24 hours
-// Replies are shown separately for better visibility
+const GROUPABLE_NOTIFICATION_TYPES = new Set([
+  NOTIFICATION_TYPES.POST_LIKE,
+  NOTIFICATION_TYPES.POST_REPLY,
+  NOTIFICATION_TYPES.REPLY_LIKE,
+  NOTIFICATION_TYPES.REPLY_REPLY,
+  NOTIFICATION_TYPES.POST_LIKE_BATCH,
+  NOTIFICATION_TYPES.POST_REPLY_BATCH,
+  NOTIFICATION_TYPES.REPLY_LIKE_BATCH,
+  NOTIFICATION_TYPES.REPLY_REPLY_BATCH,
+]);
+
+const NORMALIZED_GROUP_TYPE = {
+  [NOTIFICATION_TYPES.POST_LIKE]: NOTIFICATION_TYPES.POST_LIKE,
+  [NOTIFICATION_TYPES.POST_LIKE_BATCH]: NOTIFICATION_TYPES.POST_LIKE,
+  [NOTIFICATION_TYPES.POST_REPLY]: NOTIFICATION_TYPES.POST_REPLY,
+  [NOTIFICATION_TYPES.POST_REPLY_BATCH]: NOTIFICATION_TYPES.POST_REPLY,
+  [NOTIFICATION_TYPES.REPLY_LIKE]: NOTIFICATION_TYPES.REPLY_LIKE,
+  [NOTIFICATION_TYPES.REPLY_LIKE_BATCH]: NOTIFICATION_TYPES.REPLY_LIKE,
+  [NOTIFICATION_TYPES.REPLY_REPLY]: NOTIFICATION_TYPES.REPLY_REPLY,
+  [NOTIFICATION_TYPES.REPLY_REPLY_BATCH]: NOTIFICATION_TYPES.REPLY_REPLY,
+};
+
+const getNormalizedGroupType = (type) => NORMALIZED_GROUP_TYPE[type] || type;
+
+const getNotificationCountWeight = (notification) => {
+  if (!notification) return 0;
+  if (!String(notification.type || '').includes('_batch')) return 1;
+
+  const preview = String(notification.postPreview || '');
+  const match = preview.match(/^\[batch:(\d+)\]/);
+  const parsed = match ? parseInt(match[1], 10) : 0;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+};
+
+const cleanNotificationPreview = (raw = '') => {
+  return String(raw || '')
+    .replace(/^\[rid:[^\]]+\]/, '')
+    .replace(/^\[batch:\d+\]/, '')
+    .trim();
+};
+
 const groupNotifications = (notifications) => {
   const groups = {};
   const standalone = [];
@@ -60,9 +107,10 @@ const groupNotifications = (notifications) => {
   const validNotifications = notifications.filter(n => n && n.$id && n.type);
   
   validNotifications.forEach(notification => {
-    // Only group LIKES on the same post (not replies - show each reply separately)
-    if (notification.postId && notification.type === NOTIFICATION_TYPES.POST_LIKE) {
-      const key = `${notification.postId}_${notification.type}`;
+    const normalizedType = getNormalizedGroupType(notification.type);
+
+    if (notification.postId && GROUPABLE_NOTIFICATION_TYPES.has(notification.type)) {
+      const key = `${notification.postId}_${normalizedType}`;
       
       // Check if existing group is within 24 hour window
       if (groups[key]) {
@@ -78,17 +126,23 @@ const groupNotifications = (notifications) => {
       
       if (!groups[key]) {
         groups[key] = {
-          type: notification.type,
+          type: normalizedType,
           postId: notification.postId,
-          postPreview: notification.postPreview,
+          postPreview: cleanNotificationPreview(notification.postPreview),
           notifications: [],
           latestTimestamp: notification.$createdAt,
           hasUnread: false,
+          totalCount: 0,
         };
       }
       groups[key].notifications.push(notification);
+      groups[key].totalCount += getNotificationCountWeight(notification);
       if (!notification.isRead) {
         groups[key].hasUnread = true;
+      }
+      const cleanedPreview = cleanNotificationPreview(notification.postPreview);
+      if (cleanedPreview) {
+        groups[key].postPreview = cleanedPreview;
       }
       // Keep the latest timestamp
       if (new Date(notification.$createdAt) > new Date(groups[key].latestTimestamp)) {
@@ -100,11 +154,9 @@ const groupNotifications = (notifications) => {
     }
   });
   
-  // Convert groups to array, but only if they have more than 1 notification
-  // Single-item groups become standalone for cleaner UI
   const groupedItems = [];
   Object.values(groups).forEach(group => {
-    if (group.notifications.length > 1) {
+    if (group.totalCount > 1 || group.notifications.length > 1) {
       groupedItems.push({
         isGroup: true,
         ...group,
@@ -131,6 +183,10 @@ const getNotificationIcon = (type) => {
       return { name: 'heart', color: '#FF3B30' };
     case NOTIFICATION_TYPES.POST_REPLY:
       return { name: 'chatbubble-ellipses', color: '#007AFF' };
+    case NOTIFICATION_TYPES.REPLY_LIKE:
+      return { name: 'heart-circle', color: '#FF3B30' };
+    case NOTIFICATION_TYPES.REPLY_REPLY:
+      return { name: 'return-up-back', color: '#0EA5E9' };
     case NOTIFICATION_TYPES.MENTION:
       return { name: 'at', color: '#5856D6' };
     case NOTIFICATION_TYPES.FRIEND_POST:
@@ -141,6 +197,14 @@ const getNotificationIcon = (type) => {
       return { name: 'school', color: '#8B5CF6' };
     case NOTIFICATION_TYPES.POST_HIDDEN_REPORT:
       return { name: 'warning', color: '#EF4444' };
+    case NOTIFICATION_TYPES.POST_LIKE_BATCH:
+      return { name: 'heart', color: '#FF3B30' };
+    case NOTIFICATION_TYPES.POST_REPLY_BATCH:
+      return { name: 'chatbubble-ellipses', color: '#007AFF' };
+    case NOTIFICATION_TYPES.REPLY_LIKE_BATCH:
+      return { name: 'heart-circle', color: '#FF3B30' };
+    case NOTIFICATION_TYPES.REPLY_REPLY_BATCH:
+      return { name: 'return-up-back', color: '#0EA5E9' };
     case NOTIFICATION_TYPES.LECTURE_UPLOAD:
       return { name: 'book', color: '#0EA5E9' };
     case NOTIFICATION_TYPES.LECTURE_MENTION:
@@ -182,7 +246,9 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
   const createdAt = notification.$createdAt;
   const rawPreview = notification.postPreview || '';
   // Strip encoded replyId prefix "[rid:xxx]" if present
-  const postPreview = rawPreview.replace(/^\[rid:[^\]]+\]/, '');
+  const postPreview = rawPreview
+    .replace(/^\[rid:[^\]]+\]/, '')
+    .replace(/^\[batch:\d+\]/, '');
   
   const getNotificationMessage = () => {
     switch (notification.type) {
@@ -190,6 +256,10 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
         return t('notifications.likedPost') || 'liked your post';
       case NOTIFICATION_TYPES.POST_REPLY:
         return t('notifications.repliedPost') || 'replied to your post';
+      case NOTIFICATION_TYPES.REPLY_LIKE:
+        return t('notifications.likedReply') || 'liked your reply';
+      case NOTIFICATION_TYPES.REPLY_REPLY:
+        return t('notifications.repliedReply') || 'replied to your reply';
       case NOTIFICATION_TYPES.MENTION:
         return t('notifications.mentionedYou') || 'mentioned you';
       case NOTIFICATION_TYPES.FRIEND_POST:
@@ -200,6 +270,14 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
         return t('notifications.departmentPost') || 'posted in your department';
       case NOTIFICATION_TYPES.POST_HIDDEN_REPORT:
         return t('notifications.postHiddenByReports') || 'your post was hidden for review';
+      case NOTIFICATION_TYPES.POST_LIKE_BATCH:
+        return t('notifications.likesSummary') || 'new likes on your post';
+      case NOTIFICATION_TYPES.POST_REPLY_BATCH:
+        return t('notifications.repliesSummary') || 'new replies on your post';
+      case NOTIFICATION_TYPES.REPLY_LIKE_BATCH:
+        return t('notifications.replyLikesSummary') || 'new likes on your reply';
+      case NOTIFICATION_TYPES.REPLY_REPLY_BATCH:
+        return t('notifications.replyThreadsSummary') || 'new replies to your reply';
       case NOTIFICATION_TYPES.LECTURE_UPLOAD:
         return t('notifications.lectureUpload') || 'new lecture upload';
       case NOTIFICATION_TYPES.LECTURE_MENTION:
@@ -337,11 +415,15 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
 // Grouped notification item for multiple likes/replies on same post
 const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }) => {
   const icon = getNotificationIcon(group.type);
-  const count = group.notifications.length;
+  const count = group.totalCount || group.notifications.length;
   // Get unique users (avoid showing same user twice)
   const uniqueUsers = [];
   const seenIds = new Set();
   for (const notif of group.notifications) {
+    if (!notif?.senderId || notif.senderId === 'system') {
+      continue;
+    }
+
     if (!seenIds.has(notif.senderId)) {
       seenIds.add(notif.senderId);
       uniqueUsers.push(notif);
@@ -352,6 +434,26 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
   const getGroupMessage = () => {
     const uniqueCount = seenIds.size;
     const firstName = group.notifications[0]?.senderName?.split(' ')[0] || '';
+
+    const summaryAction = (() => {
+      if (group.type === NOTIFICATION_TYPES.POST_LIKE) {
+        return t('notifications.likesSummary') || 'new likes on your post';
+      }
+      if (group.type === NOTIFICATION_TYPES.POST_REPLY) {
+        return t('notifications.repliesSummary') || 'new replies on your post';
+      }
+      if (group.type === NOTIFICATION_TYPES.REPLY_LIKE) {
+        return t('notifications.replyLikesSummary') || 'new likes on your reply';
+      }
+      if (group.type === NOTIFICATION_TYPES.REPLY_REPLY) {
+        return t('notifications.replyThreadsSummary') || 'new replies to your reply';
+      }
+      return '';
+    })();
+
+    if (count > 2 || uniqueCount === 0) {
+      return { name: String(count), action: summaryAction };
+    }
     
     if (group.type === NOTIFICATION_TYPES.POST_LIKE) {
       if (uniqueCount === 1) {
@@ -371,6 +473,10 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
       } else {
         return { name: `${firstName} +${uniqueCount - 1}`, action: t('notifications.repliedPost') || 'replied to your post' };
       }
+    } else if (group.type === NOTIFICATION_TYPES.REPLY_LIKE) {
+      return { name: String(count), action: t('notifications.replyLikesSummary') || 'new likes on your reply' };
+    } else if (group.type === NOTIFICATION_TYPES.REPLY_REPLY) {
+      return { name: String(count), action: t('notifications.replyThreadsSummary') || 'new replies to your reply' };
     }
     return { name: '', action: '' };
   };
@@ -468,6 +574,10 @@ const Notifications = ({ navigation }) => {
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
   const { contentStyle } = useLayout();
+  const isFocused = useIsFocused();
+  const [appStateStatus, setAppStateStatus] = useState(AppState.currentState);
+  const lastRefreshAtRef = React.useRef(0);
+  const isRefreshInFlightRef = React.useRef(false);
   
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -476,6 +586,17 @@ const Notifications = ({ navigation }) => {
   const [page, setPage] = useState(0);
   const [postModalVisible, setPostModalVisible] = useState(false);
   const [postModalPostId, setPostModalPostId] = useState(null);
+  const isScreenActive = isFocused && appStateStatus === 'active';
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      setAppStateStatus(nextState);
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
 
   const sanitizeNotification = useCallback((notification) => {
     if (!notification || !notification.$id || !notification.type) {
@@ -571,7 +692,12 @@ const Notifications = ({ navigation }) => {
   }, [mergeNotification]);
 
   // Subscribe to real-time notification updates
-  useNotifications(user?.$id, handleNewNotification, handleNewNotification, !!user?.$id);
+  useNotifications(
+    user?.$id,
+    handleNewNotification,
+    handleNewNotification,
+    !!user?.$id && isScreenActive
+  );
 
   useEffect(() => {
     if (user?.$id) {
@@ -580,9 +706,51 @@ const Notifications = ({ navigation }) => {
     }
   }, [user?.$id]);
 
+  const smartRefreshNotifications = useCallback(async (
+    { minIntervalMs = 10000, force = false } = {}
+  ) => {
+    if (!user?.$id || !isScreenActive) {
+      return;
+    }
+
+    if (isRefreshInFlightRef.current) {
+      return;
+    }
+
+    const now = Date.now();
+    if (!force && now - lastRefreshAtRef.current < minIntervalMs) {
+      return;
+    }
+
+    isRefreshInFlightRef.current = true;
+    try {
+      await loadNotifications(true, { forceNetwork: true });
+      lastRefreshAtRef.current = Date.now();
+    } finally {
+      isRefreshInFlightRef.current = false;
+    }
+  }, [isScreenActive, loadNotifications, user?.$id]);
+
+  useEffect(() => {
+    if (!isScreenActive) {
+      return;
+    }
+
+    smartRefreshNotifications({ minIntervalMs: 6000 });
+  }, [isScreenActive, smartRefreshNotifications]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToRefreshTopic(REFRESH_TOPICS.NOTIFICATIONS, () => {
+      smartRefreshNotifications({ minIntervalMs: 3000 });
+    });
+
+    return unsubscribe;
+  }, [smartRefreshNotifications]);
+
   const handleRefresh = () => {
     setIsRefreshing(true);
     loadNotifications(true, { forceNetwork: true });
+    lastRefreshAtRef.current = Date.now();
   };
 
   const handleLoadMore = () => {
@@ -1055,17 +1223,19 @@ const styles = StyleSheet.create({
   },
   notificationContent: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   avatarContainer: {
     position: 'relative',
     marginRight: spacing.sm,
+    overflow: 'visible',
   },
   groupedAvatarContainer: {
     position: 'relative',
     width: moderateScale(52),
     height: moderateScale(32),
     marginRight: spacing.sm,
+    overflow: 'visible',
   },
   stackedAvatar: {
     position: 'absolute',
@@ -1082,6 +1252,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.3)',
+    zIndex: 10,
+    elevation: 3,
   },
   iconBadge: {
     position: 'absolute',
@@ -1094,6 +1266,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.3)',
+    zIndex: 10,
+    elevation: 3,
   },
   textContainer: {
     flex: 1,

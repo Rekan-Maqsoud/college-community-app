@@ -299,6 +299,20 @@ export const followUser = async (followerId, followingId) => {
         await userCacheManager.invalidateUser(followerId);
         await userCacheManager.invalidateUser(followingId);
 
+        try {
+            const { notifyFollow } = require('./notifications');
+            notifyFollow(
+                followingId,
+                followerId,
+                follower?.name || follower?.fullName || 'Someone',
+                follower?.profilePicture || null
+            ).catch(() => {
+                // Silent fail - follow should not fail on notify
+            });
+        } catch (notificationError) {
+            // Silent fail - follow should not fail on notify
+        }
+
         return { success: true };
     } catch (error) {
         throw error;

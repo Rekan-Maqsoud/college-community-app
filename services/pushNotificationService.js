@@ -6,6 +6,176 @@ import safeStorage from '../app/utils/safeStorage';
 
 const PUSH_TOKEN_KEY = 'expoPushToken';
 const PERMISSION_STATUS_KEY = 'notificationPermissionStatus';
+const GENERAL_PUSH_BATCH_WINDOW_MS = 10000;
+
+const BATCHABLE_GENERAL_TYPES = new Set([
+  'post_like',
+  'post_reply',
+  'reply_like',
+  'reply_reply',
+  'post_like_batch',
+  'post_reply_batch',
+  'reply_like_batch',
+  'reply_reply_batch',
+]);
+
+const BASE_GENERAL_TYPE_MAP = {
+  post_like: 'post_like',
+  post_like_batch: 'post_like',
+  post_reply: 'post_reply',
+  post_reply_batch: 'post_reply',
+  reply_like: 'reply_like',
+  reply_like_batch: 'reply_like',
+  reply_reply: 'reply_reply',
+  reply_reply_batch: 'reply_reply',
+};
+
+const BATCH_GENERAL_TYPE_MAP = {
+  post_like: 'post_like_batch',
+  post_reply: 'post_reply_batch',
+  reply_like: 'reply_like_batch',
+  reply_reply: 'reply_reply_batch',
+};
+
+const pendingGeneralPushBatches = new Map();
+
+const getBaseGeneralType = (type) => BASE_GENERAL_TYPE_MAP[type] || type;
+
+const isBatchableGeneralType = (type) => BATCHABLE_GENERAL_TYPES.has(type);
+
+const buildGeneralCollapseId = ({ recipientUserId, type, postId = null, replyId = null }) => {
+  const baseType = getBaseGeneralType(type);
+  return `cc:${recipientUserId}:${baseType}:${postId || 'none'}:${replyId || 'none'}`;
+};
+
+const buildGeneralBatchKey = ({ recipientUserId, type, postId = null, replyId = null }) => {
+  const baseType = getBaseGeneralType(type);
+  return `${recipientUserId}:${baseType}:${postId || 'none'}:${replyId || 'none'}`;
+};
+
+const buildBatchBodyByType = (baseType, count, fallbackBody = '') => {
+  if (baseType === 'post_like' || baseType === 'reply_like') {
+    return `❤️ You have ${count} new likes`;
+  }
+
+  if (baseType === 'post_reply' || baseType === 'reply_reply') {
+    return `💬 You have ${count} new replies`;
+  }
+
+  return fallbackBody || `You have ${count} new notifications`;
+};
+
+const getBatchType = (baseType) => BATCH_GENERAL_TYPE_MAP[baseType] || baseType;
+
+const sendExpoGeneralPush = async ({
+  recipientUserId,
+  senderId,
+  senderName,
+  type,
+  title,
+  body,
+  postId = null,
+  replyId = null,
+  collapseId = null,
+}) => {
+  // Import database functions here to avoid circular dependencies
+  let databases, config, Query;
+  try {
+    const dbConfig = require('../database/config');
+    databases = dbConfig.databases;
+    config = dbConfig.config;
+    Query = require('appwrite').Query;
+  } catch (importError) {
+    return null;
+  }
+
+  // Check if push tokens collection is configured
+  if (!config.pushTokensCollectionId || !config.databaseId) {
+    return null;
+  }
+
+  const pushTokens = await databases.listDocuments(
+    config.databaseId,
+    config.pushTokensCollectionId,
+    [
+      Query.equal('userId', recipientUserId),
+      Query.limit(1)
+    ]
+  );
+
+  if (!pushTokens?.documents || pushTokens.documents.length === 0) {
+    return null;
+  }
+
+  const token = pushTokens.documents[0]?.token;
+  if (!token) {
+    return null;
+  }
+
+  // Prepare notification message
+  const notifData = {
+    type,
+    senderId,
+    senderName,
+    postId,
+    userId: senderId,
+  };
+  if (replyId) {
+    notifData.replyId = replyId;
+  }
+
+  const message = {
+    to: token,
+    sound: 'default',
+    title,
+    body,
+    data: notifData,
+    channelId: type === 'follow' ? 'social' : 'posts',
+  };
+
+  if (collapseId) {
+    message.collapseId = collapseId;
+  }
+
+  const expoPushUrl = 'https://exp.host/--/api/v2/push/send';
+
+  const response = await fetch(expoPushUrl, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Accept-Encoding': 'gzip, deflate',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(message),
+  });
+
+  const result = await response.json();
+  return result;
+};
+
+const flushGeneralPushBatch = async (key) => {
+  const pending = pendingGeneralPushBatches.get(key);
+  if (!pending) {
+    return null;
+  }
+
+  pendingGeneralPushBatches.delete(key);
+
+  const count = pending.count || 1;
+  const baseType = getBaseGeneralType(pending.type);
+  const collapseId = buildGeneralCollapseId(pending);
+  const type = count > 1 ? getBatchType(baseType) : pending.type;
+  const body = count > 1
+    ? buildBatchBodyByType(baseType, count, pending.body)
+    : pending.body;
+
+  return sendExpoGeneralPush({
+    ...pending,
+    type,
+    body,
+    collapseId,
+  });
+};
 
 const getExpoProjectId = () => {
   return (
@@ -80,8 +250,14 @@ const shouldShowNotification = async (notificationType) => {
         case 'group_chat':
           return settings.groupChats !== false;
         case 'post_like':
+        case 'reply_like':
+        case 'post_like_batch':
+        case 'reply_like_batch':
           return settings.postLikes !== false;
         case 'post_reply':
+        case 'reply_reply':
+        case 'post_reply_batch':
+        case 'reply_reply_batch':
           return settings.postReplies !== false;
         case 'mention':
           return settings.mentions !== false;
@@ -513,77 +689,50 @@ export const sendGeneralPushNotification = async ({
       return null;
     }
 
-    // Import database functions here to avoid circular dependencies
-    let databases, config, Query;
-    try {
-      const dbConfig = require('../database/config');
-      databases = dbConfig.databases;
-      config = dbConfig.config;
-      Query = require('appwrite').Query;
-    } catch (importError) {
-      return null;
+    if (isBatchableGeneralType(type)) {
+      const key = buildGeneralBatchKey({ recipientUserId, type, postId, replyId });
+      const existing = pendingGeneralPushBatches.get(key);
+
+      if (existing) {
+        existing.count += 1;
+        existing.senderId = senderId;
+        existing.senderName = senderName;
+        existing.title = title;
+        existing.body = body;
+        return { queued: true, count: existing.count };
+      }
+
+      pendingGeneralPushBatches.set(key, {
+        recipientUserId,
+        senderId,
+        senderName,
+        type,
+        title,
+        body,
+        postId,
+        replyId,
+        count: 1,
+      });
+
+      setTimeout(() => {
+        flushGeneralPushBatch(key).catch(() => {});
+      }, GENERAL_PUSH_BATCH_WINDOW_MS);
+
+      return { queued: true, count: 1 };
     }
 
-    // Check if push tokens collection is configured
-    if (!config.pushTokensCollectionId || !config.databaseId) {
-      return null;
-    }
-
-    const pushTokens = await databases.listDocuments(
-      config.databaseId,
-      config.pushTokensCollectionId,
-      [
-        Query.equal('userId', recipientUserId),
-        Query.limit(1)
-      ]
-    );
-
-    if (!pushTokens?.documents || pushTokens.documents.length === 0) {
-      return null;
-    }
-
-    const token = pushTokens.documents[0]?.token;
-    if (!token) {
-      return null;
-    }
-
-    // Prepare notification message
-    const notifData = {
-      type,
+    const collapseId = buildGeneralCollapseId({ recipientUserId, type, postId, replyId });
+    return await sendExpoGeneralPush({
+      recipientUserId,
       senderId,
       senderName,
-      postId,
-      userId: senderId,
-    };
-    if (replyId) {
-      notifData.replyId = replyId;
-    }
-
-    const message = {
-      to: token,
-      sound: 'default',
+      type,
       title,
       body,
-      data: notifData,
-      channelId: type === 'follow' ? 'social' : 'posts',
-    };
-
-    const expoPushUrl = 'https://exp.host/--/api/v2/push/send';
-
-    const response = await fetch(expoPushUrl, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Accept-Encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
+      postId,
+      replyId,
+      collapseId,
     });
-
-    const result = await response.json();
-
-    // Check for InvalidCredentials - means FCM key not uploaded to Expo
-    return result;
   } catch (error) {
     return null;
   }

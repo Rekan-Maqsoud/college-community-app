@@ -22,7 +22,7 @@ import { uploadImage } from '../../services/imgbbService';
 import { createReply, getRepliesByPost, updateReply, deleteReply, markReplyAsAccepted, unmarkReplyAsAccepted } from '../../database/replies';
 import { getUserDocument } from '../../database/auth';
 import { incrementPostViewCount, getPost } from '../../database/posts';
-import { notifyPostReply, markNotificationsAsReadByContext } from '../../database/notifications';
+import { markNotificationsAsReadByContext } from '../../database/notifications';
 import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
 import ImageGalleryModal from './postDetails/ImageGalleryModal';
 import ReplyItem from './postDetails/ReplyItem';
@@ -369,24 +369,7 @@ const PostDetails = ({ navigation, route }) => {
           downvotedBy: [],
         };
 
-        const createdReply = await createReply(replyData);
-
-        // Send notification to post owner if it's not their own reply
-        if (post.userId !== user.$id) {
-          try {
-            await notifyPostReply(
-              post.userId,
-              user.$id,
-              user.fullName || user.name,
-              user.profilePicture,
-              post.$id,
-              replyText.trim(),
-              createdReply?.$id
-            );
-          } catch (notifyError) {
-            // Silent fail for notification
-          }
-        }
+        await createReply(replyData);
       }
 
       await loadReplies();

@@ -16,11 +16,165 @@ import { getAuthenticatedUserId, hasBlockedRelationship } from './securityGuards
 export const NOTIFICATION_TYPES = {
     POST_LIKE: 'post_like',
     POST_REPLY: 'post_reply',
+    REPLY_LIKE: 'reply_like',
+    REPLY_REPLY: 'reply_reply',
     MENTION: 'mention',
     FRIEND_POST: 'friend_post',
     FOLLOW: 'follow',
     DEPARTMENT_POST: 'department_post',
     POST_HIDDEN_REPORT: 'post_hidden_report',
+    POST_LIKE_BATCH: 'post_like_batch',
+    POST_REPLY_BATCH: 'post_reply_batch',
+    REPLY_LIKE_BATCH: 'reply_like_batch',
+    REPLY_REPLY_BATCH: 'reply_reply_batch',
+};
+
+const BATCH_WINDOW_MS = 15 * 60 * 1000;
+const BATCH_MIN_COUNT = 3;
+
+const BATCH_TYPES = {
+    [NOTIFICATION_TYPES.POST_LIKE]: NOTIFICATION_TYPES.POST_LIKE_BATCH,
+    [NOTIFICATION_TYPES.POST_REPLY]: NOTIFICATION_TYPES.POST_REPLY_BATCH,
+    [NOTIFICATION_TYPES.REPLY_LIKE]: NOTIFICATION_TYPES.REPLY_LIKE_BATCH,
+    [NOTIFICATION_TYPES.REPLY_REPLY]: NOTIFICATION_TYPES.REPLY_REPLY_BATCH,
+};
+
+const getBatchType = (type) => BATCH_TYPES[type] || null;
+
+const areIdsEquivalent = async (currentUserId, senderId) => {
+    if (!currentUserId || !senderId) return false;
+    if (currentUserId === senderId) return true;
+
+    try {
+        const currentUserDoc = await databases.getDocument(
+            config.databaseId,
+            config.usersCollectionId,
+            currentUserId
+        );
+
+        return currentUserDoc?.userID === senderId;
+    } catch (error) {
+        return false;
+    }
+};
+
+const trimPreview = (value, max = 80) => {
+    if (!value) return null;
+    const text = String(value).trim();
+    if (!text) return null;
+    return text.substring(0, max);
+};
+
+const getRecentWindowCount = (documents = [], windowMs = BATCH_WINDOW_MS) => {
+    const now = Date.now();
+    return (documents || []).filter((doc) => {
+        const createdAt = new Date(doc?.$createdAt || 0).getTime();
+        if (!createdAt || Number.isNaN(createdAt)) {
+            return false;
+        }
+        return (now - createdAt) <= windowMs;
+    }).length;
+};
+
+const listRecentInteractionNotifications = async ({ userId, type, postId = null, limit = 25 }) => {
+    if (!config.notificationsCollectionId || !config.databaseId) {
+        return [];
+    }
+
+    const queries = [
+        Query.equal('userId', userId),
+        Query.equal('type', type),
+        Query.orderDesc('$createdAt'),
+        Query.limit(limit),
+    ];
+
+    if (postId) {
+        queries.push(Query.equal('postId', postId));
+    }
+
+    const result = await databases.listDocuments(
+        config.databaseId,
+        config.notificationsCollectionId,
+        queries
+    );
+
+    return result?.documents || [];
+};
+
+const createInteractionNotification = async ({
+    userId,
+    senderId,
+    senderName,
+    senderProfilePicture,
+    type,
+    postId,
+    postPreview,
+    standardPush,
+    batchedPush,
+}) => {
+    const batchType = getBatchType(type);
+
+    if (!batchType) {
+        const notification = await createNotification({
+            userId,
+            senderId,
+            senderName,
+            senderProfilePicture,
+            type,
+            postId: postId || null,
+            postPreview: trimPreview(postPreview, 50),
+        });
+
+        if (standardPush) {
+            standardPush();
+        }
+
+        return notification;
+    }
+
+    const recentStandardDocs = await listRecentInteractionNotifications({ userId, type, postId });
+    const inWindowCount = getRecentWindowCount(recentStandardDocs);
+    const nextCount = inWindowCount + 1;
+
+    if (nextCount < BATCH_MIN_COUNT) {
+        const notification = await createNotification({
+            userId,
+            senderId,
+            senderName,
+            senderProfilePicture,
+            type,
+            postId: postId || null,
+            postPreview: trimPreview(postPreview, 50),
+        });
+
+        if (standardPush) {
+            standardPush();
+        }
+
+        return notification;
+    }
+
+    const recentBatchDocs = await listRecentInteractionNotifications({ userId, type: batchType, postId });
+    const existingBatchInWindow = getRecentWindowCount(recentBatchDocs) > 0;
+    if (existingBatchInWindow) {
+        return recentBatchDocs[0] || null;
+    }
+
+    const batchNotification = await createNotification({
+        userId,
+        senderId: 'system',
+        senderName: 'System',
+        senderProfilePicture: null,
+        type: batchType,
+        postId: postId || null,
+        postPreview: trimPreview(`[batch:${nextCount}]${postPreview || ''}`, 80),
+    });
+
+    if (batchedPush) {
+        batchedPush(nextCount);
+    }
+
+    return batchNotification;
 };
 
 /**
@@ -50,7 +204,8 @@ export const createNotification = async (notificationData) => {
 
         if (notificationData.senderId && notificationData.senderId !== 'system') {
             const currentUserId = await getAuthenticatedUserId();
-            if (currentUserId !== notificationData.senderId) {
+            const isAllowedActor = await areIdsEquivalent(currentUserId, notificationData.senderId);
+            if (!isAllowedActor) {
                 return null;
             }
         }
@@ -89,17 +244,27 @@ export const createNotification = async (notificationData) => {
             notificationDoc.postPreview = notificationData.postPreview;
         }
 
-        const notification = await databases.createDocument(
-            config.databaseId,
-            config.notificationsCollectionId,
-            ID.unique(),
-            notificationDoc,
-            [
-                Permission.read(Role.user(notificationData.userId)),
-                Permission.update(Role.user(notificationData.userId)),
-                Permission.delete(Role.user(notificationData.userId)),
-            ]
-        );
+        let notification;
+        try {
+            notification = await databases.createDocument(
+                config.databaseId,
+                config.notificationsCollectionId,
+                ID.unique(),
+                notificationDoc,
+                [
+                    Permission.read(Role.user(notificationData.userId)),
+                    Permission.update(Role.user(notificationData.userId)),
+                    Permission.delete(Role.user(notificationData.userId)),
+                ]
+            );
+        } catch (permissionError) {
+            notification = await databases.createDocument(
+                config.databaseId,
+                config.notificationsCollectionId,
+                ID.unique(),
+                notificationDoc
+            );
+        }
 
         await unreadCountCacheManager.invalidateNotificationUnreadCount(notificationData.userId);
         await notificationsCacheManager.invalidateUserNotifications(notificationData.userId);
@@ -451,31 +616,41 @@ export const deleteNotificationsByPostId = async (postId) => {
  * @param {string} postPreview - Preview of post content
  */
 export const notifyPostLike = async (postOwnerId, likerId, likerName, likerPhoto, postId, postPreview) => {
-    // Create in-app notification first (this is the primary notification)
-    const notification = await createNotification({
+    return createInteractionNotification({
         userId: postOwnerId,
         senderId: likerId,
         senderName: likerName,
         senderProfilePicture: likerPhoto || null,
         type: NOTIFICATION_TYPES.POST_LIKE,
-        postId: postId || null,
-        postPreview: postPreview?.substring(0, 50) || null,
-    });
-
-    // Send push notification in background (non-blocking)
-    sendGeneralPushNotification({
-        recipientUserId: postOwnerId,
-        senderId: likerId,
-        senderName: likerName,
-        type: NOTIFICATION_TYPES.POST_LIKE,
-        title: likerName,
-        body: `❤️ liked your post`,
         postId,
-    }).catch(() => {
-        // Silent fail for push notification
+        postPreview,
+        standardPush: () => {
+            sendGeneralPushNotification({
+                recipientUserId: postOwnerId,
+                senderId: likerId,
+                senderName: likerName,
+                type: NOTIFICATION_TYPES.POST_LIKE,
+                title: likerName,
+                body: `❤️ liked your post`,
+                postId,
+            }).catch(() => {
+                // Silent fail for push notification
+            });
+        },
+        batchedPush: (count) => {
+            sendGeneralPushNotification({
+                recipientUserId: postOwnerId,
+                senderId: likerId,
+                senderName: likerName,
+                type: NOTIFICATION_TYPES.POST_LIKE_BATCH,
+                title: likerName,
+                body: `❤️ You have ${count} new likes`,
+                postId,
+            }).catch(() => {
+                // Silent fail for push notification
+            });
+        },
     });
-
-    return notification;
 };
 
 /**
@@ -488,36 +663,130 @@ export const notifyPostLike = async (postOwnerId, likerId, likerName, likerPhoto
  * @param {string} replyPreview - Preview of reply content
  */
 export const notifyPostReply = async (postOwnerId, replierId, replierName, replierPhoto, postId, replyPreview, replyId) => {
-    // Encode replyId into postPreview so it survives the in-app notification round-trip
-    const previewText = replyPreview?.substring(0, 50) || null;
+    const previewText = trimPreview(replyPreview, 50);
     const encodedPreview = replyId ? `[rid:${replyId}]${previewText || ''}` : previewText;
 
-    // Create in-app notification first (this is the primary notification)
-    const notification = await createNotification({
+    return createInteractionNotification({
         userId: postOwnerId,
         senderId: replierId,
         senderName: replierName,
         senderProfilePicture: replierPhoto || null,
         type: NOTIFICATION_TYPES.POST_REPLY,
-        postId: postId || null,
+        postId,
         postPreview: encodedPreview,
+        standardPush: () => {
+            sendGeneralPushNotification({
+                recipientUserId: postOwnerId,
+                senderId: replierId,
+                senderName: replierName,
+                type: NOTIFICATION_TYPES.POST_REPLY,
+                title: replierName,
+                body: `💬 replied: ${trimPreview(replyPreview, 50) || 'replied to your post'}`,
+                postId,
+                replyId: replyId || null,
+            }).catch(() => {
+                // Silent fail for push notification
+            });
+        },
+        batchedPush: (count) => {
+            sendGeneralPushNotification({
+                recipientUserId: postOwnerId,
+                senderId: replierId,
+                senderName: replierName,
+                type: NOTIFICATION_TYPES.POST_REPLY_BATCH,
+                title: replierName,
+                body: `💬 You have ${count} new replies`,
+                postId,
+                replyId: replyId || null,
+            }).catch(() => {
+                // Silent fail for push notification
+            });
+        },
     });
+};
 
-    // Send push notification in background (non-blocking)
-    sendGeneralPushNotification({
-        recipientUserId: postOwnerId,
+export const notifyReplyLike = async (replyOwnerId, likerId, likerName, likerPhoto, postId, replyId, replyPreview) => {
+    const encodedPreview = replyId ? `[rid:${replyId}]${trimPreview(replyPreview, 50) || ''}` : trimPreview(replyPreview, 50);
+
+    return createInteractionNotification({
+        userId: replyOwnerId,
+        senderId: likerId,
+        senderName: likerName,
+        senderProfilePicture: likerPhoto || null,
+        type: NOTIFICATION_TYPES.REPLY_LIKE,
+        postId,
+        postPreview: encodedPreview,
+        standardPush: () => {
+            sendGeneralPushNotification({
+                recipientUserId: replyOwnerId,
+                senderId: likerId,
+                senderName: likerName,
+                type: NOTIFICATION_TYPES.REPLY_LIKE,
+                title: likerName,
+                body: `❤️ liked your reply`,
+                postId,
+                replyId: replyId || null,
+            }).catch(() => {
+                // Silent fail for push notification
+            });
+        },
+        batchedPush: (count) => {
+            sendGeneralPushNotification({
+                recipientUserId: replyOwnerId,
+                senderId: likerId,
+                senderName: likerName,
+                type: NOTIFICATION_TYPES.REPLY_LIKE_BATCH,
+                title: likerName,
+                body: `❤️ You have ${count} new reply likes`,
+                postId,
+                replyId: replyId || null,
+            }).catch(() => {
+                // Silent fail for push notification
+            });
+        },
+    });
+};
+
+export const notifyReplyReply = async (replyOwnerId, replierId, replierName, replierPhoto, postId, replyPreview, parentReplyId, replyId) => {
+    const encodedPreview = `[rid:${replyId || parentReplyId || ''}]${trimPreview(replyPreview, 50) || ''}`;
+
+    return createInteractionNotification({
+        userId: replyOwnerId,
         senderId: replierId,
         senderName: replierName,
-        type: NOTIFICATION_TYPES.POST_REPLY,
-        title: replierName,
-        body: `💬 replied: ${replyPreview?.substring(0, 50) || 'replied to your post'}`,
+        senderProfilePicture: replierPhoto || null,
+        type: NOTIFICATION_TYPES.REPLY_REPLY,
         postId,
-        replyId: replyId || null,
-    }).catch(() => {
-        // Silent fail for push notification
+        postPreview: encodedPreview,
+        standardPush: () => {
+            sendGeneralPushNotification({
+                recipientUserId: replyOwnerId,
+                senderId: replierId,
+                senderName: replierName,
+                type: NOTIFICATION_TYPES.REPLY_REPLY,
+                title: replierName,
+                body: `💬 replied to your reply`,
+                postId,
+                replyId: replyId || parentReplyId || null,
+            }).catch(() => {
+                // Silent fail for push notification
+            });
+        },
+        batchedPush: (count) => {
+            sendGeneralPushNotification({
+                recipientUserId: replyOwnerId,
+                senderId: replierId,
+                senderName: replierName,
+                type: NOTIFICATION_TYPES.REPLY_REPLY_BATCH,
+                title: replierName,
+                body: `💬 You have ${count} new reply threads`,
+                postId,
+                replyId: replyId || parentReplyId || null,
+            }).catch(() => {
+                // Silent fail for push notification
+            });
+        },
     });
-
-    return notification;
 };
 
 /**

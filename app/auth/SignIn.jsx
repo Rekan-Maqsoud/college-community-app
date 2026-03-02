@@ -22,7 +22,7 @@ import { useCustomAlert } from '../hooks/useCustomAlert';
 import CustomAlert from '../components/CustomAlert';
 import AnimatedBackground from '../components/AnimatedBackground';
 import { GlassContainer, GlassInput } from '../components/GlassComponents';
-import { signIn, getCurrentUser, signOut, getCompleteUserData, signInWithGoogle, checkOAuthUserExists, storePendingOAuthSignup } from '../../database/auth';
+import { signIn, getCurrentUser, signOut, getCompleteUserData, signInWithGoogle, checkOAuthUserExists, storePendingOAuthSignup, isEducationalEmail } from '../../database/auth';
 import { 
   wp, 
   hp, 
@@ -213,13 +213,25 @@ const SignIn = ({ navigation }) => {
   const handleGoogleSignIn = async () => {
     if (isGoogleLoading) return;
     
+    console.log('[GoogleAuth][SignIn] Google sign-in pressed');
     setIsGoogleLoading(true);
     
     try {
       const result = await signInWithGoogle();
+      console.log('[GoogleAuth][SignIn] signInWithGoogle result', {
+        success: result?.success,
+        cancelled: result?.cancelled,
+        error: result?.error,
+      });
       
       if (result.success) {
         const userCheck = await checkOAuthUserExists();
+        console.log('[GoogleAuth][SignIn] checkOAuthUserExists result', {
+          exists: userCheck?.exists,
+          hasUser: Boolean(userCheck?.user),
+          hasUserDoc: Boolean(userCheck?.userDoc),
+          email: userCheck?.email || userCheck?.user?.email || null,
+        });
         
         if (userCheck.exists && userCheck.userDoc) {
           const completeUserData = await getCompleteUserData();
@@ -245,27 +257,49 @@ const SignIn = ({ navigation }) => {
             };
             
             await setUserData(userData);
+            console.log('[GoogleAuth][SignIn] Existing OAuth user completed, navigating to MainTabs');
             navigation.replace('MainTabs');
           }
         } else if (userCheck.user) {
+          const oauthResolvedEmail = userCheck.email || userCheck.user.email || '';
+
+          if (!isEducationalEmail(oauthResolvedEmail)) {
+            console.log('[GoogleAuth][SignIn] Blocked non-educational OAuth email', {
+              email: oauthResolvedEmail,
+            });
+
+            await signOut();
+            showAlert({
+              type: 'error',
+              title: t('common.error'),
+              message: t('auth.educationalEmailRequired'),
+            });
+            return;
+          }
+
           await storePendingOAuthSignup({
             userId: userCheck.user.$id,
-            email: userCheck.email || userCheck.user.email,
+            email: oauthResolvedEmail,
             name: userCheck.name || userCheck.user.name || '',
           });
           
           navigation.navigate('SignUp', { 
             oauthMode: true,
-            oauthEmail: userCheck.email || userCheck.user.email,
+            oauthEmail: oauthResolvedEmail,
             oauthName: userCheck.name || userCheck.user.name || '',
             oauthUserId: userCheck.user.$id,
           });
         }
       } else if (result.cancelled) {
+        console.log('[GoogleAuth][SignIn] Google sign-in cancelled');
         setIsGoogleLoading(false);
         return;
       }
     } catch (error) {
+      console.log('[GoogleAuth][SignIn] Google sign-in error', {
+        message: error?.message,
+        code: error?.code,
+      });
       let errorMessage = t('auth.googleSignInError');
       
       if (error.message?.includes('network') || error.message?.includes('Network')) {

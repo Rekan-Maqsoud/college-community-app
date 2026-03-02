@@ -4,7 +4,7 @@ import { handleNetworkError } from '../app/utils/networkErrorHandler';
 import { postsCacheManager } from '../app/utils/cacheManager';
 import { parsePollPayload, applyPollVote } from '../app/utils/pollUtils';
 import { getUserById } from './users';
-import { notifyDepartmentPost, notifyPostHiddenByReports } from './notifications';
+import { notifyDepartmentPost, notifyPostHiddenByReports, notifyPostLike } from './notifications';
 import { enforceRateLimit } from './securityGuards';
 
 const REPORT_HIDE_THRESHOLD = 5;
@@ -977,6 +977,24 @@ export const togglePostLike = async (postId, userId) => {
 
         // Invalidate posts cache so refreshes show the updated like state
         await postsCacheManager.invalidatePostsCache();
+
+        if (!isLiked && post?.userId && post.userId !== effectiveUserId) {
+            try {
+                const actor = await getUserById(effectiveUserId);
+                notifyPostLike(
+                    post.userId,
+                    effectiveUserId,
+                    actor?.name || actor?.fullName || 'Someone',
+                    actor?.profilePicture || null,
+                    postId,
+                    post?.topic || post?.text || ''
+                ).catch(() => {
+                    // Silent fail - liking should not fail on notify
+                });
+            } catch (notificationError) {
+                // Silent fail - liking should not fail on notify
+            }
+        }
 
         const finalLikeCount = updatedPost.likeCount ?? updatedLikedBy.length;
 

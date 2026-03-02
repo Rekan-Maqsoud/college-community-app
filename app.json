@@ -4,7 +4,7 @@
     "slug": "college-community",
     "scheme": [
       "collegecommunity",
-      "appwrite-callback-6973c51d0000bdd71f7a"
+      "appwrite-callback-69a46b6f0020cf0d5e4b"
     ],
     "version": "1.0.8",
     "orientation": "portrait",
@@ -19,12 +19,13 @@
     "ios": {
       "supportsTablet": true,
       "buildNumber": "8",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "bundleIdentifier": "com.college.community",
       "infoPlist": {
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
-              "appwrite-callback-6973c51d0000bdd71f7a"
+              "appwrite-callback-69a46b6f0020cf0d5e4b"
             ]
           }
         ],
@@ -36,6 +37,7 @@
     "android": {
       "package": "com.collegecommunity",
       "versionCode": 8,
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a1a2e"
@@ -62,7 +64,7 @@
               "scheme": "collegecommunity"
             },
             {
-              "scheme": "appwrite-callback-6973c51d0000bdd71f7a"
+              "scheme": "appwrite-callback-69a46b6f0020cf0d5e4b"
             }
           ],
           "category": [
