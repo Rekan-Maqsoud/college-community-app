@@ -881,6 +881,25 @@ const NotificationSetup = ({ navigationRef }) => {
     notificationListenerRef.current = addNotificationReceivedListener((notification) => {
       const data = notification?.request?.content?.data || {};
       const type = data?.type || '';
+      const currentIdentifier = notification?.request?.identifier;
+
+      if (data?.chatId) {
+        dismissPresentedNotificationsByTarget({
+          chatId: data.chatId,
+          excludeIdentifiers: currentIdentifier ? [currentIdentifier] : [],
+        }).catch(() => {});
+      } else if (data?.postId) {
+        dismissPresentedNotificationsByTarget({
+          postId: data.postId,
+          excludeIdentifiers: currentIdentifier ? [currentIdentifier] : [],
+        }).catch(() => {});
+      } else if (type === 'follow' && data?.senderId) {
+        dismissPresentedNotificationsByTarget({
+          senderId: data.senderId,
+          types: ['follow'],
+          excludeIdentifiers: currentIdentifier ? [currentIdentifier] : [],
+        }).catch(() => {});
+      }
 
       publishRefreshEvent(REFRESH_TOPICS.NOTIFICATIONS, {
         source: 'push_foreground',

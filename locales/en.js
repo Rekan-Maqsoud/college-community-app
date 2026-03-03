@@ -1221,6 +1221,7 @@ export default {
     classGroups: 'Class Groups',
     myGroups: 'My Groups',
     directChats: 'Direct Chats',
+    unknownUser: 'Unknown User',
     recentChats: 'Recent Chats',
     allChats: 'All Chats',
     // Compact filter & labels
@@ -1539,6 +1540,16 @@ export default {
     applyReactionsCurrentChat: 'Apply to this chat',
     applyReactionsAllChats: 'Apply to all chats',
     reactionDefaultsScopeHint: 'Default apply is this chat. Use all chats to sync your current set everywhere.',
+    emojiCategoryPopular: 'Popular',
+    emojiCategorySmileys: 'Smileys',
+    emojiCategoryGestures: 'Gestures',
+    emojiCategoryHearts: 'Hearts',
+    emojiCategoryCelebration: 'Celebrate',
+    emojiCategoryIdeas: 'Ideas',
+    emojiCategoryNature: 'Nature',
+    emojiCategoryFood: 'Food',
+    emojiCategoryActivity: 'Activity',
+    emojiCategorySymbols: 'Symbols',
   },
 
   // Lecture Screen

@@ -37,6 +37,7 @@ import {
 import { useNotifications } from '../hooks/useRealtimeSubscription';
 import PostViewModal from '../components/PostViewModal';
 import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
+import * as ExpoNotifications from 'expo-notifications';
 import { REFRESH_TOPICS, subscribeToRefreshTopic } from '../utils/dataRefreshBus';
 
 const NOTIFICATION_TYPES = {
@@ -702,9 +703,17 @@ const Notifications = ({ navigation }) => {
   useEffect(() => {
     if (user?.$id) {
       setIsLoading(true);
-      loadNotifications(true);
+      loadNotifications(true, { forceNetwork: true });
     }
   }, [user?.$id]);
+
+  useEffect(() => {
+    if (!isFocused || !user?.$id) {
+      return;
+    }
+
+    smartRefreshNotifications({ force: true, minIntervalMs: 0 });
+  }, [isFocused, smartRefreshNotifications, user?.$id]);
 
   const smartRefreshNotifications = useCallback(async (
     { minIntervalMs = 10000, force = false } = {}
@@ -844,6 +853,8 @@ const Notifications = ({ navigation }) => {
       setNotifications(prev =>
         prev.map(n => ({ ...n, isRead: true }))
       );
+      // Dismiss all push notifications from notification tray
+      ExpoNotifications.dismissAllNotificationsAsync().catch(() => {});
     } catch (error) {
       // Handle error silently
     }

@@ -7,13 +7,15 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
-  FlatList,
+  Animated,
+  Keyboard,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { postDetailsStyles as styles } from './styles';
 import ProfilePicture from '../../components/ProfilePicture';
 import { getFriends, searchUsers } from '../../../database/users';
+import { moderateScale, fontSize, spacing } from '../../utils/responsive';
 
 const ReplyInputSection = ({
   editingReply,
@@ -35,6 +37,8 @@ const ReplyInputSection = ({
   onLinkInputChange,
   onAddLink,
   onPickImages,
+  onPickFromGallery,
+  onTakePhoto,
   onToggleLinksSection,
   onSubmit,
   currentUserId,
@@ -46,6 +50,17 @@ const ReplyInputSection = ({
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const [friends, setFriends] = useState([]);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+  const [showActionSheet, setShowActionSheet] = useState(false);
+  const actionSheetAnim = useState(new Animated.Value(0))[0];
+
+  useEffect(() => {
+    Animated.spring(actionSheetAnim, {
+      toValue: showActionSheet ? 1 : 0,
+      tension: 65,
+      friction: 11,
+      useNativeDriver: true,
+    }).start();
+  }, [actionSheetAnim, showActionSheet]);
 
   useEffect(() => {
     loadFriends();
@@ -147,6 +162,63 @@ const ReplyInputSection = ({
   };
 
   const replyingToName = replyingTo?.userData?.fullName || replyingTo?.userData?.name || t('common.user');
+
+  const openLinksSection = () => {
+    if (!showLinksSection) {
+      onToggleLinksSection();
+    }
+    setShowActionSheet(false);
+  };
+
+  const actionItems = [
+    {
+      key: 'gallery',
+      icon: 'images',
+      color: '#8B5CF6',
+      label: t('post.gallery'),
+      onPress: () => {
+        setShowActionSheet(false);
+        if (onPickFromGallery) {
+          onPickFromGallery();
+          return;
+        }
+        onPickImages();
+      },
+    },
+    {
+      key: 'camera',
+      icon: 'camera',
+      color: '#10B981',
+      label: t('post.camera'),
+      onPress: () => {
+        setShowActionSheet(false);
+        if (onTakePhoto) {
+          onTakePhoto();
+          return;
+        }
+        onPickImages();
+      },
+    },
+    {
+      key: 'link',
+      icon: 'link',
+      color: '#3B82F6',
+      label: t('post.links'),
+      onPress: openLinksSection,
+    },
+    {
+      key: 'mention',
+      icon: 'at',
+      color: '#6366F1',
+      label: t('chats.tagUser'),
+      onPress: () => {
+        setShowActionSheet(false);
+        setReplyText((prev) => `${prev}@`);
+        setTimeout(() => inputRef?.current?.focus?.(), 80);
+      },
+    },
+  ];
+
   return (
     <View style={[styles.inputSection, { backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF', borderTopColor: theme.border }]}>
       {editingReply && (
@@ -204,11 +276,20 @@ const ReplyInputSection = ({
 
       <TextInput
         ref={inputRef}
-        style={[styles.replyTextInput, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#F3F4F6', color: theme.text }]}
+        style={[
+          styles.replyTextInput,
+          localStyles.replyTextInput,
+          {
+            backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
+            color: theme.text,
+            borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+          },
+        ]}
         placeholder={t('post.writeReply')}
         placeholderTextColor={theme.textSecondary}
         value={replyText}
         onChangeText={handleTextChange}
+        onFocus={() => setShowActionSheet(false)}
         multiline
         maxLength={2000}
       />
@@ -259,59 +340,99 @@ const ReplyInputSection = ({
         </View>
       )}
 
-      <View style={styles.inputActions}>
-        <View style={styles.inputActionsLeft}>
-          <TouchableOpacity 
-            style={styles.actionIconBtn} 
-            onPress={onPickImages}
-            disabled={replyImages.length >= 3}
+      <View style={localStyles.mainInputRow}>
+        <TouchableOpacity
+          style={[
+            localStyles.plusButton,
+            {
+              backgroundColor: showActionSheet ? theme.primary : (isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'),
+            },
+          ]}
+          onPress={() => {
+            Keyboard.dismiss();
+            setShowActionSheet((prev) => !prev);
+          }}
+          activeOpacity={0.7}
+        >
+          <Animated.View
+            style={{
+              transform: [
+                {
+                  rotate: actionSheetAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0deg', '45deg'],
+                  }),
+                },
+              ],
+            }}
           >
-            <Ionicons 
-              name="image-outline" 
-              size={24} 
-              color={replyImages.length >= 3 ? theme.textSecondary : '#3B82F6'} 
-            />
-            {replyImages.length > 0 && (
-              <View style={styles.imageBadge}>
-                <Text style={styles.imageBadgeText}>{replyImages.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.actionIconBtn} 
-            onPress={onToggleLinksSection}
-          >
-            <Ionicons 
-              name={showLinksSection ? 'link' : 'link-outline'} 
-              size={24} 
-              color={showLinksSection ? '#3B82F6' : theme.textSecondary} 
-            />
-            {replyLinks.length > 0 && (
-              <View style={styles.imageBadge}>
-                <Text style={styles.imageBadgeText}>{replyLinks.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
+            <Ionicons name="add" size={moderateScale(22)} color={showActionSheet ? '#FFFFFF' : theme.primary} />
+          </Animated.View>
+          {(replyImages.length > 0 || replyLinks.length > 0) && (
+            <View style={localStyles.inlineBadge}>
+              <Text style={localStyles.inlineBadgeText}>{replyImages.length + replyLinks.length}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.sendButton, { opacity: replyText.trim() ? 1 : 0.5 }]}
+          style={[
+            localStyles.sendButton,
+            {
+              backgroundColor: replyText.trim()
+                ? '#3B82F6'
+                : (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+            },
+          ]}
           onPress={onSubmit}
           disabled={!replyText.trim() || isSubmitting}
+          activeOpacity={0.8}
         >
           {isSubmitting ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            <>
-              <Text style={styles.sendButtonText}>
-                {editingReply ? t('common.save') : t('post.send')}
-              </Text>
-              <Ionicons name="send" size={18} color="#FFFFFF" />
-            </>
+            <Ionicons name={editingReply ? 'checkmark' : 'send'} size={moderateScale(18)} color={replyText.trim() ? '#FFFFFF' : theme.textSecondary} />
           )}
         </TouchableOpacity>
       </View>
+
+      {showActionSheet && (
+        <Animated.View
+          style={[
+            localStyles.actionSheet,
+            {
+              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+              opacity: actionSheetAnim,
+              transform: [
+                {
+                  translateY: actionSheetAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <View style={localStyles.actionGrid}>
+            {actionItems.map((item) => (
+              <TouchableOpacity
+                key={item.key}
+                style={localStyles.actionItem}
+                onPress={item.onPress}
+                activeOpacity={0.7}
+              >
+                <View style={[localStyles.actionIconCircle, { backgroundColor: `${item.color}18` }]}>
+                  <Ionicons name={item.icon} size={moderateScale(22)} color={item.color} />
+                </View>
+                <Text style={[localStyles.actionLabel, { color: theme.text }]} numberOfLines={1}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 };
@@ -355,6 +476,75 @@ const mentionStyles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     marginTop: 2,
+  },
+});
+
+const localStyles = StyleSheet.create({
+  replyTextInput: {
+    borderWidth: 1,
+  },
+  mainInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+  },
+  plusButton: {
+    width: moderateScale(42),
+    height: moderateScale(42),
+    borderRadius: moderateScale(21),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inlineBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#3B82F6',
+    borderRadius: moderateScale(8),
+    minWidth: moderateScale(16),
+    height: moderateScale(16),
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  inlineBadgeText: {
+    color: '#FFFFFF',
+    fontSize: fontSize(9),
+    fontWeight: '700',
+  },
+  sendButton: {
+    width: moderateScale(42),
+    height: moderateScale(42),
+    borderRadius: moderateScale(21),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionSheet: {
+    marginTop: spacing.sm,
+    borderRadius: moderateScale(16),
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  actionGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  actionItem: {
+    width: '24%',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  actionIconCircle: {
+    width: moderateScale(42),
+    height: moderateScale(42),
+    borderRadius: moderateScale(21),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionLabel: {
+    fontSize: fontSize(11),
+    fontWeight: '500',
   },
 });
 

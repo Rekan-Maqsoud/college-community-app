@@ -36,6 +36,8 @@ import {
   getStageOptionsForDepartment,
   MAX_IMAGES_PER_POST,
 } from '../constants/postConstants';
+import { wp, hp, fontSize as fontSizeUtil, spacing, moderateScale } from '../utils/responsive';
+import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 
 const normalizeStageValue = (userStage) => {
@@ -412,7 +414,7 @@ const Post = () => {
                 <TouchableOpacity
                   style={[
                     styles.compactToggle,
-                    { backgroundColor: theme.inputBackground || theme.input?.background, borderColor: theme.border }
+                    { backgroundColor: theme.input.background, borderColor: theme.input.border }
                   ]}
                   onPress={cycleVisibility}
                   disabled={loading}
@@ -441,14 +443,14 @@ const Post = () => {
               style={[styles.input, styles.growingInput, {
                 minHeight: topicInputHeight,
                 height: topicInputHeight,
-                backgroundColor: theme.inputBackground,
-                borderColor: theme.border,
+                backgroundColor: theme.input.background,
+                borderColor: theme.input.border,
                 color: theme.text 
               }]}
               value={topic}
               onChangeText={setTopic}
               placeholder={t('post.topicPlaceholder')}
-              placeholderTextColor={theme.textSecondary}
+              placeholderTextColor={theme.input.placeholder}
               maxLength={200}
               multiline
               numberOfLines={1}
@@ -472,14 +474,14 @@ const Post = () => {
               style={[styles.input, styles.textArea, styles.growingInput, {
                 minHeight: textInputHeight,
                 height: textInputHeight,
-                backgroundColor: theme.inputBackground,
-                borderColor: theme.border,
+                backgroundColor: theme.input.background,
+                borderColor: theme.input.border,
                 color: theme.text
               }]}
               value={text}
               onChangeText={setText}
               placeholder={t('post.descriptionPlaceholder')}
-              placeholderTextColor={theme.textSecondary}
+              placeholderTextColor={theme.input.placeholder}
               multiline
               numberOfLines={3}
               textAlignVertical="top"
@@ -505,20 +507,20 @@ const Post = () => {
                     style={[
                       styles.pollChoiceInput,
                       {
-                        backgroundColor: theme.inputBackground,
-                        borderColor: theme.border,
+                        backgroundColor: theme.input.background,
+                        borderColor: theme.input.border,
                         color: theme.text,
                       },
                     ]}
                     value={choice}
                     onChangeText={(value) => handlePollChoiceChange(index, value)}
                     placeholder={t('post.poll.choicePlaceholder').replace('{number}', String(index + 1))}
-                    placeholderTextColor={theme.textSecondary}
+                    placeholderTextColor={theme.input.placeholder}
                     editable={!loading}
                     maxLength={120}
                   />
                   <TouchableOpacity
-                    style={[styles.pollChoiceRemoveButton, { borderColor: theme.border }]}
+                    style={[styles.pollChoiceRemoveButton, { borderColor: theme.input.border }]}
                     onPress={() => handleRemovePollChoice(index)}
                     disabled={loading || pollChoices.length <= 2}
                   >
@@ -528,7 +530,7 @@ const Post = () => {
               ))}
 
               <TouchableOpacity
-                style={[styles.pollAddChoiceButton, { borderColor: theme.border, backgroundColor: theme.inputBackground }]}
+                style={[styles.pollAddChoiceButton, { borderColor: theme.input.border, backgroundColor: theme.input.background }]}
                 onPress={handleAddPollChoice}
                 disabled={loading}
               >
@@ -569,7 +571,7 @@ const Post = () => {
               </View>
 
               <View style={styles.pollToggleRow}>
-                <View style={[styles.pollToggleItem, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
+                <View style={[styles.pollToggleItem, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}>
                   <View style={styles.pollToggleLabelWrap}>
                     <Ionicons name="checkbox-outline" size={14} color={theme.primary} />
                     <Text style={[styles.pollToggleLabel, { color: theme.text }]}>{t('post.poll.multiAnswer')}</Text>
@@ -583,7 +585,7 @@ const Post = () => {
                   />
                 </View>
 
-                <View style={[styles.pollToggleItem, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
+                <View style={[styles.pollToggleItem, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}>
                   <View style={styles.pollToggleLabelWrap}>
                     <Ionicons name="people-outline" size={14} color={theme.primary} />
                     <Text style={[styles.pollToggleLabel, { color: theme.text }]}>{t('post.poll.showVoters')}</Text>
@@ -631,15 +633,15 @@ const Post = () => {
                     style={[
                       styles.pollExplanationInput,
                       {
-                        backgroundColor: theme.inputBackground,
-                        borderColor: theme.border,
+                        backgroundColor: theme.input.background,
+                        borderColor: theme.input.border,
                         color: theme.text,
                       },
                     ]}
                     value={pollExplanation}
                     onChangeText={setPollExplanation}
                     placeholder={t('post.poll.explanationPlaceholder')}
-                    placeholderTextColor={theme.textSecondary}
+                    placeholderTextColor={theme.input.placeholder}
                     multiline
                     numberOfLines={3}
                     textAlignVertical="top"
@@ -654,7 +656,7 @@ const Post = () => {
           <View style={styles.section}>
             <View style={styles.actionButtonsRow}>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}
+                style={[styles.actionButton, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}
                 onPress={() => setShowTags(!showTags)}
                 activeOpacity={0.7}
               >
@@ -665,7 +667,7 @@ const Post = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}
+                style={[styles.actionButton, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}
                 onPress={() => setShowLinks(!showLinks)}
                 activeOpacity={0.7}
               >
@@ -676,7 +678,7 @@ const Post = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}
+                style={[styles.actionButton, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}
                 onPress={handlePickImages}
                 disabled={loading || images.length >= MAX_IMAGES_PER_POST}
                 activeOpacity={0.7}
@@ -709,8 +711,8 @@ const Post = () => {
               <View style={styles.chipInputRow}>
                 <TextInput
                   style={[styles.chipInput, {
-                    backgroundColor: theme.inputBackground,
-                    borderColor: theme.border,
+                    backgroundColor: theme.input.background,
+                    borderColor: theme.input.border,
                     color: theme.text
                   }]}
                   value={tagInput}
@@ -726,7 +728,7 @@ const Post = () => {
                     }
                   }}
                   placeholder={t('post.tagsPlaceholder')}
-                  placeholderTextColor={theme.textSecondary}
+                  placeholderTextColor={theme.input.placeholder}
                   editable={!loading && tags.length < 10}
                   blurOnSubmit={false}
                   autoCapitalize="none"
@@ -779,8 +781,8 @@ const Post = () => {
               <View style={styles.chipInputRow}>
                 <TextInput
                   style={[styles.chipInput, {
-                    backgroundColor: theme.inputBackground,
-                    borderColor: theme.border,
+                    backgroundColor: theme.input.background,
+                    borderColor: theme.input.border,
                     color: theme.text
                   }]}
                   value={linkInput}
@@ -796,7 +798,7 @@ const Post = () => {
                     }
                   }}
                   placeholder={t('post.linksPlaceholder')}
-                  placeholderTextColor={theme.textSecondary}
+                  placeholderTextColor={theme.input.placeholder}
                   editable={!loading}
                   autoCapitalize="none"
                   keyboardType="url"
@@ -979,22 +981,22 @@ const styles = StyleSheet.create({
     minWidth: 140,
   },
   compactLabel: {
-    fontSize: 11,
+    fontSize: fontSizeUtil(11),
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   compactToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.sm,
     borderWidth: 1,
-    minHeight: 40,
+    minHeight: moderateScale(40),
   },
   compactToggleText: {
-    fontSize: 12,
+    fontSize: fontSizeUtil(12),
     fontWeight: '600',
     flexShrink: 1,
   },
@@ -1002,19 +1004,19 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   sectionLabel: {
-    fontSize: 16,
+    fontSize: fontSizeUtil(16),
     fontWeight: '600',
-    marginBottom: 10,
+    marginBottom: spacing.sm,
   },
   optional: {
-    fontSize: 14,
+    fontSize: fontSizeUtil(14),
     fontWeight: '400',
   },
   input: {
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 14,
-    fontSize: 16,
+    borderRadius: borderRadius.sm,
+    padding: spacing.md,
+    fontSize: fontSizeUtil(16),
   },
   growingInput: {
     overflow: 'hidden',
@@ -1024,13 +1026,13 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   charCount: {
-    fontSize: 12,
-    marginTop: 6,
+    fontSize: fontSizeUtil(12),
+    marginTop: spacing.xs,
     textAlign: 'right',
   },
   helperText: {
-    fontSize: 13,
-    marginTop: 6,
+    fontSize: fontSizeUtil(13),
+    marginTop: spacing.xs,
   },
   chipsContainer: {
     flexDirection: 'row',
@@ -1075,10 +1077,10 @@ const styles = StyleSheet.create({
   chipInput: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    fontSize: fontSizeUtil(14),
   },
   addChipButton: {
     padding: 4,
@@ -1138,51 +1140,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.sm,
     borderWidth: 1,
-    gap: 6,
+    gap: spacing.xs,
   },
   actionButtonText: {
-    fontSize: 13,
+    fontSize: fontSizeUtil(13),
     fontWeight: '500',
   },
   pollChoiceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 10,
+    gap: spacing.xs,
+    marginTop: spacing.sm,
   },
   pollChoiceInput: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    fontSize: fontSizeUtil(14),
   },
   pollChoiceRemoveButton: {
-    width: 40,
-    height: 40,
+    width: moderateScale(40),
+    height: moderateScale(40),
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: borderRadius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pollAddChoiceButton: {
-    marginTop: 12,
+    marginTop: spacing.sm,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    borderRadius: borderRadius.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: spacing.xs,
   },
   pollAddChoiceText: {
-    fontSize: 13,
+    fontSize: fontSizeUtil(13),
     fontWeight: '600',
   },
   pollModeRow: {
@@ -1235,13 +1237,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   pollExplanationInput: {
-    marginTop: 10,
+    marginTop: spacing.sm,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
     minHeight: 80,
-    fontSize: 14,
+    fontSize: fontSizeUtil(14),
   },
   modalContainer: {
     flex: 1,

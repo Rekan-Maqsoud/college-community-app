@@ -1220,6 +1220,7 @@ export default {
     classGroups: 'مجموعات الصف',
     myGroups: 'مجموعاتي',
     directChats: 'المحادثات المباشرة',
+    unknownUser: 'مستخدم غير معروف',
     recentChats: 'المحادثات الأخيرة',
     allChats: 'جميع المحادثات',
     // Compact filter & labels
@@ -1537,6 +1538,16 @@ export default {
     applyReactionsCurrentChat: 'تطبيق على هذه المحادثة',
     applyReactionsAllChats: 'تطبيق على جميع المحادثات',
     reactionDefaultsScopeHint: 'التطبيق الافتراضي يكون على هذه المحادثة. استخدم جميع المحادثات لمزامنة نفس المجموعة في كل مكان.',
+    emojiCategoryPopular: 'الأكثر استخداماً',
+    emojiCategorySmileys: 'الوجوه',
+    emojiCategoryGestures: 'الإيماءات',
+    emojiCategoryHearts: 'القلوب',
+    emojiCategoryCelebration: 'الاحتفال',
+    emojiCategoryIdeas: 'الأفكار',
+    emojiCategoryNature: 'الطبيعة',
+    emojiCategoryFood: 'الطعام',
+    emojiCategoryActivity: 'الأنشطة',
+    emojiCategorySymbols: 'الرموز',
   },
 
   // Lecture Screen

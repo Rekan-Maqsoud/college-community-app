@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import PostCard from './PostCard';
@@ -218,7 +219,15 @@ const PostViewModal = ({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <LinearGradient
+        colors={isDarkMode
+          ? ['#1a1a2e', '#16213e', '#0f3460']
+          : ['#FFFEF7', '#FFF9E6', '#FFF4D6']
+        }
+        style={styles.container}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
 
         {/* Header */}
@@ -237,7 +246,7 @@ const PostViewModal = ({
         </View>
 
         {renderContent()}
-      </View>
+      </LinearGradient>
     </Modal>
   );
 };

@@ -218,8 +218,50 @@ export const updateReactionDefaultsForAllChats = async (userId, reactions = [], 
         hasMore = documents.length === 100;
     }
 
-    if (currentChatId && !existingChatIds.has(currentChatId)) {
-        await updateReactionDefaults(userId, currentChatId, normalized);
+    const targetChatIds = new Set(existingChatIds);
+
+    if (config.chatsCollectionId) {
+        let chatsOffset = 0;
+        let hasMoreChats = true;
+
+        while (hasMoreChats) {
+            const chats = await databases.listDocuments(
+                config.databaseId,
+                config.chatsCollectionId,
+                [
+                    Query.equal('participants', userId),
+                    Query.limit(100),
+                    Query.offset(chatsOffset),
+                ]
+            );
+
+            const chatDocuments = chats.documents || [];
+            if (chatDocuments.length === 0) {
+                hasMoreChats = false;
+                break;
+            }
+
+            chatDocuments.forEach((chat) => {
+                if (chat?.$id) {
+                    targetChatIds.add(chat.$id);
+                }
+            });
+
+            chatsOffset += chatDocuments.length;
+            hasMoreChats = chatDocuments.length === 100;
+        }
+    }
+
+    if (currentChatId) {
+        targetChatIds.add(currentChatId);
+    }
+
+    const missingChatIds = Array.from(targetChatIds).filter((chatId) => !existingChatIds.has(chatId));
+
+    if (missingChatIds.length > 0) {
+        await Promise.all(
+            missingChatIds.map((chatId) => updateReactionDefaults(userId, chatId, normalized))
+        );
     }
 
     return normalized;

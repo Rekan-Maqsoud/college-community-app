@@ -22,6 +22,7 @@ import { uploadImage } from '../../services/imgbbService';
 import { createReply, getRepliesByPost, updateReply, deleteReply, markReplyAsAccepted, unmarkReplyAsAccepted } from '../../database/replies';
 import { getUserDocument } from '../../database/auth';
 import { incrementPostViewCount, getPost } from '../../database/posts';
+import { repliesCacheManager, postsCacheManager } from '../utils/cacheManager';
 import { markNotificationsAsReadByContext } from '../../database/notifications';
 import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
 import ImageGalleryModal from './postDetails/ImageGalleryModal';
@@ -72,18 +73,11 @@ const PostDetails = ({ navigation, route }) => {
 
   // Handle going back and updating the parent screen with new reply count
   const handleGoBack = useCallback(() => {
-    const hasReplyCountChanged = currentReplyCount !== (post?.replyCount || 0);
-
-    if (hasReplyCountChanged) {
+    // Always sync the reply count back to the parent
+    if (post?.$id) {
       onPostUpdate?.({
         ...post,
         replyCount: currentReplyCount,
-      });
-
-      // Keep legacy params update support for screens that consume focus params.
-      navigation.setParams({
-        updatedPostId: post?.$id,
-        updatedReplyCount: currentReplyCount,
       });
     }
 
@@ -140,6 +134,18 @@ const PostDetails = ({ navigation, route }) => {
     }).catch(() => {});
   }, [user?.$id, post?.$id]);
 
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (!post?.$id) return;
+      dismissPresentedNotificationsByTarget({ postId: post.$id }).catch(() => {});
+      if (user?.$id) {
+        markNotificationsAsReadByContext(user.$id, { postId: post.$id }).catch(() => {});
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, post?.$id, user?.$id]);
+
   const trackView = async () => {
     if (!post?.$id || !user?.$id || post.userId === user.$id) return;
     try {
@@ -154,6 +160,7 @@ const PostDetails = ({ navigation, route }) => {
 
     setIsLoadingReplies(true);
     try {
+      // First load: may return cached data for instant display
       const fetchedReplies = await getRepliesByPost(post.$id);
       
       const repliesWithUserData = await Promise.all(
@@ -193,6 +200,31 @@ const PostDetails = ({ navigation, route }) => {
       setReplies(repliesWithUserData);
       // Update the reply count based on actual replies
       setCurrentReplyCount(repliesWithUserData.length);
+
+      // Background revalidation: fetch fresh from server if cache was stale
+      if (repliesWithUserData.length > 0) {
+        getRepliesByPost(post.$id, 50, 0, false).then(async (freshReplies) => {
+          if (!freshReplies || freshReplies.length === repliesWithUserData.length) {
+            const sameIds = freshReplies.every((r, i) => r.$id === fetchedReplies[i]?.$id);
+            if (sameIds) return;
+          }
+          const freshWithUserData = await Promise.all(
+            freshReplies.map(async (reply) => {
+              if (reply.userId === user?.$id) {
+                return { ...reply, currentUserId: user?.$id, userData: { fullName: user.fullName, profilePicture: user.profilePicture } };
+              }
+              try {
+                const userDoc = await getUserDocument(reply.userId);
+                return { ...reply, currentUserId: user?.$id, userData: { fullName: userDoc?.fullName || userDoc?.name || t('common.user'), profilePicture: userDoc?.profilePicture || null } };
+              } catch (e) {
+                return { ...reply, currentUserId: user?.$id, userData: { fullName: t('common.user'), profilePicture: null } };
+              }
+            })
+          );
+          setReplies(freshWithUserData);
+          setCurrentReplyCount(freshWithUserData.length);
+        }).catch(() => {});
+      }
     } catch (error) {
       setReplies([]);
     } finally {
@@ -435,6 +467,9 @@ const PostDetails = ({ navigation, route }) => {
             try {
               triggerHaptic('warning');
               await deleteReply(reply.$id, post.$id, reply.imageDeleteUrls);
+              // Invalidate caches so loadReplies fetches fresh data
+              await repliesCacheManager.invalidateReplies(post.$id);
+              await postsCacheManager.invalidateSinglePost(post.$id);
               await loadReplies();
               showAlert({ type: 'success', title: t('common.success'), message: t('post.replyDeleted') });
             } catch (error) {
@@ -830,6 +865,8 @@ const PostDetails = ({ navigation, route }) => {
           onLinkInputChange={handleLinkInputChange}
           onAddLink={handleAddLink}
           onPickImages={handlePickImages}
+          onPickFromGallery={handleGalleryPick}
+          onTakePhoto={handleTakePhoto}
           onToggleLinksSection={() => setShowLinksSection(!showLinksSection)}
           onSubmit={handleAddReply}
           currentUserId={user?.$id}

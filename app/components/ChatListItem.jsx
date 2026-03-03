@@ -84,8 +84,8 @@ const ChatListItem = ({
           }).start(({ finished }) => {
             if (finished) {
               onArchive();
+              // Don't reset translateX — the item will be removed from the list
             }
-            translateX.setValue(0);
           });
           return;
         }
@@ -127,10 +127,12 @@ const ChatListItem = ({
   };
 
   const getChatName = () => {
-    if (chat.type === CHAT_TYPES.PRIVATE && chat.otherUser) {
-      return chat.otherUser.name || chat.otherUser.fullName || chat.name;
+    if (chat.type === CHAT_TYPES.PRIVATE) {
+      const otherName = chat.otherUser?.name;
+      if (otherName && otherName.length > 1) return otherName;
+      return t('chats.unknownUser');
     }
-    return chat.name;
+    return chat.name || t('chats.unknownUser');
   };
 
   const getChatSubtitle = () => {

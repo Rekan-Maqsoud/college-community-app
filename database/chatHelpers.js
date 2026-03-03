@@ -175,7 +175,7 @@ export const createPrivateChat = async (user1, user2) => {
         const chatKey = `${sortedIds[0]}_${sortedIds[1]}`;
 
         const chat = await createChat({
-            name: `${user1.name || user1.fullName} & ${user2.name || user2.fullName}`,
+            name: `${user1.name || 'User'} & ${user2.name || 'User'}`,
             type: PRIVATE_CHAT_TYPE,
             participants: [user1.$id, user2.$id],
             chatKey,
@@ -388,16 +388,18 @@ export const getAllUserChats = async (userId, department, stage) => {
 };
 
 export const getChatDisplayName = (chat, currentUserId, userCache = {}) => {
-    if (!chat) return '';
+    if (!chat) return 'Unknown User';
 
     if (chat.type === PRIVATE_CHAT_TYPE && chat.participants) {
         const otherUserId = chat.participants.find(id => id !== currentUserId);
         if (otherUserId && userCache[otherUserId]) {
-            return userCache[otherUserId].name || userCache[otherUserId].fullName || chat.name;
+            const cachedName = userCache[otherUserId].name;
+            if (cachedName && cachedName.length > 1) return cachedName;
         }
+        return 'Unknown User';
     }
 
-    return chat.name || '';
+    return chat.name || 'Unknown User';
 };
 
 export const getChatIcon = (chatType) => {

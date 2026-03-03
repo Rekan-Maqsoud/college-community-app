@@ -169,6 +169,8 @@ const flushGeneralPushBatch = async (key) => {
     ? buildBatchBodyByType(baseType, count, pending.body)
     : pending.body;
 
+  // collapseId ensures the push server collapses duplicate notifications on the recipient device
+
   return sendExpoGeneralPush({
     ...pending,
     type,
@@ -560,6 +562,7 @@ export const dismissPresentedNotificationsByTarget = async ({
   postId = null,
   senderId = null,
   types = [],
+  excludeIdentifiers = [],
 } = {}) => {
   try {
     const activeTypes = Array.isArray(types)
@@ -600,11 +603,26 @@ export const dismissPresentedNotificationsByTarget = async ({
       return 0;
     }
 
-    await Promise.all(
-      matching.map((notification) => Notifications.dismissNotificationAsync(notification.request.identifier))
+    const excludedSet = new Set(
+      Array.isArray(excludeIdentifiers)
+        ? excludeIdentifiers.filter((value) => typeof value === 'string' && value.trim().length > 0)
+        : []
     );
 
-    return matching.length;
+    const filtered = matching.filter((notification) => {
+      const identifier = notification?.request?.identifier;
+      return identifier && !excludedSet.has(identifier);
+    });
+
+    if (filtered.length === 0) {
+      return 0;
+    }
+
+    await Promise.all(
+      filtered.map((notification) => Notifications.dismissNotificationAsync(notification.request.identifier))
+    );
+
+    return filtered.length;
   } catch (error) {
     return 0;
   }

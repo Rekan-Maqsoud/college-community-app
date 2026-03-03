@@ -155,7 +155,8 @@ export const getRepliesByPost = async (postId, limit = 50, offset = 0, useCache 
         // Try to get cached data first (only for initial load without offset)
         if (useCache && offset === 0) {
             const cached = await repliesCacheManager.getCachedReplies(postId);
-            if (cached?.value && !cached.isStale) {
+            if (cached?.value) {
+                // Return stale cache immediately — caller re-fetches on pull-to-refresh
                 return cached.value;
             }
         }

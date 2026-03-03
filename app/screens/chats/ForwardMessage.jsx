@@ -89,10 +89,12 @@ const ForwardMessage = ({ navigation, route }) => {
   const messagePreviewIcon = useMemo(() => getForwardPreviewIcon(message), [message]);
 
   const getChatName = (chat) => {
-    if (chat.type === 'private' && chat.otherUser) {
-      return chat.otherUser.name || chat.otherUser.fullName || chat.name;
+    if (chat.type === 'private') {
+      const otherName = chat.otherUser?.name;
+      if (otherName && otherName.length > 1) return otherName;
+      return t('chats.unknownUser');
     }
-    return chat.name;
+    return chat.name || t('chats.unknownUser');
   };
 
   const filteredChats = chats.filter(chat => {

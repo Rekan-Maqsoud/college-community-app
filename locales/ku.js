@@ -1219,6 +1219,7 @@ export default {
     classGroups: 'گرووپی پۆل',
     myGroups: 'گرووپەکانم',
     directChats: 'گفتوگۆی ڕاستەوخۆ',
+    unknownUser: 'بەکارهێنەری نەناسراو',
     recentChats: 'گفتوگۆ نوێیەکان',
     allChats: 'هەموو گفتوگۆکان',
     // Compact filter & labels
@@ -1536,6 +1537,16 @@ export default {
     applyReactionsCurrentChat: 'جێبەجێکردن بۆ ئەم چاتە',
     applyReactionsAllChats: 'جێبەجێکردن بۆ هەموو چاتەکان',
     reactionDefaultsScopeHint: 'جێبەجێکردنی بنەڕەتی بۆ ئەم چاتەیە. بۆ هاوتاکردنی هەمان کۆمەڵە لە هەموو شوێنەکان، هەموو چاتەکان بەکاربهێنە.',
+    emojiCategoryPopular: 'بەکارھێنراوەکان',
+    emojiCategorySmileys: 'دەموچاو',
+    emojiCategoryGestures: 'ئاماژەکان',
+    emojiCategoryHearts: 'دڵەکان',
+    emojiCategoryCelebration: 'جەژن',
+    emojiCategoryIdeas: 'بیرۆکەکان',
+    emojiCategoryNature: 'سروشت',
+    emojiCategoryFood: 'خواردن',
+    emojiCategoryActivity: 'چالاکی',
+    emojiCategorySymbols: 'هێماکان',
   },
 
   // Lecture Screen

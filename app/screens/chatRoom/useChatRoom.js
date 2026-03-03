@@ -39,8 +39,10 @@ import {
 } from '../../../database/userChatSettings';
 import { useChatMessages } from '../../hooks/useRealtimeSubscription';
 import { normalizeRealtimeMessage } from '../../utils/realtimeHelpers';
+import { messagesCacheManager } from '../../utils/cacheManager';
 
 const INITIAL_CHAT_MESSAGES_LIMIT = 20;
+const MESSAGES_CACHE_LIMIT = 100;
 
 export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, refreshUser }) => {
   // Deep-clone chat once to avoid mutating the frozen route.params object
@@ -96,10 +98,12 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   }, []);
 
   const getChatDisplayName = useCallback(() => {
-    if (chat.type === 'private' && chat.otherUser) {
-      return chat.otherUser.name || chat.otherUser.fullName || chat.name;
+    if (chat.type === 'private') {
+      const otherName = chat.otherUser?.name;
+      if (otherName && otherName.length > 1) return otherName;
+      return 'Unknown User';
     }
-    return chat.name;
+    return chat.name || 'Unknown User';
   }, [chat]);
 
   const getNormalizedRealtimeMessage = useCallback((payload) => {
@@ -148,6 +152,9 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       return [decryptedPayload, ...prev];
     });
 
+    // Keep cache in sync with new messages
+    messagesCacheManager.addMessageToCache(chat.$id, decryptedPayload, MESSAGES_CACHE_LIMIT).catch(() => {});
+
     if (decryptedPayload.senderId && !userCacheRef.current[decryptedPayload.senderId]) {
       try {
         const userData = await getUserById(decryptedPayload.senderId);
@@ -167,6 +174,8 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     if (isMountedRef.current) {
       setMessages(prev => prev.filter(m => m.$id !== payload.$id));
     }
+    // Invalidate cache so deleted message doesn't reappear on next open
+    messagesCacheManager.invalidateChatMessages(chat.$id).catch(() => {});
   }, [chat.$id]);
 
   useChatMessages(
@@ -296,7 +305,29 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     }
 
     try {
-      setLoading(true);
+      // Show cached messages instantly while loading from server
+      const cached = await messagesCacheManager.getCachedMessages(chat.$id, MESSAGES_CACHE_LIMIT);
+      if (cached?.value && Array.isArray(cached.value) && cached.value.length > 0) {
+        let cachedMessages = cached.value;
+        if (deletedMessageIds.current.size > 0) {
+          cachedMessages = cachedMessages.filter(m => !deletedMessageIds.current.has(m.$id));
+        }
+        if (clearedAt) {
+          const clearedDate = new Date(clearedAt);
+          cachedMessages = cachedMessages.filter(m => new Date(m.$createdAt || m.createdAt) > clearedDate);
+        }
+        if (hiddenMessageIds.length > 0) {
+          cachedMessages = cachedMessages.filter(m => !hiddenMessageIds.includes(m.$id));
+        }
+        if (cachedMessages.length > 0) {
+          setMessages(cachedMessages);
+          setLoading(false);
+        }
+      }
+
+      if (!cached?.value || cached.value.length === 0) {
+        setLoading(true);
+      }
 
       // Fetch fresh data from server (RAM-safe initial page)
       const fetchedMessages = await getMessages(chat.$id, user?.$id, INITIAL_CHAT_MESSAGES_LIMIT, 0);
@@ -357,6 +388,9 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
         );
         return [...remaining, ...invertedFresh];
       });
+
+      // Cache the fresh messages for next open (inverted = newest first)
+      messagesCacheManager.cacheMessages(chat.$id, invertedFresh, MESSAGES_CACHE_LIMIT).catch(() => {});
       
       if (user?.$id) {
         markChatAsRead(chat.$id, user.$id);

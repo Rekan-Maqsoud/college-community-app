@@ -444,7 +444,18 @@ const Home = ({ navigation, route }) => {
   };
 
   const handlePostPress = (post) => {
-    navigation.navigate('PostDetails', { post });
+    navigation.navigate('PostDetails', {
+      post,
+      onPostUpdate: (updatedPost) => {
+        if (updatedPost?.$id) {
+          setPosts(prevPosts =>
+            prevPosts.map(p =>
+              p.$id === updatedPost.$id ? { ...p, ...updatedPost } : p
+            )
+          );
+        }
+      },
+    });
   };
 
   const handleFeedChange = (feedType) => {

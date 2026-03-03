@@ -22,6 +22,7 @@ import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import UserCard from './UserCard';
 import PostCard from './PostCard';
+import { LinearGradient } from 'expo-linear-gradient';
 import { searchUsers } from '../../database/users';
 import { searchPosts, enrichPostsWithUserData } from '../../database/posts';
 
@@ -343,7 +344,15 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
         onRequestClose={handleCloseModal}
         statusBarTranslucent
       >
-        <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+        <LinearGradient
+          colors={isDarkMode
+            ? ['#1a1a2e', '#16213e', '#0f3460']
+            : ['#FFFEF7', '#FFF9E6', '#FFF4D6']
+          }
+          style={styles.modalContainer}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
           <StatusBar
             barStyle={isDarkMode ? 'light-content' : 'dark-content'}
             backgroundColor="transparent"
@@ -453,7 +462,7 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
           <View style={styles.resultsContainer}>
             {renderSearchResults()}
           </View>
-        </View>
+        </LinearGradient>
       </Modal>
     </>
   );

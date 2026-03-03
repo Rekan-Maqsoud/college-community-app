@@ -67,11 +67,104 @@ const BACKGROUND_PRESETS = [
 ];
 
 const REACTION_EMOJI_OPTIONS = [
-  '👍', '👎', '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎',
-  '🔥', '✨', '🎉', '👏', '🙌', '💯', '✅', '❌', '⚡', '⭐', '🌟',
-  '😀', '😄', '😁', '😂', '🤣', '😊', '😍', '🥰', '😘', '😎', '🤩',
-  '😮', '😢', '😭', '😡', '😤', '😴', '🤔', '🤯', '😅', '🙃', '🤗',
-  '🙏', '👌', '🤝', '💪', '👀', '🎯', '📚', '🧠', '🚀', '🌈', '🍀',
+  '👍', '👎', '❤️', '😂', '🔥', '👏', '🙏', '😍', '🤔', '😮',
+  '✅', '❌', '💯', '🎉', '⚡', '⭐', '👀', '💪', '🚀', '😅',
+];
+
+const REACTION_EMOJI_CATEGORIES = [
+  {
+    key: 'popular',
+    icon: 'sparkles-outline',
+    labelKey: 'chats.emojiCategoryPopular',
+    emojis: [
+      '👍', '👎', '❤️', '😂', '🔥', '👏', '🙏', '😍', '🤔', '😮',
+      '✅', '❌', '💯', '🎉', '⚡', '⭐', '👀', '💪', '🚀', '😅',
+    ],
+  },
+  {
+    key: 'smileys',
+    icon: 'happy-outline',
+    labelKey: 'chats.emojiCategorySmileys',
+    emojis: [
+      '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '🙂', '🙃',
+      '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😎', '🤩', '🥳',
+      '🤔', '🤨', '😐', '😑', '😶', '🫠', '😮', '😯', '😲', '😴', '😪',
+      '😢', '😭', '😤', '😡', '🤯', '🥶', '🥵', '😬', '😇', '🥹',
+    ],
+  },
+  {
+    key: 'gestures',
+    icon: 'hand-left-outline',
+    labelKey: 'chats.emojiCategoryGestures',
+    emojis: [
+      '👍', '👎', '👌', '🤌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👋',
+      '🫶', '🙌', '👏', '🙏', '🫡', '💪', '🫵', '👈', '👉', '👆', '👇',
+      '🤝', '🤜', '🤛', '✍️', '🫰',
+    ],
+  },
+  {
+    key: 'hearts',
+    icon: 'heart-outline',
+    labelKey: 'chats.emojiCategoryHearts',
+    emojis: [
+      '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❤️‍🔥',
+      '❤️‍🩹', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟',
+    ],
+  },
+  {
+    key: 'celebration',
+    icon: 'rocket-outline',
+    labelKey: 'chats.emojiCategoryCelebration',
+    emojis: [
+      '🎉', '🎊', '🥳', '🎈', '🎁', '🏆', '🥇', '🎯', '🚀', '✨', '🌟',
+      '⭐', '💫', '🔥', '⚡', '💯', '📣', '👏', '🙌', '🕺', '💃',
+    ],
+  },
+  {
+    key: 'ideas',
+    icon: 'bulb-outline',
+    labelKey: 'chats.emojiCategoryIdeas',
+    emojis: [
+      '🧠', '💡', '📚', '📖', '📝', '📌', '✅', '❌', '❓', '❗', '⚠️',
+      '🔍', '🧪', '⚙️', '🧩', '🗓️', '⏳', '⌛', '📈', '📊',
+    ],
+  },
+  {
+    key: 'nature',
+    icon: 'leaf-outline',
+    labelKey: 'chats.emojiCategoryNature',
+    emojis: [
+      '🌈', '☀️', '🌤️', '⛅', '🌦️', '🌧️', '⛈️', '❄️', '🌊', '🌙', '🌍',
+      '🍀', '🌱', '🌿', '🌳', '🌸', '🌼', '🌻', '🐝', '🦋', '🐢',
+    ],
+  },
+  {
+    key: 'food',
+    icon: 'cafe-outline',
+    labelKey: 'chats.emojiCategoryFood',
+    emojis: [
+      '☕', '🧋', '🍵', '🥤', '🍎', '🍉', '🍇', '🍓', '🍌', '🍕', '🍔',
+      '🍟', '🌮', '🍜', '🍣', '🍰', '🍩', '🍪', '🍫', '🍿',
+    ],
+  },
+  {
+    key: 'activity',
+    icon: 'football-outline',
+    labelKey: 'chats.emojiCategoryActivity',
+    emojis: [
+      '⚽', '🏀', '🏐', '🎾', '🏓', '🏸', '🥊', '🎮', '🎵', '🎬', '🎨',
+      '📷', '🧘', '🏃', '🚴', '🛹', '🏋️', '🤸', '🏊', '🧗',
+    ],
+  },
+  {
+    key: 'symbols',
+    icon: 'shapes-outline',
+    labelKey: 'chats.emojiCategorySymbols',
+    emojis: [
+      '➕', '➖', '✖️', '➗', '♾️', '✔️', '☑️', '❌', '❗', '❕', '❓',
+      '❔', '‼️', '⁉️', '🔔', '🔕', '📌', '📍', '🔒', '🔓', '🔗',
+    ],
+  },
 ];
 
 const ChatSettings = ({ navigation, route }) => {
@@ -91,6 +184,7 @@ const ChatSettings = ({ navigation, route }) => {
   const [reactionDirty, setReactionDirty] = useState(false);
   const [savingReactions, setSavingReactions] = useState(false);
   const [reactionSectionY, setReactionSectionY] = useState(null);
+  const [selectedEmojiCategory, setSelectedEmojiCategory] = useState(REACTION_EMOJI_CATEGORIES[0].key);
 
   const [selectedBackground, setSelectedBackground] = useState(chatSettings.backgroundImage);
 
@@ -165,6 +259,15 @@ const ChatSettings = ({ navigation, route }) => {
   };
 
   const selectedReactionSet = useMemo(() => new Set(reactionDraftList), [reactionDraftList]);
+
+  const filteredReactionOptions = useMemo(() => {
+    const category = REACTION_EMOJI_CATEGORIES.find((item) => item.key === selectedEmojiCategory);
+    if (!category) {
+      return REACTION_EMOJI_OPTIONS;
+    }
+
+    return category.emojis;
+  }, [selectedEmojiCategory]);
 
   const applyReactionDefaults = useCallback(async (scope = 'current') => {
     if (!chatId || !user?.$id || savingReactions) return;
@@ -585,6 +688,46 @@ const ChatSettings = ({ navigation, route }) => {
                   .replace('{max}', String(MAX_REACTION_DEFAULTS))}
               </Text>
 
+              <View style={styles.reactionActionsRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.reactionApplyButton,
+                    {
+                      borderColor: theme.primary,
+                      backgroundColor: reactionDirty
+                        ? (isDarkMode ? 'rgba(102,126,234,0.2)' : 'rgba(102,126,234,0.12)')
+                        : 'transparent',
+                    },
+                  ]}
+                  onPress={() => applyReactionDefaults('current')}
+                  disabled={!reactionDirty || savingReactions}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.reactionApplyButtonText, { color: theme.primary }]}>
+                    {savingReactions ? t('chats.reactionDefaultsApplying') : t('chats.applyReactionsCurrentChat')}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.reactionApplyButton,
+                    {
+                      borderColor: theme.primary,
+                      backgroundColor: reactionDirty
+                        ? (isDarkMode ? 'rgba(102,126,234,0.2)' : 'rgba(102,126,234,0.12)')
+                        : 'transparent',
+                    },
+                  ]}
+                  onPress={() => applyReactionDefaults('all')}
+                  disabled={!reactionDirty || savingReactions}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.reactionApplyButtonText, { color: theme.primary }]}>
+                    {savingReactions ? t('chats.reactionDefaultsApplying') : t('chats.applyReactionsAllChats')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               <DraggableFlatList
                 data={reactionDraftList}
                 keyExtractor={(item, index) => `${item}-${index}`}
@@ -621,8 +764,48 @@ const ChatSettings = ({ navigation, route }) => {
                 </Text>
               )}
 
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.emojiCategoryTabs}
+              >
+                {REACTION_EMOJI_CATEGORIES.map((category) => {
+                  const isSelected = selectedEmojiCategory === category.key;
+                  return (
+                    <TouchableOpacity
+                      key={category.key}
+                      style={[
+                        styles.emojiCategoryTab,
+                        {
+                          borderColor: isSelected ? theme.primary : (isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'),
+                          backgroundColor: isSelected
+                            ? (isDarkMode ? 'rgba(102,126,234,0.2)' : 'rgba(102,126,234,0.12)')
+                            : 'transparent',
+                        },
+                      ]}
+                      onPress={() => setSelectedEmojiCategory(category.key)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name={category.icon}
+                        size={moderateScale(14)}
+                        color={isSelected ? theme.primary : theme.textSecondary}
+                      />
+                      <Text
+                        style={[
+                          styles.emojiCategoryTabText,
+                          { color: isSelected ? theme.primary : theme.textSecondary },
+                        ]}
+                      >
+                        {t(category.labelKey)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
               <View style={styles.emojiGrid}>
-                {REACTION_EMOJI_OPTIONS.map((emoji) => {
+                {filteredReactionOptions.map((emoji) => {
                   const isSelected = selectedReactionSet.has(emoji);
                   const isMaxed = reactionDraftList.length >= MAX_REACTION_DEFAULTS && !isSelected;
 
@@ -647,44 +830,6 @@ const ChatSettings = ({ navigation, route }) => {
                     </TouchableOpacity>
                   );
                 })}
-              </View>
-
-              <View style={styles.reactionActionsRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.reactionApplyButton,
-                    {
-                      borderColor: theme.primary,
-                      backgroundColor: reactionDirty
-                        ? (isDarkMode ? 'rgba(102,126,234,0.2)' : 'rgba(102,126,234,0.12)')
-                        : 'transparent',
-                    },
-                  ]}
-                  onPress={() => applyReactionDefaults('current')}
-                  disabled={!reactionDirty || savingReactions}
-                  activeOpacity={0.85}
-                >
-                  <Text style={[styles.reactionApplyButtonText, { color: theme.primary }]}>
-                    {savingReactions ? t('chats.reactionDefaultsApplying') : t('chats.applyReactionsCurrentChat')}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.reactionApplyButton,
-                    {
-                      borderColor: theme.primary,
-                      backgroundColor: 'transparent',
-                    },
-                  ]}
-                  onPress={() => applyReactionDefaults('all')}
-                  disabled={savingReactions}
-                  activeOpacity={0.85}
-                >
-                  <Text style={[styles.reactionApplyButtonText, { color: theme.primary }]}>
-                    {t('chats.applyReactionsAllChats')}
-                  </Text>
-                </TouchableOpacity>
               </View>
 
               <Text style={[styles.reactionScopeHint, { color: theme.textSecondary }]}>
@@ -790,6 +935,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  emojiCategoryTabs: {
+    gap: spacing.sm,
+    paddingBottom: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  emojiCategoryTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  emojiCategoryTabText: {
+    fontSize: responsiveFontSize(11),
+    fontWeight: '600',
   },
   emojiOption: {
     borderWidth: 1,

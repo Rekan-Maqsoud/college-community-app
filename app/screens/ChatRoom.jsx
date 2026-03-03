@@ -171,6 +171,15 @@ const ChatRoom = ({ route, navigation }) => {
   }, [chat?.$id]);
 
   useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (!chat?.$id) return;
+      dismissPresentedNotificationsByTarget({ chatId: chat.$id }).catch(() => {});
+    });
+
+    return unsubscribe;
+  }, [navigation, chat?.$id]);
+
+  useEffect(() => {
     if (chat.type !== 'private' || !showActivityStatus) return;
     if (!otherUserId) return;
 
