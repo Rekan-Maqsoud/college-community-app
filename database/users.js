@@ -180,6 +180,7 @@ export const getUsersByDepartment = async (department, limit = 20, offset = 0) =
 export const getClassStudents = async (department, stage) => {
     try {
         if (!department || !stage) return [];
+        if (String(department).trim().toLowerCase() === 'other') return [];
 
         // Convert stage key to year number if needed
         const stageToYearMap = {

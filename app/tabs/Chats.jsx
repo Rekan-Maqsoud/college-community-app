@@ -62,6 +62,7 @@ import { config } from '../../database/config';
 import useLayout from '../hooks/useLayout';
 import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
 import { REFRESH_TOPICS, subscribeToRefreshTopic } from '../utils/dataRefreshBus';
+import { hasAcademicOtherSelection } from '../utils/academicSelection';
 
 const Chats = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
@@ -85,6 +86,11 @@ const Chats = ({ navigation }) => {
   const [selectedChat, setSelectedChat] = useState(null);
   const [chatMenuVisible, setChatMenuVisible] = useState(false);
   const [muteModalVisible, setMuteModalVisible] = useState(false);
+  const isAcademicOtherUser = hasAcademicOtherSelection({
+    university: user?.university,
+    college: user?.college,
+    department: user?.department,
+  });
 
   const defaultGroupsRef = useRef([]);
   const customGroupsRef = useRef([]);
@@ -403,7 +409,7 @@ const Chats = ({ navigation }) => {
   );
 
   useEffect(() => {
-    if (user?.department) {
+    if (user?.$id) {
       initializeAndLoadChats();
     } else {
       setLoading(false);
@@ -415,8 +421,11 @@ const Chats = ({ navigation }) => {
     try {
       setInitializing(true);
       const stageValue = stageToValue(user?.stage);
-      
-      await initializeUserGroups(user.department, stageValue, user.$id);
+
+      const departmentForGroups = isAcademicOtherUser ? null : user?.department;
+      const stageForGroups = isAcademicOtherUser ? null : stageValue;
+
+      await initializeUserGroups(departmentForGroups, stageForGroups, user.$id);
       
       setInitializing(false);
       await loadChats();
@@ -457,7 +466,7 @@ const Chats = ({ navigation }) => {
   const loadChats = async (options = {}) => {
     const { showLoader = true } = options;
 
-    if (!user?.department) {
+    if (!user?.$id) {
       setLoading(false);
       return;
     }
@@ -467,8 +476,10 @@ const Chats = ({ navigation }) => {
         setLoading(true);
       }
       const stageValue = stageToValue(user.stage);
-      
-      const chats = await getAllUserChats(user.$id, user.department, stageValue);
+      const departmentForGroups = isAcademicOtherUser ? null : user?.department;
+      const stageForGroups = isAcademicOtherUser ? null : stageValue;
+
+      const chats = await getAllUserChats(user.$id, departmentForGroups, stageForGroups);
       const normalizedDefaultGroups = Array.isArray(chats?.defaultGroups) ? chats.defaultGroups : [];
       const normalizedCustomGroups = Array.isArray(chats?.customGroups) ? chats.customGroups : [];
       const normalizedPrivateChats = Array.isArray(chats?.privateChats) ? chats.privateChats : [];

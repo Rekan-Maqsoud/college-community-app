@@ -27,6 +27,7 @@
 import { databases, config } from './config';
 import { ID, Query, Permission, Role } from 'appwrite';
 import { getCurrentUser } from './auth';
+import { getClassStudents } from './users';
 import safeStorage from '../app/utils/safeStorage';
 
 const COLLECTION_ID = () => config.repElectionsCollectionId;
@@ -44,6 +45,72 @@ export const MAX_REPS_PER_CLASS = 3;
 
 export const WINNER_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 export const TIEBREAKER_DURATION_MS = 1 * 60 * 60 * 1000;
+export const RESELECTION_RESET_MS = 24 * 60 * 60 * 1000;
+
+const getReselectionThreshold = (totalStudents) => {
+  const normalizedTotal = Math.max(1, Number(totalStudents) || 0);
+  return Math.max(1, Math.ceil(normalizedTotal / 2));
+};
+
+const resolveLiveClassSize = async (department, stage, fallbackTotal = 0) => {
+  try {
+    const classStudents = await getClassStudents(department, stage);
+    if (Array.isArray(classStudents) && classStudents.length > 0) {
+      return classStudents.length;
+    }
+  } catch (error) {
+    // Fallback to cached total if lookup fails
+  }
+
+  return Math.max(1, Number(fallbackTotal) || 0);
+};
+
+const syncElectionClassStats = async (election) => {
+  if (!election) return election;
+
+  const totalStudents = await resolveLiveClassSize(
+    election.department,
+    election.stage,
+    election.totalStudents,
+  );
+  const threshold = getReselectionThreshold(totalStudents);
+
+  if (totalStudents === election.totalStudents && threshold === election.reselectionThreshold) {
+    return election;
+  }
+
+  return databases.updateDocument(DB_ID(), COLLECTION_ID(), election.$id, {
+    totalStudents,
+    reselectionThreshold: threshold,
+  });
+};
+
+const resetDailyReselectionRequestsIfNeeded = async (election) => {
+  if (!election) return election;
+
+  const voters = Array.isArray(election.reselectionVoters) ? election.reselectionVoters : [];
+  if (voters.length === 0) {
+    return election;
+  }
+
+  const baselineDate = election.$updatedAt || election.endedAt || election.$createdAt;
+  if (!baselineDate) {
+    return election;
+  }
+
+  const baselineMs = new Date(baselineDate).getTime();
+  if (!Number.isFinite(baselineMs)) {
+    return election;
+  }
+
+  if (Date.now() - baselineMs < RESELECTION_RESET_MS) {
+    return election;
+  }
+
+  return databases.updateDocument(DB_ID(), COLLECTION_ID(), election.$id, {
+    reselectionVoters: [],
+  });
+};
 
 /**
  * Get the currently active election for a specific seat.
@@ -191,6 +258,7 @@ const mapYearToStage = (year) => {
 export const ensureActiveElectionForClass = async (department, stage, totalStudents = 0) => {
   try {
     if (!department || !stage) return null;
+    if (String(department).trim().toLowerCase() === 'other') return null;
     const active = await getActiveElection(department, stage, 1);
     if (active) {
       return active;
@@ -226,6 +294,7 @@ export const ensureActiveElectionsForAllClasses = async () => {
         const department = doc.department;
         const stage = mapYearToStage(doc.year);
         if (!department || !stage) return;
+        if (String(department).trim().toLowerCase() === 'other') return;
         const key = `${department}::${stage}`;
         classCounts[key] = (classCounts[key] || 0) + 1;
       });
@@ -259,6 +328,10 @@ export const ensureActiveElectionsForAllClasses = async () => {
  */
 export const createElection = async (department, stage, totalStudents = 0, seatNumber = 1) => {
   try {
+    if (String(department || '').trim().toLowerCase() === 'other') {
+      throw new Error('Representatives are not available for this class');
+    }
+
     // Reuse existing open election (idle/active/tiebreaker) for this seat
     const latest = await getLatestElection(department, stage, seatNumber);
     if (
@@ -277,7 +350,8 @@ export const createElection = async (department, stage, totalStudents = 0, seatN
       throw new Error('Maximum representatives reached');
     }
 
-    const threshold = Math.max(1, Math.ceil(totalStudents / 2));
+    const resolvedTotalStudents = await resolveLiveClassSize(department, stage, totalStudents);
+    const threshold = getReselectionThreshold(resolvedTotalStudents);
 
     const permissions = [
       Permission.read(Role.users()),
@@ -290,7 +364,7 @@ export const createElection = async (department, stage, totalStudents = 0, seatN
       status: ELECTION_STATUS.IDLE,
       seatNumber,
       winner: null,
-      totalStudents,
+      totalStudents: resolvedTotalStudents,
       reselectionVoters: [],
       reselectionThreshold: threshold,
       startedAt: null,
@@ -330,14 +404,16 @@ export const requestReselection = async (electionId) => {
     const userId = currentUser.$id;
 
     const election = await databases.getDocument(DB_ID(), COLLECTION_ID(), electionId);
+    const syncedElection = await syncElectionClassStats(election);
+    const dailyResetElection = await resetDailyReselectionRequestsIfNeeded(syncedElection);
 
-    const voters = Array.isArray(election.reselectionVoters) ? election.reselectionVoters : [];
+    const voters = Array.isArray(dailyResetElection.reselectionVoters) ? dailyResetElection.reselectionVoters : [];
     if (voters.includes(userId)) {
-      return { election, reselectionTriggered: false, alreadyVoted: true };
+      return { election: dailyResetElection, reselectionTriggered: false, alreadyVoted: true };
     }
 
     const updatedVoters = [...voters, userId];
-    const threshold = election.reselectionThreshold || Math.ceil((election.totalStudents || 1) / 2);
+    const threshold = dailyResetElection.reselectionThreshold || getReselectionThreshold(dailyResetElection.totalStudents);
 
     if (updatedVoters.length >= threshold) {
       // Threshold reached — archive old election and create new one
@@ -348,10 +424,10 @@ export const requestReselection = async (electionId) => {
       });
 
       const newElection = await createElection(
-        election.department,
-        election.stage,
-        election.totalStudents,
-        election.seatNumber || 1,
+        dailyResetElection.department,
+        dailyResetElection.stage,
+        dailyResetElection.totalStudents,
+        dailyResetElection.seatNumber || 1,
       );
       return { election: newElection, reselectionTriggered: true, alreadyVoted: false };
     }
@@ -378,7 +454,10 @@ export const requestNextRepresentativeElection = async (electionId) => {
     const userId = currentUser.$id;
 
     const election = await databases.getDocument(DB_ID(), COLLECTION_ID(), electionId);
-    const currentSeat = election.seatNumber || 1;
+    const syncedElection = await syncElectionClassStats(election);
+    const dailyResetElection = await resetDailyReselectionRequestsIfNeeded(syncedElection);
+
+    const currentSeat = dailyResetElection.seatNumber || 1;
     const nextSeat = currentSeat + 1;
 
     if (nextSeat > MAX_REPS_PER_CLASS) {
@@ -391,7 +470,7 @@ export const requestNextRepresentativeElection = async (electionId) => {
       };
     }
 
-    const activeNext = await getActiveElection(election.department, election.stage, nextSeat);
+    const activeNext = await getActiveElection(dailyResetElection.department, dailyResetElection.stage, nextSeat);
     if (activeNext) {
       return {
         election: activeNext,
@@ -401,10 +480,10 @@ export const requestNextRepresentativeElection = async (electionId) => {
       };
     }
 
-    const voters = Array.isArray(election.reselectionVoters) ? election.reselectionVoters : [];
+    const voters = Array.isArray(dailyResetElection.reselectionVoters) ? dailyResetElection.reselectionVoters : [];
     if (voters.includes(userId)) {
       return {
-        election,
+        election: dailyResetElection,
         nextElectionStarted: false,
         alreadyVoted: true,
         nextSeat,
@@ -412,7 +491,7 @@ export const requestNextRepresentativeElection = async (electionId) => {
     }
 
     const updatedVoters = [...voters, userId];
-    const threshold = election.reselectionThreshold || Math.ceil((election.totalStudents || 1) / 2);
+    const threshold = dailyResetElection.reselectionThreshold || getReselectionThreshold(dailyResetElection.totalStudents);
 
     if (updatedVoters.length >= threshold) {
       // Reset requester list on current election and create next seat election
@@ -421,9 +500,9 @@ export const requestNextRepresentativeElection = async (electionId) => {
       });
 
       const nextElection = await createElection(
-        election.department,
-        election.stage,
-        election.totalStudents,
+        dailyResetElection.department,
+        dailyResetElection.stage,
+        dailyResetElection.totalStudents,
         nextSeat,
       );
 

@@ -11,6 +11,7 @@ import {
   StatusBar,
   Animated,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +25,8 @@ import AnimatedBackground from '../components/AnimatedBackground';
 import { GlassContainer, GlassInput } from '../components/GlassComponents';
 import { getUniversityKeys, getCollegesForUniversity, getDepartmentsForCollege, getStagesForDepartment } from '../data/universitiesData';
 import { initiateSignup, getCompleteUserData, isEducationalEmail, completeOAuthSignup, getPendingOAuthSignup, clearPendingOAuthSignup } from '../../database/auth';
+import { createSuggestion } from '../../database/suggestions';
+import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
 import { 
   wp, 
   hp, 
@@ -57,6 +60,7 @@ const SignUp = ({ navigation, route }) => {
   const { setUserData } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { formStyle } = useLayout();
+  const { width: windowWidth } = useWindowDimensions();
   const [fullName, setFullName] = useState(preservedData?.fullName || oauthName);
   const [email, setEmail] = useState(preservedData?.email || oauthEmail);
   const [age, setAge] = useState(preservedData?.age || '');
@@ -67,6 +71,10 @@ const SignUp = ({ navigation, route }) => {
   const [department, setDepartment] = useState(preservedData?.department || '');
   const [stage, setStage] = useState(preservedData?.stage || '');
   const [accountRole, setAccountRole] = useState(preservedData?.accountRole || 'student');
+  const [customUniversityName, setCustomUniversityName] = useState(preservedData?.customUniversityName || '');
+  const [customCollegeName, setCustomCollegeName] = useState(preservedData?.customCollegeName || '');
+  const [customDepartmentName, setCustomDepartmentName] = useState(preservedData?.customDepartmentName || '');
+  const [customDepartmentYears, setCustomDepartmentYears] = useState(preservedData?.customDepartmentYears || '');
   const isTeacherSignupEnabled = false;
   const [currentStep, setCurrentStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
@@ -82,10 +90,47 @@ const SignUp = ({ navigation, route }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const isCompactPhone = hp(100) < 700;
   const isWidePhone = !isTablet() && wp(100) > 430;
+  const isLargeScreen = windowWidth >= 900;
+  const isShortScreen = hp(100) < 760;
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const isInitialMount = useRef(true);
+  const hasAcademicOther = hasAcademicOtherSelection({ university, college, department });
+  const isUniversityOther = university === ACADEMIC_OTHER_KEY;
+  const isCollegeOther = college === ACADEMIC_OTHER_KEY;
+  const isDepartmentOther = department === ACADEMIC_OTHER_KEY;
+
+  const buildMergedAcademicSuggestionText = () => {
+    if (!hasAcademicOther) {
+      return '';
+    }
+
+    if (isUniversityOther) {
+      return [
+        `University: ${String(customUniversityName || '').trim()}`,
+        `College: ${String(customCollegeName || '').trim()}`,
+        `Department: ${String(customDepartmentName || '').trim()}`,
+        `Years: ${String(customDepartmentYears || '').trim()}`,
+      ].join('\n');
+    }
+
+    if (isCollegeOther) {
+      return [
+        `University: ${String(university || '').trim()}`,
+        `College: ${String(customCollegeName || '').trim()}`,
+        `Department: ${String(customDepartmentName || '').trim()}`,
+        `Years: ${String(customDepartmentYears || '').trim()}`,
+      ].join('\n');
+    }
+
+    return [
+      `University: ${String(university || '').trim()}`,
+      `College: ${String(college || '').trim()}`,
+      `Department: ${String(customDepartmentName || '').trim()}`,
+      `Years: ${String(customDepartmentYears || '').trim()}`,
+    ].join('\n');
+  };
 
   // Handle email change and show suggestion when @ is typed
   const handleEmailChange = (text) => {
@@ -168,25 +213,42 @@ const SignUp = ({ navigation, route }) => {
       isInitialMount.current = false;
       return;
     }
-    if (university) {
-      setCollege('');
-      setDepartment('');
+    if (!university) {
+      return;
     }
+
+    if (university === ACADEMIC_OTHER_KEY) {
+      setCollege(ACADEMIC_OTHER_KEY);
+      setDepartment(ACADEMIC_OTHER_KEY);
+      return;
+    }
+
+    setCollege('');
+    setDepartment('');
   }, [university]);
 
   useEffect(() => {
     if (isInitialMount.current) return;
-    if (college) {
-      setDepartment('');
+    if (!college) {
+      return;
     }
+
+    if (college === ACADEMIC_OTHER_KEY) {
+      setDepartment(ACADEMIC_OTHER_KEY);
+      return;
+    }
+
+    setDepartment('');
   }, [college]);
 
   useEffect(() => {
-    const availableStageKeys = getStagesForDepartment(university, college, department);
+    const availableStageKeys = hasAcademicOther
+      ? ['firstYear', 'secondYear', 'thirdYear', 'fourthYear', 'fifthYear', 'sixthYear']
+      : getStagesForDepartment(university, college, department);
     if (stage && !availableStageKeys.includes(stage)) {
       setStage('');
     }
-  }, [university, college, department, stage]);
+  }, [university, college, department, stage, hasAcademicOther]);
 
   useEffect(() => {
     if (!isTeacherSignupEnabled && accountRole === 'teacher') {
@@ -265,6 +327,39 @@ const SignUp = ({ navigation, route }) => {
     }
     if (!department) {
       showAlert({ type: 'error', title: t('common.error'), message: t('auth.departmentRequired') });
+      return false;
+    }
+    if (isUniversityOther) {
+      if (String(customUniversityName || '').trim().length < 2) {
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherUniversityNameRequired') });
+        return false;
+      }
+      if (String(customCollegeName || '').trim().length < 2) {
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherCollegeNameRequired') });
+        return false;
+      }
+      if (String(customDepartmentName || '').trim().length < 2) {
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherDepartmentNameRequired') });
+        return false;
+      }
+    } else if (isCollegeOther) {
+      if (String(customCollegeName || '').trim().length < 2) {
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherCollegeNameRequired') });
+        return false;
+      }
+      if (String(customDepartmentName || '').trim().length < 2) {
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherDepartmentNameRequired') });
+        return false;
+      }
+    } else if (isDepartmentOther) {
+      if (String(customDepartmentName || '').trim().length < 2) {
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherDepartmentNameRequired') });
+        return false;
+      }
+    }
+
+    if (hasAcademicOther && !customDepartmentYears) {
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherStudyYearsRequired') });
       return false;
     }
     if (!stage) {
@@ -347,6 +442,39 @@ const SignUp = ({ navigation, route }) => {
       showAlert({ type: 'error', title: t('common.error'), message: t('auth.departmentRequired') });
       return false;
     }
+    if (isUniversityOther) {
+      if (String(customUniversityName || '').trim().length < 2) {
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherUniversityNameRequired') });
+        return false;
+      }
+      if (String(customCollegeName || '').trim().length < 2) {
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherCollegeNameRequired') });
+        return false;
+      }
+      if (String(customDepartmentName || '').trim().length < 2) {
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherDepartmentNameRequired') });
+        return false;
+      }
+    } else if (isCollegeOther) {
+      if (String(customCollegeName || '').trim().length < 2) {
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherCollegeNameRequired') });
+        return false;
+      }
+      if (String(customDepartmentName || '').trim().length < 2) {
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherDepartmentNameRequired') });
+        return false;
+      }
+    } else if (isDepartmentOther) {
+      if (String(customDepartmentName || '').trim().length < 2) {
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherDepartmentNameRequired') });
+        return false;
+      }
+    }
+
+    if (hasAcademicOther && !customDepartmentYears) {
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherStudyYearsRequired') });
+      return false;
+    }
     if (!stage) {
       showAlert({ type: 'error', title: t('common.error'), message: t('auth.stageRequired') });
       return false;
@@ -358,6 +486,26 @@ const SignUp = ({ navigation, route }) => {
     if (currentStep === 1 && !validateStepOne()) return;
     if (currentStep === 2 && !validateStepTwo()) return;
     setCurrentStep(prev => Math.min(prev + 1, 3));
+  };
+
+  const promptExistingAccountSignIn = () => {
+    setCurrentStep(1);
+    showAlert({
+      type: 'warning',
+      title: t('auth.emailAlreadyExists'),
+      message: t('auth.emailExistsGoToSignInPrompt'),
+      buttons: [
+        {
+          text: t('common.no'),
+          style: 'cancel',
+        },
+        {
+          text: t('common.yes'),
+          style: 'primary',
+          onPress: () => navigation.replace('SignIn', { prefillEmail: email.trim().toLowerCase() }),
+        },
+      ],
+    });
   };
 
   const handlePreviousStep = () => {
@@ -375,6 +523,17 @@ const SignUp = ({ navigation, route }) => {
       university !== '' &&
       college !== '' &&
       department !== '' &&
+      (!hasAcademicOther || !!customDepartmentYears) &&
+      (!isUniversityOther || (
+        String(customUniversityName || '').trim().length >= 2 &&
+        String(customCollegeName || '').trim().length >= 2 &&
+        String(customDepartmentName || '').trim().length >= 2
+      )) &&
+      (!isCollegeOther || (
+        String(customCollegeName || '').trim().length >= 2 &&
+        String(customDepartmentName || '').trim().length >= 2
+      )) &&
+      (!isDepartmentOther || String(customDepartmentName || '').trim().length >= 2) &&
       stage !== ''
     );
     
@@ -417,12 +576,47 @@ const SignUp = ({ navigation, route }) => {
         role: accountRole,
       };
 
+      const mergedAcademicSuggestion = buildMergedAcademicSuggestionText();
+
+      const academicSuggestionPayload = hasAcademicOther
+        ? {
+            university,
+            college,
+            department,
+            stage,
+            years: customDepartmentYears,
+            customUniversityName: String(customUniversityName || '').trim(),
+            customCollegeName: String(customCollegeName || '').trim(),
+            customDepartmentName: String(customDepartmentName || '').trim(),
+            suggestionText: mergedAcademicSuggestion,
+          }
+        : null;
+
       if (oauthMode && oauthUserId) {
         const result = await completeOAuthSignup(oauthUserId, email, fullName, additionalData);
         
         await clearPendingOAuthSignup();
         
         if (result.success) {
+          if (academicSuggestionPayload) {
+            try {
+              await createSuggestion({
+                category: 'other',
+                title: t('auth.otherAcademicSuggestionTitle'),
+                message: academicSuggestionPayload.suggestionText,
+                contextType: 'academic_missing_option',
+                missingUniversity: academicSuggestionPayload.university === ACADEMIC_OTHER_KEY ? 'yes' : undefined,
+                missingCollege: academicSuggestionPayload.college === ACADEMIC_OTHER_KEY ? 'yes' : undefined,
+                missingDepartment: academicSuggestionPayload.department === ACADEMIC_OTHER_KEY ? 'yes' : undefined,
+                selectedUniversity: academicSuggestionPayload.university || undefined,
+                selectedCollege: academicSuggestionPayload.college || undefined,
+                selectedDepartment: academicSuggestionPayload.department || undefined,
+                selectedStage: academicSuggestionPayload.stage || undefined,
+              });
+            } catch (error) {
+            }
+          }
+
           const academicChangesCount = getAcademicChangesCountFromProfileViews(result.userDoc.profileViews);
           const userData = {
             $id: result.userDoc.$id,
@@ -466,18 +660,29 @@ const SignUp = ({ navigation, route }) => {
             department,
             stage,
             accountRole,
+            customUniversityName,
+            customCollegeName,
+            customDepartmentName,
+            customDepartmentYears,
+            academicSuggestionPayload,
           }
         });
       }
       
     } catch (error) {
       setIsLoading(false);
-      
+      const isEmailExistsError =
+        error.message?.includes('user with the same email') ||
+        error.message?.includes('already exists');
+
+      if (isEmailExistsError) {
+        promptExistingAccountSignIn();
+        return;
+      }
+
       let errorMessage = t('auth.signUpError');
-      
-      if (error.message?.includes('user with the same email')) {
-        errorMessage = t('auth.emailAlreadyExists');
-      } else if (error.message?.includes('Password')) {
+
+      if (error.message?.includes('Password')) {
         errorMessage = t('auth.passwordRequirements');
       } else if (error.message?.includes('educational email') || error.message?.includes('Only educational')) {
         errorMessage = t('auth.educationalEmailRequired');
@@ -492,14 +697,30 @@ const SignUp = ({ navigation, route }) => {
     label: t(`universities.${key}`)
   }));
 
+  const universitiesWithOther = [
+    ...universities,
+    {
+      key: ACADEMIC_OTHER_KEY,
+      label: t('common.other'),
+    },
+  ];
+
   const getAvailableColleges = () => {
     if (!university) return [];
     
     const collegeKeys = getCollegesForUniversity(university);
-    return collegeKeys.map(key => ({
+    const collegeOptions = collegeKeys.map(key => ({
       key,
       label: t(`colleges.${key}`)
     }));
+
+    return [
+      ...collegeOptions,
+      {
+        key: ACADEMIC_OTHER_KEY,
+        label: t('common.other'),
+      },
+    ];
   };
 
   const colleges = getAvailableColleges();
@@ -508,15 +729,28 @@ const SignUp = ({ navigation, route }) => {
     if (!college || !university) return [];
     
     const departmentKeys = getDepartmentsForCollege(university, college);
-    return departmentKeys.map(key => ({
+    const departmentOptions = departmentKeys.map(key => ({
       key,
       label: t(`departments.${key}`)
     }));
+
+    return [
+      ...departmentOptions,
+      {
+        key: ACADEMIC_OTHER_KEY,
+        label: t('common.other'),
+      },
+    ];
   };
 
   const departments = getAvailableDepartments();
 
-  const stages = getStagesForDepartment(university, college, department).map(stageKey => ({
+  const fallbackOtherStages = ['firstYear', 'secondYear', 'thirdYear', 'fourthYear', 'fifthYear', 'sixthYear'];
+  const resolvedStageKeys = hasAcademicOther
+    ? fallbackOtherStages
+    : getStagesForDepartment(university, college, department);
+
+  const stages = resolvedStageKeys.map(stageKey => ({
     key: stageKey,
     label: t(`stages.${stageKey}`),
   }));
@@ -525,6 +759,13 @@ const SignUp = ({ navigation, route }) => {
     key: String(17 + i),
     label: String(17 + i),
   }));
+
+  const otherDepartmentYearsOptions = [
+    { key: '2', label: '2' },
+    { key: '4', label: '4' },
+    { key: '5', label: '5' },
+    { key: '6', label: '6' },
+  ];
 
   const renderInput = (props) => {
     const { icon, placeholder, value, onChangeText, field, keyboardType, secureTextEntry, showToggle } = props;
@@ -596,14 +837,11 @@ const SignUp = ({ navigation, route }) => {
         translucent
       />
       
-      <LinearGradient
-        colors={isDarkMode 
-          ? ['#1a1a2e', '#16213e', '#0f3460'] 
-          : ['#667eea', '#764ba2', '#f093fb']
-        }
-        style={styles.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}>
+      <View
+        style={[
+          styles.gradient,
+          { backgroundColor: theme.background },
+        ]}>
       
       <AnimatedBackground particleCount={35} />
       
@@ -642,6 +880,8 @@ const SignUp = ({ navigation, route }) => {
                 styles.formContainer,
                 isCompactPhone && styles.formContainerCompact,
                 isWidePhone && styles.formContainerWidePhone,
+                isLargeScreen && styles.formContainerLargeScreen,
+                isShortScreen && styles.formContainerShortScreen,
               ]}
               intensity={isTablet() ? 30 : 25}
               borderRadius={borderRadius.xl}
@@ -911,7 +1151,7 @@ const SignUp = ({ navigation, route }) => {
               {currentStep === 2 && (
                 <>
                   <SearchableDropdown
-                    items={universities}
+                    items={universitiesWithOther}
                     value={university}
                     onSelect={setUniversity}
                     placeholder={t('auth.selectUniversity')}
@@ -919,25 +1159,29 @@ const SignUp = ({ navigation, route }) => {
                     style={{ marginTop: spacing.md }}
                   />
 
-                  <SearchableDropdown
-                    items={colleges}
-                    value={college}
-                    onSelect={setCollege}
-                    placeholder={t('auth.selectCollege')}
-                    icon="book-outline"
-                    disabled={!university}
-                    style={{ marginTop: spacing.md }}
-                  />
+                  {!isUniversityOther && (
+                    <SearchableDropdown
+                      items={colleges}
+                      value={college}
+                      onSelect={setCollege}
+                      placeholder={t('auth.selectCollege')}
+                      icon="book-outline"
+                      disabled={!university}
+                      style={{ marginTop: spacing.md }}
+                    />
+                  )}
 
-                  <SearchableDropdown
-                    items={departments}
-                    value={department}
-                    onSelect={setDepartment}
-                    placeholder={t('auth.selectDepartment')}
-                    icon="school-outline"
-                    disabled={!college}
-                    style={{ marginTop: spacing.md }}
-                  />
+                  {!isUniversityOther && !isCollegeOther && (
+                    <SearchableDropdown
+                      items={departments}
+                      value={department}
+                      onSelect={setDepartment}
+                      placeholder={t('auth.selectDepartment')}
+                      icon="school-outline"
+                      disabled={!college}
+                      style={{ marginTop: spacing.md }}
+                    />
+                  )}
 
                   <SearchableDropdown
                     items={stages}
@@ -947,6 +1191,111 @@ const SignUp = ({ navigation, route }) => {
                     icon="library-outline"
                     style={{ marginTop: spacing.md }}
                   />
+
+                  {isUniversityOther && (
+                    <>
+                      <GlassInput style={{ marginTop: spacing.md }}>
+                        <View style={styles.inputWrapper}>
+                          <Ionicons name="school-outline" size={moderateScale(20)} color={theme.textSecondary} style={styles.inputIcon} />
+                          <TextInput
+                            style={[styles.input, { color: theme.text, fontSize: fontSize(15), minHeight: hp(6.2) }]}
+                            value={customUniversityName}
+                            onChangeText={setCustomUniversityName}
+                            placeholder={t('auth.otherUniversityNamePlaceholder')}
+                            placeholderTextColor={theme.input.placeholder}
+                            maxLength={120}
+                          />
+                        </View>
+                      </GlassInput>
+
+                      <GlassInput style={{ marginTop: spacing.md }}>
+                        <View style={styles.inputWrapper}>
+                          <Ionicons name="book-outline" size={moderateScale(20)} color={theme.textSecondary} style={styles.inputIcon} />
+                          <TextInput
+                            style={[styles.input, { color: theme.text, fontSize: fontSize(15), minHeight: hp(6.2) }]}
+                            value={customCollegeName}
+                            onChangeText={setCustomCollegeName}
+                            placeholder={t('auth.otherCollegeNamePlaceholder')}
+                            placeholderTextColor={theme.input.placeholder}
+                            maxLength={120}
+                          />
+                        </View>
+                      </GlassInput>
+
+                      <GlassInput style={{ marginTop: spacing.md }}>
+                        <View style={styles.inputWrapper}>
+                          <Ionicons name="business-outline" size={moderateScale(20)} color={theme.textSecondary} style={styles.inputIcon} />
+                          <TextInput
+                            style={[styles.input, { color: theme.text, fontSize: fontSize(15), minHeight: hp(6.2) }]}
+                            value={customDepartmentName}
+                            onChangeText={setCustomDepartmentName}
+                            placeholder={t('auth.otherDepartmentNamePlaceholder')}
+                            placeholderTextColor={theme.input.placeholder}
+                            maxLength={120}
+                          />
+                        </View>
+                      </GlassInput>
+                    </>
+                  )}
+
+                  {!isUniversityOther && isCollegeOther && (
+                    <>
+                      <GlassInput style={{ marginTop: spacing.md }}>
+                        <View style={styles.inputWrapper}>
+                          <Ionicons name="book-outline" size={moderateScale(20)} color={theme.textSecondary} style={styles.inputIcon} />
+                          <TextInput
+                            style={[styles.input, { color: theme.text, fontSize: fontSize(15), minHeight: hp(6.2) }]}
+                            value={customCollegeName}
+                            onChangeText={setCustomCollegeName}
+                            placeholder={t('auth.otherCollegeNamePlaceholder')}
+                            placeholderTextColor={theme.input.placeholder}
+                            maxLength={120}
+                          />
+                        </View>
+                      </GlassInput>
+
+                      <GlassInput style={{ marginTop: spacing.md }}>
+                        <View style={styles.inputWrapper}>
+                          <Ionicons name="business-outline" size={moderateScale(20)} color={theme.textSecondary} style={styles.inputIcon} />
+                          <TextInput
+                            style={[styles.input, { color: theme.text, fontSize: fontSize(15), minHeight: hp(6.2) }]}
+                            value={customDepartmentName}
+                            onChangeText={setCustomDepartmentName}
+                            placeholder={t('auth.otherDepartmentNamePlaceholder')}
+                            placeholderTextColor={theme.input.placeholder}
+                            maxLength={120}
+                          />
+                        </View>
+                      </GlassInput>
+                    </>
+                  )}
+
+                  {!isUniversityOther && !isCollegeOther && isDepartmentOther && (
+                    <GlassInput style={{ marginTop: spacing.md }}>
+                      <View style={styles.inputWrapper}>
+                        <Ionicons name="business-outline" size={moderateScale(20)} color={theme.textSecondary} style={styles.inputIcon} />
+                        <TextInput
+                          style={[styles.input, { color: theme.text, fontSize: fontSize(15), minHeight: hp(6.2) }]}
+                          value={customDepartmentName}
+                          onChangeText={setCustomDepartmentName}
+                          placeholder={t('auth.otherDepartmentNamePlaceholder')}
+                          placeholderTextColor={theme.input.placeholder}
+                          maxLength={120}
+                        />
+                      </View>
+                    </GlassInput>
+                  )}
+
+                  {hasAcademicOther && (
+                    <SearchableDropdown
+                      items={otherDepartmentYearsOptions}
+                      value={customDepartmentYears}
+                      onSelect={setCustomDepartmentYears}
+                      placeholder={t('auth.otherStudyYearsPlaceholder')}
+                      icon="time-outline"
+                      style={{ marginTop: spacing.md }}
+                    />
+                  )}
                 </>
               )}
 
@@ -1112,7 +1461,7 @@ const SignUp = ({ navigation, route }) => {
           <View style={{ height: isCompactPhone ? hp(5) : hp(8) }} />
         </ScrollView>
       </KeyboardAvoidingView>
-      </LinearGradient>
+      </View>
       <CustomAlert
         visible={alertConfig.visible}
         type={alertConfig.type}
@@ -1180,6 +1529,13 @@ const styles = StyleSheet.create({
   },
   formContainerWidePhone: {
     maxWidth: 620,
+  },
+  formContainerLargeScreen: {
+    maxWidth: 520,
+    padding: spacing.lg,
+  },
+  formContainerShortScreen: {
+    paddingVertical: spacing.md,
   },
   stepIndicatorRow: {
     flexDirection: 'row',

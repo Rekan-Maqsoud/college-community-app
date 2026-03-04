@@ -31,6 +31,10 @@ jest.mock('../database/auth', () => ({
   getCurrentUser: jest.fn(() => Promise.resolve({ $id: 'user-1' })),
 }));
 
+jest.mock('../database/users', () => ({
+  getClassStudents: jest.fn(() => Promise.resolve([])),
+}));
+
 jest.mock('../app/utils/safeStorage', () => ({
   getItem: jest.fn(() => Promise.resolve(null)),
   setItem: jest.fn(() => Promise.resolve()),

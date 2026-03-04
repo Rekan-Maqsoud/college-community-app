@@ -970,6 +970,10 @@ export const getUserGroupChats = async (department, stage, userId = null) => {
         if (!department || typeof department !== 'string') {
             throw new Error('Invalid department');
         }
+
+        if (String(department).trim().toLowerCase() === 'other') {
+            return [];
+        }
         
         if (!config.chatsCollectionId) {
             throw new Error('Chat collection not configured. Please check your .env file.');

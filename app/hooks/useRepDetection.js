@@ -13,6 +13,7 @@ import { getClassStudents } from '../../database/users';
 import { config } from '../../database/config';
 import { useRealtimeSubscription } from './useRealtimeSubscription';
 import safeStorage from '../utils/safeStorage';
+import { hasAcademicOtherSelection } from '../utils/academicSelection';
 
 const DISMISS_KEY = 'rep_popup_dismissed';
 const MIN_CLASS_SIZE_FOR_REP_POPUP = 5;
@@ -27,9 +28,18 @@ const useRepDetection = (user) => {
 
   const department = user?.department;
   const stage = user?.stage;
+  const isAcademicOtherUser = hasAcademicOtherSelection({
+    university: user?.university,
+    college: user?.college,
+    department: user?.department,
+  });
 
   const check = useCallback(async () => {
-    if (!department || !stage) {
+    if (!department || !stage || isAcademicOtherUser) {
+      setNeedsRep(false);
+      setCurrentElection(null);
+      setCurrentWinners([]);
+      setTotalReps(0);
       setLoading(false);
       return;
     }
@@ -70,8 +80,9 @@ const useRepDetection = (user) => {
       if (activeElection) {
         const myVote = await getMyVote(activeElection.$id);
         const alreadyVoted = !!myVote?.candidateId;
-        // There is an active election — show popup so users can vote
-        setNeedsRep(!alreadyVoted);
+        // Only surface popup when class has no selected reps yet.
+        // If at least one rep exists, avoid repeatedly interrupting users.
+        setNeedsRep(reps.length === 0 && !alreadyVoted);
         setCurrentElection(activeElection);
       } else if (reps.length === 0 && !latestElection) {
         // No election ever, no reps → needs first rep
@@ -91,7 +102,7 @@ const useRepDetection = (user) => {
     } finally {
       setLoading(false);
     }
-  }, [department, stage]);
+  }, [department, stage, isAcademicOtherUser]);
 
   useEffect(() => {
     check();
@@ -115,14 +126,14 @@ const useRepDetection = (user) => {
     config.repElectionsCollectionId,
     handleElectionRealtimeChange,
     handleElectionRealtimeChange,
-    { enabled: !!department && !!stage && !!config.repElectionsCollectionId }
+    { enabled: !!department && !!stage && !!config.repElectionsCollectionId && !isAcademicOtherUser }
   );
 
   useRealtimeSubscription(
     config.repVotesCollectionId,
     handleVoteRealtimeChange,
     handleVoteRealtimeChange,
-    { enabled: !!department && !!stage && !!config.repVotesCollectionId }
+    { enabled: !!department && !!stage && !!config.repVotesCollectionId && !isAcademicOtherUser }
   );
 
   const dismiss = useCallback(async () => {

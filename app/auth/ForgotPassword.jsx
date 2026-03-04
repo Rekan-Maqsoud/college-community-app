@@ -62,6 +62,7 @@ const ForgotPassword = ({ navigation, route }) => {
   useEffect(() => {
     const checkDeepLink = async () => {
       const initialUrl = await Linking.getInitialURL();
+      console.log('[reset-password][ForgotPassword] initial URL', initialUrl);
       if (initialUrl) {
         handleDeepLink({ url: initialUrl });
       }
@@ -89,6 +90,7 @@ const ForgotPassword = ({ navigation, route }) => {
   const handleDeepLink = (event) => {
     try {
       const url = event.url;
+      console.log('[reset-password][ForgotPassword] handleDeepLink received', { url });
       if (!url) return;
       
       // Parse the URL to extract userId and secret
@@ -96,18 +98,34 @@ const ForgotPassword = ({ navigation, route }) => {
       // - collegecommunity://reset-password?userId=xxx&secret=xxx
       // - appwrite-callback-68fc77710039413087aa://reset-password?userId=xxx&secret=xxx
       const parsed = Linking.parse(url);
+      console.log('[reset-password][ForgotPassword] parsed deep link', {
+        path: parsed?.path,
+        hostname: parsed?.hostname,
+        scheme: parsed?.scheme,
+        queryParams: parsed?.queryParams,
+      });
       
       // Check if this is a password reset deep link
       if (parsed.path === 'reset-password' || url.includes('reset-password')) {
         const { queryParams } = parsed;
         if (queryParams?.userId && queryParams?.secret) {
+          console.log('[reset-password][ForgotPassword] recovery params extracted', {
+            userId: queryParams.userId,
+            hasSecret: Boolean(queryParams.secret),
+          });
           setRecoveryUserId(queryParams.userId);
           setRecoverySecret(queryParams.secret);
           setStep('newPassword');
+        } else {
+          console.log('[reset-password][ForgotPassword] reset-password link missing params', {
+            queryParams,
+          });
         }
       }
     } catch (error) {
-      // Silent fail for deep link parsing errors
+      console.log('[reset-password][ForgotPassword] deep link parse error', {
+        message: error?.message,
+      });
     }
   };
 
@@ -211,11 +229,19 @@ const ForgotPassword = ({ navigation, route }) => {
 
     setIsLoading(true);
     try {
+      console.log('[reset-password][ForgotPassword] sendPasswordResetOTP request', {
+        email: email.trim(),
+      });
       await sendPasswordResetOTP(email.trim());
+      console.log('[reset-password][ForgotPassword] sendPasswordResetOTP success');
       setStep('checkEmail');
       setResendTimer(60);
       showAlert(t('common.success'), t('auth.resetEmailSent'), 'success');
     } catch (error) {
+      console.log('[reset-password][ForgotPassword] sendPasswordResetOTP error', {
+        message: error?.message,
+        code: error?.code,
+      });
       let errorMessage = t('auth.sendResetCodeError');
       
       if (error.message === 'User not found' || error.message?.includes('not found')) {
@@ -243,10 +269,18 @@ const ForgotPassword = ({ navigation, route }) => {
     setIsLoading(true);
 
     try {
+      console.log('[reset-password][ForgotPassword] resendPasswordResetOTP request', {
+        email: email.trim(),
+      });
       await resendPasswordResetOTP(email.trim());
+      console.log('[reset-password][ForgotPassword] resendPasswordResetOTP success');
       setResendTimer(60);
       showAlert(t('common.success'), t('auth.resetEmailResent'), 'success');
     } catch (error) {
+      console.log('[reset-password][ForgotPassword] resendPasswordResetOTP error', {
+        message: error?.message,
+        code: error?.code,
+      });
       showAlert(t('common.error'), t('auth.sendResetCodeError'), 'error');
     } finally {
       setIsLoading(false);
@@ -254,6 +288,12 @@ const ForgotPassword = ({ navigation, route }) => {
   };
 
   const handleResetPassword = async () => {
+    console.log('[reset-password][ForgotPassword] handleResetPassword called', {
+      recoveryUserId,
+      hasRecoverySecret: Boolean(recoverySecret),
+      passwordLength: newPassword?.length,
+    });
+
     if (!recoveryUserId || !recoverySecret) {
       showAlert(t('common.error'), t('auth.invalidRecoveryLink'), 'error');
       setStep('email');
@@ -273,7 +313,12 @@ const ForgotPassword = ({ navigation, route }) => {
     setIsLoading(true);
 
     try {
+      console.log('[reset-password][ForgotPassword] completePasswordReset request', {
+        userId: recoveryUserId,
+        hasSecret: Boolean(recoverySecret),
+      });
       await completePasswordReset(recoveryUserId, recoverySecret, newPassword);
+      console.log('[reset-password][ForgotPassword] completePasswordReset success');
       
       setIsLoading(false);
       showAlert({
@@ -289,6 +334,10 @@ const ForgotPassword = ({ navigation, route }) => {
         ],
       });
     } catch (error) {
+      console.log('[reset-password][ForgotPassword] completePasswordReset error', {
+        message: error?.message,
+        code: error?.code,
+      });
       setIsLoading(false);
       
       let errorMessage = t('auth.passwordResetError');

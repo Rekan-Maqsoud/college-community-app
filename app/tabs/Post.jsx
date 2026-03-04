@@ -39,6 +39,7 @@ import {
 import { wp, hp, fontSize as fontSizeUtil, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
+import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
 
 const normalizeStageValue = (userStage) => {
   const stageMap = {
@@ -100,6 +101,11 @@ const Post = () => {
   const [isQuizPoll, setIsQuizPoll] = useState(false);
   const [correctPollOptionId, setCorrectPollOptionId] = useState('');
   const [pollExplanation, setPollExplanation] = useState('');
+  const isAcademicOtherUser = hasAcademicOtherSelection({
+    university: user?.university,
+    college: user?.college,
+    department: user?.department,
+  });
 
   const postTypeOptions = [
     ...POST_TYPE_OPTIONS,
@@ -280,7 +286,9 @@ const Post = () => {
           })
         : null;
       
-      const postDepartment = visibility === 'public' ? 'public' : (user?.department || '');
+      const postDepartment = visibility === 'public'
+        ? 'public'
+        : (isAcademicOtherUser ? ACADEMIC_OTHER_KEY : (user?.department || ''));
 
       const newPost = await createPost({
         userId: user.$id,

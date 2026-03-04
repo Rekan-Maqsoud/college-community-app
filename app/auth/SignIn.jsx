@@ -46,9 +46,9 @@ const getAcademicChangesCountFromProfileViews = (profileViews) => {
   }
 };
 
-const SignIn = ({ navigation }) => {
+const SignIn = ({ navigation, route }) => {
   const googleLogoUri = 'https://www.gstatic.com/images/branding/product/1x/googleg_48dp.png';
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(route?.params?.prefillEmail || '');
   const [password, setPassword] = useState('');
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
@@ -110,6 +110,13 @@ const SignIn = ({ navigation }) => {
       }),
     ]).start();
   }, []);
+
+  useEffect(() => {
+    const prefillEmail = route?.params?.prefillEmail;
+    if (typeof prefillEmail === 'string' && prefillEmail.trim()) {
+      setEmail(prefillEmail.trim().toLowerCase());
+    }
+  }, [route?.params?.prefillEmail]);
 
   const handleSignIn = async () => {
     if (!email.trim() || !password.trim()) {

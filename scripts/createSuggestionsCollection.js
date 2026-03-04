@@ -152,6 +152,14 @@ const run = async () => {
   await ensureStringAttribute({ key: 'status', size: 32, required: true });
   await ensureStringAttribute({ key: 'appVersion', size: 64, required: false });
   await ensureStringAttribute({ key: 'platform', size: 32, required: false });
+  await ensureStringAttribute({ key: 'contextType', size: 64, required: false });
+  await ensureStringAttribute({ key: 'missingUniversity', size: 255, required: false });
+  await ensureStringAttribute({ key: 'missingCollege', size: 255, required: false });
+  await ensureStringAttribute({ key: 'missingDepartment', size: 255, required: false });
+  await ensureStringAttribute({ key: 'selectedUniversity', size: 255, required: false });
+  await ensureStringAttribute({ key: 'selectedCollege', size: 255, required: false });
+  await ensureStringAttribute({ key: 'selectedDepartment', size: 255, required: false });
+  await ensureStringAttribute({ key: 'selectedStage', size: 64, required: false });
 
   await ensureIndex({ key: 'idx_suggestions_userId', attributes: ['userId'], orders: ['ASC'] });
   await ensureIndex({ key: 'idx_suggestions_status', attributes: ['status'], orders: ['ASC'] });

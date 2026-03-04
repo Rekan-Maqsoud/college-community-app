@@ -12,6 +12,10 @@ export const getOrCreateStageGroup = async (department, stage) => {
             return null;
         }
 
+        if (String(department).trim().toLowerCase() === 'other') {
+            return null;
+        }
+
         const stageValue = typeof stage === 'number' ? String(stage) : stage;
         
         const existingChats = await databases.listDocuments(
@@ -51,6 +55,10 @@ export const getOrCreateStageGroup = async (department, stage) => {
 export const getOrCreateDepartmentGroup = async (department) => {
     try {
         if (!department) {
+            return null;
+        }
+
+        if (String(department).trim().toLowerCase() === 'other') {
             return null;
         }
 
@@ -96,6 +104,10 @@ export const initializeUserGroups = async (department, stage, userId = null) => 
         };
 
         if (!department) {
+            return results;
+        }
+
+        if (String(department).trim().toLowerCase() === 'other') {
             return results;
         }
 

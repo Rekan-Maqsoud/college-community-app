@@ -49,6 +49,7 @@ import { usePosts, useNotifications } from '../hooks/useRealtimeSubscription';
 import { postsCacheManager } from '../utils/cacheManager';
 import { scheduleLocalNotification } from '../../services/pushNotificationService';
 import useLayout from '../hooks/useLayout';
+import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
 
 const POSTS_PER_PAGE = 15;
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
@@ -108,6 +109,12 @@ const Home = ({ navigation, route }) => {
   const headerTop = insets.top + (isSmallScreen ? spacing.xs : spacing.sm);
   const listTopPadding = headerHeight + spacing.md;
   const loadingTopPadding = listTopPadding + spacing.xl;
+  const isAcademicOtherUser = hasAcademicOtherSelection({
+    university: user?.university,
+    college: user?.college,
+    department: user?.department,
+  });
+  const scopedDepartment = isAcademicOtherUser ? ACADEMIC_OTHER_KEY : user?.department;
 
   // Real-time subscription for new/updated posts
   const handleRealtimePostUpdate = useCallback(async (payload) => {
@@ -117,8 +124,12 @@ const Home = ({ navigation, route }) => {
     // Check if this post matches current filters
     const matchesFeed = 
       selectedFeed === FEED_TYPES.PUBLIC ||
-      (selectedFeed === FEED_TYPES.DEPARTMENT && payload.department === user?.department) ||
-      (selectedFeed === FEED_TYPES.MAJOR && getDepartmentsInSameMajor(user?.department).includes(payload.department));
+      (selectedFeed === FEED_TYPES.DEPARTMENT && payload.department === scopedDepartment) ||
+      (selectedFeed === FEED_TYPES.MAJOR && (
+        isAcademicOtherUser
+          ? payload.department === ACADEMIC_OTHER_KEY
+          : getDepartmentsInSameMajor(scopedDepartment).includes(payload.department)
+      ));
     
     const matchesStage = selectedStage === 'all' || payload.stage === selectedStage;
 
@@ -135,7 +146,7 @@ const Home = ({ navigation, route }) => {
         return [payload, ...prev];
       });
     }
-  }, [selectedFeed, selectedStage, user?.department]);
+  }, [selectedFeed, selectedStage, scopedDepartment, isAcademicOtherUser]);
 
   const handleRealtimePostDelete = useCallback(async (payload) => {
     // Invalidate posts cache since data changed
@@ -145,17 +156,17 @@ const Home = ({ navigation, route }) => {
 
   // Subscribe to real-time post updates
   usePosts(
-    user?.department,
+    scopedDepartment,
     handleRealtimePostUpdate,
     handleRealtimePostDelete,
-    !!user?.department
+    !!scopedDepartment
   );
 
   useEffect(() => {
-    if (user && user.department) {
+    if (user && scopedDepartment) {
       loadPosts(true);
     }
-  }, [selectedFeed, selectedStage, sortBy, filterType, answerStatus, user]);
+  }, [selectedFeed, selectedStage, sortBy, filterType, answerStatus, user, scopedDepartment]);
 
   // Load unread notification count
   useEffect(() => {
@@ -328,7 +339,7 @@ const Home = ({ navigation, route }) => {
   );
 
   const loadPosts = async (reset = false, options = {}) => {
-    if (!user || !user.department) {
+    if (!user || !scopedDepartment) {
       return;
     }
 
@@ -355,7 +366,7 @@ const Home = ({ navigation, route }) => {
       if (selectedFeed === FEED_TYPES.DEPARTMENT) {
         const shouldForceQuestion = resolvedAnswerStatus !== 'all' && resolvedFilterType !== POST_TYPES.QUESTION;
         const filters = {
-          department: user.department,
+          department: scopedDepartment,
           postType: shouldForceQuestion ? POST_TYPES.QUESTION : resolvedFilterType,
           answerStatus: resolvedAnswerStatus,
         };
@@ -364,19 +375,36 @@ const Home = ({ navigation, route }) => {
         }
         fetchedPosts = await getPosts(filters, POSTS_PER_PAGE, offset, useCache, sortBy, blockedUsers, user?.$id);
       } else if (selectedFeed === FEED_TYPES.MAJOR) {
-        const relatedDepartments = getDepartmentsInSameMajor(user.department);
-        fetchedPosts = await getPostsByDepartments(
-          relatedDepartments,
-          selectedStage,
-          POSTS_PER_PAGE,
-          offset,
-          useCache,
-          sortBy,
-          resolvedFilterType,
-          resolvedAnswerStatus,
-          blockedUsers,
-          user?.$id
-        );
+        if (isAcademicOtherUser) {
+          fetchedPosts = await getPosts(
+            {
+              department: ACADEMIC_OTHER_KEY,
+              postType: resolvedFilterType,
+              answerStatus: resolvedAnswerStatus,
+              ...(selectedStage !== 'all' ? { stage: selectedStage } : {}),
+            },
+            POSTS_PER_PAGE,
+            offset,
+            useCache,
+            sortBy,
+            blockedUsers,
+            user?.$id
+          );
+        } else {
+          const relatedDepartments = getDepartmentsInSameMajor(scopedDepartment);
+          fetchedPosts = await getPostsByDepartments(
+            relatedDepartments,
+            selectedStage,
+            POSTS_PER_PAGE,
+            offset,
+            useCache,
+            sortBy,
+            resolvedFilterType,
+            resolvedAnswerStatus,
+            blockedUsers,
+            user?.$id
+          );
+        }
       } else if (selectedFeed === FEED_TYPES.PUBLIC) {
         fetchedPosts = await getAllPublicPosts(
           selectedStage,

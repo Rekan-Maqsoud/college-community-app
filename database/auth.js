@@ -1438,21 +1438,37 @@ const getRecoveryRedirectUrl = () => {
     const fallbackUrl = 'https://collegecommunity.app/reset-password';
     const rawUrl = (configuredUrl || fallbackUrl || '').trim();
 
+    console.log('[reset-password][getRecoveryRedirectUrl] inputs', {
+        configuredUrl,
+        fallbackUrl,
+        rawUrl,
+    });
+
     if (!rawUrl) {
-        return 'https://collegecommunity.app/reset-password';
+        const defaultUrl = 'https://collegecommunity.app/reset-password';
+        console.log('[reset-password][getRecoveryRedirectUrl] return (empty rawUrl)', defaultUrl);
+        return defaultUrl;
     }
 
     if (/^https?:\/\//i.test(rawUrl)) {
+        console.log('[reset-password][getRecoveryRedirectUrl] return (already absolute)', rawUrl);
         return rawUrl;
     }
 
-    return `https://${rawUrl.replace(/^\/+/, '')}`;
+    const normalizedUrl = `https://${rawUrl.replace(/^\/+/, '')}`;
+    console.log('[reset-password][getRecoveryRedirectUrl] return (normalized)', normalizedUrl);
+    return normalizedUrl;
 };
 
 // Send password reset email using Appwrite Recovery
 export const sendPasswordResetOTP = async (email) => {
     try {
         const sanitizedEmail = sanitizeInput(email).toLowerCase();
+
+        console.log('[reset-password][sendPasswordResetOTP] called', {
+            providedEmail: email,
+            sanitizedEmail,
+        });
 
         if (!sanitizedEmail) {
             throw new Error('Invalid email');
@@ -1466,6 +1482,11 @@ export const sendPasswordResetOTP = async (email) => {
         // Use Appwrite's Recovery feature - do not expose whether an account exists
         const redirectUrl = getRecoveryRedirectUrl();
         const now = Date.now();
+
+        console.log('[reset-password][sendPasswordResetOTP] redirect URL resolved', {
+            redirectUrl,
+            hasCustomRecoveryUrl: Boolean(process.env.EXPO_PUBLIC_APPWRITE_RECOVERY_REDIRECT_URL),
+        });
 
         try {
             const existing = await safeStorage.getItem(PENDING_PASSWORD_RESET_KEY);
@@ -1518,24 +1539,40 @@ export const sendPasswordResetOTP = async (email) => {
         };
 
         try {
-            await account.createRecovery(sanitizedEmail, redirectUrl);
+            console.log('[reset-password][sendPasswordResetOTP] createRecovery request', {
+                email: sanitizedEmail,
+                redirectUrl,
+            });
+            const recoveryResult = await account.createRecovery(sanitizedEmail, redirectUrl);
+            console.log('[reset-password][sendPasswordResetOTP] createRecovery success', recoveryResult);
 
             await saveResetAttempt();
 
-            return {
+            const result = {
                 success: true,
                 email: sanitizedEmail,
                 useDeepLink: true,
             };
+            console.log('[reset-password][sendPasswordResetOTP] return', result);
+            return result;
         } catch (recoveryError) {
+            console.log('[reset-password][sendPasswordResetOTP] createRecovery error', {
+                code: recoveryError?.code,
+                type: recoveryError?.type,
+                message: recoveryError?.message,
+                response: recoveryError?.response,
+                redirectUrl,
+            });
             // Prevent account enumeration: treat unknown accounts as success.
             if (recoveryError.code === 404 || recoveryError.message?.includes('User not found')) {
                 await saveResetAttempt();
-                return {
+                const result = {
                     success: true,
                     email: sanitizedEmail,
                     useDeepLink: true,
                 };
+                console.log('[reset-password][sendPasswordResetOTP] return (masked not found)', result);
+                return result;
             }
 
             // Throw a more descriptive error
@@ -1555,6 +1592,12 @@ export const sendPasswordResetOTP = async (email) => {
 // Complete password reset using recovery token from deep link
 export const completePasswordReset = async (userId, secret, newPassword) => {
     try {
+        console.log('[reset-password][completePasswordReset] called', {
+            userId,
+            hasSecret: Boolean(secret),
+            passwordLength: newPassword?.length,
+        });
+
         if (!userId || !secret) {
             throw new Error('Invalid recovery link. Please request a new password reset.');
         }
@@ -1564,15 +1607,28 @@ export const completePasswordReset = async (userId, secret, newPassword) => {
         }
 
         // Use Appwrite's updateRecovery to set the new password
-        await account.updateRecovery(userId, secret, newPassword);
+        console.log('[reset-password][completePasswordReset] updateRecovery request', {
+            userId,
+            hasSecret: Boolean(secret),
+        });
+        const updateRecoveryResult = await account.updateRecovery(userId, secret, newPassword);
+        console.log('[reset-password][completePasswordReset] updateRecovery success', updateRecoveryResult);
 
         // Clean up stored data
         await safeStorage.removeItem(PENDING_PASSWORD_RESET_KEY);
 
-        return {
+        const result = {
             success: true,
         };
+        console.log('[reset-password][completePasswordReset] return', result);
+        return result;
     } catch (error) {
+        console.log('[reset-password][completePasswordReset] error', {
+            code: error?.code,
+            type: error?.type,
+            message: error?.message,
+            response: error?.response,
+        });
         if (error.message?.includes('expired') || error.code === 401) {
             throw new Error('Recovery link has expired. Please request a new password reset.');
         }

@@ -20,6 +20,8 @@ import { useUser } from '../context/UserContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import CustomAlert from '../components/CustomAlert';
 import { GlassContainer } from '../components/GlassComponents';
+import { createSuggestion } from '../../database/suggestions';
+import { ACADEMIC_OTHER_KEY } from '../utils/academicSelection';
 import { 
   verifyOTPCode,
   resendVerificationEmail, 
@@ -216,6 +218,26 @@ const VerifyEmail = ({ route, navigation }) => {
     
     try {
       await verifyOTPCode(otpString);
+
+      const pendingAcademicSuggestion = formData?.academicSuggestionPayload;
+      if (pendingAcademicSuggestion?.suggestionText) {
+        try {
+          await createSuggestion({
+            category: 'other',
+            title: t('auth.otherAcademicSuggestionTitle'),
+            message: pendingAcademicSuggestion.suggestionText,
+            contextType: 'academic_missing_option',
+            missingUniversity: pendingAcademicSuggestion.university === ACADEMIC_OTHER_KEY ? 'yes' : undefined,
+            missingCollege: pendingAcademicSuggestion.college === ACADEMIC_OTHER_KEY ? 'yes' : undefined,
+            missingDepartment: pendingAcademicSuggestion.department === ACADEMIC_OTHER_KEY ? 'yes' : undefined,
+            selectedUniversity: pendingAcademicSuggestion.university || undefined,
+            selectedCollege: pendingAcademicSuggestion.college || undefined,
+            selectedDepartment: pendingAcademicSuggestion.department || undefined,
+            selectedStage: pendingAcademicSuggestion.stage || undefined,
+          });
+        } catch (error) {
+        }
+      }
       
       const completeUserData = await getCompleteUserData();
       
