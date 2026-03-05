@@ -2,6 +2,7 @@ import { databases, config } from './config';
 import { ID, Query } from 'appwrite';
 import { CHAT_TYPES, createChat, createGroupChat, getUserGroupChats, decryptChatPreviews, ensureChatParticipant } from './chats';
 import { getUserById } from './users';
+import { chatsCacheManager } from '../app/utils/cacheManager';
 
 export const PRIVATE_CHAT_TYPE = 'private';
 export const CUSTOM_GROUP_TYPE = 'custom_group';
@@ -282,7 +283,12 @@ export const getUserCustomGroups = async (userId) => {
     }
 };
 
-export const getAllUserChats = async (userId, department, stage) => {
+export const getAllUserChats = async (userId, department, stage, options = {}) => {
+    const {
+        useCache = true,
+        skipNetwork = false,
+    } = options;
+
     const ensureArray = (value) => (Array.isArray(value) ? value : []);
 
     const dedupeById = (items = []) => {
@@ -345,23 +351,39 @@ export const getAllUserChats = async (userId, department, stage) => {
     };
 
     const hydratePrivateChatsWithOtherUser = async (privateChats = []) => {
-        return await Promise.all(
-            ensureArray(privateChats).map(async (chat) => {
+        const chatsList = ensureArray(privateChats);
+        const uniqueOtherUserIds = [
+            ...new Set(
+                chatsList
+                    .map((chat) => chat?.participants?.find((id) => id !== userId))
+                    .filter(Boolean)
+            ),
+        ];
+
+        const userMap = {};
+        await Promise.all(
+            uniqueOtherUserIds.map(async (otherUserId) => {
                 try {
-                    if (chat?.otherUser?.$id || chat?.otherUser?.userID) {
-                        return chat;
-                    }
-                    const otherUserId = chat?.participants?.find(id => id !== userId);
-                    if (!otherUserId) {
-                        return chat;
-                    }
-                    const otherUser = await getUserById(otherUserId);
-                    return { ...chat, otherUser };
-                } catch (error) {
-                    return chat;
+                    userMap[otherUserId] = await getUserById(otherUserId);
+                } catch {
+                    userMap[otherUserId] = null;
                 }
             })
         );
+
+        return chatsList.map((chat) => {
+            if (chat?.otherUser?.$id || chat?.otherUser?.userID) {
+                return chat;
+            }
+
+            const otherUserId = chat?.participants?.find((id) => id !== userId);
+            if (!otherUserId) {
+                return chat;
+            }
+
+            const otherUser = userMap[otherUserId];
+            return otherUser ? { ...chat, otherUser } : chat;
+        });
     };
     
     try {
@@ -371,7 +393,23 @@ export const getAllUserChats = async (userId, department, stage) => {
             privateChats: [],
         };
 
+        const cacheKey = chatsCacheManager.generateCacheKey(userId, department || 'none', stage || 'all');
+
         if (!userId) {
+            return results;
+        }
+
+        if (useCache) {
+            const cached = await chatsCacheManager.getCachedChats(cacheKey);
+            if (cached?.value) {
+                const normalizedCached = normalizeChatsShape(cached.value);
+                if (skipNetwork || !cached.isStale) {
+                    return normalizedCached;
+                }
+            }
+        }
+
+        if (skipNetwork) {
             return results;
         }
 
@@ -388,6 +426,8 @@ export const getAllUserChats = async (userId, department, stage) => {
         const privateChatsWithOtherUser = await hydratePrivateChatsWithOtherUser(dedupeById(ensureArray(privateChats)));
         
         results.privateChats = dedupeById(await decryptChatPreviews(privateChatsWithOtherUser, userId));
+
+        await chatsCacheManager.cacheChats(cacheKey, results);
 
         return results;
     } catch (error) {

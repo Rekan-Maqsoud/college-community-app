@@ -7,8 +7,13 @@ const { width, height } = Dimensions.get('window');
 const AnimatedBackground = ({ particleCount = 35 }) => {
   const context = useAppSettingsSafe();
   const isDarkMode = context?.isDarkMode || false;
+  const reduceMotion = context?.reduceMotion || false;
+  const motionProfile = context?.motionProfile;
+  const effectiveParticleCount = reduceMotion
+    ? Math.max(4, Math.round(particleCount * 0.35))
+    : particleCount;
   const particles = useRef(
-    Array.from({ length: particleCount }, (i) => {
+    Array.from({ length: effectiveParticleCount }, () => {
       const startX = Math.random() * width;
       const startY = -50 - Math.random() * 100;
       return {
@@ -21,10 +26,13 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
 
   useEffect(() => {
     const animations = particles.map((particle, index) => {
-      const duration = 25000 + Math.random() * 15000;
+      const duration = reduceMotion
+        ? 42000 + Math.random() * 12000
+        : 25000 + Math.random() * 15000;
       const delay = index * 300;
       const currentStartX = particle.translateX._value;
-      const endX = currentStartX + (width * 0.3);
+      const horizontalTravel = reduceMotion ? width * 0.12 : width * 0.3;
+      const endX = currentStartX + horizontalTravel;
       
       const moveAnimation = Animated.loop(
         Animated.sequence([
@@ -58,24 +66,28 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
         ])
       );
 
-      const opacityAnimation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(particle.opacity, {
-            toValue: Math.random() * 0.3 + 0.4,
-            duration: 2000 + Math.random() * 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(particle.opacity, {
-            toValue: Math.random() * 0.2 + 0.1,
-            duration: 2000 + Math.random() * 1000,
-            useNativeDriver: true,
-          }),
-        ])
-      );
+      const opacityAnimation = reduceMotion
+        ? null
+        : Animated.loop(
+            Animated.sequence([
+              Animated.timing(particle.opacity, {
+                toValue: Math.random() * 0.3 + 0.4,
+                duration: 2000 + Math.random() * 1000,
+                useNativeDriver: true,
+              }),
+              Animated.timing(particle.opacity, {
+                toValue: Math.random() * 0.2 + 0.1,
+                duration: 2000 + Math.random() * 1000,
+                useNativeDriver: true,
+              }),
+            ])
+          );
 
       moveAnimation.start();
       moveYAnimation.start();
-      opacityAnimation.start();
+      if (opacityAnimation) {
+        opacityAnimation.start();
+      }
 
       return { moveAnimation, moveYAnimation, opacityAnimation };
     });
@@ -84,10 +96,12 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
       animations.forEach(({ moveAnimation, moveYAnimation, opacityAnimation }) => {
         moveAnimation.stop();
         moveYAnimation.stop();
-        opacityAnimation.stop();
+        if (opacityAnimation) {
+          opacityAnimation.stop();
+        }
       });
     };
-  }, []);
+  }, [reduceMotion, motionProfile?.targetFps]);
 
   return (
     <View style={styles.container} pointerEvents="none">
@@ -101,7 +115,7 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
                 { translateX: particle.translateX },
                 { translateY: particle.translateY },
               ],
-              opacity: particle.opacity,
+              opacity: reduceMotion ? 0.18 : particle.opacity,
               backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 122, 255, 0.3)',
               shadowColor: isDarkMode ? '#fff' : '#007AFF',
             },

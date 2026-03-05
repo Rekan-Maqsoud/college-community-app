@@ -15,7 +15,7 @@ import { borderRadius } from '../theme/designTokens';
 import { FEED_TYPES } from '../constants/feedCategories';
 
 const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }) => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, reduceMotion } = useAppSettings();
   const indicatorAnim = useRef(new Animated.Value(0)).current;
   const [containerWidth, setContainerWidth] = useState(wp(60));
   const { width } = useWindowDimensions();
@@ -44,13 +44,21 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
 
   useEffect(() => {
     const selectedIndex = feeds.findIndex(feed => feed.type === selectedFeed);
-    Animated.spring(indicatorAnim, {
-      toValue: selectedIndex,
-      useNativeDriver: true,
-      tension: 68,
-      friction: 12,
-    }).start();
-  }, [selectedFeed]);
+    const animation = reduceMotion
+      ? Animated.timing(indicatorAnim, {
+          toValue: selectedIndex,
+          duration: 100,
+          useNativeDriver: true,
+        })
+      : Animated.spring(indicatorAnim, {
+          toValue: selectedIndex,
+          useNativeDriver: true,
+          tension: 68,
+          friction: 12,
+        });
+
+    animation.start();
+  }, [selectedFeed, reduceMotion]);
 
   const handleFeedChange = (feedType) => {
     onFeedChange(feedType);

@@ -55,7 +55,16 @@ const POSTS_PER_PAGE = 15;
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
 const Home = ({ navigation, route }) => {
-  const { t, theme, isDarkMode, compactMode, triggerHaptic } = useAppSettings();
+  const {
+    t,
+    theme,
+    isDarkMode,
+    compactMode,
+    reduceMotion,
+    motionProfile,
+    densityProfile,
+    triggerHaptic,
+  } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { needsRep, hasActiveElection, dismiss: dismissRepPopup } = useRepDetection(user);
@@ -91,9 +100,12 @@ const Home = ({ navigation, route }) => {
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 375;
   const isVerySmallScreen = width < 340;
-  const headerHeight = isVerySmallScreen ? moderateScale(36) : isSmallScreen ? moderateScale(38) : moderateScale(44);
-  const actionButtonSize = isVerySmallScreen ? moderateScale(30) : isSmallScreen ? moderateScale(34) : moderateScale(40);
-  const headerIconSize = isVerySmallScreen ? moderateScale(14) : isSmallScreen ? moderateScale(16) : moderateScale(18);
+  const headerScale = densityProfile?.headerScale || 1;
+  const iconScale = densityProfile?.iconScale || 1;
+  const listGapScale = densityProfile?.listGapScale || 1;
+  const headerHeight = (isVerySmallScreen ? moderateScale(36) : isSmallScreen ? moderateScale(38) : moderateScale(44)) * headerScale;
+  const actionButtonSize = (isVerySmallScreen ? moderateScale(30) : isSmallScreen ? moderateScale(34) : moderateScale(40)) * headerScale;
+  const headerIconSize = (isVerySmallScreen ? moderateScale(14) : isSmallScreen ? moderateScale(16) : moderateScale(18)) * iconScale;
   const reportReasonOptions = [
     { key: 'self_harm', labelKey: 'selfHarm', icon: 'medkit-outline', color: '#DC2626', severityKey: 'critical' },
     { key: 'violence', labelKey: 'violence', icon: 'warning-outline', color: '#EF4444', severityKey: 'high' },
@@ -106,9 +118,9 @@ const Home = ({ navigation, route }) => {
     { key: 'other', labelKey: 'other', icon: 'ellipsis-horizontal-circle-outline', color: '#6B7280', severityKey: 'low' },
     { key: 'dont_like', labelKey: 'dontLike', icon: 'chatbubble-ellipses-outline', color: '#64748B', severityKey: 'feedback' },
   ];
-  const headerTop = insets.top + (isSmallScreen ? spacing.xs : spacing.sm);
-  const listTopPadding = headerHeight + spacing.md;
-  const loadingTopPadding = listTopPadding + spacing.xl;
+  const headerTop = insets.top + (isSmallScreen ? spacing.xs : spacing.sm) * (compactMode ? 0.8 : 1);
+  const listTopPadding = headerHeight + spacing.md * listGapScale;
+  const loadingTopPadding = listTopPadding + spacing.xl * listGapScale;
   const isAcademicOtherUser = hasAcademicOtherSelection({
     university: user?.university,
     college: user?.college,
@@ -295,11 +307,10 @@ const Home = ({ navigation, route }) => {
           // Near top - always show header
           headerVisible.current = true;
           headerTranslateY.stopAnimation();
-          Animated.spring(headerTranslateY, {
+          Animated.timing(headerTranslateY, {
             toValue: 0,
+            duration: reduceMotion ? 90 : 170,
             useNativeDriver: true,
-            tension: 100,
-            friction: 12,
           }).start();
         } else if (diff > 8 && currentScrollY > 50 && headerVisible.current) {
           // Scrolling down fast enough - hide header
@@ -307,18 +318,17 @@ const Home = ({ navigation, route }) => {
           headerTranslateY.stopAnimation();
           Animated.timing(headerTranslateY, {
             toValue: -120,
-            duration: 200,
+            duration: reduceMotion ? 110 : 200,
             useNativeDriver: true,
           }).start();
         } else if (diff < -3 && currentScrollY > 50 && !headerVisible.current) {
           // Scrolling up even slightly - show header immediately
           headerVisible.current = true;
           headerTranslateY.stopAnimation();
-          Animated.spring(headerTranslateY, {
+          Animated.timing(headerTranslateY, {
             toValue: 0,
+            duration: reduceMotion ? 95 : 170,
             useNativeDriver: true,
-            tension: 120,
-            friction: 10,
           }).start();
         }
 
@@ -328,7 +338,7 @@ const Home = ({ navigation, route }) => {
           setShowScrollToTop(shouldShow);
           Animated.timing(scrollToTopOpacity, {
             toValue: shouldShow ? 1 : 0,
-            duration: 200,
+            duration: reduceMotion ? 90 : 200,
             useNativeDriver: true,
           }).start();
         }
@@ -419,16 +429,13 @@ const Home = ({ navigation, route }) => {
         );
       }
 
-      // Enrich posts with user data for those missing userName
-      const enrichedPosts = await enrichPostsWithUserData(fetchedPosts);
-
       // Filter out posts from blocked users
       const filteredPosts = Array.isArray(blockedUsers) && blockedUsers.length > 0
-        ? enrichedPosts.filter(p => {
+        ? fetchedPosts.filter(p => {
             const isBlocked = blockedUsers.includes(p.userId);
             return !isBlocked;
           })
-        : enrichedPosts;
+        : fetchedPosts;
 
       if (reset) {
         setPosts(filteredPosts);
@@ -437,6 +444,25 @@ const Home = ({ navigation, route }) => {
         setPosts(prev => [...prev, ...filteredPosts]);
         setPage(prev => prev + 1);
       }
+
+      // Enrich in background so first paint is faster on slower networks/devices.
+      enrichPostsWithUserData(filteredPosts)
+        .then((enrichedPosts) => {
+          if (!Array.isArray(enrichedPosts) || enrichedPosts.length === 0) {
+            return;
+          }
+
+          if (reset) {
+            setPosts(enrichedPosts);
+            return;
+          }
+
+          setPosts((prev) => {
+            const enrichedMap = new Map(enrichedPosts.map((post) => [post.$id, post]));
+            return prev.map((post) => enrichedMap.get(post.$id) || post);
+          });
+        })
+        .catch(() => {});
 
       setHasMore(fetchedPosts.length === POSTS_PER_PAGE);
     } catch (error) {
@@ -858,9 +884,9 @@ const Home = ({ navigation, route }) => {
         keyExtractor={(item) => item.$id}
         renderItem={({ item, index }) => (
           <ReanimatedAnimated.View
-            entering={FadeInDown.delay(index * 60).duration(400).springify()}
+            entering={reduceMotion ? undefined : FadeInDown.delay(index * motionProfile.listItemEnterDelayMs).duration(motionProfile.listItemEnterDurationMs).springify()}
           >
-            <View style={styles.postContainer}>
+            <View style={[styles.postContainer, compactMode && styles.postContainerCompact]}>
               <PostCard
               post={item}
               onUserPress={() => handleUserPress({ $id: item.userId })}
@@ -880,7 +906,12 @@ const Home = ({ navigation, route }) => {
           </ReanimatedAnimated.View>
         )}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.postsListContent, { paddingTop: listTopPadding }, contentStyle]}
+        contentContainerStyle={[
+          styles.postsListContent,
+          compactMode && styles.postsListContentCompact,
+          { paddingTop: listTopPadding },
+          contentStyle,
+        ]}
         ListHeaderComponent={<GreetingBanner />}
         refreshControl={
           <RefreshControl
@@ -894,12 +925,12 @@ const Home = ({ navigation, route }) => {
         onEndReachedThreshold={0.5}
         ListFooterComponent={renderFooter}
         onScroll={handleScroll}
-        scrollEventThrottle={16}
+        scrollEventThrottle={motionProfile.scrollEventThrottle}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         windowSize={11}
-        maxToRenderPerBatch={10}
-        initialNumToRender={8}
+        maxToRenderPerBatch={reduceMotion ? 8 : 10}
+        initialNumToRender={compactMode ? 10 : 8}
         removeClippedSubviews={Platform.OS === 'android'}
       />
     );
@@ -922,7 +953,7 @@ const Home = ({ navigation, route }) => {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}>
 
-        <AnimatedBackground particleCount={18} />
+        <AnimatedBackground particleCount={compactMode ? 12 : 18} />
 
         <View style={[styles.content, { paddingTop: headerTop }]}>
           <Animated.View
@@ -1297,8 +1328,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(4),
     marginBottom: spacing.md,
   },
+  postContainerCompact: {
+    paddingHorizontal: wp(3),
+    marginBottom: spacing.sm,
+  },
   postsListContent: {
     paddingBottom: hp(6),
+  },
+  postsListContentCompact: {
+    paddingBottom: hp(4),
   },
   footerLoader: {
     paddingVertical: spacing.lg,

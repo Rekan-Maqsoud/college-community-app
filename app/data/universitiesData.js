@@ -230,6 +230,19 @@ export const universitiesData = {
           { key: 'persianLanguage', years: 4 },
         ],
       },
+      collegeOfArts: {
+        key: 'collegeOfArts',
+        departments: [
+          { key: 'archaeology', years: 4 },
+          { key: 'geography', years: 4 },
+          { key: 'history', years: 4 },
+          { key: 'media', years: 4 },
+          { key: 'philosophy', years: 4 },
+          { key: 'psychology', years: 4 },
+          { key: 'sociology', years: 4 },
+          { key: 'socialWork', years: 4 },
+        ],
+      },
       collegeOfLaw: { key: 'collegeOfLaw', departments: [{ key: 'law', years: 5 }] },
       collegeOfPoliticalScience: {
         key: 'collegeOfPoliticalScience',
@@ -1353,6 +1366,85 @@ export const universitiesData = {
       },
     },
   },
+
+  raparinTechnicalAndVocationalInstitute: {
+    key: 'raparinTechnicalAndVocationalInstitute',
+    colleges: {
+      departments: {
+        key: 'departments',
+        departments: [
+          { key: 'nursing', years: 2 },
+          { key: 'pharmacy', years: 2 },
+          { key: 'businessAndOfficeAdministration', years: 2 },
+          { key: 'informationTechnology', years: 2 },
+          { key: 'hvac', years: 2 },
+          { key: 'automotiveServicing', years: 2 },
+          { key: 'electronicAssemblyAndProduction', years: 2 },
+          { key: 'beautyCare', years: 2 },
+          { key: 'dressmakingAndFashionDesign', years: 2 },
+        ]
+      }
+    }
+  },
+  duhokPrivateTechnicalInstitute: {
+    key: 'duhokPrivateTechnicalInstitute',
+    colleges: {
+      departments: {
+        key: 'departments',
+        departments: [
+          { key: 'informationTechnology', years: 2 },
+          { key: 'businessAdministration', years: 2 },
+          { key: 'healthManagementInformationSystems', years: 2 },
+          { key: 'bankingManagement', years: 2 },
+          { key: 'pharmacy', years: 2 },
+          { key: 'healthAdministration', years: 2 },
+          { key: 'medicalLaboratoryTechnology', years: 2 },
+          { key: 'computerAidedDesignAndManufacturing', years: 2 },
+        ]
+      }
+    }
+  },
+  haibatSultanTechnicalInstitute: {
+    key: 'haibatSultanTechnicalInstitute',
+    colleges: {
+      departments: {
+        key: 'departments',
+        departments: [
+          { key: 'emergencyNursing', years: 2 },
+          { key: 'businessInformationTechnology', years: 2 },
+          { key: 'bankingAdministration', years: 2 },
+          { key: 'english', years: 2 },
+        ]
+      }
+    }
+  },
+  kalarPrivateTechnicalInstitute: {
+    key: 'kalarPrivateTechnicalInstitute',
+    colleges: {
+      departments: {
+        key: 'departments',
+        departments: [
+          { key: 'nursing', years: 2 },
+          { key: 'pharmacy', years: 2 },
+          { key: 'informationTechnology', years: 2 },
+          { key: 'englishLanguageAndLiterature', years: 2 },
+        ]
+      }
+    }
+  },
+  araratPrivateTechnicalInstitute: {
+    key: 'araratPrivateTechnicalInstitute',
+    colleges: {
+      departments: {
+        key: 'departments',
+        departments: [
+          { key: 'drillingEquipmentTechnology', years: 2 },
+          { key: 'nursing', years: 2 },
+          { key: 'englishLanguage', years: 2 },
+        ]
+      }
+    }
+  }
 ,
   raparinTechnicalAndVocationalInstitute: {
     key: 'raparinTechnicalAndVocationalInstitute',

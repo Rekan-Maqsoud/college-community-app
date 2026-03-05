@@ -623,7 +623,7 @@ const PostCard = ({
           />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
-          <View style={styles.topRow}>
+          <View style={[styles.topRow, compact && styles.topRowCompact]}>
             <TouchableOpacity onPress={onUserPress} style={styles.userNameContainer}>
               <Text style={[styles.userName, { color: theme.text }]} numberOfLines={1}>
                 {postOwnerName}
@@ -634,39 +634,43 @@ const PostCard = ({
                 <Text style={styles.youBadgeText}>{t('common.you') || 'You'}</Text>
               </View>
             )}
-            <Text style={[styles.timeText, { color: theme.textSecondary }]}>
+            <Text style={[styles.timeText, compact && styles.timeTextCompact, { color: theme.textSecondary }]}>
               {formatTimeAgo(post.$createdAt, t)}
             </Text>
-            {post.isEdited === true && (
-              <Text style={[styles.editedText, { color: theme.textTertiary }]}>
+            {post.isEdited === true && !compact && (
+              <Text style={[styles.editedText, compact && styles.editedTextCompact, { color: theme.textTertiary }]}>
                 ({t('post.edited')})
               </Text>
             )}
           </View>
-          <View style={styles.badgesRow}>
-            <View style={[styles.stageBadge, { backgroundColor: isDarkMode ? `${stageColor}15` : `${stageColor}20`, borderColor: stageColor }]}>
+          <View style={[styles.badgesRow, compact && styles.badgesRowCompact]}>
+            <View style={[styles.stageBadge, compact && styles.stageBadgeCompact, { backgroundColor: isDarkMode ? `${stageColor}15` : `${stageColor}20`, borderColor: stageColor }]}>
               <Text style={[styles.stageText, { color: stageColor }]}>
                 {t(`stages.${stageKey}`) || t(`stages.${post.stage}`)}
               </Text>
             </View>
-            <View style={[styles.typeBadgeInline, { backgroundColor: isDarkMode ? `${postColor}10` : `${postColor}18` }]}>
+            {!compact && (
+              <View style={[styles.typeBadgeInline, compact && styles.typeBadgeInlineCompact, { backgroundColor: isDarkMode ? `${postColor}10` : `${postColor}18` }]}>
               <Ionicons name={postIcon} size={moderateScale(10)} color={postColor} />
               <Text style={[styles.typeTextInline, { color: postColor }]}>
                 {t(`post.types.${post.postType}`)}
               </Text>
-            </View>
+              </View>
+            )}
             {post.isRepost === true && (
-              <View style={[styles.repostBadge, { backgroundColor: isDarkMode ? `${theme.primary}15` : `${theme.primary}20` }]}>
+              <View style={[styles.repostBadge, compact && styles.repostBadgeCompact, { backgroundColor: isDarkMode ? `${theme.primary}15` : `${theme.primary}20` }]}>
                 <Ionicons name="repeat-outline" size={moderateScale(10)} color={theme.primary} />
-                <Text style={[styles.repostText, { color: theme.primary }]}>
+                {!compact && (
+                  <Text style={[styles.repostText, { color: theme.primary }]}>
                   {t('post.reposted') || 'Reposted'}
-                </Text>
+                  </Text>
+                )}
               </View>
             )}
           </View>
         </View>
         <TouchableOpacity 
-          style={styles.menuButton}
+          style={[styles.menuButton, compact && styles.menuButtonCompact]}
           onPress={() => setShowMenu(true)}
           activeOpacity={0.6}
         >
@@ -679,10 +683,10 @@ const PostCard = ({
         <Text style={[styles.topic, { color: theme.text }, compact && styles.topicCompact]} numberOfLines={compact ? 1 : 2} selectable>
           {post.topic}
         </Text>
-        {post.text && !compact && (
+        {post.text && (
           <Text 
-            style={[styles.text, { color: theme.textSecondary }]} 
-            numberOfLines={isExpanded ? undefined : 3} 
+            style={[styles.text, compact && styles.textCompact, { color: theme.textSecondary }]}
+            numberOfLines={compact ? 2 : (isExpanded ? undefined : 3)}
             selectable
           >
             {post.text}
@@ -692,8 +696,8 @@ const PostCard = ({
         {renderPollBlock()}
 
         {post.links && post.links.length > 0 && (
-          <View style={styles.linksContainer}>
-            {(isExpanded ? post.links : post.links.slice(0, 2)).map((link, index) => {
+          <View style={[styles.linksContainer, compact && styles.linksContainerCompact]}>
+            {(isExpanded ? post.links : post.links.slice(0, compact ? 1 : 2)).map((link, index) => {
               const isEmail = link.includes('@') && !link.startsWith('http');
               const linkUrl = isEmail ? `mailto:${link}` : link;
               return (
@@ -701,14 +705,14 @@ const PostCard = ({
                   key={index}
                   onPress={() => Linking.openURL(linkUrl)}
                   activeOpacity={0.7}
-                  style={styles.linkChipDisplay}
+                  style={[styles.linkChipDisplay, compact && styles.linkChipDisplayCompact]}
                 >
                   <Ionicons 
                     name={isEmail ? 'mail-outline' : 'link-outline'} 
-                    size={moderateScale(14)} 
+                    size={compact ? moderateScale(12) : moderateScale(14)}
                     color="#3B82F6" 
                   />
-                  <Text style={styles.linkText} numberOfLines={1}>
+                  <Text style={[styles.linkText, compact && styles.linkTextCompact]} numberOfLines={1}>
                     {link}
                   </Text>
                 </TouchableOpacity>
@@ -718,15 +722,15 @@ const PostCard = ({
         )}
 
         {post.tags && post.tags.length > 0 && (
-          <View style={styles.tagsContainer}>
-            {(isExpanded ? post.tags : post.tags.slice(0, 4)).map((tag, index) => (
+          <View style={[styles.tagsContainer, compact && styles.tagsContainerCompact]}>
+            {(isExpanded ? post.tags : post.tags.slice(0, compact ? 2 : 4)).map((tag, index) => (
               <TouchableOpacity 
                 key={index} 
-                style={[styles.tag, { backgroundColor: isDarkMode ? `${theme.primary}20` : `${theme.primary}15` }]}
+                style={[styles.tag, compact && styles.tagCompact, { backgroundColor: isDarkMode ? `${theme.primary}20` : `${theme.primary}15` }]}
                 onPress={() => onTagPress && onTagPress(sanitizeTag(tag))}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.tagText, { color: theme.primary || '#3B82F6' }]}>#{sanitizeTag(tag)}</Text>
+                <Text style={[styles.tagText, compact && styles.tagTextCompact, { color: theme.primary || '#3B82F6' }]}>#{sanitizeTag(tag)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -751,9 +755,9 @@ const PostCard = ({
 
       {/* Footer */}
       <View style={[styles.footer, { borderTopColor: theme.border }, compact && styles.footerCompact]}>
-        <View style={styles.footerLeft}>
+        <View style={[styles.footerLeft, compact && styles.footerLeftCompact]}>
           <TouchableOpacity 
-            style={styles.actionButton}
+            style={[styles.actionButton, compact && styles.actionButtonCompact]}
             onPress={handleLikePress}
             onLongPress={handleLikeLongPress}
             delayLongPress={300}
@@ -765,24 +769,24 @@ const PostCard = ({
               size={footerIconSize} 
               color={liked ? "#EF4444" : theme.textSecondary} 
             />
-            <Text style={[styles.actionText, { color: liked ? "#EF4444" : theme.textSecondary }]}>
+            <Text style={[styles.actionText, compact && styles.actionTextCompact, { color: liked ? "#EF4444" : theme.textSecondary }]}>
               {likeCount}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.actionButton}
+            style={[styles.actionButton, compact && styles.actionButtonCompact]}
             onPress={onReply}
             activeOpacity={0.7}
           >
             <Ionicons name="chatbubble-outline" size={footerIconSize} color={theme.textSecondary} />
-            <Text style={[styles.actionText, { color: theme.textSecondary }]}>
-              {t('post.reply')} ({post.replyCount || 0})
+            <Text style={[styles.actionText, compact && styles.actionTextCompact, { color: theme.textSecondary }]}> 
+              {compact ? (post.replyCount || 0) : `${t('post.reply')} (${post.replyCount || 0})`}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.actionButton}
+            style={[styles.actionButton, compact && styles.actionButtonCompact]}
             onPress={handleShare}
             activeOpacity={0.7}
           >
@@ -790,7 +794,7 @@ const PostCard = ({
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.actionButton}
+            style={[styles.actionButton, compact && styles.actionButtonCompact]}
             onPress={() => setShowShareToChat(true)}
             activeOpacity={0.7}
           >
@@ -798,26 +802,30 @@ const PostCard = ({
           </TouchableOpacity>
         </View>
 
-        <View style={styles.footerRight}>
-          <View style={styles.statsItem}>
+        <View style={[styles.footerRight, compact && styles.footerRightCompact]}>
+          <View style={[styles.statsItem, compact && styles.statsItemCompact]}>
             <Ionicons name="eye-outline" size={footerStatsIconSize} color={theme.textTertiary} />
-            <Text style={[styles.statsText, { color: theme.textTertiary }]}>{post.viewCount || 0}</Text>
+            <Text style={[styles.statsText, compact && styles.statsTextCompact, { color: theme.textTertiary }]}>{post.viewCount || 0}</Text>
           </View>
           {post.postType === 'question' && (
-            <View style={styles.statsItem}>
+            <View style={[styles.statsItem, compact && styles.statsItemCompact]}>
               {resolved ? (
                 <>
                   <Ionicons name="checkmark-circle" size={footerStatsIconSize} color="#10B981" />
-                  <Text style={[styles.statsText, { color: '#10B981' }]}>
-                    {t('post.resolved')}
-                  </Text>
+                  {!compact && (
+                    <Text style={[styles.statsText, compact && styles.statsTextCompact, { color: '#10B981' }]}>
+                      {t('post.resolved')}
+                    </Text>
+                  )}
                 </>
               ) : (
                 <>
                   <Ionicons name="help-circle-outline" size={footerStatsIconSize} color="#F59E0B" />
-                  <Text style={[styles.statsText, { color: '#F59E0B' }]}>
-                    {t('post.unanswered')}
-                  </Text>
+                  {!compact && (
+                    <Text style={[styles.statsText, compact && styles.statsTextCompact, { color: '#F59E0B' }]}>
+                      {t('post.unanswered')}
+                    </Text>
+                  )}
                 </>
               )}
             </View>

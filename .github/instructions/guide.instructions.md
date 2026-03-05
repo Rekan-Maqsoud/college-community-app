@@ -2,46 +2,34 @@
 applyTo: "**"
 ---
 
-# 🎯 COLLEGE COMMUNITY - AI CODING GUIDE
+# COLLEGE COMMUNITY - AI CODING GUIDE
 
-> **IMPORTANT**: Before making ANY changes, consult:
->
-> - `project-map.instructions.md` - Complete file structure & purposes
-> - `ai-rules.instructions.md` - Coding patterns & rules
+Before making any change, consult:
+- `project-map.instructions.md` for file ownership/location
+- `ai-rules.instructions.md` for code style and editing constraints
+- `database-schema.instructions.md` for live Appwrite schema
 
----
+## Quick Rules
 
-## ⚡ QUICK RULES
+- No hardcoded user-facing text; use translation keys.
+- JavaScript only; do not add TypeScript syntax.
+- Keep changes minimal and targeted.
+- Do not leave TODO/FIXME or commented-out dead code.
+- Use functional components and hooks.
+- Use responsive utilities (`wp`, `hp`, `normalize`) and theme/context colors.
 
-| Rule                      | Description                       |
-| ------------------------- | --------------------------------- |
-| **No hardcoded text**     | Use translation keys (`t('key')`) |
-| **Minimal changes**       | Only edit necessary files         |
-| **No bulk deletions**     | Don't delete multiple files       |
-| **JavaScript only**       | NO TypeScript                     |
-| **Functional components** | Use hooks, not classes            |
-| **Follow existing style** | Match patterns in file            |
+## Workflow
 
-| **Complete TODOs**        | Don't leave incomplete            |
-| **No commented code**     | Remove unused code                |
-| **Find correct files**    | Use project-map to locate         |
+1. Identify target files using `project-map.instructions.md`.
+2. Read existing code and follow existing local patterns.
+3. Add translation keys to all locales (`en.js`, `ar.js`, `ku.js`) when needed.
+4. Verify behavior and error handling for touched flows.
 
----
+## Project Stack
 
-## 🔍 BEFORE EDITING
-
-1. Check `project-map.instructions.md` to find correct file(s)
-2. Read existing code to understand patterns
-3. Make minimal, focused changes
-4. Add translations to ALL 3 locales if new text
-
----
-
-## 🛠️ PROJECT STACK
-
-- **Framework**: React Native + Expo SDK 54
-- **Backend**: Appwrite
-- **Navigation**: React Navigation
-- **State**: Context API
-- **i18n**: i18n-js (en, ar, ku)
-- **Styling**: StyleSheet + responsive utils
+- React Native (Expo SDK 54)
+- Appwrite backend (Auth/Databases/Storage/Realtime)
+- React Navigation (Stack + Bottom Tabs)
+- Context API state management
+- i18n-js (`en`, `ar`, `ku`)
+- Jest (`jest-expo`) test suite

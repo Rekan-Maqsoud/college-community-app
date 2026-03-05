@@ -893,11 +893,7 @@ const MessageInput = ({
         const resolvedFileSize = await resolveSelectedFileSize(fileToSend);
         validateFileUploadSize(resolvedFileSize, MAX_FILE_UPLOAD_BYTES);
 
-        console.log('[MessageInput] sending file', {
-          name: fileToSend.name,
-          mimeType: fileToSend.mimeType,
-          size: resolvedFileSize,
-        });
+
 
         const uploadedFile = await uploadChatFile({
           uri: fileToSend.uri,

@@ -37,6 +37,7 @@ import {
 } from '../utils/responsive';
 import { borderRadius, shadows } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
+import telemetry from '../utils/telemetry';
 
 const getAcademicChangesCountFromProfileViews = (profileViews) => {
   if (!profileViews) return 0;
@@ -550,6 +551,13 @@ const SignUp = ({ navigation, route }) => {
   const handleSignUp = async () => {
     if (!validateForm()) return;
 
+    const signUpTrace = telemetry.startTrace('auth_sign_up', {
+      oauthMode,
+      hasAcademicOther,
+      stage,
+      emailDomain: String(email || '').includes('@') ? String(email || '').split('@').pop() : 'unknown',
+    });
+
     setIsLoading(true);
     
     try {
@@ -564,6 +572,7 @@ const SignUp = ({ navigation, route }) => {
       const stageYear = stageYearMap[stage] || parseInt(stage, 10);
       if (!stageYear) {
         setIsLoading(false);
+        signUpTrace.finish({ success: false, meta: { reason: 'invalid_stage' } });
         showAlert({ type: 'error', title: t('common.error'), message: t('auth.stageRequired') });
         return;
       }
@@ -638,6 +647,7 @@ const SignUp = ({ navigation, route }) => {
           };
           
           await setUserData(userData);
+          signUpTrace.finish({ success: true, meta: { path: 'oauth_complete' } });
           navigation.replace('MainTabs');
         }
       } else {
@@ -667,9 +677,11 @@ const SignUp = ({ navigation, route }) => {
             academicSuggestionPayload,
           }
         });
+        signUpTrace.finish({ success: true, meta: { path: 'otp_verify' } });
       }
       
     } catch (error) {
+      signUpTrace.finish({ success: false, error });
       setIsLoading(false);
       const isEmailExistsError =
         error.message?.includes('user with the same email') ||

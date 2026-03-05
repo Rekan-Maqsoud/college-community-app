@@ -18,7 +18,7 @@ const LAST_GREETING_KEY = '@last_greeting_index';
 const LAST_GREETING_DATE_KEY = '@last_greeting_date';
 
 const GreetingBanner = () => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, reduceMotion, compactMode } = useAppSettings();
   const { user } = useUser();
   const [greeting, setGreeting] = useState({ text: '', icon: 'sunny-outline' });
   
@@ -367,7 +367,13 @@ const GreetingBanner = () => {
     const initGreeting = async () => {
       const newGreeting = await getRandomGreeting();
       setGreeting(newGreeting);
-      
+
+      if (reduceMotion) {
+        fadeAnim.setValue(1);
+        slideAnim.setValue(0);
+        return;
+      }
+
       // Start animations
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -385,10 +391,15 @@ const GreetingBanner = () => {
     };
 
     initGreeting();
-  }, []);
+  }, [getRandomGreeting, reduceMotion, fadeAnim, slideAnim]);
 
   // Shimmer animation loop
   useEffect(() => {
+    if (reduceMotion) {
+      shimmerAnim.setValue(0);
+      return;
+    }
+
     const shimmerLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(shimmerAnim, {
@@ -406,10 +417,15 @@ const GreetingBanner = () => {
     );
     shimmerLoop.start();
     return () => shimmerLoop.stop();
-  }, [shimmerAnim]);
+  }, [shimmerAnim, reduceMotion]);
 
   // Subtle pulse animation for icon
   useEffect(() => {
+    if (reduceMotion) {
+      pulseAnim.setValue(1);
+      return;
+    }
+
     const pulseLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -428,7 +444,7 @@ const GreetingBanner = () => {
     );
     pulseLoop.start();
     return () => pulseLoop.stop();
-  }, [pulseAnim]);
+  }, [pulseAnim, reduceMotion]);
 
   // Gradient colors based on time and theme
   const getGradientColors = () => {
@@ -463,6 +479,7 @@ const GreetingBanner = () => {
     <Animated.View
       style={[
         styles.container,
+        compactMode && styles.containerCompact,
         {
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
@@ -473,33 +490,36 @@ const GreetingBanner = () => {
         colors={getGradientColors()}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.gradientContainer}
+        style={[styles.gradientContainer, compactMode && styles.gradientContainerCompact]}
       >
         {/* Shimmer overlay */}
-        <Animated.View
-          style={[
-            styles.shimmerOverlay,
-            {
-              transform: [{ translateX: shimmerTranslate }],
-            },
-          ]}
-        >
-          <LinearGradient
-            colors={[
-              'transparent',
-              isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.3)',
-              'transparent',
+        {!reduceMotion && (
+          <Animated.View
+            style={[
+              styles.shimmerOverlay,
+              {
+                transform: [{ translateX: shimmerTranslate }],
+              },
             ]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.shimmerGradient}
-          />
-        </Animated.View>
+          >
+            <LinearGradient
+              colors={[
+                'transparent',
+                isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.3)',
+                'transparent',
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.shimmerGradient}
+            />
+          </Animated.View>
+        )}
 
         <View style={styles.content}>
           <Animated.View
             style={[
               styles.iconContainer,
+              compactMode && styles.iconContainerCompact,
               {
                 transform: [{ scale: pulseAnim }],
                 backgroundColor: isDarkMode
@@ -518,6 +538,7 @@ const GreetingBanner = () => {
           <Text
             style={[
               styles.greetingText,
+              compactMode && styles.greetingTextCompact,
               {
                 color: isDarkMode ? '#fff' : '#333',
               },
@@ -554,6 +575,16 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
+  containerCompact: {
+    marginBottom: spacing.xs,
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  gradientContainerCompact: {
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.sm + 2,
+  },
   shimmerOverlay: {
     position: 'absolute',
     top: 0,
@@ -579,11 +610,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: spacing.sm,
   },
+  iconContainerCompact: {
+    width: moderateScale(30),
+    height: moderateScale(30),
+    borderRadius: moderateScale(15),
+    marginRight: spacing.xs + 1,
+  },
   greetingText: {
     flex: 1,
     fontSize: normalize(14),
     fontWeight: '600',
     letterSpacing: 0.3,
+  },
+  greetingTextCompact: {
+    fontSize: normalize(12),
+    letterSpacing: 0.2,
   },
   decorCircle: {
     position: 'absolute',

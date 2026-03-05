@@ -6,7 +6,7 @@
       "collegecommunity",
       "appwrite-callback-69a46b6f0020cf0d5e4b"
     ],
-    "version": "1.0.8",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -18,7 +18,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "8",
+      "buildNumber": "9",
       "googleServicesFile": "./GoogleService-Info.plist",
       "bundleIdentifier": "com.college.community",
       "infoPlist": {
@@ -36,7 +36,7 @@
     },
     "android": {
       "package": "com.collegecommunity",
-      "versionCode": 8,
+      "versionCode": 9,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

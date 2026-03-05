@@ -1,0 +1,2021 @@
+{
+  "generatedAt": "2026-03-05T18:59:48.387Z",
+  "endpoint": "https://api.collegecommunity.app/v1",
+  "projectId": "69a46b6f0020cf0d5e4b",
+  "databaseId": "68fc78fd0030f049a781",
+  "collections": [
+    {
+      "id": "68fc7b42001bf7efbba3",
+      "name": "users",
+      "permissions": [
+        "create(\"users\")",
+        "read(\"users\")",
+        "update(\"users\")"
+      ],
+      "documentSecurity": true,
+      "enabled": true,
+      "attributes": [
+        {
+          "key": "name",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "email",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 320,
+          "default": null
+        },
+        {
+          "key": "bio",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null
+        },
+        {
+          "key": "profilePicture",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "isEmailVerified",
+          "type": "boolean",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "university",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "major",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "year",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": 1,
+          "max": 6,
+          "default": 1
+        },
+        {
+          "key": "followersCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 9223372036854776000,
+          "default": 0
+        },
+        {
+          "key": "followingCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 9223372036854776000,
+          "default": 0
+        },
+        {
+          "key": "postsCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 9223372036854776000,
+          "default": 0
+        },
+        {
+          "key": "department",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "lastAcademicUpdate",
+          "type": "datetime",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "following",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 999999,
+          "default": null
+        },
+        {
+          "key": "followers",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 999999,
+          "default": null
+        },
+        {
+          "key": "blockedUsers",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 999999,
+          "default": null
+        },
+        {
+          "key": "gender",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 30,
+          "default": null
+        },
+        {
+          "key": "isActive",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "isPrivateProfile",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "coverPhoto",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null
+        },
+        {
+          "key": "lastSeen",
+          "type": "datetime",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "profileViews",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "publicKey",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "userId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "bookmarkedPostIds",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 5000,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "68ff7914000948dbd572",
+      "name": "posts",
+      "permissions": [
+        "create(\"users\")",
+        "read(\"users\")",
+        "update(\"users\")"
+      ],
+      "documentSecurity": true,
+      "enabled": true,
+      "attributes": [
+        {
+          "key": "userId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 500,
+          "default": null
+        },
+        {
+          "key": "text",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "topic",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "department",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "stage",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "postType",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "images",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "imageDeleteUrls",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "isResolved",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "viewCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
+          "default": 0
+        },
+        {
+          "key": "likeCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
+          "default": 0
+        },
+        {
+          "key": "replyCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
+          "default": 0
+        },
+        {
+          "key": "isEdited",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "tags",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "links",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "likedBy",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 999999,
+          "default": null
+        },
+        {
+          "key": "viewedBy",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 999999,
+          "default": null
+        },
+        {
+          "key": "isHiddenFromProfile",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "semester",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 20,
+          "default": null
+        },
+        {
+          "key": "canOthersRepost",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "isRepost",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "repostCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
+          "default": null
+        },
+        {
+          "key": "reportCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
+          "default": null
+        },
+        {
+          "key": "isHidden",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "originalPostId",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "68ff7b8f000492463724",
+      "name": "replies",
+      "permissions": [
+        "create(\"users\")",
+        "read(\"users\")",
+        "update(\"users\")"
+      ],
+      "documentSecurity": true,
+      "enabled": true,
+      "attributes": [
+        {
+          "key": "postId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null
+        },
+        {
+          "key": "userId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null
+        },
+        {
+          "key": "text",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 500,
+          "default": null
+        },
+        {
+          "key": "isAccepted",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "images",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "imageDeleteUrls",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "likeCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
+          "default": 0
+        },
+        {
+          "key": "isEdited",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "parentReplyId",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "upCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 9223372036854776000,
+          "default": 0
+        },
+        {
+          "key": "downCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 9223372036854776000,
+          "default": 0
+        },
+        {
+          "key": "upvotedBy",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 50000,
+          "default": null
+        },
+        {
+          "key": "downvotedBy",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 50000,
+          "default": null
+        },
+        {
+          "key": "links",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 16384,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "chats",
+      "name": "chats",
+      "permissions": [
+        "create(\"users\")",
+        "read(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "documentSecurity": true,
+      "enabled": true,
+      "attributes": [
+        {
+          "key": "name",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null
+        },
+        {
+          "key": "department",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "type",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "stage",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "requiresRepresentative",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "representatives",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "lastMessage",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "messageCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 9223372036854776000,
+          "default": null
+        },
+        {
+          "key": "lastMessageAt",
+          "type": "datetime",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "participants",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 999999,
+          "default": null
+        },
+        {
+          "key": "chatKey",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "admins",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "settings",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "groupPhoto",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "pinnedMessages",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "typingUsers",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "course",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 200,
+          "default": null
+        },
+        {
+          "key": "isStudyGroup",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "lastMessageSenderId",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "messages",
+      "name": "messages",
+      "permissions": [
+        "create(\"users\")",
+        "read(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "documentSecurity": true,
+      "enabled": true,
+      "attributes": [
+        {
+          "key": "chatId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "senderId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "senderName",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "content",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "images",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "type",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null
+        },
+        {
+          "key": "imageUrl",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "readBy",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 99999,
+          "default": null
+        },
+        {
+          "key": "replyToId",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "replyToContent",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 200,
+          "default": null
+        },
+        {
+          "key": "replyToSender",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "isPinned",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "pinnedBy",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "pinnedAt",
+          "type": "datetime",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "mentionsAll",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "mentions",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "reactions",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 20,
+          "default": "sent"
+        },
+        {
+          "key": "deliveredTo",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 50000,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "69500c9c000bd955c984",
+      "name": "userChatSettings",
+      "permissions": [
+        "create(\"users\")",
+        "read(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "documentSecurity": true,
+      "enabled": true,
+      "attributes": [
+        {
+          "key": "userId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "chatId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "isMuted",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "muteExpiresAt",
+          "type": "datetime",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "muteType",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": "none"
+        },
+        {
+          "key": "bookmarkedMsgs",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "notifyOnMention",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "notifyOnAll",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "clearedAt",
+          "type": "datetime",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "hiddenMessageIds",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 99999,
+          "default": null
+        },
+        {
+          "key": "isArchived",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "archivedAt",
+          "type": "datetime",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "reactionDefaults",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 5000,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "69554fd5001d447c8c1c",
+      "name": "notifications",
+      "permissions": [
+        "create(\"users\")",
+        "read(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "documentSecurity": true,
+      "enabled": true,
+      "attributes": [
+        {
+          "key": "senderId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "senderName",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "postId",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "userId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "senderProfilePicture",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 999,
+          "default": null
+        },
+        {
+          "key": "type",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "postPreview",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "isRead",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "new_follower",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "pushtokens",
+      "name": "pushTokens",
+      "permissions": [
+        "create(\"users\")",
+        "read(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "documentSecurity": true,
+      "enabled": true,
+      "attributes": [
+        {
+          "key": "userId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null
+        },
+        {
+          "key": "token",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "platform",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 10,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "699733ee001cbf86e7a4",
+      "name": "Lecture Channels",
+      "permissions": [
+        "create(\"users\")",
+        "read(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "documentSecurity": true,
+      "enabled": true,
+      "attributes": [
+        {
+          "key": "name",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "channelType",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "accessType",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "ownerId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "managerIds",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "linkedChatId",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "isActive",
+          "type": "boolean",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "membersCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 9223372036854776000,
+          "default": null
+        },
+        {
+          "key": "pendingCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 9223372036854776000,
+          "default": null
+        },
+        {
+          "key": "notificationsDefaultOn",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "settingsJson",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "tags",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 5000,
+          "default": null
+        },
+        {
+          "key": "coverImageUrl",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 2000,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "699734170003f998b862",
+      "name": "Lecture Memberships",
+      "permissions": [
+        "create(\"users\")",
+        "read(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "documentSecurity": true,
+      "enabled": true,
+      "attributes": [
+        {
+          "key": "channelId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "userId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "joinStatus",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "role",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "requestedAt",
+          "type": "datetime",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "approvedAt",
+          "type": "datetime",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "notificationsEnabled",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "settingsJson",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 5000,
+          "default": null
+        },
+        {
+          "key": "pinnedChannelsJson",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 5000,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "6997342b0012ee32448b",
+      "name": "Lecture Assets",
+      "permissions": [
+        "create(\"users\")",
+        "read(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "documentSecurity": true,
+      "enabled": true,
+      "attributes": [
+        {
+          "key": "channelId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "title",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "uploadType",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "uploaderId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "youtubeUrl",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "externalUrl",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "fileUrl",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "fileId",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "fileName",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "fileSize",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
+          "default": null
+        },
+        {
+          "key": "mimeType",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "isPinned",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "isActive",
+          "type": "boolean",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "viewsCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 9223372036854776000,
+          "default": 0
+        },
+        {
+          "key": "opensCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 9223372036854776000,
+          "default": 0
+        },
+        {
+          "key": "downloadsCount",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 9223372036854776000,
+          "default": 0
+        },
+        {
+          "key": "tags",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 5000,
+          "default": null
+        },
+        {
+          "key": "viewedBy",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 640,
+          "default": null
+        },
+        {
+          "key": "openedBy",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 640,
+          "default": null
+        },
+        {
+          "key": "downloadedBy",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 640,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "69973f680024de7fd9fe",
+      "name": "lectureComments",
+      "permissions": [
+        "create(\"users\")",
+        "read(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "documentSecurity": true,
+      "enabled": true,
+      "attributes": [
+        {
+          "key": "commentId",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 640,
+          "default": null
+        },
+        {
+          "key": "channelId",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 640,
+          "default": null
+        },
+        {
+          "key": "assetId",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 640,
+          "default": null
+        },
+        {
+          "key": "userId",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 640,
+          "default": null
+        },
+        {
+          "key": "text",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "parentCommentId",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 640,
+          "default": null
+        },
+        {
+          "key": "mentions",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "6999f9de00313552a9c9",
+      "name": "repElections",
+      "permissions": [
+        "create(\"users\")",
+        "read(\"users\")",
+        "update(\"users\")"
+      ],
+      "documentSecurity": true,
+      "enabled": true,
+      "attributes": [
+        {
+          "key": "seatNumber",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": 1,
+          "max": 3,
+          "default": 1
+        },
+        {
+          "key": "totalStudents",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 9223372036854776000,
+          "default": 0
+        },
+        {
+          "key": "reselectionThreshold",
+          "type": "integer",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 9223372036854776000,
+          "default": 0
+        },
+        {
+          "key": "startedAt",
+          "type": "datetime",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "endedAt",
+          "type": "datetime",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "department",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "stage",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "winner",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "reselectionVoters",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": true,
+          "size": 255,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "6999fed2001ac021d056",
+      "name": "repVotes",
+      "permissions": [
+        "create(\"users\")",
+        "read(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "documentSecurity": true,
+      "enabled": true,
+      "attributes": [
+        {
+          "key": "electionId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "department",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "stage",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "voterId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "candidateId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "suggestions",
+      "name": "Suggestions",
+      "permissions": [
+        "create(\"users\")",
+        "read(\"team:admins\")",
+        "update(\"team:admins\")",
+        "delete(\"team:admins\")"
+      ],
+      "documentSecurity": true,
+      "enabled": true,
+      "attributes": [
+        {
+          "key": "userId",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "userName",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null
+        },
+        {
+          "key": "userEmail",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 320,
+          "default": null
+        },
+        {
+          "key": "category",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 32,
+          "default": null
+        },
+        {
+          "key": "title",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 120,
+          "default": null
+        },
+        {
+          "key": "message",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 16384,
+          "default": null
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "status": "available",
+          "required": true,
+          "array": false,
+          "size": 32,
+          "default": null
+        },
+        {
+          "key": "appVersion",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null
+        },
+        {
+          "key": "platform",
+          "type": "string",
+          "status": "available",
+          "required": false,
+          "array": false,
+          "size": 32,
+          "default": null
+        }
+      ]
+    }
+  ]
+}

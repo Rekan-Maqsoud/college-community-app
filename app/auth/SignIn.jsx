@@ -33,6 +33,7 @@ import {
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
+import telemetry from '../utils/telemetry';
 
 const getAcademicChangesCountFromProfileViews = (profileViews) => {
   if (!profileViews) return 0;
@@ -129,6 +130,11 @@ const SignIn = ({ navigation, route }) => {
       return;
     }
 
+    const signInTrace = telemetry.startTrace('auth_sign_in', {
+      hasEmail: Boolean(email?.trim()),
+      emailDomain: String(email || '').includes('@') ? String(email || '').split('@').pop() : 'unknown',
+    });
+
     setIsLoading(true);
 
     try {
@@ -159,6 +165,7 @@ const SignIn = ({ navigation, route }) => {
             };
             
             await setUserData(userData);
+            signInTrace.finish({ success: true, meta: { reusedSession: true } });
             navigation.replace('MainTabs');
             return;
           }
@@ -194,8 +201,10 @@ const SignIn = ({ navigation, route }) => {
         await setUserData(userData);
       }
       
+      signInTrace.finish({ success: true, meta: { reusedSession: false } });
       navigation.replace('MainTabs');
     } catch (error) {
+      signInTrace.finish({ success: false, error });
       let errorMessage = t('auth.signInError');
       
       if (error.message?.includes('Invalid credentials') || error.message?.includes('user') || error.message?.includes('password')) {
@@ -219,26 +228,15 @@ const SignIn = ({ navigation, route }) => {
 
   const handleGoogleSignIn = async () => {
     if (isGoogleLoading) return;
+    const googleTrace = telemetry.startTrace('auth_google_sign_in');
     
-    console.log('[GoogleAuth][SignIn] Google sign-in pressed');
     setIsGoogleLoading(true);
     
     try {
       const result = await signInWithGoogle();
-      console.log('[GoogleAuth][SignIn] signInWithGoogle result', {
-        success: result?.success,
-        cancelled: result?.cancelled,
-        error: result?.error,
-      });
       
       if (result.success) {
         const userCheck = await checkOAuthUserExists();
-        console.log('[GoogleAuth][SignIn] checkOAuthUserExists result', {
-          exists: userCheck?.exists,
-          hasUser: Boolean(userCheck?.user),
-          hasUserDoc: Boolean(userCheck?.userDoc),
-          email: userCheck?.email || userCheck?.user?.email || null,
-        });
         
         if (userCheck.exists && userCheck.userDoc) {
           const completeUserData = await getCompleteUserData();
@@ -264,23 +262,20 @@ const SignIn = ({ navigation, route }) => {
             };
             
             await setUserData(userData);
-            console.log('[GoogleAuth][SignIn] Existing OAuth user completed, navigating to MainTabs');
+            googleTrace.finish({ success: true, meta: { path: 'existing_user' } });
             navigation.replace('MainTabs');
           }
         } else if (userCheck.user) {
           const oauthResolvedEmail = userCheck.email || userCheck.user.email || '';
 
           if (!isEducationalEmail(oauthResolvedEmail)) {
-            console.log('[GoogleAuth][SignIn] Blocked non-educational OAuth email', {
-              email: oauthResolvedEmail,
-            });
-
             await signOut();
             showAlert({
               type: 'error',
               title: t('common.error'),
               message: t('auth.educationalEmailRequired'),
             });
+            googleTrace.finish({ success: false, meta: { reason: 'non_educational_email' } });
             return;
           }
 
@@ -296,17 +291,17 @@ const SignIn = ({ navigation, route }) => {
             oauthName: userCheck.name || userCheck.user.name || '',
             oauthUserId: userCheck.user.$id,
           });
+          googleTrace.finish({ success: true, meta: { path: 'needs_profile_completion' } });
         }
       } else if (result.cancelled) {
-        console.log('[GoogleAuth][SignIn] Google sign-in cancelled');
+        googleTrace.finish({ success: true, meta: { cancelled: true } });
         setIsGoogleLoading(false);
         return;
+      } else {
+        googleTrace.finish({ success: false, meta: { reason: 'google_sign_in_unsuccessful' } });
       }
     } catch (error) {
-      console.log('[GoogleAuth][SignIn] Google sign-in error', {
-        message: error?.message,
-        code: error?.code,
-      });
+      googleTrace.finish({ success: false, error });
       let errorMessage = t('auth.googleSignInError');
       
       if (error.message?.includes('network') || error.message?.includes('Network')) {

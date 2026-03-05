@@ -63,6 +63,8 @@ import useLayout from '../hooks/useLayout';
 import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
 import { REFRESH_TOPICS, subscribeToRefreshTopic } from '../utils/dataRefreshBus';
 import { hasAcademicOtherSelection } from '../utils/academicSelection';
+import { unreadCountCacheManager } from '../utils/cacheManager';
+import telemetry from '../utils/telemetry';
 
 const Chats = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
@@ -418,18 +420,34 @@ const Chats = ({ navigation }) => {
   }, [user]);
 
   const initializeAndLoadChats = async () => {
+    if (!user?.$id) {
+      setInitializing(false);
+      setLoading(false);
+      return;
+    }
+
+    const stageValue = stageToValue(user?.stage);
+    const departmentForGroups = isAcademicOtherUser ? null : user?.department;
+    const stageForGroups = isAcademicOtherUser ? null : stageValue;
+
+    const initTrace = telemetry.startTrace('chats_initialize', {
+      userId: user?.$id,
+      hasAcademicOther: isAcademicOtherUser,
+    });
+
     try {
       setInitializing(true);
-      const stageValue = stageToValue(user?.stage);
+      const groupsInitPromise = initializeUserGroups(departmentForGroups, stageForGroups, user.$id)
+        .catch(() => null);
 
-      const departmentForGroups = isAcademicOtherUser ? null : user?.department;
-      const stageForGroups = isAcademicOtherUser ? null : stageValue;
-
-      await initializeUserGroups(departmentForGroups, stageForGroups, user.$id);
-      
+      await loadChats({ showLoader: true, preferCache: true });
       setInitializing(false);
-      await loadChats();
+
+      await groupsInitPromise;
+      await loadChats({ showLoader: false, forceNetwork: true });
+      initTrace.finish({ success: true });
     } catch (error) {
+      initTrace.finish({ success: false, error });
       setInitializing(false);
       setLoading(false);
     }
@@ -437,82 +455,162 @@ const Chats = ({ navigation }) => {
 
   const loadUnreadCounts = async (allChats) => {
     if (!user?.$id || allChats.length === 0) return;
-    
-    const counts = {};
-    await Promise.all(
-      allChats.map(async (chat) => {
-        const count = await getUnreadCount(chat.$id, user.$id);
-        counts[chat.$id] = count;
-      })
-    );
-    setUnreadCounts(counts);
+    const unreadTrace = telemetry.startTrace('chats_load_unread_counts', {
+      userId: user.$id,
+      chatCount: allChats.length,
+    });
+
+    try {
+      // Render fast from local cache first, then revalidate from network.
+      const cachedCounts = {};
+      await Promise.all(
+        allChats.map(async (chat) => {
+          const cached = await unreadCountCacheManager.getCachedChatUnreadCount(chat.$id, user.$id);
+          if (cached && typeof cached.value === 'number') {
+            cachedCounts[chat.$id] = cached.value;
+          }
+        })
+      );
+
+      if (Object.keys(cachedCounts).length > 0) {
+        setUnreadCounts((prev) => ({ ...prev, ...cachedCounts }));
+      }
+
+      const counts = {};
+      await Promise.all(
+        allChats.map(async (chat) => {
+          const count = await getUnreadCount(chat.$id, user.$id);
+          counts[chat.$id] = count;
+          await unreadCountCacheManager.cacheChatUnreadCount(chat.$id, user.$id, count);
+        })
+      );
+      setUnreadCounts((prev) => ({ ...prev, ...counts }));
+      unreadTrace.finish({ success: true, meta: { resolvedCount: Object.keys(counts).length } });
+    } catch (error) {
+      unreadTrace.finish({ success: false, error });
+    }
   };
 
   const loadClearedAtTimestamps = async (allChats) => {
     if (!user?.$id || allChats.length === 0) return;
+    const clearedTrace = telemetry.startTrace('chats_load_cleared_timestamps', {
+      userId: user.$id,
+      chatCount: allChats.length,
+    });
     
-    const timestamps = {};
-    await Promise.all(
-      allChats.map(async (chat) => {
-        const clearedAt = await getChatClearedAt(user.$id, chat.$id);
-        if (clearedAt) {
-          timestamps[chat.$id] = clearedAt;
-        }
-      })
-    );
-    setClearedAtMap(timestamps);
+    try {
+      const timestamps = {};
+      await Promise.all(
+        allChats.map(async (chat) => {
+          const clearedAt = await getChatClearedAt(user.$id, chat.$id);
+          if (clearedAt) {
+            timestamps[chat.$id] = clearedAt;
+          }
+        })
+      );
+      setClearedAtMap(timestamps);
+      clearedTrace.finish({ success: true, meta: { resolvedCount: Object.keys(timestamps).length } });
+    } catch (error) {
+      clearedTrace.finish({ success: false, error });
+    }
   };
 
+  const applyChatBuckets = useCallback((chatsPayload) => {
+    const normalizedDefaultGroups = Array.isArray(chatsPayload?.defaultGroups) ? chatsPayload.defaultGroups : [];
+    const normalizedCustomGroups = Array.isArray(chatsPayload?.customGroups) ? chatsPayload.customGroups : [];
+    const normalizedPrivateChats = Array.isArray(chatsPayload?.privateChats) ? chatsPayload.privateChats : [];
+
+    setDefaultGroups(normalizedDefaultGroups);
+    setCustomGroups(normalizedCustomGroups);
+
+    const blockedUsers = user?.blockedUsers || [];
+    const chatBlockedUsers = user?.chatBlockedUsers || [];
+    const blockedSet = new Set([...blockedUsers, ...chatBlockedUsers]);
+    const filteredPrivateChats = normalizedPrivateChats.filter(c => {
+      if (isChatRemovedByUser(c, user?.$id)) return false;
+      if (blockedSet.size > 0) {
+        const otherUserId = c.otherUser?.$id || c.otherUser?.id || c.participants?.find(id => id !== user?.$id);
+        if (blockedSet.has(otherUserId)) return false;
+      }
+      return true;
+    });
+
+    setPrivateChats(filteredPrivateChats);
+
+    return [
+      ...normalizedDefaultGroups,
+      ...normalizedCustomGroups,
+      ...filteredPrivateChats,
+    ];
+  }, [user?.$id, user?.blockedUsers, user?.chatBlockedUsers]);
+
   const loadChats = async (options = {}) => {
-    const { showLoader = true } = options;
+    const {
+      showLoader = true,
+      preferCache = false,
+      forceNetwork = false,
+    } = options;
+
+    const loadTrace = telemetry.startTrace('chats_load', {
+      userId: user?.$id,
+      showLoader,
+      preferCache,
+      forceNetwork,
+    });
 
     if (!user?.$id) {
+      loadTrace.finish({ success: false, meta: { reason: 'missing_user' } });
       setLoading(false);
       return;
     }
 
     try {
-      if (showLoader) {
+      const hasExistingChats =
+        defaultGroupsRef.current.length > 0 ||
+        customGroupsRef.current.length > 0 ||
+        privateChatsRef.current.length > 0;
+
+      if (showLoader && !hasExistingChats) {
         setLoading(true);
       }
+
       const stageValue = stageToValue(user.stage);
       const departmentForGroups = isAcademicOtherUser ? null : user?.department;
       const stageForGroups = isAcademicOtherUser ? null : stageValue;
 
-      const chats = await getAllUserChats(user.$id, departmentForGroups, stageForGroups);
-      const normalizedDefaultGroups = Array.isArray(chats?.defaultGroups) ? chats.defaultGroups : [];
-      const normalizedCustomGroups = Array.isArray(chats?.customGroups) ? chats.customGroups : [];
-      const normalizedPrivateChats = Array.isArray(chats?.privateChats) ? chats.privateChats : [];
+      if (preferCache && !forceNetwork) {
+        const cachedChats = await getAllUserChats(user.$id, departmentForGroups, stageForGroups, {
+          useCache: true,
+          skipNetwork: true,
+        });
 
-      setDefaultGroups(normalizedDefaultGroups);
-      setCustomGroups(normalizedCustomGroups);
-
-      // Filter out private chats where the partner is blocked or the user has removed the conversation
-      const blockedUsers = user?.blockedUsers || [];
-      const chatBlockedUsers = user?.chatBlockedUsers || [];
-      const blockedSet = new Set([...blockedUsers, ...chatBlockedUsers]);
-      const allPrivateChats = normalizedPrivateChats;
-      const filteredPrivateChats = allPrivateChats.filter(c => {
-        // Filter out chats removed by the current user
-        if (isChatRemovedByUser(c, user?.$id)) return false;
-        // Filter out chats where the partner is blocked
-        if (blockedSet.size > 0) {
-          const otherUserId = c.otherUser?.$id || c.otherUser?.id || c.participants?.find(id => id !== user?.$id);
-          if (blockedSet.has(otherUserId)) return false;
+        const cachedAllChats = applyChatBuckets(cachedChats);
+        if (cachedAllChats.length > 0) {
+          setLoading(false);
+          loadUnreadCounts(cachedAllChats).catch(() => {});
+          loadClearedAtTimestamps(cachedAllChats).catch(() => {});
         }
-        return true;
+      }
+
+      const chats = await getAllUserChats(user.$id, departmentForGroups, stageForGroups, {
+        useCache: !forceNetwork,
+        skipNetwork: false,
       });
-      setPrivateChats(filteredPrivateChats);
-      
-      // Load unread counts for all chats
-      const allChats = [
-        ...normalizedDefaultGroups,
-        ...normalizedCustomGroups,
-        ...filteredPrivateChats,
-      ];
+
+      const allChats = applyChatBuckets(chats);
       if (showLoader) {
         setLoading(false);
       }
+
+      loadTrace.finish({
+        success: true,
+        meta: {
+          totalChats: allChats.length,
+          defaultGroups: Array.isArray(chats?.defaultGroups) ? chats.defaultGroups.length : 0,
+          customGroups: Array.isArray(chats?.customGroups) ? chats.customGroups.length : 0,
+          privateChats: Array.isArray(chats?.privateChats) ? chats.privateChats.length : 0,
+        },
+      });
 
       const loadAuxiliaryData = async () => {
         await Promise.all([
@@ -552,8 +650,9 @@ const Chats = ({ navigation }) => {
         }
       };
 
-      loadAuxiliaryData();
+      loadAuxiliaryData().catch(() => {});
     } catch (error) {
+      loadTrace.finish({ success: false, error });
       setDefaultGroups([]);
       setCustomGroups([]);
       setPrivateChats([]);
@@ -608,10 +707,19 @@ const Chats = ({ navigation }) => {
   }, [scheduleUnreadSyncForChat, triggerSmartRefresh]);
 
   const handleRefresh = async () => {
+    const refreshTrace = telemetry.startTrace('chats_pull_to_refresh', {
+      userId: user?.$id,
+    });
     setRefreshing(true);
-    await loadChats({ showLoader: false });
-    lastNetworkSyncAtRef.current = Date.now();
-    setRefreshing(false);
+    try {
+      await loadChats({ showLoader: false, forceNetwork: true });
+      lastNetworkSyncAtRef.current = Date.now();
+      refreshTrace.finish({ success: true });
+    } catch (error) {
+      refreshTrace.finish({ success: false, error });
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleChatPress = (chat) => {

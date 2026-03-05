@@ -40,6 +40,7 @@ import {
 import { useChatMessages } from '../../hooks/useRealtimeSubscription';
 import { normalizeRealtimeMessage } from '../../utils/realtimeHelpers';
 import { messagesCacheManager } from '../../utils/cacheManager';
+import telemetry from '../../utils/telemetry';
 
 const INITIAL_CHAT_MESSAGES_LIMIT = 20;
 const MESSAGES_CACHE_LIMIT = 100;
@@ -187,6 +188,10 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   );
 
   const loadChatSettings = async () => {
+    const settingsTrace = telemetry.startTrace('chatroom_load_settings', {
+      chatId: chat?.$id,
+      userId: user?.$id,
+    });
     try {
       const [status, pinPermission, mentionPermission, bookmarks, chatClearedAt, hidden, defaults] = await Promise.all([
         getMuteStatus(user.$id, chat.$id),
@@ -204,7 +209,15 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       setClearedAtState(chatClearedAt);
       setHiddenMessageIds(hidden);
       setReactionDefaultsState(defaults || DEFAULT_REACTION_SET);
+      settingsTrace.finish({
+        success: true,
+        meta: {
+          bookmarkedCount: Array.isArray(bookmarks) ? bookmarks.length : 0,
+          hiddenCount: Array.isArray(hidden) ? hidden.length : 0,
+        },
+      });
     } catch (error) {
+      settingsTrace.finish({ success: false, error });
       // Silently fail
     }
   };
@@ -303,6 +316,12 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     if (!chatSettingsLoaded) {
       return;
     }
+
+    const messagesTrace = telemetry.startTrace('chatroom_load_messages', {
+      chatId: chat?.$id,
+      userId: user?.$id,
+      cacheWarm: true,
+    });
 
     try {
       // Show cached messages instantly while loading from server
@@ -419,7 +438,15 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       if (user?.$id) {
         markAllMessagesAsRead(chat.$id, user.$id);
       }
+      messagesTrace.finish({
+        success: true,
+        meta: {
+          messageCount: Array.isArray(invertedFresh) ? invertedFresh.length : 0,
+          cachedVisibleCount: Array.isArray(messages) ? messages.length : 0,
+        },
+      });
     } catch (error) {
+      messagesTrace.finish({ success: false, error });
       // Only show error on initial load when there are no messages yet
       // Subsequent load failures are silently ignored since realtime will auto-recover
       if (messages.length === 0) {
@@ -431,6 +458,11 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   };
 
   const loadMembersAndFriends = async () => {
+    const membersTrace = telemetry.startTrace('chatroom_load_members_and_friends', {
+      chatId: chat?.$id,
+      userId: user?.$id,
+      type: chat?.type,
+    });
     try {
       // Load friends
       if (user?.$id) {
@@ -452,7 +484,15 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
         const members = await Promise.all(memberPromises);
         setGroupMembers(members.filter(Boolean));
       }
+      membersTrace.finish({
+        success: true,
+        meta: {
+          friendsCount: Array.isArray(userFriends) ? userFriends.length : 0,
+          membersCount: chat?.type !== 'private' ? (chat?.participants?.length || 0) : 0,
+        },
+      });
     } catch (error) {
+      membersTrace.finish({ success: false, error });
       // Silent fail
     }
   };

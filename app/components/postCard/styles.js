@@ -39,6 +39,10 @@ export const postCardStyles = StyleSheet.create({
     gap: moderateScale(4),
     marginBottom: moderateScale(2),
   },
+  topRowCompact: {
+    gap: moderateScale(3),
+    marginBottom: moderateScale(1),
+  },
   userNameContainer: {
     flex: 1,
     marginRight: moderateScale(5),
@@ -53,13 +57,22 @@ export const postCardStyles = StyleSheet.create({
     gap: moderateScale(5),
     flexWrap: 'wrap',
   },
+  badgesRowCompact: {
+    gap: moderateScale(3),
+  },
   timeText: {
     fontSize: fontSize(10),
     fontWeight: '400',
   },
+  timeTextCompact: {
+    fontSize: fontSize(9),
+  },
   editedText: {
     fontSize: fontSize(9),
     fontStyle: 'italic',
+  },
+  editedTextCompact: {
+    fontSize: fontSize(8),
   },
   youBadge: {
     paddingHorizontal: moderateScale(5),
@@ -78,6 +91,10 @@ export const postCardStyles = StyleSheet.create({
     borderRadius: moderateScale(5),
     borderWidth: 1,
   },
+  stageBadgeCompact: {
+    paddingHorizontal: moderateScale(4),
+    paddingVertical: moderateScale(1.5),
+  },
   stageText: {
     fontSize: fontSize(8),
     fontWeight: '700',
@@ -92,6 +109,10 @@ export const postCardStyles = StyleSheet.create({
     borderRadius: moderateScale(5),
     gap: moderateScale(2),
   },
+  typeBadgeInlineCompact: {
+    paddingHorizontal: moderateScale(4),
+    paddingVertical: moderateScale(1),
+  },
   typeTextInline: {
     fontSize: fontSize(8),
     fontWeight: '600',
@@ -104,12 +125,19 @@ export const postCardStyles = StyleSheet.create({
     borderRadius: moderateScale(5),
     gap: moderateScale(2),
   },
+  repostBadgeCompact: {
+    paddingHorizontal: moderateScale(4),
+    paddingVertical: moderateScale(1),
+  },
   repostText: {
     fontSize: fontSize(8),
     fontWeight: '600',
   },
   menuButton: {
     padding: moderateScale(4),
+  },
+  menuButtonCompact: {
+    padding: moderateScale(3),
   },
   content: {
     marginBottom: moderateScale(10),
@@ -124,6 +152,11 @@ export const postCardStyles = StyleSheet.create({
     fontSize: fontSize(13),
     lineHeight: fontSize(13) * 1.5,
     marginBottom: moderateScale(8),
+  },
+  textCompact: {
+    fontSize: fontSize(12),
+    lineHeight: fontSize(12) * 1.38,
+    marginBottom: moderateScale(6),
   },
   pollContainer: {
     marginTop: spacing.xs,
@@ -216,6 +249,11 @@ export const postCardStyles = StyleSheet.create({
     marginBottom: moderateScale(4),
     gap: moderateScale(6),
   },
+  linksContainerCompact: {
+    marginTop: spacing.xs,
+    marginBottom: moderateScale(2),
+    gap: moderateScale(4),
+  },
   linkChipDisplay: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -226,16 +264,28 @@ export const postCardStyles = StyleSheet.create({
     gap: moderateScale(6),
     alignSelf: 'flex-start',
   },
+  linkChipDisplayCompact: {
+    paddingHorizontal: moderateScale(7),
+    paddingVertical: moderateScale(4),
+    gap: moderateScale(5),
+    maxWidth: '88%',
+  },
   linkText: {
     fontSize: fontSize(12),
     color: '#3B82F6',
     flex: 1,
+  },
+  linkTextCompact: {
+    fontSize: fontSize(11),
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginTop: spacing.sm,
     alignItems: 'center',
+  },
+  tagsContainerCompact: {
+    marginTop: spacing.xs,
   },
   tag: {
     paddingHorizontal: moderateScale(10),
@@ -244,9 +294,18 @@ export const postCardStyles = StyleSheet.create({
     marginRight: spacing.xs,
     marginBottom: moderateScale(5),
   },
+  tagCompact: {
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateScale(4),
+    borderRadius: moderateScale(12),
+    marginBottom: moderateScale(4),
+  },
   tagText: {
     fontSize: fontSize(11),
     fontWeight: '600',
+  },
+  tagTextCompact: {
+    fontSize: fontSize(10),
   },
   seeMoreButton: {
     marginTop: spacing.xs,
@@ -346,6 +405,9 @@ export const postCardStyles = StyleSheet.create({
     flex: 1,
     flexWrap: 'wrap',
   },
+  footerLeftCompact: {
+    flexWrap: 'nowrap',
+  },
   footerRight: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -355,6 +417,10 @@ export const postCardStyles = StyleSheet.create({
     maxWidth: '45%',
     gap: getResponsiveSize(moderateScale(4), moderateScale(8), moderateScale(10)),
   },
+  footerRightCompact: {
+    maxWidth: '35%',
+    gap: getResponsiveSize(moderateScale(3), moderateScale(5), moderateScale(7)),
+  },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -362,9 +428,16 @@ export const postCardStyles = StyleSheet.create({
     paddingHorizontal: getResponsiveSize(moderateScale(4), moderateScale(8), moderateScale(10)),
     gap: getResponsiveSize(moderateScale(2), moderateScale(3), moderateScale(4)),
   },
+  actionButtonCompact: {
+    paddingVertical: getResponsiveSize(moderateScale(2), moderateScale(3), moderateScale(4)),
+    paddingHorizontal: getResponsiveSize(moderateScale(3), moderateScale(4), moderateScale(5)),
+  },
   actionText: {
     fontSize: getResponsiveSize(fontSize(9), fontSize(10), fontSize(11)),
     fontWeight: '600',
+  },
+  actionTextCompact: {
+    fontSize: getResponsiveSize(fontSize(8), fontSize(9), fontSize(10)),
   },
   statsItem: {
     flexDirection: 'row',
@@ -372,15 +445,21 @@ export const postCardStyles = StyleSheet.create({
     flexShrink: 1,
     gap: getResponsiveSize(moderateScale(2), moderateScale(3), moderateScale(4)),
   },
+  statsItemCompact: {
+    gap: getResponsiveSize(moderateScale(1), moderateScale(2), moderateScale(3)),
+  },
   statsText: {
     fontSize: getResponsiveSize(fontSize(8), fontSize(9), fontSize(10)),
     fontWeight: '500',
     flexShrink: 1,
   },
+  statsTextCompact: {
+    fontSize: getResponsiveSize(fontSize(7), fontSize(8), fontSize(9)),
+  },
   // Compact mode styles
   cardCompact: {
-    padding: moderateScale(12),
-    marginBottom: moderateScale(10),
+    padding: moderateScale(10),
+    marginBottom: moderateScale(8),
     borderRadius: borderRadius.lg,
   },
   headerCompact: {

@@ -1,8 +1,10 @@
 # College Community
 
-React Native (Expo) + Appwrite mobile app for university students to post, discuss, and chat in department/stage communities.
+React Native (Expo) + Appwrite mobile app for university students to post, discuss, chat, vote in representative elections, and collaborate in lecture channels.
 
-## Current Product State (code-verified)
+Last verified against codebase: 2026-03-05.
+
+## Current Product State
 
 ### Authentication
 
@@ -11,80 +13,79 @@ React Native (Expo) + Appwrite mobile app for university students to post, discu
 - Google OAuth sign-in with profile completion path
 - Forgot-password deep-link recovery flow
 
-### Feed & Posts
+### Feed, Posts, Replies
 
 - Department / major / public feed modes
 - Sort + filtering (post type, stage, unanswered questions)
 - Realtime post updates via Appwrite subscriptions
-- Post create/edit/delete with image upload (ImgBB), tags, links
+- Post create/edit/delete with image upload, tags, links
 - Post likes, view counting, report reasons, hidden-by-reports moderation
 - Repost permission (`canOthersRepost`) and post sharing to chats
-
-### Replies
-
 - Threaded replies with images/links
 - Upvote/downvote with vote-integrity checks
 - Accepted-answer workflow for Q&A posts
-- Reply-level navigation from notifications
 
 ### Chats
 
-- Auto/default stage + department groups
+- Default stage + department groups
 - Custom groups with admins/representatives and settings
 - Private chats with block/chat-block support
 - Message types: text, image, GIF/sticker, location, voice note, post share
 - Reactions, pin/unpin, bookmark, forward, reply, copy, delete-for-me
 - Search-in-chat, unread tracking, read/delivery status, online/last-seen
-- Chat mute/archive/clear and per-chat reaction defaults
-- E2EE primitives for message content in `database/chats.js`
+- Per-chat mute/archive/clear + reaction defaults
+- E2EE primitives in `database/chats.js`
 
-### Profiles, Social, Notifications
+### Lecture Hub
 
-- Follow/unfollow, follower/following lists
-- Block list and per-chat block options
-- User profile share (deep link + QR export/share)
-- In-app notifications + push notifications + category settings + quiet hours
+- Lecture channels with membership and role flow
+- Lecture assets (external links/files/youtube) with stats and pinning
+- Lecture comments and moderation tools
+- Download manager + lecture-specific action modals
 
-### Settings & Personalization
+### Representatives + Suggestions
 
-- Theme modes: light/dark/system/scheduled
-- Accent color, font scaling, compact mode, data saver, reduce motion
-- Language switching (en/ar/ku)
-- Chat appearance customization (bubble style/color/background)
-- Cache clearing, reset settings, sign out
+- Representative elections lifecycle and vote tracking
+- Reselection request flow
+- In-app suggestions/feedback submission (`suggestions` collection)
 
-### Reliability & Infra
+### Notifications + Reliability
 
+- In-app notifications and push-notification routing
+- Notification preference controls and quiet-hours support
 - Safe realtime subscribe/retry wrapper (`safeSubscribe`)
-- App lifecycle realtime reconnect management
-- Local caching for posts/chats/messages/replies/users
+- App lifecycle reconnect handling for realtime
+- Local cache utilities for posts/chats/messages/replies/users
 - OTA update prompt flow via Expo Updates
 
 ## Tech Stack
 
 - Expo SDK 54 / React Native 0.81 / React 19
 - Appwrite (Auth, Databases, Storage, Realtime)
-- React Navigation (stack + tabs)
+- React Navigation (Stack + Bottom Tabs)
 - i18n-js (`en`, `ar`, `ku`)
 - Jest (`jest-expo`) for core utility/realtime/moderation tests
 
-## Project Structure (high-level)
+## Project Structure
 
 - `app/` UI (auth, tabs, screens, components, context, hooks, utils)
-- `database/` Appwrite data/auth/chat/post modules
-- `services/` push notifications, ImgBB, Giphy
+- `database/` Appwrite data/auth/chat/post/lecture/rep/suggestion modules
+- `services/` push notifications, uploads, Giphy integration
+- `appwrite-functions/` serverless proxies used by app flows
 - `locales/` translations
 - `__tests__/` unit tests
 
 ## Environment Variables
 
-Define these in your Expo env (`.env` / EAS secrets):
+Define these in Expo env (`.env` for local dev and EAS secrets for CI/build):
 
 ```env
 EXPO_PUBLIC_APPWRITE_ENDPOINT=
 EXPO_PUBLIC_APPWRITE_PROJECT_ID=
 EXPO_PUBLIC_APPWRITE_DATABASE_ID=
 EXPO_PUBLIC_APPWRITE_BUCKET_ID=
+EXPO_PUBLIC_APPWRITE_STORAGE_ID=
+
 EXPO_PUBLIC_APPWRITE_POSTS_COLLECTION_ID=
 EXPO_PUBLIC_APPWRITE_REPLIES_COLLECTION_ID=
 EXPO_PUBLIC_APPWRITE_USERS_COLLECTION_ID=
@@ -93,16 +94,36 @@ EXPO_PUBLIC_APPWRITE_MESSAGES_COLLECTION_ID=
 EXPO_PUBLIC_APPWRITE_USER_CHAT_SETTINGS_COLLECTION_ID=
 EXPO_PUBLIC_APPWRITE_NOTIFICATIONS_COLLECTION_ID=
 EXPO_PUBLIC_APPWRITE_PUSH_TOKENS_COLLECTION_ID=
+EXPO_PUBLIC_APPWRITE_REP_ELECTIONS_COLLECTION_ID=
+EXPO_PUBLIC_APPWRITE_REP_VOTES_COLLECTION_ID=
+EXPO_PUBLIC_APPWRITE_SUGGESTIONS_COLLECTION_ID=
+
+EXPO_PUBLIC_APPWRITE_LECTURE_CHANNELS_COLLECTION_ID=
+EXPO_PUBLIC_APPWRITE_LECTURE_MEMBERSHIPS_COLLECTION_ID=
+EXPO_PUBLIC_APPWRITE_LECTURE_ASSETS_COLLECTION_ID=
+EXPO_PUBLIC_APPWRITE_LECTURE_COMMENTS_COLLECTION_ID=
+EXPO_PUBLIC_APPWRITE_LECTURE_STORAGE_ID=
+
 EXPO_PUBLIC_APPWRITE_PUSH_PROVIDER_ID_ANDROID=
 EXPO_PUBLIC_APPWRITE_PUSH_PROVIDER_ID_IOS=
 EXPO_PUBLIC_APPWRITE_VOICE_MESSAGES_STORAGE_ID=
 EXPO_PUBLIC_APPWRITE_POST_REPORTS_COLLECTION_ID=
+
+EXPO_PUBLIC_LECTURE_GUARD_ENDPOINT=
 EXPO_PUBLIC_REPORT_REVIEW_ENDPOINT=
+EXPO_PUBLIC_YOUTUBE_API_KEY=
 ```
 
-Push provider IDs are optional while Appwrite Messaging providers are not configured yet. The app now skips native provider target registration safely when they are missing.
+For Appwrite admin/audit scripts, also define:
 
-## Run Locally
+```env
+APPWRITE_API_KEY=
+APPWRITE_ENDPOINT=
+APPWRITE_PROJECT_ID=
+APPWRITE_DATABASE_ID=
+```
+
+## Local Development
 
 ```bash
 npm install
@@ -114,12 +135,17 @@ Useful commands:
 ```bash
 npm run android
 npm run ios
+npm run web
+npm run lint
 npm run test
 npm run test:critical
+npm run test:realtime
+npm run test:lectures
+npm run audit:acl
 ```
 
 ## Notes
 
-- Project is JavaScript-only (no TypeScript).
-- Translation keys are used throughout app UI.
-- Root `README.md` reflects current implementation as of 2026-02-15.
+- JavaScript-only project (no TypeScript).
+- Translation keys are used for user-visible UI text.
+- Live database schema reference: `.github/instructions/database-schema.instructions.md`.

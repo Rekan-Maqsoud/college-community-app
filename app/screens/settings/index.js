@@ -156,7 +156,7 @@ const Settings = ({ navigation }) => {
 
         <View style={styles.versionContainer}>
           <Text style={[styles.versionText, { color: theme.textSecondary }]}>
-            {t('settings.version')} 1.0.0
+            {t('settings.version')} 1.1.0
           </Text>
         </View>
       </ScrollView>

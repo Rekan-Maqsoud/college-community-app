@@ -326,6 +326,7 @@ const MainStack = () => {
   }, []);
 
   const checkSession = async () => {
+    const sessionTrace = telemetry.startTrace('app_check_session');
     try {
       const user = await getCurrentUser();
       
@@ -340,7 +341,14 @@ const MainStack = () => {
       } else {
         setIsAuthenticated(false);
       }
+      sessionTrace.finish({
+        success: true,
+        meta: {
+          isAuthenticated: Boolean(user),
+        },
+      });
     } catch (error) {
+      sessionTrace.finish({ success: false, error });
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);

@@ -12,12 +12,13 @@ applyTo: "**"
 
 1. **NEVER use TypeScript syntax** - This is a JavaScript-only project
 2. **NEVER hardcode text** - Always use translation keys
-   3-**NEVER BRAG TOO MUCH** - Show Minimum of you thinking and processing Thoughts
-3. **NEVER leave TODO/FIXME incomplete** - Complete them or remove
-4. **NEVER leave commented-out code**
-5. **NEVER delete multiple files at once** - Make minimal changes
-6. **NEVER use `var`** - Use `const` or `let`
-7. **NEVER use class components** - Use functional components with hooks
+3. **NEVER add self-referential chatter** - Keep responses concise and task-focused
+4. **NEVER leave TODO/FIXME incomplete** - Complete them or remove
+5. **NEVER leave commented-out code**
+6. **NEVER delete multiple files at once** - Make minimal changes
+7. **NEVER use `var`** - Use `const` or `let`
+8. **NEVER use class components** - Use functional components with hooks
+9. **NEVER remove telemetry traces** when cleaning debug logs - keep `telemetry.startTrace` / `telemetry.recordEvent` instrumentation in loading flows
 
 ---
 
@@ -57,6 +58,7 @@ applyTo: "**"
    ```javascript
    const { t } = useTranslation();
    ```
+6. **Keep telemetry in loading windows**: when removing `console.log`, replace with or retain `telemetry` calls for fetch/init/load/refresh paths
 
 ---
 
@@ -219,6 +221,15 @@ When adding new translations:
 - `CHATS_COLLECTION_ID` - Chat rooms
 - `MESSAGES_COLLECTION_ID` - Chat messages
 - `NOTIFICATIONS_COLLECTION_ID` - Notifications
+- `USER_CHAT_SETTINGS_COLLECTION_ID` - Per-user chat preferences
+- `PUSH_TOKENS_COLLECTION_ID` - Push notification tokens
+- `LECTURE_CHANNELS_COLLECTION_ID` - Lecture channels
+- `LECTURE_MEMBERSHIPS_COLLECTION_ID` - Lecture memberships
+- `LECTURE_ASSETS_COLLECTION_ID` - Lecture assets
+- `LECTURE_COMMENTS_COLLECTION_ID` - Lecture comments
+- `REP_ELECTIONS_COLLECTION_ID` - Representative elections
+- `REP_VOTES_COLLECTION_ID` - Election votes
+- `SUGGESTIONS_COLLECTION_ID` - User suggestions/feedback
 
 ### Common Query Patterns
 

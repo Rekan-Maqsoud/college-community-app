@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import i18n from '../../locales/i18n';
 import { I18nManager, Appearance, View, ActivityIndicator, StyleSheet } from 'react-native';
 import { setGlobalFontScale } from '../utils/responsive';
+import telemetry from '../utils/telemetry';
 
 const AppSettingsContext = createContext();
 
@@ -220,6 +221,38 @@ export const AppSettingsProvider = ({ children }) => {
     gradientLight: [hexToRgba(accentColor, 0.1), hexToRgba(adjustColor(accentColor, -20), 0.1)],
   } : theme;
 
+  const motionProfile = reduceMotion
+    ? {
+        enabled: true,
+        targetFps: 30,
+        scrollEventThrottle: 32,
+        listItemEnterDelayMs: 0,
+        listItemEnterDurationMs: 0,
+      }
+    : {
+        enabled: false,
+        targetFps: 60,
+        scrollEventThrottle: 16,
+        listItemEnterDelayMs: 60,
+        listItemEnterDurationMs: 400,
+      };
+
+  const densityProfile = compactMode
+    ? {
+        enabled: true,
+        cardPaddingScale: 0.85,
+        listGapScale: 0.78,
+        headerScale: 0.88,
+        iconScale: 0.9,
+      }
+    : {
+        enabled: false,
+        cardPaddingScale: 1,
+        listGapScale: 1,
+        headerScale: 1,
+        iconScale: 1,
+      };
+
   // Check if current time is within dark mode schedule
   const isWithinDarkModeSchedule = () => {
     if (!darkModeSchedule.enabled) return null;
@@ -276,6 +309,9 @@ export const AppSettingsProvider = ({ children }) => {
   }, []);
 
   const loadSettings = async () => {
+    const settingsTrace = telemetry.startTrace('app_settings_load', {
+      source: 'provider_init',
+    });
     try {
       const [savedLanguage, savedThemePreference, savedNotifications, savedNotificationSettings, savedChatSettings, savedFontScale, savedReduceMotion, savedHapticEnabled, savedShowActivityStatus, savedCompactMode, savedQuietHours, savedDarkModeSchedule, savedAccentColor, savedDataSaverMode] = await Promise.all([
         safeStorage.getItem('appLanguage'),
@@ -414,7 +450,16 @@ export const AppSettingsProvider = ({ children }) => {
       if (savedDataSaverMode !== null) {
         setDataSaverMode(savedDataSaverMode === 'true');
       }
+      settingsTrace.finish({
+        success: true,
+        meta: {
+          language: savedLanguage || 'device_default',
+          themePreference: savedThemePreference || 'system',
+          hasAccentColor: Boolean(savedAccentColor),
+        },
+      });
     } catch (error) {
+      settingsTrace.finish({ success: false, error });
       // Failed to load settings, using defaults
     } finally {
       setIsLoading(false);
@@ -522,10 +567,14 @@ export const AppSettingsProvider = ({ children }) => {
 
   // Load chat settings for a specific user
   const loadUserChatSettings = async (userId) => {
+    const userSettingsTrace = telemetry.startTrace('app_settings_load_user_chat_settings', {
+      userId: userId || 'anonymous',
+    });
     try {
       setCurrentUserId(userId);
       if (!userId) {
         setChatSettings(normalizeChatSettings());
+        userSettingsTrace.finish({ success: true, meta: { usedDefaults: true } });
         return;
       }
       
@@ -533,11 +582,14 @@ export const AppSettingsProvider = ({ children }) => {
       if (savedChatSettings) {
         const parsed = JSON.parse(savedChatSettings);
         setChatSettings(normalizeChatSettings(parsed));
+        userSettingsTrace.finish({ success: true, meta: { usedDefaults: false } });
       } else {
         // Reset to defaults for new user
         setChatSettings(normalizeChatSettings());
+        userSettingsTrace.finish({ success: true, meta: { usedDefaults: true } });
       }
     } catch (error) {
+      userSettingsTrace.finish({ success: false, error });
       // Failed to load user chat settings
     }
   };
@@ -759,6 +811,7 @@ export const AppSettingsProvider = ({ children }) => {
     
     reduceMotion,
     updateReduceMotion,
+    motionProfile,
     
     hapticEnabled,
     updateHapticEnabled,
@@ -769,6 +822,7 @@ export const AppSettingsProvider = ({ children }) => {
     
     compactMode,
     updateCompactMode,
+    densityProfile,
     
     accentColor,
     updateAccentColor,
