@@ -1,18 +1,154 @@
-rekan@Rekan:~$ cd /mnt/c/Users/rekan/OneDrive/Desktop/college-community
-rekan@Rekan:/mnt/c/Users/rekan/OneDrive/Desktop/college-community$ eas build --local --profile development
-✔ Select platform › Android
+rekan@Rekan:/mnt/c/Users/rekan/OneDrive/Desktop/college-community$ sudo apt-get update && sudo apt-get install -y build-essential cmake ninja-build pkg-config libicu-dev python3
+[sudo] password for rekan:
+Hit:1 http://security.ubuntu.com/ubuntu noble-security InRelease
+Hit:2 http://archive.ubuntu.com/ubuntu noble InRelease
+Hit:3 http://archive.ubuntu.com/ubuntu noble-updates InRelease
+Hit:4 http://archive.ubuntu.com/ubuntu noble-backports InRelease
+Reading package lists... Done
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+build-essential is already the newest version (12.10ubuntu1).
+build-essential set to manually installed.
+python3 is already the newest version (3.12.3-0ubuntu2.1).
+python3 set to manually installed.
+The following packages were automatically installed and are no longer required:
+  gyp javascript-common libauthen-sasl-perl libcares2 libclone-perl libdata-dump-perl libencode-locale-perl
+  libfile-basedir-perl libfile-desktopentry-perl libfile-listing-perl libfile-mimeinfo-perl libfont-afm-perl libgles2
+  libhtml-form-perl libhtml-format-perl libhtml-parser-perl libhtml-tagset-perl libhtml-tree-perl libhttp-cookies-perl
+  libhttp-daemon-perl libhttp-date-perl libhttp-message-perl libhttp-negotiate-perl libice6 libio-html-perl
+  libio-socket-ssl-perl libio-stringy-perl libipc-system-simple-perl libjs-async libjs-events libjs-inherits
+  libjs-is-typedarray libjs-prettify libjs-regenerate libjs-source-map libjs-sprintf-js libjs-typedarray-to-buffer
+  liblwp-mediatypes-perl liblwp-protocol-https-perl libmailtools-perl libnet-dbus-perl libnet-http-perl
+  libnet-smtp-ssl-perl libnet-ssleay-perl libnotify-bin libnotify4 libre2-10 libsm6 libssl-dev libtie-ixhash-perl
+  libtimedate-perl libtry-tiny-perl liburi-perl libuv1-dev libwww-perl libwww-robotrules-perl libx11-protocol-perl
+  libxaw7 libxcb-shape0 libxft2 libxkbfile1 libxml-parser-perl libxml-twig-perl libxml-xpathengine-perl libxmu6
+  libxt6t64 libxv1 libxxf86dga1 node-abbrev node-ampproject-remapping node-ansi-regex node-ansi-styles node-aproba
+  node-are-we-there-yet node-arrify node-async node-async-each node-auto-bind node-babel-plugin-add-module-exports
+  node-babel7-runtime node-balanced-match node-base64-js node-binary-extensions node-brace-expansion node-busboy
+  node-camelcase node-caniuse-lite node-chownr node-chrome-trace-event node-ci-info node-cjs-module-lexer
+  node-cli-boxes node-cli-cursor node-clone node-collection-visit node-color-convert node-color-name node-colors
+  node-commander node-commondir node-concat-stream node-console-control-strings node-convert-source-map node-core-js
+  node-core-js-pure node-core-util-is node-data-uri-to-buffer node-decompress-response node-deep-is node-defaults
+  node-define-property node-delegates node-depd node-diff node-electron-to-chromium node-encoding node-end-of-stream
+  node-err-code node-error-ex node-es-module-lexer node-escape-string-regexp node-eslint-utils
+  node-eslint-visitor-keys node-esquery node-estraverse node-esutils node-events node-fancy-log node-fast-deep-equal
+  node-fast-levenshtein node-fetch node-find-up node-flatted node-foreground-child node-fs-readdir-recursive
+  node-fs-write-stream-atomic node-fs.realpath node-function-bind node-get-caller-file node-get-stream node-get-value
+  node-glob node-globals node-got node-graceful-fs node-growl node-has-flag node-has-unicode node-has-value
+  node-has-values node-hosted-git-info node-iconv-lite node-ieee754 node-iferr node-imurmurhash node-indent-string
+  node-inflight node-inherits node-ini node-interpret node-ip node-ip-regex node-is-arrayish node-is-binary-path
+  node-is-buffer node-is-descriptor node-is-extglob node-is-path-cwd node-is-plain-obj node-is-plain-object
+  node-is-stream node-is-typedarray node-is-windows node-isarray node-isexe node-isobject node-js-tokens
+  node-json-buffer node-json-parse-better-errors node-json-schema node-json-schema-traverse node-json-stable-stringify
+  node-jsonify node-jsonparse node-kind-of node-levn node-loader-runner node-locate-path node-lodash-packages
+  node-lowercase-keys node-lru-cache node-map-visit node-memfs node-merge-stream node-mimic-response node-minimatch
+  node-minimist node-minipass node-mute-stream node-n3 node-negotiator node-npm-run-path node-object-inspect
+  node-object-visit node-once node-optimist node-optionator node-osenv node-p-cancelable node-p-limit node-p-locate
+  node-p-map node-pascalcase node-path-dirname node-path-exists node-path-is-absolute node-path-is-inside
+  node-path-type node-pify node-pkg-dir node-postcss-value-parser node-prelude-ls node-process-nextick-args
+  node-promise-inflight node-promise-retry node-promzard node-prr node-pump node-punycode node-quick-lru
+  node-randombytes node-read node-readable-stream node-rechoir node-regenerator-runtime node-regenerator-transform
+  node-regexpp node-regjsgen node-repeat-string node-require-directory node-require-from-string node-resolve
+  node-resolve-cwd node-resolve-from node-restore-cursor node-resumer node-retry node-run-queue node-safe-buffer
+  node-serialize-javascript node-set-blocking node-set-immediate-shim node-shebang-command node-shebang-regex
+  node-shell-quote node-signal-exit node-slash node-slice-ansi node-source-list-map node-source-map node-spdx-correct
+  node-spdx-exceptions node-spdx-expression-parse node-spdx-license-ids node-sprintf-js node-ssri node-stack-utils
+  node-string-decoder node-strip-bom node-supports-color node-tapable node-terser node-text-table node-through
+  node-time-stamp node-to-fast-properties node-tslib node-type-check node-typedarray node-typedarray-to-buffer
+  node-undici node-unicode-canonical-property-names-ecmascript node-unicode-match-property-value-ecmascript
+  node-unicode-property-aliases-ecmascript node-unset-value node-uri-js node-util-deprecate node-uuid node-v8flags
+  node-validate-npm-package-license node-wcwidth.js node-webpack-sources node-wordwrap node-wrappy
+  node-write-file-atomic node-xtend node-y18n node-yallist node-yaml nodejs-doc perl-openssl-defaults x11-utils
+  x11-xserver-utils xdg-utils zutty
+Use 'sudo apt autoremove' to remove them.
+The following additional packages will be installed:
+  cmake-data icu-devtools libarchive13t64 libjsoncpp25 libpkgconf3 librhash0 pkgconf pkgconf-bin
+Suggested packages:
+  cmake-doc cmake-format elpa-cmake-mode lrzip icu-doc
+The following NEW packages will be installed:
+  cmake cmake-data icu-devtools libarchive13t64 libicu-dev libjsoncpp25 libpkgconf3 librhash0 ninja-build pkg-config
+  pkgconf pkgconf-bin
+0 upgraded, 12 newly installed, 0 to remove and 110 not upgraded.
+Need to get 26.2 MB of archives.
+After this operation, 100 MB of additional disk space will be used.
+Get:1 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libarchive13t64 amd64 3.7.2-2ubuntu0.5 [382 kB]
+Get:2 http://archive.ubuntu.com/ubuntu noble/main amd64 libjsoncpp25 amd64 1.9.5-6build1 [82.8 kB]
+Get:3 http://archive.ubuntu.com/ubuntu noble/main amd64 librhash0 amd64 1.4.3-3build1 [129 kB]
+Get:4 http://archive.ubuntu.com/ubuntu noble/main amd64 cmake-data all 3.28.3-1build7 [2155 kB]
+Get:5 http://archive.ubuntu.com/ubuntu noble/main amd64 cmake amd64 3.28.3-1build7 [11.2 MB]
+Get:6 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 icu-devtools amd64 74.2-1ubuntu3.1 [212 kB]
+Get:7 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libicu-dev amd64 74.2-1ubuntu3.1 [11.9 MB]
+Get:8 http://archive.ubuntu.com/ubuntu noble/main amd64 libpkgconf3 amd64 1.8.1-2build1 [30.7 kB]
+Get:9 http://archive.ubuntu.com/ubuntu noble/universe amd64 ninja-build amd64 1.11.1-2 [129 kB]
+Get:10 http://archive.ubuntu.com/ubuntu noble/main amd64 pkgconf-bin amd64 1.8.1-2build1 [20.7 kB]
+Get:11 http://archive.ubuntu.com/ubuntu noble/main amd64 pkgconf amd64 1.8.1-2build1 [16.8 kB]
+Get:12 http://archive.ubuntu.com/ubuntu noble/main amd64 pkg-config amd64 1.8.1-2build1 [7264 B]
+Fetched 26.2 MB in 8s (3158 kB/s)
+Selecting previously unselected package libarchive13t64:amd64.
+(Reading database ... 63677 files and directories currently installed.)
+Preparing to unpack .../00-libarchive13t64_3.7.2-2ubuntu0.5_amd64.deb ...
+Unpacking libarchive13t64:amd64 (3.7.2-2ubuntu0.5) ...
+Selecting previously unselected package libjsoncpp25:amd64.
+Preparing to unpack .../01-libjsoncpp25_1.9.5-6build1_amd64.deb ...
+Unpacking libjsoncpp25:amd64 (1.9.5-6build1) ...
+Selecting previously unselected package librhash0:amd64.
+Preparing to unpack .../02-librhash0_1.4.3-3build1_amd64.deb ...
+Unpacking librhash0:amd64 (1.4.3-3build1) ...
+Selecting previously unselected package cmake-data.
+Preparing to unpack .../03-cmake-data_3.28.3-1build7_all.deb ...
+Unpacking cmake-data (3.28.3-1build7) ...
+Selecting previously unselected package cmake.
+Preparing to unpack .../04-cmake_3.28.3-1build7_amd64.deb ...
+Unpacking cmake (3.28.3-1build7) ...
+Selecting previously unselected package icu-devtools.
+Preparing to unpack .../05-icu-devtools_74.2-1ubuntu3.1_amd64.deb ...
+Unpacking icu-devtools (74.2-1ubuntu3.1) ...
+Selecting previously unselected package libicu-dev:amd64.
+Preparing to unpack .../06-libicu-dev_74.2-1ubuntu3.1_amd64.deb ...
+Unpacking libicu-dev:amd64 (74.2-1ubuntu3.1) ...
+Selecting previously unselected package libpkgconf3:amd64.
+Preparing to unpack .../07-libpkgconf3_1.8.1-2build1_amd64.deb ...
+Unpacking libpkgconf3:amd64 (1.8.1-2build1) ...
+Selecting previously unselected package ninja-build.
+Preparing to unpack .../08-ninja-build_1.11.1-2_amd64.deb ...
+Unpacking ninja-build (1.11.1-2) ...
+Selecting previously unselected package pkgconf-bin.
+Preparing to unpack .../09-pkgconf-bin_1.8.1-2build1_amd64.deb ...
+Unpacking pkgconf-bin (1.8.1-2build1) ...
+Selecting previously unselected package pkgconf:amd64.
+Preparing to unpack .../10-pkgconf_1.8.1-2build1_amd64.deb ...
+Unpacking pkgconf:amd64 (1.8.1-2build1) ...
+Selecting previously unselected package pkg-config:amd64.
+Preparing to unpack .../11-pkg-config_1.8.1-2build1_amd64.deb ...
+Unpacking pkg-config:amd64 (1.8.1-2build1) ...
+Setting up ninja-build (1.11.1-2) ...
+Setting up libpkgconf3:amd64 (1.8.1-2build1) ...
+Setting up libjsoncpp25:amd64 (1.9.5-6build1) ...
+Setting up icu-devtools (74.2-1ubuntu3.1) ...
+Setting up pkgconf-bin (1.8.1-2build1) ...
+Setting up librhash0:amd64 (1.4.3-3build1) ...
+Setting up cmake-data (3.28.3-1build7) ...
+Setting up libarchive13t64:amd64 (3.7.2-2ubuntu0.5) ...
+Setting up libicu-dev:amd64 (74.2-1ubuntu3.1) ...
+Setting up pkgconf:amd64 (1.8.1-2build1) ...
+Setting up pkg-config:amd64 (1.8.1-2build1) ...
+Setting up cmake (3.28.3-1build7) ...
+Processing triggers for man-db (2.12.0-4build2) ...
+Processing triggers for libc-bin (2.39-0ubuntu8.7) ...
+rekan@Rekan:/mnt/c/Users/rekan/OneDrive/Desktop/college-community$ eas build --local --platform android --profile development-hermesv1-strict
 Resolved "development" environment for the build. Learn more: https://docs.expo.dev/eas/environment-variables/#setting-the-environment-for-your-builds
 Environment variables with visibility "Plain text" and "Sensitive" loaded from the "development" environment on EAS: APPWRITE_API_KEY, APPWRITE_SUGGESTIONS_COLLECTION_ID, EXPO_PUBLIC_APPWRITE_AI_FUNCTION_ENDPOINT, EXPO_PUBLIC_APPWRITE_AI_FUNCTION_ID, EXPO_PUBLIC_APPWRITE_BUCKET_ID, EXPO_PUBLIC_APPWRITE_CHATS_COLLECTION_ID, EXPO_PUBLIC_APPWRITE_DATABASE_ID, EXPO_PUBLIC_APPWRITE_ENDPOINT, EXPO_PUBLIC_APPWRITE_LECTURE_ASSETS_COLLECTION_ID, EXPO_PUBLIC_APPWRITE_LECTURE_CHANNELS_COLLECTION_ID, EXPO_PUBLIC_APPWRITE_LECTURE_COMMENTS_COLLECTION_ID, EXPO_PUBLIC_APPWRITE_LECTURE_MEMBERSHIPS_COLLECTION_ID, EXPO_PUBLIC_APPWRITE_LECTURE_STORAGE_ID, EXPO_PUBLIC_APPWRITE_MESSAGES_COLLECTION_ID, EXPO_PUBLIC_APPWRITE_NOTIFICATIONS_COLLECTION_ID, EXPO_PUBLIC_APPWRITE_POSTS_COLLECTION_ID, EXPO_PUBLIC_APPWRITE_PROJECT_ID, EXPO_PUBLIC_APPWRITE_PROJECT_NAME, EXPO_PUBLIC_APPWRITE_PUSH_PROVIDER_ID_ANDROID, EXPO_PUBLIC_APPWRITE_PUSH_PROVIDER_ID_IOS, EXPO_PUBLIC_APPWRITE_PUSH_TOKENS_COLLECTION_ID, EXPO_PUBLIC_APPWRITE_REPLIES_COLLECTION_ID, EXPO_PUBLIC_APPWRITE_REP_ELECTIONS_COLLECTION_ID, EXPO_PUBLIC_APPWRITE_REP_VOTES_COLLECTION_ID, EXPO_PUBLIC_APPWRITE_STORAGE_ID, EXPO_PUBLIC_APPWRITE_SUGGESTIONS_COLLECTION_ID, EXPO_PUBLIC_APPWRITE_USERS_COLLECTION_ID, EXPO_PUBLIC_APPWRITE_USER_CHAT_SETTINGS_COLLECTION_ID, EXPO_PUBLIC_APPWRITE_VOICE_MESSAGES_STORAGE_ID, EXPO_PUBLIC_GIPHY_API_KEY, EXPO_PUBLIC_GIPHY_API_KEY_IOS, EXPO_PUBLIC_IMGBB_API_KEY, EXPO_PUBLIC_LECTURE_GUARD_ENDPOINT, EXPO_PUBLIC_REPORT_REVIEW_ENDPOINT, EXPO_PUBLIC_YOUTUBE_API_KEY.
+Environment variables loaded from the "development-hermesv1-strict" build profile "env" configuration: NODE_ENV, EXPO_ENABLE_HERMES_V1_ANDROID, EXPO_HERMES_V1_STRICT.
 
-android.versionCode field in app config is ignored when version source is set to remote, but this value will still be in the manifest available via expo-constants. It's recommended to remove this value from app config.
 ✔ Using remote Android credentials (Expo server)
 ✔ Using Keystore from configuration: Build Credentials doM9LDdnjy (default)
-✔ Compressed project files 29s (8.8 MB)
+✔ Compressed project files 13s (9.1 MB)
 ⌛️ Computing the project fingerprint is taking longer than expected...
 ⏩ To skip this step, set the environment variable: EAS_SKIP_AUTO_FINGERPRINT=1
 ✔ Computed project fingerprint
 ANDROID_NDK_HOME environment variable was not specified, continuing build without NDK
-[SETUP_WORKINGDIR] Preparing workingdir /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065
+[SETUP_WORKINGDIR] Preparing workingdir /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27
 [START_BUILD] Starting build
   "job": {
     "type": "managed",
@@ -20,10 +156,14 @@ ANDROID_NDK_HOME environment variable was not specified, continuing build withou
     "projectRootDirectory": ".",
     "projectArchive": {
       "type": "PATH",
-      "path": "/tmp/rekan/eas-cli-nodejs/a76fba87-b4af-4a92-a85a-3cba65173cc8.tar.gz"
+      "path": "/tmp/rekan/eas-cli-nodejs/53a3a878-b110-49b1-ab42-fe01324760cd.tar.gz"
     },
     "builderEnvironment": {
-      "env": {}
+      "env": {
+        "NODE_ENV": "development",
+        "EXPO_ENABLE_HERMES_V1_ANDROID": "1",
+        "EXPO_HERMES_V1_STRICT": "1"
+      }
     },
     "cache": {
       "disabled": false,
@@ -53,10 +193,39 @@ Local build, skipping project archive refresh
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "NODE_ENV": "development"
+      }
+    },
+    "development-hermesv1": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "NODE_ENV": "development",
+        "EXPO_ENABLE_HERMES_V1_ANDROID": "1"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "development-hermesv1-strict": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "NODE_ENV": "development",
+        "EXPO_ENABLE_HERMES_V1_ANDROID": "1",
+        "EXPO_HERMES_V1_STRICT": "1"
+      },
+      "android": {
+        "buildType": "apk"
+      }
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "NODE_ENV": "production"
+      },
       "android": {
         "buildType": "apk"
       }
@@ -123,7 +292,7 @@ Local build, skipping project archive refresh
     "@react-navigation/bottom-tabs": "^7.4.9",
     "@react-navigation/native": "^7.1.18",
     "@react-navigation/stack": "^7.4.10",
-    "@shopify/flash-list": "^2.1.0",
+    "@shopify/flash-list": "2.0.2",
     "@sentry/react-native": "^8.2.0",
     "appwrite": "^21.5.0",
     "expo": "^55.0.0",
@@ -206,17 +375,15 @@ Local build, skipping project archive refresh
     "scheme": "college-community"
   }
 }
-[INSTALL_DEPENDENCIES] Running "npm ci --include=dev" in /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build directory
+[INSTALL_DEPENDENCIES] Running "npm ci --include=dev" in /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build directory
 [INSTALL_DEPENDENCIES] npm warn deprecated whatwg-encoding@2.0.0: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 [INSTALL_DEPENDENCIES] npm warn deprecated abab@2.0.6: Use your platform's native atob() and btoa() methods instead
 [INSTALL_DEPENDENCIES] npm warn deprecated domexception@4.0.0: Use your platform's native DOMException instead
-[INSTALL_DEPENDENCIES] added 1017 packages, and audited 1018 packages in 22s
+[INSTALL_DEPENDENCIES] added 1018 packages, and audited 1019 packages in 20s
 [INSTALL_DEPENDENCIES]
 [INSTALL_DEPENDENCIES] 184 packages are looking for funding
-[INSTALL_DEPENDENCIES]   run `npm fund` for details
+[INSTALL_DEPENDENCIES] run `npm fund` for details
 [INSTALL_DEPENDENCIES] found 0 vulnerabilities
-The NODE_ENV environment variable is required but was not specified. Ensure the project is bundled with Expo CLI or NODE_ENV is set.
-Proceeding without mode-specific .env
 › [@sentry/react-native/expo] Missing config for organization, project. Environment variables will be used as a fallback during the build. https://docs.sentry.io/platforms/react-native/manual-setup/
 [READ_APP_CONFIG] Using app configuration:
 [READ_APP_CONFIG] {
@@ -255,7 +422,6 @@ Proceeding without mode-specific .env
   },
   "android": {
     "package": "com.collegecommunity",
-    "versionCode": 9,
     "googleServicesFile": "./google-services.json",
     "adaptiveIcon": {
       "foregroundImage": "./assets/adaptive-icon.png",
@@ -303,13 +469,13 @@ Proceeding without mode-specific .env
     [
       "expo-build-properties",
       {
-        "buildReactNativeFromSource": true,
-        "useHermesV1": true,
         "android": {
           "ndkVersion": "26.1.10909125",
           "extraProguardRules": "",
           "extraMavenRepos": []
-        }
+        },
+        "buildReactNativeFromSource": true,
+        "useHermesV1": true
       }
     ],
     "expo-localization",
@@ -372,25 +538,14 @@ Proceeding without mode-specific .env
 [RUN_EXPO_DOCTOR] Running "expo doctor"
 [RUN_EXPO_DOCTOR] › [@sentry/react-native/expo] Missing config for organization, project. Environment variables will be used as a fallback during the build. https://docs.sentry.io/platforms/react-native/manual-setup/
 [RUN_EXPO_DOCTOR] Running 17 checks on your project...
-[RUN_EXPO_DOCTOR] 15/17 checks passed. 2 checks failed. Possible issues detected:
+[RUN_EXPO_DOCTOR] 16/17 checks passed. 1 checks failed. Possible issues detected:
 [RUN_EXPO_DOCTOR] Use the --verbose flag to see more details about passed checks.
 [RUN_EXPO_DOCTOR]
-[RUN_EXPO_DOCTOR] ✖ Validate packages against React Native Directory package metadata
-[RUN_EXPO_DOCTOR] Directory check failed with unexpected server response
-[RUN_EXPO_DOCTOR]
-[RUN_EXPO_DOCTOR] ✖ Check that packages match versions required by installed Expo SDK
-[RUN_EXPO_DOCTOR]
-[RUN_EXPO_DOCTOR] ⚠️ Minor version mismatches
-[RUN_EXPO_DOCTOR] package              expected  found
-[RUN_EXPO_DOCTOR] @shopify/flash-list  2.0.2     2.3.0
-[RUN_EXPO_DOCTOR]
-[RUN_EXPO_DOCTOR]
-[RUN_EXPO_DOCTOR]
-[RUN_EXPO_DOCTOR] 1 package out of date.
+[RUN_EXPO_DOCTOR] ✖ Check Expo config for common issues
+[RUN_EXPO_DOCTOR] You have an app.json file in your project, but your app.config.js is not using the values from it.
 [RUN_EXPO_DOCTOR] Advice:
-[RUN_EXPO_DOCTOR] Use 'npx expo install --check' to review and upgrade your dependencies.
-[RUN_EXPO_DOCTOR] To ignore specific packages, add them to "expo.install.exclude" in package.json. Learn more: https://expo.fyi/dependency-validation
-[RUN_EXPO_DOCTOR] 2 checks failed, indicating possible issues with the project.
+[RUN_EXPO_DOCTOR] Remove the static app.json, or use its values in your dynamic app.config.js. Learn more: https://docs.expo.dev/workflow/configuration
+[RUN_EXPO_DOCTOR] 1 check failed, indicating possible issues with the project.
 [RUN_EXPO_DOCTOR] Command "expo doctor" failed.
 Error: npx -y expo-doctor exited with non-zero code: 1
     at ChildProcess.completionListener (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/spawn-async/build/spawnAsync.js:42:23)
@@ -418,8 +573,8 @@ Error: npx -y expo-doctor exited with non-zero code: 1
 [PREBUILD] » android: userInterfaceStyle: Install expo-system-ui in your project to enable this feature.
 [PREBUILD] - Running prebuild
 [PREBUILD] ✔ Finished prebuild
-[PREBUILD] Running "npm install" in /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build directory
-[PREBUILD] up to date, audited 1018 packages in 2s
+[PREBUILD] Running "npm install" in /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build directory
+[PREBUILD] up to date, audited 1019 packages in 2s
 [PREBUILD] 184 packages are looking for funding
 [PREBUILD]   run `npm fund` for details
 [PREBUILD] found 0 vulnerabilities
@@ -427,34 +582,15 @@ Error: npx -y expo-doctor exited with non-zero code: 1
 [CALCULATE_EXPO_UPDATES_RUNTIME_VERSION] Resolved runtime version: 1.1.0
 [PREPARE_CREDENTIALS] Writing secrets to the project's directory
 [PREPARE_CREDENTIALS] Injecting signing config into build.gradle
-[RUN_GRADLEW] Running 'gradlew :app:assembleDebug' in /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/android
-[RUN_GRADLEW] Downloading https://services.gradle.org/distributions/gradle-9.0.0-bin.zip
-[RUN_GRADLEW] 10%.
-[RUN_GRADLEW] 20%.
-[RUN_GRADLEW] 30%.
-[RUN_GRADLEW] 40%.
-[RUN_GRADLEW] 50%.
-[RUN_GRADLEW] 60%.
-[RUN_GRADLEW] 70%
-[RUN_GRADLEW] 80%.
-[RUN_GRADLEW] 90%.
-[RUN_GRADLEW] 100%
-[RUN_GRADLEW] Welcome to Gradle 9.0.0!
-[RUN_GRADLEW] Here are the highlights of this release:
-[RUN_GRADLEW] - Configuration Cache is the recommended execution mode
-[RUN_GRADLEW]  - Gradle requires JVM 17 or higher to run
-[RUN_GRADLEW] - Build scripts use Kotlin 2.2 and Groovy 4.0
-[RUN_GRADLEW]  - Improved Kotlin DSL script compilation avoidance
-[RUN_GRADLEW] For more details see https://docs.gradle.org/9.0.0/release-notes.html
-[RUN_GRADLEW] Starting a Gradle Daemon (subsequent builds will be faster)
+[RUN_GRADLEW] Running 'gradlew :app:assembleDebug' in /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/android
 [RUN_GRADLEW] > Task :expo-gradle-plugin:expo-autolinking-settings-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :expo-gradle-plugin:expo-autolinking-plugin-shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
 [RUN_GRADLEW] > Task :gradle-plugin:shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
 [RUN_GRADLEW] > Task :gradle-plugin:settings-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :expo-gradle-plugin:expo-autolinking-plugin-shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
 [RUN_GRADLEW] > Task :expo-gradle-plugin:expo-autolinking-settings-plugin:pluginDescriptors
 [RUN_GRADLEW] > Task :gradle-plugin:settings-plugin:pluginDescriptors
-[RUN_GRADLEW] > Task :expo-gradle-plugin:expo-autolinking-settings-plugin:processResources
 [RUN_GRADLEW] > Task :gradle-plugin:settings-plugin:processResources
+[RUN_GRADLEW] > Task :expo-gradle-plugin:expo-autolinking-settings-plugin:processResources
 [RUN_GRADLEW] > Task :expo-gradle-plugin:expo-autolinking-plugin-shared:processResources NO-SOURCE
 [RUN_GRADLEW] > Task :gradle-plugin:shared:processResources NO-SOURCE
 [RUN_GRADLEW] > Task :gradle-plugin:shared:compileKotlin
@@ -476,19 +612,22 @@ Error: npx -y expo-doctor exited with non-zero code: 1
 [RUN_GRADLEW] > Task :expo-gradle-plugin:expo-max-sdk-override-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
 [RUN_GRADLEW] > Task :expo-gradle-plugin:expo-autolinking-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
 [RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :expo-updates-gradle-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
 [RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
 [RUN_GRADLEW] > Task :expo-module-gradle-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :expo-updates-gradle-plugin:pluginDescriptors
+[RUN_GRADLEW] > Task :expo-updates-gradle-plugin:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] SKIPPED
 [RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:pluginDescriptors
 [RUN_GRADLEW] > Task :expo-module-gradle-plugin:pluginDescriptors
-[RUN_GRADLEW] > Task :expo-updates-gradle-plugin:processResources
-[RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:processResources
+[RUN_GRADLEW] > Task :expo-updates-gradle-plugin:pluginDescriptors
 [RUN_GRADLEW] > Task :expo-module-gradle-plugin:processResources
-[RUN_GRADLEW] > Task :expo-gradle-plugin:expo-max-sdk-override-plugin:pluginDescriptors
+[RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:processResources
+[RUN_GRADLEW] > Task :expo-updates-gradle-plugin:processResources
 [RUN_GRADLEW] > Task :expo-gradle-plugin:expo-autolinking-plugin:pluginDescriptors
-[RUN_GRADLEW] > Task :expo-gradle-plugin:expo-max-sdk-override-plugin:processResources
 [RUN_GRADLEW] > Task :expo-gradle-plugin:expo-autolinking-plugin:processResources
+[RUN_GRADLEW] > Task :expo-gradle-plugin:expo-max-sdk-override-plugin:pluginDescriptors
+[RUN_GRADLEW] > Task :expo-gradle-plugin:expo-max-sdk-override-plugin:processResources
+[RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:pluginDescriptors
+[RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:processResources
 [RUN_GRADLEW] > Task :expo-gradle-plugin:expo-max-sdk-override-plugin:compileKotlin
 [RUN_GRADLEW] > Task :expo-gradle-plugin:expo-max-sdk-override-plugin:compileJava NO-SOURCE
 [RUN_GRADLEW] > Task :expo-gradle-plugin:expo-max-sdk-override-plugin:classes
@@ -497,8 +636,6 @@ Error: npx -y expo-doctor exited with non-zero code: 1
 [RUN_GRADLEW] > Task :expo-gradle-plugin:expo-autolinking-plugin:compileJava NO-SOURCE
 [RUN_GRADLEW] > Task :expo-gradle-plugin:expo-autolinking-plugin:classes
 [RUN_GRADLEW] > Task :expo-gradle-plugin:expo-autolinking-plugin:jar
-[RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:pluginDescriptors
-[RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:processResources
 [RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:compileKotlin
 [RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:compileJava NO-SOURCE
 [RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:classes
@@ -508,7 +645,7 @@ Error: npx -y expo-doctor exited with non-zero code: 1
 [RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:classes
 [RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:jar
 [RUN_GRADLEW] > Task :expo-module-gradle-plugin:compileKotlin
-[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/node_modules/expo-modules-core/expo-module-gradle-plugin/src/main/kotlin/expo/modules/plugin/android/AndroidLibraryExtension.kt:9:24 'var targetSdk: Int?' is deprecated. Will be removed from library DSL in v9.0. Use testOptions.targetSdk or/and lint.targetSdk instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-modules-core/expo-module-gradle-plugin/src/main/kotlin/expo/modules/plugin/android/AndroidLibraryExtension.kt:9:24 'var targetSdk: Int?' is deprecated. Will be removed from library DSL in v9.0. Use testOptions.targetSdk or/and lint.targetSdk instead.
 [RUN_GRADLEW] > Task :expo-module-gradle-plugin:compileJava NO-SOURCE
 [RUN_GRADLEW] > Task :expo-module-gradle-plugin:classes
 [RUN_GRADLEW] > Task :expo-module-gradle-plugin:jar
@@ -524,15 +661,15 @@ Error: npx -y expo-doctor exited with non-zero code: 1
 [RUN_GRADLEW]   - targetSdk:   36
 [RUN_GRADLEW]   - ndk:         27.1.12297006
 [RUN_GRADLEW]   - kotlin:      2.1.20
-[RUN_GRADLEW] - ksp:         2.1.20-2.0.1
+[RUN_GRADLEW]   - ksp:         2.1.20-2.0.1
 [RUN_GRADLEW] > Configure project :app
 [RUN_GRADLEW] ℹ️  Applying gradle plugin 'expo-max-sdk-override-plugin'
-[RUN_GRADLEW]   [expo-max-sdk-override-plugin] This plugin will find all permissions declared with `android:maxSdkVersion`. If there exists a declaration with the `android:maxSdkVersion` annotation and another one without, the plugin will remove the annotation from the final merged manifest. In order to see a log with the changes run a clean build of the app.
-[RUN_GRADLEW] ℹ️  Applying gradle plugin 'expo-dev-launcher-gradle-plugin'
+[RUN_GRADLEW] [expo-max-sdk-override-plugin] This plugin will find all permissions declared with `android:maxSdkVersion`. If there exists a declaration with the `android:maxSdkVersion` annotation and another one without, the plugin will remove the annotation from the final merged manifest. In order to see a log with the changes run a clean build of the app.
+[RUN_GRADLEW]  ℹ️  Applying gradle plugin 'expo-dev-launcher-gradle-plugin'
 [RUN_GRADLEW]  ℹ️  Applying gradle plugin 'expo-updates-gradle-plugin'
 [RUN_GRADLEW] > Configure project :expo
 [RUN_GRADLEW] Using expo modules
-[RUN_GRADLEW] - expo-log-box (55.0.7)
+[RUN_GRADLEW]   - expo-log-box (55.0.7)
 [RUN_GRADLEW] - expo-constants (55.0.7)
 [RUN_GRADLEW] - expo-dev-client (55.0.11)
 [RUN_GRADLEW] - expo-dev-launcher (55.0.12)
@@ -546,17 +683,8 @@ Error: npx -y expo-doctor exited with non-zero code: 1
 [RUN_GRADLEW] task ':react-native-worklets:mergeDebugNativeLibs'
 [RUN_GRADLEW] task ':react-native-worklets:mergeReleaseNativeLibs'
 [RUN_GRADLEW] > Configure project :expo
-[RUN_GRADLEW]   - expo-modules-core (55.0.14)
-[RUN_GRADLEW] - expo-structured-headers (55.0.0)
-[RUN_GRADLEW] > Configure project :expo-updates
-[RUN_GRADLEW] Checking the license for package NDK (Side by side) 27.0.12077973 in /home/rekan/android_sdk/licenses
-[RUN_GRADLEW] License for package NDK (Side by side) 27.0.12077973 accepted.
-[RUN_GRADLEW] Preparing "Install NDK (Side by side) 27.0.12077973 v.27.0.12077973".
-[RUN_GRADLEW] "Install NDK (Side by side) 27.0.12077973 v.27.0.12077973" ready.
-[RUN_GRADLEW] Installing NDK (Side by side) 27.0.12077973 in /home/rekan/android_sdk/ndk/27.0.12077973
-[RUN_GRADLEW] "Install NDK (Side by side) 27.0.12077973 v.27.0.12077973" complete.
-[RUN_GRADLEW] "Install NDK (Side by side) 27.0.12077973 v.27.0.12077973" finished.
-[RUN_GRADLEW] > Configure project :expo
+[RUN_GRADLEW] - expo-modules-core (55.0.14)
+[RUN_GRADLEW]   - expo-structured-headers (55.0.0)
 [RUN_GRADLEW]   - expo-updates (55.0.12)
 [RUN_GRADLEW] - expo-updates-interface (55.1.3)
 [RUN_GRADLEW] - [📦] expo-dom-webview (55.0.3)
@@ -565,7 +693,7 @@ Error: npx -y expo-doctor exited with non-zero code: 1
 [RUN_GRADLEW]   - [📦] expo-audio (55.0.8)
 [RUN_GRADLEW]   - [📦] expo-blur (55.0.8)
 [RUN_GRADLEW]   - [📦] expo-clipboard (55.0.8)
-[RUN_GRADLEW]   - [📦] expo-crypto (55.0.9)
+[RUN_GRADLEW] - [📦] expo-crypto (55.0.9)
 [RUN_GRADLEW]   - [📦] expo-device (55.0.9)
 [RUN_GRADLEW]   - [📦] expo-document-picker (55.0.8)
 [RUN_GRADLEW]   - [📦] expo-file-system (55.0.10)
@@ -577,11 +705,11 @@ Error: npx -y expo-doctor exited with non-zero code: 1
 [RUN_GRADLEW]   - [📦] expo-intent-launcher (55.0.8)
 [RUN_GRADLEW]   - [📦] expo-keep-awake (55.0.4)
 [RUN_GRADLEW]   - [📦] expo-linear-gradient (55.0.8)
-[RUN_GRADLEW] - [📦] expo-linking (55.0.7)
+[RUN_GRADLEW]   - [📦] expo-linking (55.0.7)
 [RUN_GRADLEW]   - [📦] expo-localization (55.0.8)
 [RUN_GRADLEW]   - [📦] expo-location (55.1.2)
 [RUN_GRADLEW]   - [📦] expo-media-library (55.0.9)
-[RUN_GRADLEW]   - [📦] expo-notifications (55.0.11)
+[RUN_GRADLEW] - [📦] expo-notifications (55.0.11)
 [RUN_GRADLEW]   - [📦] expo-secure-store (55.0.8)
 [RUN_GRADLEW]   - [📦] expo-sharing (55.0.11)
 [RUN_GRADLEW]   - [📦] expo-video (55.0.10)
@@ -593,747 +721,1264 @@ Error: npx -y expo-doctor exited with non-zero code: 1
 [RUN_GRADLEW] > Configure project :react-native-quick-crypto
 [RUN_GRADLEW] [NitroModules] 🔥 QuickCrypto is boosted by nitro!
 [RUN_GRADLEW] [QuickCrypto] Has libsodium disabled!
-[RUN_GRADLEW] > Task :expo-dev-launcher:preBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:installCMake
 [RUN_GRADLEW] > Task :expo-dev-client:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-dev-menu:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-eas-client:preBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-dev-menu:preBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:preBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-dev-launcher:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-log-box:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo:generatePackagesList
 [RUN_GRADLEW] > Task :expo-json-utils:preBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-modules-core:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-manifests:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-structured-headers:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-modules-core:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo:preBuild
-[RUN_GRADLEW] > Task :expo-updates:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-updates-interface:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-constants:createExpoConfig
-[RUN_GRADLEW] The NODE_ENV environment variable is required but was not specified. Ensure the project is bundled with Expo CLI or NODE_ENV is set. Using only .env.local and .env
-[RUN_GRADLEW] > Task :react-native-community_slider:generateCodegenSchemaFromJavaScript
-[RUN_GRADLEW] > Task :react-native-mmkv:generateCodegenSchemaFromJavaScript
-[RUN_GRADLEW] > Task :react-native-nitro-modules:generateCodegenSchemaFromJavaScript
+[RUN_GRADLEW] > Task :expo-updates:preBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo:generatePackagesList
+[RUN_GRADLEW] > Task :expo:preBuild
 [RUN_GRADLEW] > Task :react-native-gesture-handler:generateCodegenSchemaFromJavaScript
+[RUN_GRADLEW] > Task :react-native-quick-base64:generateCodegenSchemaFromJavaScript
+[RUN_GRADLEW] > Task :react-native-mmkv:generateCodegenSchemaFromJavaScript
+[RUN_GRADLEW] > Task :react-native-community_slider:generateCodegenSchemaFromJavaScript
 [RUN_GRADLEW] No modules to process in combine-js-to-schema-cli. If this is unexpected, please check if you set up your NativeComponent correctly. See combine-js-to-schema.js for how codegen finds modules.
+[RUN_GRADLEW] No modules to process in combine-js-to-schema-cli. If this is unexpected, please check if you set up your NativeComponent correctly. See combine-js-to-schema.js for how codegen finds modules.
+[RUN_GRADLEW] > Task :react-native-nitro-modules:generateCodegenSchemaFromJavaScript
+[RUN_GRADLEW] > Task :expo-constants:createExpoConfig
+[RUN_GRADLEW] › [@sentry/react-native/expo] Missing config for organization, project. Environment variables will be used as a fallback during the build. https://docs.sentry.io/platforms/react-native/manual-setup/
+[RUN_GRADLEW] > Task :expo-constants:preBuild
 [RUN_GRADLEW] > Task :react-native-picker_picker:generateCodegenSchemaFromJavaScript
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:installCMake
+[RUN_GRADLEW] > Task :react-native-gesture-handler:generateCodegenArtifactsFromSchema
+[RUN_GRADLEW] > Task :react-native-gesture-handler:preBuild
+[RUN_GRADLEW] > Task :react-native-quick-base64:generateCodegenArtifactsFromSchema
+[RUN_GRADLEW] > Task :react-native-quick-base64:preBuild
 [RUN_GRADLEW] > Task :react-native-mmkv:generateCodegenArtifactsFromSchema
 [RUN_GRADLEW] > Task :react-native-mmkv:preBuild
 [RUN_GRADLEW] > Task :react-native-community_slider:generateCodegenArtifactsFromSchema
 [RUN_GRADLEW] > Task :react-native-community_slider:preBuild
-[RUN_GRADLEW] > Task :react-native-picker_picker:generateCodegenArtifactsFromSchema
-[RUN_GRADLEW] > Task :react-native-gesture-handler:generateCodegenArtifactsFromSchema
-[RUN_GRADLEW] > Task :react-native-picker_picker:preBuild
-[RUN_GRADLEW] > Task :react-native-nitro-modules:generateCodegenArtifactsFromSchema
-[RUN_GRADLEW] > Task :react-native-gesture-handler:preBuild
-[RUN_GRADLEW] > Task :expo-constants:createExpoConfig
-[RUN_GRADLEW] > Task :expo-constants:preBuild
-[RUN_GRADLEW] › [@sentry/react-native/expo] Missing config for organization, project. Environment variables will be used as a fallback during the build. https://docs.sentry.io/platforms/react-native/manual-setup/
 [RUN_GRADLEW] > Task :react-native-reanimated:assertMinimalReactNativeVersionTask
 [RUN_GRADLEW] > Task :react-native-reanimated:assertNewArchitectureEnabledTask SKIPPED
-[RUN_GRADLEW] > Task :react-native-reanimated:assertWorkletsVersionTask
-[RUN_GRADLEW] > Task :react-native-quick-base64:generateCodegenSchemaFromJavaScript
-[RUN_GRADLEW] No modules to process in combine-js-to-schema-cli. If this is unexpected, please check if you set up your NativeComponent correctly. See combine-js-to-schema.js for how codegen finds modules.
-[RUN_GRADLEW] > Task :react-native-safe-area-context:generateCodegenSchemaFromJavaScript
-[RUN_GRADLEW] > Task :react-native-nitro-modules:prepareHeaders
 [RUN_GRADLEW] > Task :react-native-quick-crypto:generateCodegenSchemaFromJavaScript
-[RUN_GRADLEW] > Task :react-native-nitro-modules:preBuild
+[RUN_GRADLEW] > Task :react-native-nitro-modules:generateCodegenArtifactsFromSchema
 [RUN_GRADLEW] No modules to process in combine-js-to-schema-cli. If this is unexpected, please check if you set up your NativeComponent correctly. See combine-js-to-schema.js for how codegen finds modules.
-[RUN_GRADLEW] > Task :react-native-screens:generateCodegenSchemaFromJavaScript
-[RUN_GRADLEW] > Task :react-native-reanimated:generateCodegenSchemaFromJavaScript
-[RUN_GRADLEW] > Task :react-native-safe-area-context:generateCodegenArtifactsFromSchema
-[RUN_GRADLEW] > Task :react-native-safe-area-context:preBuild
-[RUN_GRADLEW] > Task :react-native-quick-base64:generateCodegenArtifactsFromSchema
-[RUN_GRADLEW] > Task :react-native-quick-base64:preBuild
+[RUN_GRADLEW] > Task :react-native-reanimated:assertWorkletsVersionTask
+[RUN_GRADLEW] > Task :react-native-safe-area-context:generateCodegenSchemaFromJavaScript
+[RUN_GRADLEW] > Task :react-native-picker_picker:generateCodegenArtifactsFromSchema
+[RUN_GRADLEW] > Task :react-native-picker_picker:preBuild
+[RUN_GRADLEW] > Task :react-native-nitro-modules:prepareHeaders
 [RUN_GRADLEW] > Task :react-native-view-shot:generateCodegenSchemaFromJavaScript
-[RUN_GRADLEW] > Task :react-native-worklets:assertMinimalReactNativeVersionTask
-[RUN_GRADLEW] > Task :react-native-worklets:assertNewArchitectureEnabledTask SKIPPED
+[RUN_GRADLEW] > Task :react-native-nitro-modules:preBuild
 [RUN_GRADLEW] > Task :react-native-quick-crypto:generateCodegenArtifactsFromSchema
 [RUN_GRADLEW] > Task :react-native-quick-crypto:preBuild
-[RUN_GRADLEW] > Task :react-native-screens:generateCodegenArtifactsFromSchema
-[RUN_GRADLEW] > Task :react-native-screens:preBuild
-[RUN_GRADLEW] > Task :expo:preDebugBuild
-[RUN_GRADLEW] > Task :react-native-reanimated:generateCodegenArtifactsFromSchema
-[RUN_GRADLEW] > Task :react-native-webview:generateCodegenSchemaFromJavaScript
-[RUN_GRADLEW] > Task :react-native-worklets:generateCodegenSchemaFromJavaScript
+[RUN_GRADLEW] > Task :react-native-screens:generateCodegenSchemaFromJavaScript
+[RUN_GRADLEW] > Task :react-native-reanimated:generateCodegenSchemaFromJavaScript
+[RUN_GRADLEW] > Task :react-native-worklets:assertMinimalReactNativeVersionTask
+[RUN_GRADLEW] > Task :react-native-worklets:assertNewArchitectureEnabledTask SKIPPED
 [RUN_GRADLEW] > Task :react-native-view-shot:generateCodegenArtifactsFromSchema
 [RUN_GRADLEW] > Task :react-native-view-shot:preBuild
+[RUN_GRADLEW] > Task :react-native-webview:generateCodegenSchemaFromJavaScript
+[RUN_GRADLEW] > Task :react-native-safe-area-context:generateCodegenArtifactsFromSchema
+[RUN_GRADLEW] > Task :react-native-safe-area-context:preBuild
+[RUN_GRADLEW] > Task :expo:preDebugBuild
 [RUN_GRADLEW] > Task :expo-constants:preDebugBuild
-[RUN_GRADLEW] > Task :sentry_react-native:generateCodegenSchemaFromJavaScript
+[RUN_GRADLEW] > Task :expo-constants:writeDebugAarMetadata
 [RUN_GRADLEW] > Task :expo:writeDebugAarMetadata
 [RUN_GRADLEW] > Task :expo-dev-client:preDebugBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-constants:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :expo-dev-launcher:preDebugBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-dev-launcher:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :expo-dev-menu:preDebugBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:preDebugBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-dev-client:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :react-native-reanimated:prepareReanimatedHeadersForPrefabs
-[RUN_GRADLEW] > Task :react-native-reanimated:preBuild
-[RUN_GRADLEW] > Task :expo-eas-client:preDebugBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-json-utils:preDebugBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-dev-launcher:preDebugBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-dev-menu:preDebugBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-dev-menu:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :expo-dev-launcher:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:preDebugBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-dev-menu-interface:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :expo-log-box:preDebugBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:installCMake
-Loading local repository...ge information...
-[RUN_GRADLEW] Warning: This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times.
+[RUN_GRADLEW] > Task :expo-eas-client:preDebugBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-eas-client:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :expo-json-utils:preDebugBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-json-utils:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :expo-log-box:preDebugBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-worklets:generateCodegenSchemaFromJavaScript
+[RUN_GRADLEW] > Task :react-native-reanimated:generateCodegenArtifactsFromSchema
+[RUN_GRADLEW] > Task :expo-log-box:writeDebugAarMetadata
 [RUN_GRADLEW] > Task :expo-manifests:preDebugBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-manifests:writeDebugAarMetadata
 [RUN_GRADLEW] > Task :expo-modules-core:preDebugBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-log-box:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :expo-modules-core:writeDebugAarMetadata
 [RUN_GRADLEW] > Task :expo-structured-headers:preDebugBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-webview:generateCodegenArtifactsFromSchema
-[RUN_GRADLEW] > Task :react-native-webview:preBuild
+[RUN_GRADLEW] > Task :react-native-screens:generateCodegenArtifactsFromSchema
+[RUN_GRADLEW] > Task :react-native-screens:preBuild
 [RUN_GRADLEW] > Task :expo-updates:preDebugBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-worklets:generateCodegenArtifactsFromSchema
+[RUN_GRADLEW] > Task :sentry_react-native:generateCodegenSchemaFromJavaScript
+[RUN_GRADLEW] > Task :expo-structured-headers:writeDebugAarMetadata
 [RUN_GRADLEW] > Task :expo-updates:writeDebugAarMetadata
 [RUN_GRADLEW] > Task :expo-updates-interface:preDebugBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-dev-menu:writeDebugAarMetadata
 [RUN_GRADLEW] > Task :react-native-community_slider:preDebugBuild
-[RUN_GRADLEW] > Task :expo-structured-headers:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :react-native-gesture-handler:preDebugBuild
-[RUN_GRADLEW] > Task :expo-updates-interface:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :react-native-mmkv:preDebugBuild
 [RUN_GRADLEW] > Task :react-native-community_slider:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :react-native-nitro-modules:preDebugBuild
-[RUN_GRADLEW] > Task :react-native-mmkv:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :react-native-picker_picker:preDebugBuild
-[RUN_GRADLEW] > Task :sentry_react-native:generateCodegenArtifactsFromSchema
-[RUN_GRADLEW] > Task :sentry_react-native:preBuild
-[RUN_GRADLEW] > Task :react-native-worklets:prepareWorkletsHeadersForPrefabs
-[RUN_GRADLEW] > Task :react-native-quick-base64:preDebugBuild
-[RUN_GRADLEW] > Task :react-native-worklets:preBuild
+[RUN_GRADLEW] > Task :react-native-gesture-handler:preDebugBuild
 [RUN_GRADLEW] > Task :react-native-gesture-handler:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :react-native-reanimated:preDebugBuild
-[RUN_GRADLEW] > Task :react-native-quick-crypto:preDebugBuild
-[RUN_GRADLEW] > Task :react-native-picker_picker:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :react-native-quick-base64:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :react-native-safe-area-context:preDebugBuild
+[RUN_GRADLEW] > Task :react-native-mmkv:preDebugBuild
+[RUN_GRADLEW] > Task :react-native-nitro-modules:preDebugBuild
+[RUN_GRADLEW] > Task :expo-updates-interface:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :react-native-picker_picker:preDebugBuild
+[RUN_GRADLEW] > Task :react-native-webview:generateCodegenArtifactsFromSchema
 [RUN_GRADLEW] > Task :react-native-nitro-modules:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :react-native-quick-base64:preDebugBuild
+[RUN_GRADLEW] > Task :react-native-webview:preBuild
+[RUN_GRADLEW] > Task :react-native-quick-crypto:preDebugBuild
+[RUN_GRADLEW] > Task :react-native-quick-base64:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :react-native-mmkv:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :react-native-safe-area-context:preDebugBuild
 [RUN_GRADLEW] > Task :react-native-screens:preDebugBuild
+[RUN_GRADLEW] > Task :react-native-picker_picker:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :react-native-safe-area-context:writeDebugAarMetadata
 [RUN_GRADLEW] > Task :react-native-view-shot:preDebugBuild
-[RUN_GRADLEW] > Task :react-native-reanimated:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :react-native-webview:preDebugBuild
 [RUN_GRADLEW] > Task :react-native-quick-crypto:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :react-native-worklets:preDebugBuild
-[RUN_GRADLEW] > Task :react-native-view-shot:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :sentry_react-native:preDebugBuild
-[RUN_GRADLEW] > Task :expo-modules-core:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :react-native-webview:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :sentry_react-native:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :react-native-webview:preDebugBuild
+[RUN_GRADLEW] > Task :react-native-screens:writeDebugAarMetadata
 [RUN_GRADLEW] > Task :expo:generateDebugResValues
-[RUN_GRADLEW] > Task :expo-constants:generateDebugResValues
-[RUN_GRADLEW] > Task :expo-dev-client:generateDebugResValues
-[RUN_GRADLEW] > Task :expo-constants:generateDebugResources
+[RUN_GRADLEW] > Task :react-native-webview:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :react-native-view-shot:writeDebugAarMetadata
 [RUN_GRADLEW] > Task :expo:generateDebugResources
+[RUN_GRADLEW] > Task :react-native-reanimated:prepareReanimatedHeadersForPrefabs
+[RUN_GRADLEW] > Task :react-native-reanimated:preBuild
+[RUN_GRADLEW] > Task :react-native-reanimated:preDebugBuild
+[RUN_GRADLEW] > Task :expo-dev-client:generateDebugResValues
+[RUN_GRADLEW] > Task :expo-constants:generateDebugResValues
 [RUN_GRADLEW] > Task :expo-dev-client:generateDebugResources
-[RUN_GRADLEW] > Task :expo-dev-client:packageDebugResources
-[RUN_GRADLEW] > Task :expo-constants:packageDebugResources
-[RUN_GRADLEW] > Task :expo:packageDebugResources
+[RUN_GRADLEW] > Task :expo-constants:generateDebugResources
 [RUN_GRADLEW] > Task :expo-dev-launcher:generateDebugResValues
+[RUN_GRADLEW] > Task :react-native-reanimated:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :expo:packageDebugResources
+[RUN_GRADLEW] > Task :expo-dev-client:packageDebugResources
 [RUN_GRADLEW] > Task :expo-dev-menu:generateDebugResValues
+[RUN_GRADLEW] > Task :expo-dev-launcher:generateDebugResources
 [RUN_GRADLEW] > Task :expo-dev-menu-interface:generateDebugResValues
+[RUN_GRADLEW] > Task :expo-constants:packageDebugResources
+[RUN_GRADLEW] > Task :expo-eas-client:generateDebugResValues
 [RUN_GRADLEW] > Task :expo-dev-menu-interface:generateDebugResources
 [RUN_GRADLEW] > Task :expo-dev-menu:generateDebugResources
-[RUN_GRADLEW] > Task :expo-dev-launcher:generateDebugResources
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:packageDebugResources
-[RUN_GRADLEW] > Task :expo-eas-client:generateDebugResValues
 [RUN_GRADLEW] > Task :expo-eas-client:generateDebugResources
-[RUN_GRADLEW] > Task :expo-eas-client:packageDebugResources
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:packageDebugResources
 [RUN_GRADLEW] > Task :expo-json-utils:generateDebugResValues
 [RUN_GRADLEW] > Task :expo-json-utils:generateDebugResources
+[RUN_GRADLEW] > Task :expo-dev-launcher:packageDebugResources
+[RUN_GRADLEW] > Task :expo-eas-client:packageDebugResources
+[RUN_GRADLEW] > Task :expo-dev-menu:packageDebugResources
 [RUN_GRADLEW] > Task :expo-json-utils:packageDebugResources
 [RUN_GRADLEW] > Task :expo-log-box:generateDebugResValues
-[RUN_GRADLEW] > Task :expo-log-box:generateDebugResources
-[RUN_GRADLEW] > Task :expo-dev-launcher:packageDebugResources
-[RUN_GRADLEW] > Task :expo-dev-menu:packageDebugResources
-[RUN_GRADLEW] > Task :expo-log-box:packageDebugResources
-[RUN_GRADLEW] > Task :expo-structured-headers:generateDebugResValues
 [RUN_GRADLEW] > Task :expo-manifests:generateDebugResValues
+[RUN_GRADLEW] > Task :expo-structured-headers:generateDebugResValues
 [RUN_GRADLEW] > Task :expo-modules-core:generateDebugResValues
+[RUN_GRADLEW] > Task :expo-log-box:generateDebugResources
 [RUN_GRADLEW] > Task :expo-manifests:generateDebugResources
-[RUN_GRADLEW] > Task :expo-structured-headers:generateDebugResources
 [RUN_GRADLEW] > Task :expo-modules-core:generateDebugResources
+[RUN_GRADLEW] > Task :expo-structured-headers:generateDebugResources
+[RUN_GRADLEW] > Task :expo-log-box:packageDebugResources
 [RUN_GRADLEW] > Task :expo-manifests:packageDebugResources
-[RUN_GRADLEW] > Task :expo-structured-headers:packageDebugResources
-[RUN_GRADLEW] > Task :expo-modules-core:packageDebugResources
 [RUN_GRADLEW] > Task :expo-updates:generateDebugResValues
-[RUN_GRADLEW] > Task :react-native-community_slider:generateDebugResValues
-[RUN_GRADLEW] > Task :expo-updates-interface:generateDebugResValues
-[RUN_GRADLEW] > Task :react-native-community_slider:generateDebugResources
+[RUN_GRADLEW] > Task :expo-structured-headers:packageDebugResources
 [RUN_GRADLEW] > Task :expo-updates:generateDebugResources
+[RUN_GRADLEW] > Task :expo-updates-interface:generateDebugResValues
+[RUN_GRADLEW] > Task :expo-modules-core:packageDebugResources
+[RUN_GRADLEW] > Task :react-native-worklets:generateCodegenArtifactsFromSchema
+[RUN_GRADLEW] > Task :react-native-community_slider:generateDebugResValues
 [RUN_GRADLEW] > Task :expo-updates-interface:generateDebugResources
-[RUN_GRADLEW] > Task :expo-updates-interface:packageDebugResources
-[RUN_GRADLEW] > Task :expo-updates:packageDebugResources
-[RUN_GRADLEW] > Task :react-native-community_slider:packageDebugResources
+[RUN_GRADLEW] > Task :react-native-community_slider:generateDebugResources
 [RUN_GRADLEW] > Task :react-native-gesture-handler:generateDebugResValues
+[RUN_GRADLEW] > Task :expo-updates:packageDebugResources
+[RUN_GRADLEW] > Task :expo-updates-interface:packageDebugResources
 [RUN_GRADLEW] > Task :react-native-mmkv:generateDebugResValues
-[RUN_GRADLEW] > Task :react-native-nitro-modules:generateDebugResValues
 [RUN_GRADLEW] > Task :react-native-gesture-handler:generateDebugResources
+[RUN_GRADLEW] > Task :react-native-community_slider:packageDebugResources
 [RUN_GRADLEW] > Task :react-native-mmkv:generateDebugResources
+[RUN_GRADLEW] > Task :react-native-nitro-modules:generateDebugResValues
+[RUN_GRADLEW] > Task :react-native-picker_picker:generateDebugResValues
 [RUN_GRADLEW] > Task :react-native-nitro-modules:generateDebugResources
+[RUN_GRADLEW] > Task :react-native-picker_picker:generateDebugResources
 [RUN_GRADLEW] > Task :react-native-mmkv:packageDebugResources
 [RUN_GRADLEW] > Task :react-native-gesture-handler:packageDebugResources
-[RUN_GRADLEW] > Task :react-native-picker_picker:generateDebugResValues
-[RUN_GRADLEW] > Task :react-native-nitro-modules:packageDebugResources
+[RUN_GRADLEW] > Task :sentry_react-native:generateCodegenArtifactsFromSchema
 [RUN_GRADLEW] > Task :react-native-quick-base64:generateDebugResValues
+[RUN_GRADLEW] > Task :sentry_react-native:preBuild
+[RUN_GRADLEW] > Task :sentry_react-native:preDebugBuild
 [RUN_GRADLEW] > Task :react-native-quick-crypto:generateDebugResValues
-[RUN_GRADLEW] > Task :react-native-picker_picker:generateDebugResources
 [RUN_GRADLEW] > Task :react-native-quick-base64:generateDebugResources
+[RUN_GRADLEW] > Task :react-native-nitro-modules:packageDebugResources
 [RUN_GRADLEW] > Task :react-native-quick-crypto:generateDebugResources
-[RUN_GRADLEW] > Task :react-native-quick-crypto:packageDebugResources
-[RUN_GRADLEW] > Task :react-native-quick-base64:packageDebugResources
-[RUN_GRADLEW] > Task :react-native-picker_picker:packageDebugResources
-[RUN_GRADLEW] > Task :expo-json-utils:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :sentry_react-native:writeDebugAarMetadata
 [RUN_GRADLEW] > Task :react-native-safe-area-context:generateDebugResValues
 [RUN_GRADLEW] > Task :react-native-reanimated:generateDebugResValues
-[RUN_GRADLEW] > Task :react-native-screens:generateDebugResValues
-[RUN_GRADLEW] > Task :react-native-safe-area-context:generateDebugResources
+[RUN_GRADLEW] > Task :react-native-picker_picker:packageDebugResources
+[RUN_GRADLEW] > Task :react-native-worklets:prepareWorkletsHeadersForPrefabs
+[RUN_GRADLEW] > Task :react-native-worklets:preBuild
+[RUN_GRADLEW] > Task :react-native-worklets:preDebugBuild
+[RUN_GRADLEW] > Task :react-native-quick-base64:packageDebugResources
+[RUN_GRADLEW] > Task :react-native-quick-crypto:packageDebugResources
 [RUN_GRADLEW] > Task :react-native-reanimated:generateDebugResources
-[RUN_GRADLEW] > Task :react-native-reanimated:packageDebugResources
-[RUN_GRADLEW] > Task :react-native-safe-area-context:packageDebugResources
-[RUN_GRADLEW] > Task :react-native-screens:generateDebugResources
+[RUN_GRADLEW] > Task :react-native-safe-area-context:generateDebugResources
 [RUN_GRADLEW] > Task :react-native-view-shot:generateDebugResValues
+[RUN_GRADLEW] > Task :react-native-worklets:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :react-native-screens:generateDebugResValues
 [RUN_GRADLEW] > Task :react-native-webview:generateDebugResValues
+[RUN_GRADLEW] > Task :react-native-worklets:generateDebugResValues
 [RUN_GRADLEW] > Task :react-native-webview:generateDebugResources
 [RUN_GRADLEW] > Task :react-native-view-shot:generateDebugResources
-[RUN_GRADLEW] > Task :react-native-view-shot:packageDebugResources
-[RUN_GRADLEW] > Task :react-native-webview:packageDebugResources
-[RUN_GRADLEW] > Task :react-native-worklets:generateDebugResValues
-[RUN_GRADLEW] > Task :sentry_react-native:generateDebugResValues
-[RUN_GRADLEW] > Task :react-native-screens:packageDebugResources
 [RUN_GRADLEW] > Task :react-native-worklets:generateDebugResources
-[RUN_GRADLEW] > Task :sentry_react-native:generateDebugResources
+[RUN_GRADLEW] > Task :react-native-screens:generateDebugResources
+[RUN_GRADLEW] > Task :react-native-safe-area-context:packageDebugResources
+[RUN_GRADLEW] > Task :react-native-reanimated:packageDebugResources
+[RUN_GRADLEW] > Task :sentry_react-native:generateDebugResValues
+[RUN_GRADLEW] > Task :react-native-view-shot:packageDebugResources
 [RUN_GRADLEW] > Task :expo:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :react-native-worklets:packageDebugResources
-[RUN_GRADLEW] > Task :sentry_react-native:packageDebugResources
-[RUN_GRADLEW] > Task :expo-dev-client:extractDeepLinksDebug
 [RUN_GRADLEW] > Task :expo-constants:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :react-native-safe-area-context:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :react-native-screens:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :react-native-worklets:writeDebugAarMetadata
-[RUN_GRADLEW] > Task :expo-dev-client:processDebugManifest
+[RUN_GRADLEW] > Task :react-native-webview:packageDebugResources
+[RUN_GRADLEW] > Task :react-native-worklets:packageDebugResources
+[RUN_GRADLEW] > Task :sentry_react-native:generateDebugResources
+[RUN_GRADLEW] > Task :expo-dev-client:extractDeepLinksDebug
 [RUN_GRADLEW] > Task :expo-dev-launcher:extractDeepLinksDebug
+[RUN_GRADLEW] > Task :expo:processDebugManifest
+[RUN_GRADLEW] > Task :expo-dev-client:processDebugManifest
+[RUN_GRADLEW] > Task :react-native-screens:packageDebugResources
+[RUN_GRADLEW] > Task :expo-constants:processDebugManifest
 [RUN_GRADLEW] > Task :expo-dev-menu:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :expo-dev-menu:processDebugManifest
+[RUN_GRADLEW] > Task :sentry_react-native:packageDebugResources
 [RUN_GRADLEW] > Task :expo-eas-client:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:processDebugManifest
+[RUN_GRADLEW] > Task :expo-dev-launcher:processDebugManifest
 [RUN_GRADLEW] > Task :expo-json-utils:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :expo-json-utils:processDebugManifest
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:extractDeepLinksDebug
 [RUN_GRADLEW] > Task :expo-log-box:extractDeepLinksDebug
 [RUN_GRADLEW] > Task :expo-manifests:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :expo-constants:processDebugManifest
-[RUN_GRADLEW] > Task :expo:processDebugManifest
-[RUN_GRADLEW] > Task :expo-modules-core:extractDeepLinksDebug
+[RUN_GRADLEW] > Task :expo-json-utils:processDebugManifest
+[RUN_GRADLEW] > Task :expo-dev-menu:processDebugManifest
 [RUN_GRADLEW] > Task :expo-manifests:processDebugManifest
-[RUN_GRADLEW] > Task :expo-structured-headers:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :expo-updates:extractDeepLinksDebug
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:processDebugManifest
 [RUN_GRADLEW] > Task :expo-log-box:processDebugManifest
-[RUN_GRADLEW] > Task :expo-dev-launcher:processDebugManifest
-[RUN_GRADLEW] > Task :expo-updates-interface:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :react-native-community_slider:extractDeepLinksDebug
 [RUN_GRADLEW] > Task :expo-eas-client:processDebugManifest
+[RUN_GRADLEW] > Task :expo-modules-core:extractDeepLinksDebug
+[RUN_GRADLEW] > Task :expo-structured-headers:extractDeepLinksDebug
+[RUN_GRADLEW] > Task :react-native-community_slider:extractDeepLinksDebug
 [RUN_GRADLEW] > Task :react-native-gesture-handler:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :expo-structured-headers:processDebugManifest
-[RUN_GRADLEW] > Task :react-native-mmkv:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :expo-updates:processDebugManifest
+[RUN_GRADLEW] > Task :expo-updates:extractDeepLinksDebug
+[RUN_GRADLEW] > Task :expo-updates-interface:extractDeepLinksDebug
 [RUN_GRADLEW] > Task :react-native-community_slider:processDebugManifest
-[RUN_GRADLEW] package="com.reactnativecommunity.slider" found in source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/node_modules/@react-native-community/slider/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] package="com.reactnativecommunity.slider" found in source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/@react-native-community/slider/android/src/main/AndroidManifest.xml.
 [RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
-[RUN_GRADLEW] Recommendation: remove package="com.reactnativecommunity.slider" from the source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/node_modules/@react-native-community/slider/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] Recommendation: remove package="com.reactnativecommunity.slider" from the source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/@react-native-community/slider/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] > Task :react-native-mmkv:extractDeepLinksDebug
 [RUN_GRADLEW] > Task :react-native-nitro-modules:extractDeepLinksDebug
 [RUN_GRADLEW] > Task :expo-modules-core:processDebugManifest
-[RUN_GRADLEW] /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/node_modules/expo-modules-core/android/src/main/AndroidManifest.xml:8:9-11:45 Warning:
+[RUN_GRADLEW] /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-modules-core/android/src/main/AndroidManifest.xml:8:9-11:45 Warning:
 [RUN_GRADLEW]   meta-data#com.facebook.soloader.enabled@android:value was tagged at AndroidManifest.xml:8 to replace other declarations but no other declaration present
-[RUN_GRADLEW] > Task :react-native-picker_picker:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :react-native-quick-base64:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :react-native-quick-crypto:extractDeepLinksDebug
+[RUN_GRADLEW] > Task :expo-structured-headers:processDebugManifest
+[RUN_GRADLEW] > Task :expo-updates:processDebugManifest
 [RUN_GRADLEW] > Task :expo-updates-interface:processDebugManifest
-[RUN_GRADLEW] > Task :react-native-mmkv:processDebugManifest
+[RUN_GRADLEW] > Task :react-native-quick-crypto:extractDeepLinksDebug
+[RUN_GRADLEW] > Task :react-native-picker_picker:extractDeepLinksDebug
 [RUN_GRADLEW] > Task :react-native-reanimated:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :react-native-safe-area-context:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :react-native-quick-base64:processDebugManifest
-[RUN_GRADLEW] > Task :react-native-nitro-modules:processDebugManifest
-[RUN_GRADLEW] > Task :react-native-quick-crypto:processDebugManifest
+[RUN_GRADLEW] > Task :react-native-quick-base64:extractDeepLinksDebug
 [RUN_GRADLEW] > Task :react-native-gesture-handler:processDebugManifest
+[RUN_GRADLEW] > Task :react-native-safe-area-context:extractDeepLinksDebug
+[RUN_GRADLEW] > Task :react-native-picker_picker:processDebugManifest
+[RUN_GRADLEW] package="com.reactnativecommunity.picker" found in source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/@react-native-picker/picker/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+[RUN_GRADLEW] Recommendation: remove package="com.reactnativecommunity.picker" from the source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/@react-native-picker/picker/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] > Task :react-native-mmkv:processDebugManifest
+[RUN_GRADLEW] > Task :react-native-nitro-modules:processDebugManifest
+[RUN_GRADLEW] > Task :react-native-reanimated:processDebugManifest
+[RUN_GRADLEW] > Task :react-native-screens:extractDeepLinksDebug
+[RUN_GRADLEW] > Task :react-native-worklets:extractDeepLinksDebug
 [RUN_GRADLEW] > Task :react-native-webview:extractDeepLinksDebug
 [RUN_GRADLEW] > Task :react-native-view-shot:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :react-native-worklets:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:installCMake
-[=                                      ] 3% Fetch remote repository...         ory...
-[RUN_GRADLEW] > Task :react-native-screens:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :react-native-picker_picker:processDebugManifest
-[RUN_GRADLEW] package="com.reactnativecommunity.picker" found in source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/node_modules/@react-native-picker/picker/android/src/main/AndroidManifest.xml.
-[RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
-[RUN_GRADLEW] Recommendation: remove package="com.reactnativecommunity.picker" from the source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/node_modules/@react-native-picker/picker/android/src/main/AndroidManifest.xml.
-[RUN_GRADLEW] > Task :sentry_react-native:extractDeepLinksDebug
-[RUN_GRADLEW] > Task :react-native-reanimated:processDebugManifest
-[RUN_GRADLEW] > Task :react-native-screens:processDebugManifest
-[RUN_GRADLEW] > Task :react-native-safe-area-context:processDebugManifest
-[RUN_GRADLEW] package="com.th3rdwave.safeareacontext" found in source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/node_modules/react-native-safe-area-context/android/src/main/AndroidManifest.xml.
-[RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
-[RUN_GRADLEW] Recommendation: remove package="com.th3rdwave.safeareacontext" from the source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/node_modules/react-native-safe-area-context/android/src/main/AndroidManifest.xml.
-[RUN_GRADLEW] > Task :react-native-worklets:processDebugManifest
-[RUN_GRADLEW] > Task :react-native-webview:processDebugManifest
-[RUN_GRADLEW] > Task :sentry_react-native:processDebugManifest
-[RUN_GRADLEW] package="io.sentry.react" found in source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/node_modules/@sentry/react-native/android/src/main/AndroidManifest.xml.
-[RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
-[RUN_GRADLEW] Recommendation: remove package="io.sentry.react" from the source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/node_modules/@sentry/react-native/android/src/main/AndroidManifest.xml.
-[RUN_GRADLEW] > Task :react-native-view-shot:processDebugManifest
-[RUN_GRADLEW] package="fr.greweb.reactnativeviewshot" found in source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/node_modules/react-native-view-shot/android/src/main/AndroidManifest.xml.
-[RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
-[RUN_GRADLEW] Recommendation: remove package="fr.greweb.reactnativeviewshot" from the source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/node_modules/react-native-view-shot/android/src/main/AndroidManifest.xml.
-[RUN_GRADLEW] > Task :expo:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :expo-constants:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :expo-dev-client:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :expo-dev-launcher:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :expo-dev-menu:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :expo-eas-client:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:installCMake
-[==                                     ] 7% Computing updates...ory...         ry...
-[==============                         ] 37% Unzipping... bin/cpack
-[===============                        ] 39% Unzipping... bin/ctest            ck
-[RUN_GRADLEW] [===============                        ] 40% Unzipping... bin/ctest
-[================                       ] 42% Unzipping... bin/ctest            st
-[=================                      ] 45% Unzipping... bin/ctest            st
-[===================                    ] 48% Unzipping... bin/cmake            st
-[====================                   ] 51% Unzipping... bin/cmake            ke
-[RUN_GRADLEW] [====================                   ] 52% Unzipping... bin/cmake
-[====================                   ] 52% Unzipping... share/cmake-3.30/Tempim/vimfiles/sy
-[=====================                  ] 53% Unzipping... share/cmake-3.30/Modumake-3.30/incl
-[RUN_GRADLEW] > Task :expo-dev-client:parseDebugLocalResources
-[RUN_GRADLEW] > Task :expo:parseDebugLocalResources
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:parseDebugLocalResources
-[RUN_GRADLEW] > Task :expo-constants:parseDebugLocalResources
-[RUN_GRADLEW] > Task :expo-dev-menu:parseDebugLocalResources
-[RUN_GRADLEW] > Task :expo-dev-launcher:parseDebugLocalResources
-[RUN_GRADLEW] > Task :expo-dev-launcher:generateDebugRFile
-[RUN_GRADLEW] > Task :expo:generateDebugRFile
-[RUN_GRADLEW] > Task :expo-dev-client:generateDebugRFile
-[RUN_GRADLEW] > Task :expo-dev-menu:generateDebugRFile
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:generateDebugRFile
-[RUN_GRADLEW] > Task :expo-manifests:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :expo-modules-core:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :expo-constants:generateDebugRFile
-[RUN_GRADLEW] > Task :expo-eas-client:parseDebugLocalResources
-[RUN_GRADLEW] > Task :expo-json-utils:parseDebugLocalResources
-[RUN_GRADLEW] > Task :expo-json-utils:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :expo-manifests:parseDebugLocalResources
-[RUN_GRADLEW] > Task :expo-modules-core:parseDebugLocalResources
-[RUN_GRADLEW] > Task :expo-modules-core:generateDebugRFile
-[RUN_GRADLEW] > Task :expo-json-utils:generateDebugRFile
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:installCMake
-[=======================================] 100% Unzipping... share/cmake-3.30/Modmake-3.30/Modu
-[RUN_GRADLEW] > Task :expo-structured-headers:parseDebugLocalResources
-[RUN_GRADLEW] > Task :expo-manifests:generateDebugRFile
-[RUN_GRADLEW] > Task :expo-eas-client:generateDebugRFile
-[RUN_GRADLEW] > Task :expo-log-box:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :expo-log-box:parseDebugLocalResources
-[RUN_GRADLEW] > Task :expo-structured-headers:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :expo-updates:parseDebugLocalResources
-[RUN_GRADLEW] > Task :expo-structured-headers:generateDebugRFile
-[RUN_GRADLEW] > Task :expo-updates-interface:parseDebugLocalResources
-[RUN_GRADLEW] > Task :react-native-community_slider:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :expo-updates:generateDebugRFile
-[RUN_GRADLEW] > Task :expo-log-box:generateDebugRFile
-[RUN_GRADLEW] > Task :expo-updates-interface:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :react-native-community_slider:parseDebugLocalResources
-[RUN_GRADLEW] > Task :react-native-community_slider:generateDebugRFile
-[RUN_GRADLEW] > Task :expo-updates-interface:generateDebugRFile
-[RUN_GRADLEW] > Task :react-native-mmkv:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :react-native-nitro-modules:parseDebugLocalResources
-[RUN_GRADLEW] > Task :react-native-nitro-modules:generateDebugRFile
-[RUN_GRADLEW] > Task :react-native-nitro-modules:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :react-native-picker_picker:parseDebugLocalResources
-[RUN_GRADLEW] > Task :react-native-picker_picker:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :react-native-picker_picker:generateDebugRFile
-[RUN_GRADLEW] > Task :expo-updates:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :react-native-gesture-handler:parseDebugLocalResources
-[RUN_GRADLEW] > Task :react-native-quick-base64:parseDebugLocalResources
-[RUN_GRADLEW] > Task :react-native-mmkv:parseDebugLocalResources
-[RUN_GRADLEW] > Task :react-native-gesture-handler:generateDebugRFile
-[RUN_GRADLEW] > Task :react-native-mmkv:generateDebugRFile
-[RUN_GRADLEW] > Task :react-native-gesture-handler:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :react-native-reanimated:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :react-native-safe-area-context:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :react-native-safe-area-context:parseDebugLocalResources
-[RUN_GRADLEW] > Task :react-native-reanimated:parseDebugLocalResources
-[RUN_GRADLEW] > Task :react-native-quick-base64:generateDebugRFile
-[RUN_GRADLEW] > Task :react-native-safe-area-context:generateDebugRFile
-[RUN_GRADLEW] > Task :react-native-quick-crypto:parseDebugLocalResources
-[RUN_GRADLEW] > Task :react-native-screens:parseDebugLocalResources
-[RUN_GRADLEW] > Task :react-native-quick-crypto:generateDebugRFile
-[RUN_GRADLEW] > Task :react-native-quick-base64:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :react-native-view-shot:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :react-native-quick-crypto:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :react-native-view-shot:parseDebugLocalResources
-[RUN_GRADLEW] > Task :react-native-webview:parseDebugLocalResources
-[RUN_GRADLEW] > Task :react-native-screens:generateDebugRFile
-[RUN_GRADLEW] > Task :react-native-worklets:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :react-native-worklets:parseDebugLocalResources
-[RUN_GRADLEW] > Task :react-native-view-shot:generateDebugRFile
-[RUN_GRADLEW] > Task :sentry_react-native:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :react-native-webview:generateDebugRFile
-[RUN_GRADLEW] > Task :expo:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :sentry_react-native:parseDebugLocalResources
-[RUN_GRADLEW] > Task :react-native-worklets:generateDebugRFile
-[RUN_GRADLEW] > Task :expo-constants:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :expo-constants:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :expo:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :expo-modules-core:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :react-native-worklets:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :expo-modules-core:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :react-native-webview:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :expo-constants:javaPreCompileDebug
-[RUN_GRADLEW] > Task :react-native-worklets:javaPreCompileDebug
-[RUN_GRADLEW] > Task :expo-dev-client:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :expo-dev-launcher:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :react-native-reanimated:generateDebugRFile
-[RUN_GRADLEW] > Task :expo-dev-menu:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :expo-dev-menu:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:javaPreCompileDebug
-[RUN_GRADLEW] > Task :expo-json-utils:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :expo-json-utils:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :expo-json-utils:javaPreCompileDebug
-[RUN_GRADLEW] > Task :expo-manifests:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :expo-manifests:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :expo-manifests:javaPreCompileDebug
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:downloadHermes
-[RUN_GRADLEW] > Task :react-native-screens:compileDebugLibraryResources
-[RUN_GRADLEW] > Task :sentry_react-native:generateDebugRFile
-[RUN_GRADLEW] > Task :expo-modules-core:javaPreCompileDebug
-[RUN_GRADLEW] > Task :expo-dev-client:dataBindingMergeDependencyArtifactsDebug
-[RUN_GRADLEW] > Task :expo-dev-launcher:dataBindingMergeDependencyArtifactsDebug
-[RUN_GRADLEW] > Task :expo-updates-interface:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :expo-updates-interface:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :expo-updates-interface:javaPreCompileDebug
-[RUN_GRADLEW] > Task :expo-eas-client:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :expo-eas-client:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :expo-dev-menu:javaPreCompileDebug
-[RUN_GRADLEW] > Task :expo-log-box:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :expo-log-box:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :expo-log-box:javaPreCompileDebug
-[RUN_GRADLEW] > Task :expo-structured-headers:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :expo-structured-headers:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :expo-structured-headers:javaPreCompileDebug
-[RUN_GRADLEW] > Task :expo-updates:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :expo-updates:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :expo:javaPreCompileDebug
-[RUN_GRADLEW] > Task :react-native-community_slider:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :react-native-community_slider:javaPreCompileDebug
-[RUN_GRADLEW] > Task :react-native-gesture-handler:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :react-native-gesture-handler:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :react-native-reanimated:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :react-native-reanimated:javaPreCompileDebug
-[RUN_GRADLEW] > Task :react-native-gesture-handler:javaPreCompileDebug
-[RUN_GRADLEW] > Task :react-native-mmkv:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :react-native-mmkv:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :react-native-nitro-modules:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :react-native-nitro-modules:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :react-native-nitro-modules:javaPreCompileDebug
-[RUN_GRADLEW] > Task :react-native-mmkv:javaPreCompileDebug
-[RUN_GRADLEW] > Task :react-native-picker_picker:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :react-native-picker_picker:javaPreCompileDebug
-[RUN_GRADLEW] > Task :react-native-quick-base64:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :react-native-quick-base64:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :expo-eas-client:javaPreCompileDebug
-[RUN_GRADLEW] > Task :react-native-quick-crypto:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :react-native-quick-crypto:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :react-native-safe-area-context:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :react-native-safe-area-context:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :expo-updates:javaPreCompileDebug
-[RUN_GRADLEW] > Task :react-native-quick-base64:javaPreCompileDebug
-[RUN_GRADLEW] > Task :react-native-quick-crypto:javaPreCompileDebug
-[RUN_GRADLEW] > Task :react-native-safe-area-context:javaPreCompileDebug
-[RUN_GRADLEW] > Task :react-native-screens:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :react-native-screens:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :react-native-screens:javaPreCompileDebug
-[RUN_GRADLEW] > Task :expo-dev-client:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :expo-dev-client:javaPreCompileDebug
-[RUN_GRADLEW] > Task :react-native-view-shot:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :react-native-view-shot:javaPreCompileDebug
-[RUN_GRADLEW] > Task :react-native-webview:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :react-native-webview:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :sentry_react-native:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :sentry_react-native:javaPreCompileDebug
-[RUN_GRADLEW] > Task :expo-constants:mergeDebugShaders
-[RUN_GRADLEW] > Task :react-native-webview:javaPreCompileDebug
-[RUN_GRADLEW] > Task :expo-constants:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :expo-constants:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-dev-menu:mergeDebugShaders
-[RUN_GRADLEW] > Task :expo-dev-menu:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :expo-dev-menu:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-constants:mergeDebugAssets
-[RUN_GRADLEW] > Task :expo-dev-menu:mergeDebugAssets
-[RUN_GRADLEW] > Task :expo:mergeDebugShaders
-[RUN_GRADLEW] > Task :expo:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :expo:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:mergeDebugShaders
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :expo:mergeDebugAssets
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:mergeDebugAssets
-[RUN_GRADLEW] > Task :expo-log-box:mergeDebugShaders
-[RUN_GRADLEW] > Task :expo-log-box:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :expo-log-box:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-log-box:mergeDebugAssets
-[RUN_GRADLEW] > Task :expo-json-utils:mergeDebugShaders
-[RUN_GRADLEW] > Task :expo-json-utils:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :expo-json-utils:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-eas-client:mergeDebugShaders
-[RUN_GRADLEW] > Task :expo-eas-client:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :expo-manifests:mergeDebugShaders
-[RUN_GRADLEW] > Task :expo-eas-client:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-manifests:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :expo-manifests:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-eas-client:mergeDebugAssets
-[RUN_GRADLEW] > Task :expo-manifests:mergeDebugAssets
-[RUN_GRADLEW] > Task :expo-json-utils:mergeDebugAssets
-[RUN_GRADLEW] > Task :expo-structured-headers:mergeDebugShaders
-[RUN_GRADLEW] > Task :expo-modules-core:mergeDebugShaders
-[RUN_GRADLEW] > Task :expo-structured-headers:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :expo-structured-headers:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-modules-core:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :expo-modules-core:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-updates-interface:mergeDebugShaders
-[RUN_GRADLEW] > Task :expo-dev-client:dataBindingGenBaseClassesDebug
-[RUN_GRADLEW] > Task :expo-updates-interface:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :expo-structured-headers:mergeDebugAssets
-[RUN_GRADLEW] > Task :expo-updates-interface:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-modules-core:mergeDebugAssets
-[RUN_GRADLEW] > Task :expo-dev-client:mergeDebugShaders
-[RUN_GRADLEW] > Task :expo-updates-interface:mergeDebugAssets
-[RUN_GRADLEW] > Task :expo-dev-client:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :expo-dev-client:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-community_slider:mergeDebugShaders
-[RUN_GRADLEW] > Task :react-native-community_slider:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-gesture-handler:mergeDebugShaders
-[RUN_GRADLEW] > Task :react-native-community_slider:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-gesture-handler:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-gesture-handler:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-dev-client:mergeDebugAssets
-[RUN_GRADLEW] > Task :react-native-mmkv:mergeDebugShaders
-[RUN_GRADLEW] > Task :react-native-nitro-modules:mergeDebugShaders
-[RUN_GRADLEW] > Task :react-native-gesture-handler:mergeDebugAssets
-[RUN_GRADLEW] > Task :react-native-nitro-modules:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-nitro-modules:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-mmkv:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-mmkv:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-picker_picker:mergeDebugShaders
-[RUN_GRADLEW] > Task :react-native-community_slider:mergeDebugAssets
-[RUN_GRADLEW] > Task :react-native-picker_picker:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-picker_picker:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-mmkv:mergeDebugAssets
-[RUN_GRADLEW] > Task :react-native-picker_picker:mergeDebugAssets
-[RUN_GRADLEW] > Task :react-native-quick-base64:mergeDebugShaders
-[RUN_GRADLEW] > Task :react-native-reanimated:mergeDebugShaders
-[RUN_GRADLEW] > Task :react-native-quick-base64:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-safe-area-context:mergeDebugShaders
-[RUN_GRADLEW] > Task :react-native-quick-base64:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-safe-area-context:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-safe-area-context:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-reanimated:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-reanimated:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-nitro-modules:mergeDebugAssets
-[RUN_GRADLEW] > Task :react-native-safe-area-context:mergeDebugAssets
-[RUN_GRADLEW] > Task :react-native-screens:mergeDebugShaders
-[RUN_GRADLEW] > Task :react-native-reanimated:mergeDebugAssets
-[RUN_GRADLEW] > Task :react-native-view-shot:mergeDebugShaders
-[RUN_GRADLEW] > Task :react-native-screens:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-screens:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-view-shot:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-view-shot:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-quick-base64:mergeDebugAssets
-[RUN_GRADLEW] > Task :react-native-quick-crypto:mergeDebugShaders
-[RUN_GRADLEW] > Task :react-native-view-shot:mergeDebugAssets
-[RUN_GRADLEW] > Task :react-native-quick-crypto:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-quick-crypto:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-webview:mergeDebugShaders
-[RUN_GRADLEW] > Task :react-native-webview:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-webview:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-screens:mergeDebugAssets
-[RUN_GRADLEW] > Task :react-native-quick-crypto:mergeDebugAssets
-[RUN_GRADLEW] > Task :react-native-picker_picker:processDebugJavaRes NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-community_slider:processDebugJavaRes NO-SOURCE
-[RUN_GRADLEW] > Task :sentry_react-native:mergeDebugShaders
-[RUN_GRADLEW] > Task :sentry_react-native:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-view-shot:processDebugJavaRes NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-reanimated:processDebugJavaRes NO-SOURCE
-[RUN_GRADLEW] > Task :sentry_react-native:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-worklets:mergeDebugShaders
-[RUN_GRADLEW] > Task :react-native-worklets:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :expo:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :sentry_react-native:mergeDebugAssets
-[RUN_GRADLEW] > Task :react-native-webview:mergeDebugAssets
-[RUN_GRADLEW] > Task :react-native-worklets:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :expo:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :sentry_react-native:processDebugJavaRes NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-worklets:mergeDebugAssets
-[RUN_GRADLEW] > Task :expo-dev-client:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :react-native-worklets:processDebugJavaRes NO-SOURCE
-[RUN_GRADLEW] > Task :expo-dev-client:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :expo-constants:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :expo-constants:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :expo-dev-menu:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :react-native-worklets:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :expo-dev-menu:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :expo:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :expo-dev-client:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :expo-constants:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :expo-dev-menu:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :expo-eas-client:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :expo-eas-client:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :expo-json-utils:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :expo-json-utils:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :expo-modules-core:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :expo-log-box:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :expo-eas-client:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :expo-manifests:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :expo-json-utils:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :expo-manifests:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :expo-log-box:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :expo-structured-headers:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :expo-updates-interface:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :react-native-community_slider:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :expo-log-box:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :expo-updates-interface:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :expo-structured-headers:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-community_slider:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :expo-manifests:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :react-native-gesture-handler:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :expo-structured-headers:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :react-native-community_slider:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :expo-updates-interface:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :react-native-quick-base64:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :react-native-picker_picker:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :react-native-picker_picker:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-quick-crypto:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :react-native-mmkv:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :react-native-reanimated:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :react-native-safe-area-context:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :react-native-safe-area-context:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :react-native-picker_picker:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :react-native-screens:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :react-native-safe-area-context:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :react-native-nitro-modules:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :react-native-webview:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :react-native-view-shot:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :react-native-webview:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :sentry_react-native:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :react-native-view-shot:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :sentry_react-native:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:buildCodegenCLI
-[RUN_GRADLEW] > Task :react-native-view-shot:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :expo-updates:mergeDebugShaders
-[RUN_GRADLEW] > Task :expo-updates:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :expo-updates:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-updates:mergeDebugAssets
-[RUN_GRADLEW] > Task :react-native-webview:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :expo-updates:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :sentry_react-native:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:generateCodegenSchemaFromJavaScript
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:generateCodegenArtifactsFromSchema
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:createNativeDepsDirectories UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-dev-launcher:generateDebugBuildConfig
-[RUN_GRADLEW] > Task :expo-dev-launcher:checkApolloVersions
-[RUN_GRADLEW] > Task :expo-dev-launcher:generateServiceApolloOptions
-[RUN_GRADLEW] > Task :expo-dev-launcher:generateServiceApolloSources
-[RUN_GRADLEW] w: /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/node_modules/expo-dev-launcher/android/src/debug/graphql/GetBranches.graphql: (21, 11): Apollo: Use of deprecated field `runtimeVersion`
-[RUN_GRADLEW] w: /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/node_modules/expo-dev-launcher/android/src/debug/graphql/GetBranches.graphql: (34, 3): Apollo: Variable `platform` is unused
-[RUN_GRADLEW] w: /tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/node_modules/expo-dev-launcher/android/src/debug/graphql/GetUpdates.graphql: (14, 11): Apollo: Use of deprecated field `runtimeVersion`
-[RUN_GRADLEW] > Task :expo-dev-launcher:javaPreCompileDebug
-[RUN_GRADLEW] > Task :expo-dev-launcher:mergeDebugShaders
-[RUN_GRADLEW] > Task :expo-dev-launcher:compileDebugShaders NO-SOURCE
-[RUN_GRADLEW] > Task :expo-dev-launcher:generateDebugAssets UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-dev-launcher:mergeDebugAssets
-[RUN_GRADLEW] > Task :expo-dev-launcher:mergeDebugJniLibFolders
-[RUN_GRADLEW] > Task :expo-dev-launcher:mergeDebugNativeLibs NO-SOURCE
-[RUN_GRADLEW] > Task :expo-dev-launcher:copyDebugJniLibsProjectOnly
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:downloadFastFloat
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:downloadBoost
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:downloadDoubleConversion
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:downloadFmt
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:downloadFolly
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:prepareFastFloat
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:prepareFmt
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:checkKotlinGradlePluginConfigurationErrors SKIPPED
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:downloadGlog
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:prepareGlog
+[RUN_GRADLEW] > Task :react-native-quick-base64:processDebugManifest
 [RUN_GRADLEW] > Task :app:copySentryJsonConfiguration
-[RUN_GRADLEW] sentry.options.json not found in app root (/tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build)
+[RUN_GRADLEW] sentry.options.json not found in app root (/tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build)
+[RUN_GRADLEW] > Task :sentry_react-native:extractDeepLinksDebug
+[RUN_GRADLEW] > Task :react-native-quick-crypto:processDebugManifest
+[RUN_GRADLEW] > Task :react-native-safe-area-context:processDebugManifest
+[RUN_GRADLEW] package="com.th3rdwave.safeareacontext" found in source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-safe-area-context/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+[RUN_GRADLEW] Recommendation: remove package="com.th3rdwave.safeareacontext" from the source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-safe-area-context/android/src/main/AndroidManifest.xml.
 [RUN_GRADLEW] > Task :app:generateAutolinkingNewArchitectureFiles
+[RUN_GRADLEW] > Task :react-native-screens:processDebugManifest
+[RUN_GRADLEW] > Task :react-native-worklets:processDebugManifest
+[RUN_GRADLEW] > Task :expo:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :react-native-view-shot:processDebugManifest
+[RUN_GRADLEW] package="fr.greweb.reactnativeviewshot" found in source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-view-shot/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+[RUN_GRADLEW] Recommendation: remove package="fr.greweb.reactnativeviewshot" from the source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-view-shot/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] > Task :sentry_react-native:processDebugManifest
+[RUN_GRADLEW] package="io.sentry.react" found in source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/@sentry/react-native/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+[RUN_GRADLEW] Recommendation: remove package="io.sentry.react" from the source AndroidManifest.xml: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/@sentry/react-native/android/src/main/AndroidManifest.xml.
 [RUN_GRADLEW] > Task :app:generateAutolinkingPackageList
 [RUN_GRADLEW] > Task :app:generateCodegenSchemaFromJavaScript SKIPPED
 [RUN_GRADLEW] > Task :app:generateCodegenArtifactsFromSchema SKIPPED
+[RUN_GRADLEW] > Task :react-native-webview:processDebugManifest
+[RUN_GRADLEW] > Task :expo-constants:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :expo-dev-client:compileDebugLibraryResources
 [RUN_GRADLEW] > Task :app:generateReactNativeEntryPoint
 [RUN_GRADLEW] > Task :app:preBuild
 [RUN_GRADLEW] > Task :app:preDebugBuild
+[RUN_GRADLEW] > Task :expo:parseDebugLocalResources
 [RUN_GRADLEW] > Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
 [RUN_GRADLEW] > Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :expo-constants:parseDebugLocalResources
+[RUN_GRADLEW] > Task :expo-dev-client:parseDebugLocalResources
+[RUN_GRADLEW] > Task :expo:generateDebugRFile
 [RUN_GRADLEW] > Task :app:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :expo-dev-launcher:parseDebugLocalResources
+[RUN_GRADLEW] > Task :expo-dev-launcher:compileDebugLibraryResources
 [RUN_GRADLEW] > Task :app:generateDebugResValues
 [RUN_GRADLEW] > Task :app:processDebugGoogleServices
+[RUN_GRADLEW] > Task :expo-dev-menu:parseDebugLocalResources
+[RUN_GRADLEW] > Task :expo-eas-client:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:parseDebugLocalResources
+[RUN_GRADLEW] > Task :expo-constants:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-dev-launcher:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-dev-menu:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :expo-manifests:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :expo-eas-client:parseDebugLocalResources
 [RUN_GRADLEW] > Task :app:generateDebugResources
+[RUN_GRADLEW] > Task :expo-dev-client:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-log-box:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :expo-json-utils:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-modules-core:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :expo-dev-menu:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-json-utils:parseDebugLocalResources
+[RUN_GRADLEW] > Task :expo-manifests:parseDebugLocalResources
+[RUN_GRADLEW] > Task :expo-updates:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :expo-modules-core:parseDebugLocalResources
+[RUN_GRADLEW] > Task :expo-log-box:parseDebugLocalResources
+[RUN_GRADLEW] > Task :expo-eas-client:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-manifests:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-structured-headers:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :expo-json-utils:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-updates:parseDebugLocalResources
+[RUN_GRADLEW] > Task :expo-structured-headers:parseDebugLocalResources
+[RUN_GRADLEW] > Task :react-native-community_slider:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :expo-modules-core:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-updates-interface:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :react-native-gesture-handler:compileDebugLibraryResources
 [RUN_GRADLEW] > Task :app:packageDebugResources
+[RUN_GRADLEW] > Task :expo-log-box:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-updates:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-updates-interface:parseDebugLocalResources
+[RUN_GRADLEW] > Task :react-native-community_slider:parseDebugLocalResources
+[RUN_GRADLEW] > Task :react-native-gesture-handler:parseDebugLocalResources
+[RUN_GRADLEW] > Task :expo-structured-headers:generateDebugRFile
+[RUN_GRADLEW] > Task :react-native-mmkv:compileDebugLibraryResources
 [RUN_GRADLEW] > Task :app:createDebugCompatibleScreenManifests
+[RUN_GRADLEW] > Task :react-native-nitro-modules:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :react-native-picker_picker:compileDebugLibraryResources
 [RUN_GRADLEW] > Task :app:parseDebugLocalResources
 [RUN_GRADLEW] > Task :app:extractDeepLinksDebug
+[RUN_GRADLEW] > Task :react-native-community_slider:generateDebugRFile
+[RUN_GRADLEW] > Task :react-native-nitro-modules:parseDebugLocalResources
+[RUN_GRADLEW] > Task :react-native-gesture-handler:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-updates-interface:generateDebugRFile
+[RUN_GRADLEW] > Task :react-native-mmkv:parseDebugLocalResources
+[RUN_GRADLEW] > Task :react-native-picker_picker:parseDebugLocalResources
+[RUN_GRADLEW] > Task :react-native-quick-crypto:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :react-native-reanimated:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :react-native-quick-base64:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :react-native-quick-crypto:parseDebugLocalResources
+[RUN_GRADLEW] > Task :react-native-quick-base64:parseDebugLocalResources
+[RUN_GRADLEW] > Task :react-native-safe-area-context:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :react-native-mmkv:generateDebugRFile
+[RUN_GRADLEW] > Task :react-native-picker_picker:generateDebugRFile
+[RUN_GRADLEW] > Task :react-native-reanimated:parseDebugLocalResources
+[RUN_GRADLEW] > Task :react-native-nitro-modules:generateDebugRFile
+[RUN_GRADLEW] > Task :react-native-quick-crypto:generateDebugRFile
+[RUN_GRADLEW] > Task :react-native-safe-area-context:parseDebugLocalResources
+[RUN_GRADLEW] > Task :react-native-view-shot:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :react-native-worklets:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :react-native-webview:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :react-native-reanimated:generateDebugRFile
+[RUN_GRADLEW] > Task :react-native-screens:parseDebugLocalResources
+[RUN_GRADLEW] > Task :react-native-quick-base64:generateDebugRFile
+[RUN_GRADLEW] > Task :expo:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :react-native-safe-area-context:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-constants:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :react-native-webview:parseDebugLocalResources
+[RUN_GRADLEW] > Task :react-native-screens:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :react-native-view-shot:parseDebugLocalResources
+[RUN_GRADLEW] > Task :react-native-worklets:parseDebugLocalResources
+[RUN_GRADLEW] > Task :expo-constants:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :expo-modules-core:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :sentry_react-native:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :expo:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :expo-dev-client:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :expo-modules-core:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :expo-constants:javaPreCompileDebug
+[RUN_GRADLEW] > Task :sentry_react-native:parseDebugLocalResources
+[RUN_GRADLEW] > Task :react-native-screens:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-dev-client:dataBindingMergeDependencyArtifactsDebug
+[RUN_GRADLEW] > Task :expo-dev-launcher:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :react-native-webview:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-dev-menu:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :react-native-view-shot:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :react-native-worklets:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-json-utils:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :react-native-worklets:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :expo-dev-client:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :expo-modules-core:javaPreCompileDebug
+[RUN_GRADLEW] > Task :expo-manifests:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :expo-json-utils:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :expo-dev-menu:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :expo-manifests:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :sentry_react-native:generateDebugRFile
+[RUN_GRADLEW] > Task :expo-dev-client:dataBindingGenBaseClassesDebug
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:javaPreCompileDebug
+[RUN_GRADLEW] > Task :react-native-worklets:javaPreCompileDebug
+[RUN_GRADLEW] > Task :expo-updates-interface:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :expo-eas-client:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :expo-dev-menu:javaPreCompileDebug
+[RUN_GRADLEW] > Task :expo-structured-headers:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :expo-log-box:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :expo-json-utils:javaPreCompileDebug
+[RUN_GRADLEW] > Task :expo-structured-headers:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :expo-updates:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :expo-dev-client:javaPreCompileDebug
+[RUN_GRADLEW] > Task :expo-eas-client:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :expo-updates-interface:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :expo-log-box:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :expo:javaPreCompileDebug
+[RUN_GRADLEW] > Task :expo-updates-interface:javaPreCompileDebug
+[RUN_GRADLEW] > Task :expo-eas-client:javaPreCompileDebug
+[RUN_GRADLEW] > Task :expo-structured-headers:javaPreCompileDebug
+[RUN_GRADLEW] > Task :react-native-gesture-handler:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :expo-updates:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :react-native-mmkv:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :expo-log-box:javaPreCompileDebug
+[RUN_GRADLEW] > Task :react-native-nitro-modules:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :expo-manifests:javaPreCompileDebug
+[RUN_GRADLEW] > Task :react-native-gesture-handler:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :react-native-reanimated:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :react-native-community_slider:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :react-native-nitro-modules:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :react-native-mmkv:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :react-native-picker_picker:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :react-native-reanimated:javaPreCompileDebug
+[RUN_GRADLEW] > Task :react-native-quick-base64:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :react-native-picker_picker:javaPreCompileDebug
+[RUN_GRADLEW] > Task :react-native-community_slider:javaPreCompileDebug
+[RUN_GRADLEW] > Task :react-native-safe-area-context:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :react-native-quick-crypto:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :react-native-mmkv:javaPreCompileDebug
+[RUN_GRADLEW] > Task :react-native-screens:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :react-native-quick-base64:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :react-native-nitro-modules:javaPreCompileDebug
+[RUN_GRADLEW] > Task :react-native-safe-area-context:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :react-native-screens:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :react-native-quick-crypto:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :react-native-quick-base64:javaPreCompileDebug
+[RUN_GRADLEW] > Task :react-native-webview:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :react-native-gesture-handler:javaPreCompileDebug
+[RUN_GRADLEW] > Task :react-native-safe-area-context:javaPreCompileDebug
+[RUN_GRADLEW] > Task :react-native-view-shot:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :expo-dev-launcher:dataBindingMergeDependencyArtifactsDebug
+[RUN_GRADLEW] > Task :react-native-quick-crypto:javaPreCompileDebug
+[RUN_GRADLEW] > Task :react-native-webview:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :sentry_react-native:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :react-native-screens:javaPreCompileDebug
+[RUN_GRADLEW] > Task :expo-dev-launcher:generateDebugBuildConfig
 [RUN_GRADLEW] > Task :app:javaPreCompileDebug
+[RUN_GRADLEW] > Task :react-native-view-shot:javaPreCompileDebug
+[RUN_GRADLEW] > Task :expo-dev-launcher:checkApolloVersions
+[RUN_GRADLEW] > Task :expo:mergeDebugShaders
+[RUN_GRADLEW] > Task :react-native-webview:javaPreCompileDebug
 [RUN_GRADLEW] > Task :app:mergeDebugShaders
 [RUN_GRADLEW] > Task :app:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :sentry_react-native:javaPreCompileDebug
+[RUN_GRADLEW] > Task :expo-dev-client:mergeDebugShaders
+[RUN_GRADLEW] > Task :expo-dev-client:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo-dev-client:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-dev-launcher:generateServiceApolloOptions
+[RUN_GRADLEW] > Task :expo-constants:mergeDebugShaders
+[RUN_GRADLEW] > Task :expo:mergeDebugAssets
+[RUN_GRADLEW] > Task :expo-dev-menu:mergeDebugShaders
+[RUN_GRADLEW] > Task :expo-constants:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo-constants:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-updates:javaPreCompileDebug
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:mergeDebugShaders
+[RUN_GRADLEW] > Task :expo-dev-menu:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo-dev-menu:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-eas-client:mergeDebugShaders
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo-dev-client:mergeDebugAssets
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-eas-client:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo-dev-launcher:javaPreCompileDebug
+[RUN_GRADLEW] > Task :expo-eas-client:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-dev-menu:mergeDebugAssets
+[RUN_GRADLEW] > Task :expo-json-utils:mergeDebugShaders
+[RUN_GRADLEW] > Task :expo-json-utils:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo-json-utils:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:mergeDebugAssets
+[RUN_GRADLEW] > Task :expo-constants:mergeDebugAssets
+[RUN_GRADLEW] > Task :expo-dev-launcher:mergeDebugShaders
+[RUN_GRADLEW] > Task :expo-log-box:mergeDebugShaders
+[RUN_GRADLEW] > Task :expo-dev-launcher:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo-dev-launcher:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-json-utils:mergeDebugAssets
+[RUN_GRADLEW] > Task :expo-eas-client:mergeDebugAssets
+[RUN_GRADLEW] > Task :expo-log-box:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo-modules-core:mergeDebugShaders
+[RUN_GRADLEW] > Task :expo-log-box:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-modules-core:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo-modules-core:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-updates:mergeDebugShaders
+[RUN_GRADLEW] > Task :expo-dev-launcher:mergeDebugAssets
+[RUN_GRADLEW] > Task :expo-structured-headers:mergeDebugShaders
+[RUN_GRADLEW] > Task :expo-manifests:mergeDebugShaders
+[RUN_GRADLEW] > Task :expo-log-box:mergeDebugAssets
+[RUN_GRADLEW] > Task :expo-updates:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo-updates:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-structured-headers:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo-manifests:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo-manifests:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-structured-headers:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-community_slider:mergeDebugShaders
+[RUN_GRADLEW] > Task :react-native-community_slider:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-community_slider:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-modules-core:mergeDebugAssets
+[RUN_GRADLEW] > Task :expo-structured-headers:mergeDebugAssets
+[RUN_GRADLEW] > Task :expo-updates-interface:mergeDebugShaders
+[RUN_GRADLEW] > Task :expo-updates:mergeDebugAssets
+[RUN_GRADLEW] > Task :expo-updates-interface:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo-updates-interface:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-manifests:mergeDebugAssets
+[RUN_GRADLEW] > Task :react-native-mmkv:mergeDebugShaders
+[RUN_GRADLEW] > Task :react-native-community_slider:mergeDebugAssets
+[RUN_GRADLEW] > Task :react-native-nitro-modules:mergeDebugShaders
+[RUN_GRADLEW] > Task :react-native-gesture-handler:mergeDebugShaders
+[RUN_GRADLEW] > Task :react-native-gesture-handler:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-nitro-modules:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-gesture-handler:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-mmkv:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-nitro-modules:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-mmkv:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-picker_picker:mergeDebugShaders
+[RUN_GRADLEW] > Task :react-native-nitro-modules:mergeDebugAssets
+[RUN_GRADLEW] > Task :react-native-gesture-handler:mergeDebugAssets
+[RUN_GRADLEW] > Task :react-native-quick-base64:mergeDebugShaders
+[RUN_GRADLEW] > Task :react-native-mmkv:mergeDebugAssets
+[RUN_GRADLEW] > Task :react-native-quick-base64:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-picker_picker:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-quick-base64:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-picker_picker:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-quick-base64:mergeDebugAssets
+[RUN_GRADLEW] > Task :react-native-quick-crypto:mergeDebugShaders
+[RUN_GRADLEW] > Task :expo-updates-interface:mergeDebugAssets
+[RUN_GRADLEW] > Task :react-native-safe-area-context:mergeDebugShaders
+[RUN_GRADLEW] > Task :react-native-reanimated:mergeDebugShaders
+[RUN_GRADLEW] > Task :react-native-safe-area-context:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-reanimated:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-safe-area-context:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-quick-crypto:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-quick-crypto:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-reanimated:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-view-shot:mergeDebugShaders
+[RUN_GRADLEW] > Task :react-native-view-shot:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-view-shot:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-picker_picker:mergeDebugAssets
+[RUN_GRADLEW] > Task :react-native-screens:mergeDebugShaders
+[RUN_GRADLEW] > Task :react-native-reanimated:mergeDebugAssets
+[RUN_GRADLEW] > Task :react-native-quick-crypto:mergeDebugAssets
+[RUN_GRADLEW] > Task :react-native-screens:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-screens:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-safe-area-context:mergeDebugAssets
+[RUN_GRADLEW] > Task :sentry_react-native:mergeDebugShaders
+[RUN_GRADLEW] > Task :react-native-webview:mergeDebugShaders
+[RUN_GRADLEW] > Task :react-native-view-shot:mergeDebugAssets
+[RUN_GRADLEW] > Task :react-native-worklets:mergeDebugShaders
+[RUN_GRADLEW] > Task :react-native-community_slider:processDebugJavaRes NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-webview:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-webview:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-worklets:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-worklets:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :sentry_react-native:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-picker_picker:processDebugJavaRes NO-SOURCE
+[RUN_GRADLEW] > Task :sentry_react-native:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-reanimated:processDebugJavaRes NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-view-shot:processDebugJavaRes NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-webview:mergeDebugAssets
+[RUN_GRADLEW] > Task :sentry_react-native:mergeDebugAssets
+[RUN_GRADLEW] > Task :react-native-worklets:mergeDebugAssets
+[RUN_GRADLEW] > Task :sentry_react-native:processDebugJavaRes NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-screens:mergeDebugAssets
+[RUN_GRADLEW] > Task :react-native-worklets:processDebugJavaRes NO-SOURCE
+[RUN_GRADLEW] > Task :expo-constants:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :expo-constants:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-worklets:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo-dev-client:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo-dev-launcher:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :expo-constants:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :expo-dev-launcher:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :expo-dev-client:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo-eas-client:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo-dev-menu:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo-json-utils:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :expo-dev-launcher:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :expo-dev-menu:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :expo-eas-client:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :expo-json-utils:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :expo-dev-client:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :expo-log-box:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo-json-utils:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :expo-dev-menu:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :expo-log-box:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :expo-eas-client:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :expo-modules-core:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo-manifests:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo-log-box:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :expo-updates:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo-manifests:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :expo-structured-headers:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :react-native-community_slider:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :react-native-mmkv:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :react-native-gesture-handler:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo-structured-headers:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :expo-manifests:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :react-native-community_slider:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :expo-updates-interface:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :react-native-picker_picker:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :react-native-quick-base64:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo-structured-headers:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :expo-updates-interface:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-picker_picker:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-community_slider:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :react-native-nitro-modules:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :react-native-quick-crypto:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :react-native-picker_picker:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :react-native-reanimated:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo-updates-interface:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :react-native-safe-area-context:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :react-native-screens:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :react-native-safe-area-context:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-view-shot:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :react-native-webview:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :react-native-view-shot:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-webview:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :sentry_react-native:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:buildCodegenCLI
+[RUN_GRADLEW] > Task :react-native-safe-area-context:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :sentry_react-native:mergeDebugNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-view-shot:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :react-native-webview:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :sentry_react-native:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :expo-dev-launcher:generateServiceApolloSources
+[RUN_GRADLEW] w: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/graphql/GetBranches.graphql: (21, 11): Apollo: Use of deprecated field `runtimeVersion`
+[RUN_GRADLEW] w: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/graphql/GetBranches.graphql: (34, 3): Apollo: Variable `platform` is unused
+[RUN_GRADLEW] w: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/graphql/GetUpdates.graphql: (14, 11): Apollo: Use of deprecated field `runtimeVersion`
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:generateCodegenSchemaFromJavaScript
 [RUN_GRADLEW] > Task :app:createDebugUpdatesResources
 [RUN_GRADLEW] > Task :app:generateDebugAssets UP-TO-DATE
 [RUN_GRADLEW] > Task :app:desugarDebugFileDependencies
 [RUN_GRADLEW] › [@sentry/react-native/expo] Missing config for organization, project. Environment variables will be used as a fallback during the build. https://docs.sentry.io/platforms/react-native/manual-setup/
-[RUN_GRADLEW] > Task :app:checkDebugDuplicateClasses
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:prepareFolly
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:prepareDoubleConversion
 [RUN_GRADLEW] > Task :app:mergeDebugJniLibFolders
 [RUN_GRADLEW] > Task :app:validateSigningDebug
 [RUN_GRADLEW] > Task :app:writeDebugAppMetadata
 [RUN_GRADLEW] > Task :app:writeDebugSigningConfigVersions
+[RUN_GRADLEW] > Task :app:checkDebugDuplicateClasses
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:generateCodegenArtifactsFromSchema
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:createNativeDepsDirectories UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:downloadFastFloat
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:prepareFastFloat
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:downloadGlog
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:downloadFmt
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:prepareFmt
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:prepareGlog
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:downloadDoubleConversion
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:prepareDoubleConversion
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:downloadFolly
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:prepareFolly
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:downloadHermes
 [RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:unzipHermes
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:downloadBoost
 [RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:configureBuildForHermes
-[RUN_GRADLEW] CMake Error at CMakeLists.txt:638 (message):
-[RUN_GRADLEW]   Unable to find ICU.
-[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:configureBuildForHermes FAILED
-[RUN_GRADLEW] [Incubating] Problems report is available at: file:///tmp/rekan/eas-build-local-nodejs/b09ed68f-0c0b-4df1-89b5-fc84db755065/build/android/build/reports/problems/problems-report.html
-[RUN_GRADLEW] Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
-[RUN_GRADLEW] You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
-[RUN_GRADLEW] For more on this, please refer to https://docs.gradle.org/9.0.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
-[RUN_GRADLEW] 527 actionable tasks: 527 executed
-[RUN_GRADLEW] FAILURE: Build failed with an exception.
-[RUN_GRADLEW] * What went wrong:
-[RUN_GRADLEW] Execution failed for task ':react-native:packages:react-native:ReactAndroid:hermes-engine:configureBuildForHermes'.
-[RUN_GRADLEW] > Process 'command '/home/rekan/android_sdk/cmake/3.30.5/bin/cmake'' finished with non-zero exit value 1
-[RUN_GRADLEW] * Try:
-[RUN_GRADLEW] > Run with --stacktrace option to get the stack trace.
-[RUN_GRADLEW] > Run with --info or --debug option to get more log output.
-[RUN_GRADLEW] > Run with --scan to generate a Build Scan (Powered by Develocity).
-[RUN_GRADLEW] > Get more help at https://help.gradle.org.
-[RUN_GRADLEW] BUILD FAILED in 13m 22s
-[RUN_GRADLEW] Error: Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.
-
-Build failed
-Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.
-Error: Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.
-    at resolveBuildPhaseErrorAsync (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/buildErrors/detectError.js:70:12)
-    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at async BuildContext.handleBuildPhaseErrorAsync (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/context.js:190:28)
-    at async BuildContext.runBuildPhase (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/context.js:135:35)
-    at async buildAsync (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/builders/android.js:122:5)
-    at async runBuilderWithHooksAsync (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/builders/common.js:12:13)
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:buildHermesC
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:prepareBoost
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:prepareNative3pDependencies
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:preparePrefab
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:preBuild
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:preDebugBuild
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:generateDebugResValues
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:generateDebugResources
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:packageDebugResources
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:extractDeepLinksDebug
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:processDebugManifest
+[RUN_GRADLEW] /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native/ReactAndroid/src/main/AndroidManifest.xml:10:3-13:9 Warning:
+[RUN_GRADLEW]   uses-sdk:targetSdkVersion value (36) specified in the manifest file is ignored. It is overridden by the value declared in the DSL or the variant API, or 1 if not declared/present. Current value is (24).
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:parseDebugLocalResources
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:generateDebugRFile
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:javaPreCompileDebug
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:mergeDebugShaders
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:mergeDebugAssets
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :expo-dev-launcher:dataBindingGenBaseClassesDebug
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:prepareHeadersForPrefab
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:preBuild
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:preDebugBuild
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:writeDebugAarMetadata
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:generateDebugResValues
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:generateDebugResources
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:packageDebugResources
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:extractDeepLinksDebug
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:parseDebugLocalResources
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:compileDebugLibraryResources
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:generateDebugBuildConfig
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:generateDebugRFile
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:mergeDebugShaders
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:compileDebugShaders NO-SOURCE
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:generateDebugAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:processDebugManifest
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:mergeDebugAssets
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:processDebugJavaRes NO-SOURCE
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:javaPreCompileDebug
+[RUN_GRADLEW] > Task :app:checkDebugAarMetadata
+[RUN_GRADLEW] > Task :app:mapDebugSourceSetPaths
+[RUN_GRADLEW] > Task :app:mergeDebugResources
+[RUN_GRADLEW] > Task :app:processDebugMainManifest
+[RUN_GRADLEW] [io.github.zhongwuzw:mmkv:2.3.0] /home/rekan/.gradle/caches/9.0.0/transforms/af884e5b5d5daffc9cce0c1dcee43ef1/transformed/mmkv-2.3.0/AndroidManifest.xml Warning:
+[RUN_GRADLEW]   Namespace 'com.tencent.mmkv' is used in multiple modules and/or libraries: io.github.zhongwuzw:mmkv:2.3.0, io.github.zhongwuzw:annotation:2.3.0. Please ensure that all modules and libraries have a unique namespace. For more information, See https://developer.android.com/studio/build/configure-app-module#set-namespace
+[RUN_GRADLEW] /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/android/app/src/debug/AndroidManifest.xml:6:5-162 Warning:
+[RUN_GRADLEW]   application@android:usesCleartextTraffic was tagged at AndroidManifest.xml:6 to replace other declarations but no other declaration present
+[RUN_GRADLEW] /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/android/app/src/debug/AndroidManifest.xml Warning:
+[RUN_GRADLEW]   provider#expo.modules.filesystem.FileSystemFileProvider@android:authorities was tagged at AndroidManifest.xml:0 to replace other declarations but no other declaration present
+[RUN_GRADLEW] /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/android/app/src/debug/AndroidManifest.xml Warning:
+[RUN_GRADLEW]   activity#expo.modules.imagepicker.ExpoCropImageActivity@android:exported was tagged at AndroidManifest.xml:0 to replace other declarations but no other declaration present
+[RUN_GRADLEW] > Task :app:expoDebugOverrideMaxSdkConflicts
+[RUN_GRADLEW] ---------- Expo Max Sdk Override Plugin ----------
+[RUN_GRADLEW] >>> No 'android:maxSdkVersion' conflicts found
+[RUN_GRADLEW] --------------------------------------------------
+[RUN_GRADLEW] > Task :app:processDebugManifest
+[RUN_GRADLEW] > Task :app:mergeDebugAssets
+[RUN_GRADLEW] > Task :app:processDebugManifestForPackage
+[RUN_GRADLEW] > Task :app:compressDebugAssets
+[RUN_GRADLEW] > Task :app:processDebugResources
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:configureCMakeRelease[arm64-v8a]
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:configureCMakeRelease[armeabi-v7a]
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:configureCMakeRelease[x86]
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:compileDebugKotlin
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:configureCMakeRelease[x86_64]
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:generateJsonModelDebug
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:prefabDebugConfigurePackage
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:configureCMakeDebug[arm64-v8a]
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:buildCMakeRelease[arm64-v8a][hermesvm]
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:buildCMakeRelease[armeabi-v7a][hermesvm]
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:buildCMakeRelease[x86][hermesvm]
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:buildCMakeRelease[x86_64][hermesvm]
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:externalNativeBuildDebug
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:prefabDebugPackage
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:mergeDebugJniLibFolders
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:mergeDebugNativeLibs
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:hermes-engine:copyDebugJniLibsProjectOnly
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:compileDebugJavaWithJavac
+[RUN_GRADLEW] Note: Some input files use or override a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] Note: Some input files use unchecked or unsafe operations.
+[RUN_GRADLEW] Note: Recompile with -Xlint:unchecked for details.
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:processDebugJavaRes
+[RUN_GRADLEW] > Task :react-native-quick-base64:compileDebugKotlin NO-SOURCE
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:configureCMakeDebug[armeabi-v7a]
+[RUN_GRADLEW] > Task :react-native-picker_picker:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :react-native-community_slider:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :react-native-worklets:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :react-native-safe-area-context:compileDebugKotlin
+[RUN_GRADLEW] > Task :react-native-nitro-modules:compileDebugKotlin
+[RUN_GRADLEW] > Task :react-native-quick-base64:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :react-native-screens:compileDebugKotlin
+[RUN_GRADLEW] > Task :react-native-view-shot:compileDebugJavaWithJavac
+[RUN_GRADLEW] Note: Some input files use or override a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] > Task :react-native-quick-base64:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :react-native-picker_picker:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :react-native-quick-base64:bundleLibCompileToJarDebug
+[RUN_GRADLEW] Note: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-quick-base64/android/src/main/java/com/reactnativequickbase64/QuickBase64Package.java uses or overrides a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] Note: Some input files use or override a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] > Task :react-native-worklets:compileDebugJavaWithJavac
+[RUN_GRADLEW] Note: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-worklets/android/src/main/java/com/swmansion/worklets/WorkletsMessageQueueThreadBase.java uses or overrides a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] > Task :react-native-view-shot:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :react-native-webview:compileDebugKotlin
+[RUN_GRADLEW] Note: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-worklets/android/src/main/java/com/swmansion/worklets/WorkletsPackage.java uses unchecked or unsafe operations.
+[RUN_GRADLEW] Note: Recompile with -Xlint:unchecked for details.
+[RUN_GRADLEW] > Task :react-native-picker_picker:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :sentry_react-native:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :react-native-worklets:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :react-native-quick-base64:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :expo-modules-core:compileDebugKotlin
+[RUN_GRADLEW] > Task :react-native-reanimated:compileDebugJavaWithJavac
+[RUN_GRADLEW] Note: Some input files use or override a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] Note: Some input files use unchecked or unsafe operations.
+[RUN_GRADLEW] Note: Recompile with -Xlint:unchecked for details.
+[RUN_GRADLEW] > Task :react-native-community_slider:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :react-native-community_slider:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :react-native-worklets:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] Note: Some input files use or override a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] > Task :sentry_react-native:compileDebugJavaWithJavac
+[RUN_GRADLEW] Note: Some input files use or override a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] > Task :react-native-reanimated:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :react-native-gesture-handler:compileDebugKotlin
+[RUN_GRADLEW] > Task :react-native-reanimated:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :sentry_react-native:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :react-native-community_slider:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :react-native-picker_picker:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:configureCMakeDebug[x86]
+[RUN_GRADLEW] > Task :sentry_react-native:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :react-native-view-shot:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :react-native-nitro-modules:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :react-native-webview:compileDebugKotlin
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:22:8 'object MapBuilder : Any' is deprecated. Use Kotlin's built-in collections extensions.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:82:18 'var allowFileAccessFromFileURLs: Boolean' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:83:18 'var allowUniversalAccessFromFileURLs: Boolean' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:124:21 'fun allowScanningByMediaScanner(): Unit' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:161:36 'var systemUiVisibility: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:300:14 'object MapBuilder : Any' is deprecated. Use Kotlin's built-in collections extensions.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:350:34 Condition is always 'true'.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:369:38 'var allowUniversalAccessFromFileURLs: Boolean' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:430:51 Unchecked cast of 'Any?' to 'HashMap<String, String>'.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:486:23 'var savePassword: Boolean' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:487:23 'var saveFormData: Boolean' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:557:23 'var allowFileAccessFromFileURLs: Boolean' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:602:52 'static field FORCE_DARK_ON: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:602:89 'static field FORCE_DARK_OFF: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:603:35 'static fun setForceDark(p0: @NonNull() WebSettings, p1: Int): Unit' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:612:35 'static fun setForceDarkStrategy(p0: @NonNull() WebSettings, p1: Int): Unit' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:614:39 'static field DARK_STRATEGY_PREFER_WEB_THEME_OVER_USER_AGENT_DARKENING: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:658:65 Unchecked cast of 'ArrayList<Any?>' to 'List<Map<String, String>>'.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:679:23 'var saveFormData: Boolean' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/SubResourceErrorEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/SubResourceErrorEvent.kt:11:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/SubResourceErrorEvent.kt:22:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/SubResourceErrorEvent.kt:22:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/SubResourceErrorEvent.kt:23:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopCustomMenuSelectionEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopCustomMenuSelectionEvent.kt:11:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopCustomMenuSelectionEvent.kt:22:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopCustomMenuSelectionEvent.kt:22:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopCustomMenuSelectionEvent.kt:23:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopHttpErrorEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopHttpErrorEvent.kt:11:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopHttpErrorEvent.kt:22:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopHttpErrorEvent.kt:22:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopHttpErrorEvent.kt:23:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingErrorEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingErrorEvent.kt:11:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingErrorEvent.kt:22:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingErrorEvent.kt:22:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingErrorEvent.kt:23:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingFinishEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingFinishEvent.kt:11:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingFinishEvent.kt:22:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingFinishEvent.kt:22:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingFinishEvent.kt:23:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingProgressEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingProgressEvent.kt:11:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingProgressEvent.kt:22:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingProgressEvent.kt:22:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingProgressEvent.kt:23:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingStartEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingStartEvent.kt:11:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingStartEvent.kt:22:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingStartEvent.kt:22:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingStartEvent.kt:23:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopMessageEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopMessageEvent.kt:10:75 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopMessageEvent.kt:21:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopMessageEvent.kt:21:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopMessageEvent.kt:22:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopNewWindowEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopNewWindowEvent.kt:11:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopNewWindowEvent.kt:22:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopNewWindowEvent.kt:22:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopNewWindowEvent.kt:23:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopRenderProcessGoneEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopRenderProcessGoneEvent.kt:12:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopRenderProcessGoneEvent.kt:23:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopRenderProcessGoneEvent.kt:23:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopRenderProcessGoneEvent.kt:24:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopShouldStartLoadWithRequestEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopShouldStartLoadWithRequestEvent.kt:10:89 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopShouldStartLoadWithRequestEvent.kt:27:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopShouldStartLoadWithRequestEvent.kt:27:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopShouldStartLoadWithRequestEvent.kt:28:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+[RUN_GRADLEW] > Task :react-native-safe-area-context:compileDebugKotlin
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaView.kt:9:8 'class UIManagerModule : ReactContextBaseJavaModule, OnBatchCompleteListener, LifecycleEventListener, UIManager' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaView.kt:50:54 'class UIManagerModule : ReactContextBaseJavaModule, OnBatchCompleteListener, LifecycleEventListener, UIManager' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaView.kt:59:23 'val uiImplementation: UIImplementation!' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaViewShadowNode.kt:9:32 'class LayoutShadowNode : ReactShadowNodeImpl' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaViewShadowNode.kt:110:61 'class NativeViewHierarchyOptimizer : Any' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] > Task :react-native-webview:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :react-native-safe-area-context:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :react-native-safe-area-context:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :react-native-safe-area-context:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:configureCMakeDebug[x86_64]
+[RUN_GRADLEW] > Task :react-native-quick-base64:processDebugJavaRes NO-SOURCE
+[RUN_GRADLEW] > Task :react-native-safe-area-context:processDebugJavaRes
+[RUN_GRADLEW] > Task :app:mergeExtDexDebug
+[RUN_GRADLEW] > Task :react-native-nitro-modules:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :react-native-nitro-modules:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :react-native-webview:compileDebugJavaWithJavac
+[RUN_GRADLEW] Note: Some input files use or override a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] > Task :react-native-nitro-modules:processDebugJavaRes
+[RUN_GRADLEW] > Task :react-native-mmkv:compileDebugKotlin
+[RUN_GRADLEW] > Task :react-native-quick-crypto:compileDebugKotlin
+[RUN_GRADLEW] > Task :react-native-webview:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :react-native-gesture-handler:compileDebugKotlin
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-gesture-handler/android/src/main/java/com/swmansion/gesturehandler/react/Extensions.kt:8:8 'class UIManagerModule : ReactContextBaseJavaModule, OnBatchCompleteListener, LifecycleEventListener, UIManager' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-gesture-handler/android/src/main/java/com/swmansion/gesturehandler/react/Extensions.kt:13:29 'class UIManagerModule : ReactContextBaseJavaModule, OnBatchCompleteListener, LifecycleEventListener, UIManager' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-gesture-handler/android/src/main/java/com/swmansion/gesturehandler/react/Extensions.kt:14:32 'class UIManagerModule : ReactContextBaseJavaModule, OnBatchCompleteListener, LifecycleEventListener, UIManager' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-gesture-handler/android/src/main/java/com/swmansion/gesturehandler/react/RNGestureHandlerModule.kt:173:53 This synthetic property is based on the getter function 'fun getRootViewTag(): Int' from Kotlin. In the future, synthetic properties will be available only if the base getter function came from Java. Consider replacing this property access with a 'getRootViewTag()' function call.
+[RUN_GRADLEW] > Task :react-native-webview:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :react-native-gesture-handler:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:generateJsonModelDebug
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:prefabDebugConfigurePackage
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:buildCMakeDebug[arm64-v8a][hermestooling,jsi,etc]
+[RUN_GRADLEW] > Task :react-native-screens:compileDebugKotlin
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/RNScreensPackage.kt:62:9 The corresponding parameter in the supertype 'BaseReactPackage' is named 'name'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/RNScreensPackage.kt:63:9 The corresponding parameter in the supertype 'BaseReactPackage' is named 'reactContext'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/RNScreensPackage.kt:76:17 'constructor(name: String, className: String, canOverrideExistingModule: Boolean, needsEagerInit: Boolean, hasConstants: Boolean, isCxxModule: Boolean, isTurboModule: Boolean): ReactModuleInfo' is deprecated. This constructor is deprecated and will be removed in the future. Use ReactModuleInfo(String, String, boolean, boolean, boolean, boolean)].
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/Screen.kt:24:8 'class UIManagerModule : ReactContextBaseJavaModule, OnBatchCompleteListener, LifecycleEventListener, UIManager' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/Screen.kt:54:77 Unchecked cast of '(CoordinatorLayout.Behavior<View!>?..CoordinatorLayout.Behavior<*>?)' to 'BottomSheetBehavior<Screen>'.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/Screen.kt:426:42 'class UIManagerModule : ReactContextBaseJavaModule, OnBatchCompleteListener, LifecycleEventListener, UIManager' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenContainerViewManager.kt:6:8 'class LayoutShadowNode : ReactShadowNodeImpl' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenContainerViewManager.kt:56:78 'class LayoutShadowNode : ReactShadowNodeImpl' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackFragment.kt:222:31 'var targetElevation: Float' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackFragment.kt:225:13 'fun setHasOptionsMenu(p0: Boolean): Unit' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackFragment.kt:404:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackFragment.kt:411:22 'fun onPrepareOptionsMenu(p0: Menu): Unit' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackFragment.kt:414:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackFragment.kt:419:22 'fun onCreateOptionsMenu(p0: Menu, p1: MenuInflater): Unit' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt:441:22 'val reactNativeHost: ReactNativeHost' is deprecated. You should not use ReactNativeHost directly in the New Architecture. Use ReactHost instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfigShadowNode.kt:4:8 'class LayoutShadowNode : ReactShadowNodeImpl' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfigShadowNode.kt:10:5 'class LayoutShadowNode : ReactShadowNodeImpl' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfigViewManager.kt:9:8 'class LayoutShadowNode : ReactShadowNodeImpl' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfigViewManager.kt:37:78 'class LayoutShadowNode : ReactShadowNodeImpl' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackViewManager.kt:6:8 'class LayoutShadowNode : ReactShadowNodeImpl' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackViewManager.kt:65:78 'class LayoutShadowNode : ReactShadowNodeImpl' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenWindowTraits.kt:48:42 'fun replaceSystemWindowInsets(p0: Int, p1: Int, p2: Int, p3: Int): WindowInsetsCompat' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenWindowTraits.kt:49:39 'val systemWindowInsetLeft: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenWindowTraits.kt:51:39 'val systemWindowInsetRight: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenWindowTraits.kt:52:39 'val systemWindowInsetBottom: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreensShadowNode.kt:4:8 'class LayoutShadowNode : ReactShadowNodeImpl' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreensShadowNode.kt:5:8 'class NativeViewHierarchyManager : Any' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreensShadowNode.kt:6:8 'class NativeViewHierarchyOptimizer : Any' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreensShadowNode.kt:7:8 'class UIManagerModule : ReactContextBaseJavaModule, OnBatchCompleteListener, LifecycleEventListener, UIManager' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreensShadowNode.kt:11:5 'class LayoutShadowNode : ReactShadowNodeImpl' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreensShadowNode.kt:12:63 'class NativeViewHierarchyOptimizer : Any' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreensShadowNode.kt:14:34 'class UIManagerModule : ReactContextBaseJavaModule, OnBatchCompleteListener, LifecycleEventListener, UIManager' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreensShadowNode.kt:14:106 'class NativeViewHierarchyManager : Any' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/BottomSheetDialogRootView.kt:7:8 'object ReactFeatureFlags : Any' is deprecated. Use com.facebook.react.internal.featureflags.ReactNativeFeatureFlags instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/BottomSheetDialogRootView.kt:25:13 'object ReactFeatureFlags : Any' is deprecated. Use com.facebook.react.internal.featureflags.ReactNativeFeatureFlags instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/BottomSheetDialogRootView.kt:32:9 The corresponding parameter in the supertype 'ReactViewGroup' is named 'left'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/BottomSheetDialogRootView.kt:33:9 The corresponding parameter in the supertype 'ReactViewGroup' is named 'top'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/BottomSheetDialogRootView.kt:34:9 The corresponding parameter in the supertype 'ReactViewGroup' is named 'right'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/BottomSheetDialogRootView.kt:35:9 The corresponding parameter in the supertype 'ReactViewGroup' is named 'bottom'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/BottomSheetDialogRootView.kt:71:9 The corresponding parameter in the supertype 'RootView' is named 'childView'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/BottomSheetDialogRootView.kt:72:9 The corresponding parameter in the supertype 'RootView' is named 'ev'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/BottomSheetDialogRootView.kt:79:46 The corresponding parameter in the supertype 'RootView' is named 'ev'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/BottomSheetDialogRootView.kt:83:9 The corresponding parameter in the supertype 'RootView' is named 'childView'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/BottomSheetDialogRootView.kt:84:9 The corresponding parameter in the supertype 'RootView' is named 'ev'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/BottomSheetDialogRootView.kt:95:34 The corresponding parameter in the supertype 'RootView' is named 't'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/DimmingView.kt:63:9 The corresponding parameter in the supertype 'ReactCompoundView' is named 'touchX'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/DimmingView.kt:64:9 The corresponding parameter in the supertype 'ReactCompoundView' is named 'touchY'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/DimmingView.kt:68:9 The corresponding parameter in the supertype 'ReactCompoundViewGroup' is named 'touchX'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/DimmingView.kt:69:9 The corresponding parameter in the supertype 'ReactCompoundViewGroup' is named 'touchY'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/TabsHostViewManager.kt:37:9 The corresponding parameter in the supertype 'TabsHostViewManager' is named 'view'. This may cause problems when calling this function with named arguments.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/safearea/SafeAreaView.kt:19:8 'class UIManagerModule : ReactContextBaseJavaModule, OnBatchCompleteListener, LifecycleEventListener, UIManager' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/safearea/SafeAreaView.kt:153:45 'fun consumeDisplayCutout(): WindowInsetsCompat' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/safearea/SafeAreaView.kt:194:58 'class UIManagerModule : ReactContextBaseJavaModule, OnBatchCompleteListener, LifecycleEventListener, UIManager' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/safearea/SafeAreaView.kt:201:31 'val uiImplementation: UIImplementation!' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/safearea/paper/SafeAreaViewShadowNode.kt:7:8 'class LayoutShadowNode : ReactShadowNodeImpl' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/safearea/paper/SafeAreaViewShadowNode.kt:8:8 'class NativeViewHierarchyOptimizer : Any' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/safearea/paper/SafeAreaViewShadowNode.kt:14:32 'class LayoutShadowNode : ReactShadowNodeImpl' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/safearea/paper/SafeAreaViewShadowNode.kt:83:63 'class NativeViewHierarchyOptimizer : Any' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] > Task :react-native-screens:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :react-native-gesture-handler:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :react-native-gesture-handler:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :react-native-gesture-handler:processDebugJavaRes
+[RUN_GRADLEW] > Task :react-native-webview:processDebugJavaRes
+[RUN_GRADLEW] > Task :react-native-screens:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :react-native-screens:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :react-native-screens:processDebugJavaRes
+[RUN_GRADLEW] > Task :expo-modules-core:compileDebugKotlin
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-modules-core/android/src/main/java/expo/modules/apploader/AppLoaderProvider.kt:34:52 Unchecked cast of 'Class<*>!' to 'Class<out HeadlessAppLoader>'.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/AppContext.kt:13:8 'class UIManagerModule : ReactContextBaseJavaModule, OnBatchCompleteListener, LifecycleEventListener, UIManager' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/AppContext.kt:21:8 'typealias ErrorManagerModule = JSLoggerModule' is deprecated. Use JSLoggerModule instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/AppContext.kt:59:13 'val hostingRuntimeContext: MainRuntime' is deprecated. Use AppContext.runtimeContext instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/AppContext.kt:257:21 'typealias ErrorManagerModule = JSLoggerModule' is deprecated. Use JSLoggerModule instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/AppContext.kt:366:21 'val DEFAULT: Int' is deprecated. UIManagerType.DEFAULT will be deleted in the next release of React Native. Use [LEGACY] instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/AppContext.kt:367:10 'class UIManagerModule : ReactContextBaseJavaModule, OnBatchCompleteListener, LifecycleEventListener, UIManager' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/defaultmodules/NativeModulesProxyModule.kt:16:5 'fun Constants(legacyConstantsProvider: () -> Map<String, Any?>): Unit' is deprecated. Use `Constant` or `Property` instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/views/ViewDefinitionBuilder.kt:464:16 'val errorManager: JSLoggerModule?' is deprecated. Use AppContext.jsLogger instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/views/ViewDefinitionBuilder.kt:464:30 'fun reportExceptionToLogBox(codedException: CodedException): Unit' is deprecated. Use appContext.jsLogger.error(...) instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/views/ViewManagerDefinition.kt:41:16 'val errorManager: JSLoggerModule?' is deprecated. Use AppContext.jsLogger instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/views/ViewManagerDefinition.kt:41:30 'fun reportExceptionToLogBox(codedException: CodedException): Unit' is deprecated. Use appContext.jsLogger.error(...) instead.
+[RUN_GRADLEW] > Task :react-native-quick-crypto:compileDebugJavaWithJavac
+[RUN_GRADLEW] Note: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-quick-crypto/android/src/main/java/com/margelo/nitro/quickcrypto/QuickCryptoPackage.java uses or overrides a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] > Task :react-native-mmkv:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :react-native-quick-crypto:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :react-native-quick-crypto:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :react-native-quick-crypto:processDebugJavaRes
+[RUN_GRADLEW] > Task :react-native-mmkv:compileDebugJavaWithJavac
+[RUN_GRADLEW] Note: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/react-native-mmkv/android/src/main/java/com/margelo/nitro/mmkv/NitroMmkvPackage.java uses or overrides a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] > Task :react-native-mmkv:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :react-native-mmkv:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :react-native-mmkv:processDebugJavaRes
+[RUN_GRADLEW] > Task :expo-modules-core:compileDebugJavaWithJavac
+[RUN_GRADLEW] Note: /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-modules-core/android/src/main/java/expo/modules/adapters/react/ModuleRegistryAdapter.java uses or overrides a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] > Task :expo-modules-core:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :expo-modules-core:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :expo-modules-core:processDebugJavaRes
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:compileDebugKotlin
+[RUN_GRADLEW] > Task :expo-constants:compileDebugKotlin
+[RUN_GRADLEW] > Task :expo-dev-client:compileDebugKotlin
+[RUN_GRADLEW] > Task :expo-dev-client:compileDebugKotlin NO-SOURCE
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:compileDebugKotlin NO-SOURCE
+[RUN_GRADLEW] > Task :expo-json-utils:compileDebugKotlin
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :expo-dev-client:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :expo-updates-interface:compileDebugKotlin
+[RUN_GRADLEW] > Task :expo-eas-client:compileDebugKotlin
+[RUN_GRADLEW] > Task :expo-log-box:compileDebugKotlin
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :expo-structured-headers:compileDebugKotlin
+[RUN_GRADLEW] > Task :expo-structured-headers:compileDebugKotlin NO-SOURCE
+[RUN_GRADLEW] > Task :expo-structured-headers:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :expo-json-utils:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :expo-dev-client:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :expo-updates-interface:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :expo-eas-client:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :expo-dev-client:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :expo-constants:compileDebugKotlin
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-constants/android/src/main/java/expo/modules/constants/ConstantsModule.kt:13:5 'fun Constants(legacyConstantsProvider: () -> Map<String, Any?>): Unit' is deprecated. Use `Constant` or `Property` instead.
+[RUN_GRADLEW] > Task :expo-eas-client:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :expo-constants:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :expo-json-utils:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :expo-eas-client:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :expo-json-utils:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :expo-updates-interface:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :expo-manifests:compileDebugKotlin
+[RUN_GRADLEW] > Task :expo-updates-interface:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :expo-constants:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :expo-constants:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :expo-constants:processDebugJavaRes
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:processDebugJavaRes NO-SOURCE
+[RUN_GRADLEW] > Task :expo-dev-client:processDebugJavaRes
+[RUN_GRADLEW] > Task :expo-eas-client:processDebugJavaRes
+[RUN_GRADLEW] > Task :expo-dev-client:processDebugJavaRes NO-SOURCE
+[RUN_GRADLEW] > Task :expo-json-utils:processDebugJavaRes
+[RUN_GRADLEW] > Task :expo-updates-interface:processDebugJavaRes
+[RUN_GRADLEW] > Task :expo-structured-headers:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :expo-structured-headers:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :expo-structured-headers:processDebugJavaRes NO-SOURCE
+[RUN_GRADLEW] > Task :expo-log-box:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :expo-manifests:compileDebugKotlin
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-manifests/android/src/main/java/expo/modules/manifests/core/EmbeddedManifest.kt:19:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-manifests/android/src/main/java/expo/modules/manifests/core/EmbeddedManifest.kt:19:86 'fun getLegacyID(): String' is deprecated. Prefer scopeKey or projectId depending on use case.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-manifests/android/src/main/java/expo/modules/manifests/core/ExpoUpdatesManifest.kt:16:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-manifests/android/src/main/java/expo/modules/manifests/core/Manifest.kt:13:3 Deprecations and opt-ins on a method overridden from 'Any' may not be reported.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-manifests/android/src/main/java/expo/modules/manifests/core/Manifest.kt:15:12 'fun getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters.
+[RUN_GRADLEW] > Task :expo-manifests:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :expo-log-box:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :expo-log-box:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :expo-log-box:processDebugJavaRes
+[RUN_GRADLEW] > Task :expo-manifests:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :expo-manifests:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :expo-manifests:processDebugJavaRes
+[RUN_GRADLEW] > Task :expo-updates:kspDebugKotlin
+[RUN_GRADLEW] > Task :expo-dev-menu:compileDebugKotlin
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-menu/android/src/debug/java/com/facebook/react/devsupport/DevMenuSettingsBase.kt:6:8 'class PreferenceManager : Any' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-menu/android/src/debug/java/com/facebook/react/devsupport/DevMenuSettingsBase.kt:18:51 'class PreferenceManager : Any' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-menu/android/src/debug/java/com/facebook/react/devsupport/DevMenuSettingsBase.kt:18:69 'static fun getDefaultSharedPreferences(p0: Context!): SharedPreferences!' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-menu/android/src/debug/java/com/facebook/react/devsupport/DevMenuSettingsBase.kt:51:13 This code uses error suppression for 'NOTHING_TO_OVERRIDE'. While it might compile and work, the compiler behavior is UNSPECIFIED and WILL NOT BE PRESERVED. Please report your use case to the Kotlin issue tracker instead: https://kotl.in/issue
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-menu/android/src/debug/java/com/facebook/react/devsupport/DevMenuSettingsBase.kt:58:13 This code uses error suppression for 'NOTHING_TO_OVERRIDE'. While it might compile and work, the compiler behavior is UNSPECIFIED and WILL NOT BE PRESERVED. Please report your use case to the Kotlin issue tracker instead: https://kotl.in/issue
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-menu/android/src/debug/java/expo/modules/devmenu/compose/ui/AppInfo.kt:64:5 'fun Button(onClick: () -> Unit, enabled: Boolean = ..., shape: Shape = ..., backgroundColor: Color = ..., contentColor: Color = ..., contentPadding: PaddingValues = ..., borderColor: Color = ..., borderWidth: Dp = ..., modifier: Modifier = ..., role: Role = ..., indication: Indication? = ..., interactionSource: MutableInteractionSource? = ..., horizontalArrangement: Arrangement.Horizontal = ..., verticalAlignment: Alignment.Vertical = ..., content: @Composable() ComposableFunction1<RowScope, Unit>): Unit' is deprecated. Use UnstyledButton instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-menu/android/src/debug/java/expo/modules/devmenu/compose/ui/MenuButton.kt:33:5 'fun Button(onClick: () -> Unit, enabled: Boolean = ..., shape: Shape = ..., backgroundColor: Color = ..., contentColor: Color = ..., contentPadding: PaddingValues = ..., borderColor: Color = ..., borderWidth: Dp = ..., modifier: Modifier = ..., role: Role = ..., indication: Indication? = ..., interactionSource: MutableInteractionSource? = ..., horizontalArrangement: Arrangement.Horizontal = ..., verticalAlignment: Alignment.Vertical = ..., content: @Composable() ComposableFunction1<RowScope, Unit>): Unit' is deprecated. Use UnstyledButton instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-menu/android/src/debug/java/expo/modules/devmenu/compose/ui/Onboarding.kt:70:5 'fun Button(onClick: () -> Unit, enabled: Boolean = ..., shape: Shape = ..., backgroundColor: Color = ..., contentColor: Color = ..., contentPadding: PaddingValues = ..., borderColor: Color = ..., borderWidth: Dp = ..., modifier: Modifier = ..., role: Role = ..., indication: Indication? = ..., interactionSource: MutableInteractionSource? = ..., horizontalArrangement: Arrangement.Horizontal = ..., verticalAlignment: Alignment.Vertical = ..., content: @Composable() ComposableFunction1<RowScope, Unit>): Unit' is deprecated. Use UnstyledButton instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-menu/android/src/debug/java/expo/modules/devmenu/compose/ui/SystemSection.kt:52:3 'fun Button(onClick: () -> Unit, enabled: Boolean = ..., shape: Shape = ..., backgroundColor: Color = ..., contentColor: Color = ..., contentPadding: PaddingValues = ..., borderColor: Color = ..., borderWidth: Dp = ..., modifier: Modifier = ..., role: Role = ..., indication: Indication? = ..., interactionSource: MutableInteractionSource? = ..., horizontalArrangement: Arrangement.Horizontal = ..., verticalAlignment: Alignment.Vertical = ..., content: @Composable() ComposableFunction1<RowScope, Unit>): Unit' is deprecated. Use UnstyledButton instead.
+[RUN_GRADLEW] > Task :expo-dev-menu:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :expo-dev-menu:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :expo-dev-menu:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :expo-dev-menu:processDebugJavaRes
+[RUN_GRADLEW] > Task :expo-dev-launcher:compileDebugKotlin
+[RUN_GRADLEW] The Daemon will expire after the build after running out of JVM Metaspace.
+[RUN_GRADLEW] The project memory settings are likely not configured or are configured to an insufficient value.
+[RUN_GRADLEW] The daemon will restart for the next build, which may increase subsequent build times.
+[RUN_GRADLEW] These settings can be adjusted by setting 'org.gradle.jvmargs' in 'gradle.properties'.
+[RUN_GRADLEW] The currently configured max heap space is '2 GiB' and the configured max metaspace is '512 MiB'.
+[RUN_GRADLEW] For more information on how to set these values, please refer to https://docs.gradle.org/9.0.0/userguide/build_environment.html#sec:configuring_jvm_memory in the Gradle documentation.
+[RUN_GRADLEW] To disable this warning, set 'org.gradle.daemon.performance.disable-logging=true'.
+[RUN_GRADLEW] Daemon will be stopped at the end of the build after running out of JVM Metaspace
+[RUN_GRADLEW] > Task :expo-updates:compileDebugKotlin
+[RUN_GRADLEW] > Task :expo-dev-launcher:compileDebugKotlin
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/compose/models/BranchViewModel.kt:80:31 'val runtimeVersion: String' is deprecated. Use 'runtime' field .
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/compose/screens/BranchScreen.kt:59:9 'fun Button(onClick: () -> Unit, enabled: Boolean = ..., shape: Shape = ..., backgroundColor: Color = ..., contentColor: Color = ..., contentPadding: PaddingValues = ..., borderColor: Color = ..., borderWidth: Dp = ..., modifier: Modifier = ..., role: Role = ..., indication: Indication? = ..., interactionSource: MutableInteractionSource? = ..., horizontalArrangement: Arrangement.Horizontal = ..., verticalAlignment: Alignment.Vertical = ..., content: @Composable() ComposableFunction1<RowScope, Unit>): Unit' is deprecated. Use UnstyledButton instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/compose/screens/BranchScreen.kt:113:13 'fun Button(onClick: () -> Unit, enabled: Boolean = ..., shape: Shape = ..., backgroundColor: Color = ..., contentColor: Color = ..., contentPadding: PaddingValues = ..., borderColor: Color = ..., borderWidth: Dp = ..., modifier: Modifier = ..., role: Role = ..., indication: Indication? = ..., interactionSource: MutableInteractionSource? = ..., horizontalArrangement: Arrangement.Horizontal = ..., verticalAlignment: Alignment.Vertical = ..., content: @Composable() ComposableFunction1<RowScope, Unit>): Unit' is deprecated. Use UnstyledButton instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/compose/screens/HomeScreen.kt:43:5 'fun Button(onClick: () -> Unit, enabled: Boolean = ..., shape: Shape = ..., backgroundColor: Color = ..., contentColor: Color = ..., contentPadding: PaddingValues = ..., borderColor: Color = ..., borderWidth: Dp = ..., modifier: Modifier = ..., role: Role = ..., indication: Indication? = ..., interactionSource: MutableInteractionSource? = ..., horizontalArrangement: Arrangement.Horizontal = ..., verticalAlignment: Alignment.Vertical = ..., content: @Composable() ComposableFunction1<RowScope, Unit>): Unit' is deprecated. Use UnstyledButton instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/compose/ui/ActionButton.kt:31:3 'fun Button(onClick: () -> Unit, enabled: Boolean = ..., shape: Shape = ..., backgroundColor: Color = ..., contentColor: Color = ..., contentPadding: PaddingValues = ..., borderColor: Color = ..., borderWidth: Dp = ..., modifier: Modifier = ..., role: Role = ..., indication: Indication? = ..., interactionSource: MutableInteractionSource? = ..., horizontalArrangement: Arrangement.Horizontal = ..., verticalAlignment: Alignment.Vertical = ..., content: @Composable() ComposableFunction1<RowScope, Unit>): Unit' is deprecated. Use UnstyledButton instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/compose/ui/AppHeader.kt:98:7 'fun Button(onClick: () -> Unit, enabled: Boolean = ..., shape: Shape = ..., backgroundColor: Color = ..., contentColor: Color = ..., contentPadding: PaddingValues = ..., borderColor: Color = ..., borderWidth: Dp = ..., modifier: Modifier = ..., role: Role = ..., indication: Indication? = ..., interactionSource: MutableInteractionSource? = ..., horizontalArrangement: Arrangement.Horizontal = ..., verticalAlignment: Alignment.Vertical = ..., content: @Composable() ComposableFunction1<RowScope, Unit>): Unit' is deprecated. Use UnstyledButton instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/compose/ui/AppLoadingErrorDialog.kt:35:26 'fun rememberDialogState(initiallyVisible: Boolean = ...): DialogState' is deprecated. This will go away in 2.0. Use Dialog from the com.composeunstyled package.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/compose/ui/AppLoadingErrorDialog.kt:55:3 'fun Dialog(state: DialogState, properties: DialogProperties = ..., onDismiss: () -> Unit = ..., content: @Composable() ComposableFunction1<DialogScope, Unit>): Unit' is deprecated. This will go away in 2.0. Use Dialog from the com.composeunstyled package.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/compose/ui/AppLoadingErrorDialog.kt:56:5 'fun DialogScope.Scrim(modifier: Modifier = ..., scrimColor: Color = ..., enter: EnterTransition = ..., exit: ExitTransition = ...): Unit' is deprecated. This will go away in 2.0. Use Dialog from the com.composeunstyled package.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/compose/ui/AppLoadingErrorDialog.kt:58:5 'fun DialogScope.DialogPanel(modifier: Modifier = ..., enter: EnterTransition = ..., exit: ExitTransition = ..., shape: Shape = ..., backgroundColor: Color = ..., contentColor: Color = ..., contentPadding: PaddingValues = ..., content: @Composable() ComposableFunction0<Unit>): Unit' is deprecated. This will go away in 2.0. Use Dialog from the com.composeunstyled package.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/compose/ui/AppLoadingErrorDialog.kt:81:11 'fun Button(onClick: () -> Unit, enabled: Boolean = ..., shape: Shape = ..., backgroundColor: Color = ..., contentColor: Color = ..., contentPadding: PaddingValues = ..., borderColor: Color = ..., borderWidth: Dp = ..., modifier: Modifier = ..., role: Role = ..., indication: Indication? = ..., interactionSource: MutableInteractionSource? = ..., horizontalArrangement: Arrangement.Horizontal = ..., verticalAlignment: Alignment.Vertical = ..., content: @Composable() ComposableFunction1<RowScope, Unit>): Unit' is deprecated. Use UnstyledButton instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/compose/ui/AppLoadingErrorDialog.kt:104:21 'fun rememberDialogState(initiallyVisible: Boolean = ...): DialogState' is deprecated. This will go away in 2.0. Use Dialog from the com.composeunstyled package.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/compose/ui/FetchDevelopmentServersButton.kt:77:5 'fun Button(onClick: () -> Unit, enabled: Boolean = ..., shape: Shape = ..., backgroundColor: Color = ..., contentColor: Color = ..., contentPadding: PaddingValues = ..., borderColor: Color = ..., borderWidth: Dp = ..., modifier: Modifier = ..., role: Role = ..., indication: Indication? = ..., interactionSource: MutableInteractionSource? = ..., horizontalArrangement: Arrangement.Horizontal = ..., verticalAlignment: Alignment.Vertical = ..., content: @Composable() ComposableFunction1<RowScope, Unit>): Unit' is deprecated. Use UnstyledButton instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/compose/ui/RunningAppCard.kt:43:5 'fun Button(onClick: () -> Unit, enabled: Boolean = ..., shape: Shape = ..., backgroundColor: Color = ..., contentColor: Color = ..., contentPadding: PaddingValues = ..., borderColor: Color = ..., borderWidth: Dp = ..., modifier: Modifier = ..., role: Role = ..., indication: Indication? = ..., interactionSource: MutableInteractionSource? = ..., horizontalArrangement: Arrangement.Horizontal = ..., verticalAlignment: Alignment.Vertical = ..., content: @Composable() ComposableFunction1<RowScope, Unit>): Unit' is deprecated. Use UnstyledButton instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/compose/ui/ScanQRCodeButton.kt:26:5 'fun Button(onClick: () -> Unit, enabled: Boolean = ..., shape: Shape = ..., backgroundColor: Color = ..., contentColor: Color = ..., contentPadding: PaddingValues = ..., borderColor: Color = ..., borderWidth: Dp = ..., modifier: Modifier = ..., role: Role = ..., indication: Indication? = ..., interactionSource: MutableInteractionSource? = ..., horizontalArrangement: Arrangement.Horizontal = ..., verticalAlignment: Alignment.Vertical = ..., content: @Composable() ComposableFunction1<RowScope, Unit>): Unit' is deprecated. Use UnstyledButton instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/compose/ui/ServerUrlInput.kt:56:5 'fun TextField(value: String, onValueChange: (String) -> Unit, modifier: Modifier = ..., editable: Boolean = ..., cursorBrush: Brush = ..., textStyle: TextStyle = ..., textAlign: TextAlign = ..., lineHeight: TextUnit = ..., fontSize: TextUnit = ..., letterSpacing: TextUnit = ..., fontWeight: FontWeight? = ..., fontFamily: FontFamily? = ..., singleLine: Boolean = ..., minLines: Int = ..., maxLines: Int = ..., keyboardActions: KeyboardActions = ..., keyboardOptions: KeyboardOptions = ..., visualTransformation: VisualTransformation = ..., interactionSource: MutableInteractionSource? = ..., textColor: Color = ..., content: @Composable() ComposableFunction1<TextFieldScope, Unit>): Unit' is deprecated. This will go to 2.0. Stateless TextFields in Compose do not work correctly in all languages and cause duplication characters and unexpected behaviors.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/DevLauncherActivity.kt:10:5 'fun overridePendingTransition(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/DevLauncherActivity.kt:25:5 'fun overridePendingTransition(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/DevLauncherRecentlyOpenedAppsRegistry.kt:33:47 Unchecked cast of 'MutableMap<Any?, Any?>' to 'MutableMap<String, Any>'.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/DevLauncherRecentlyOpenedAppsRegistry.kt:51:27 'fun getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:37:23 'constructor(p0: String!, p1: Bitmap!, p2: Int): ActivityManager.TaskDescription' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:63:61 'static field FLAG_TRANSLUCENT_STATUS: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:92:45 'var systemUiVisibility: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:95:68 'static field SYSTEM_UI_FLAG_LIGHT_STATUS_BAR: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:99:67 'static field SYSTEM_UI_FLAG_LIGHT_STATUS_BAR: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:103:67 'static field SYSTEM_UI_FLAG_LIGHT_STATUS_BAR: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:107:15 'var systemUiVisibility: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:115:59 'static field FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:116:61 'static field FLAG_FORCE_NOT_FULLSCREEN: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:118:59 'static field FLAG_FORCE_NOT_FULLSCREEN: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:119:61 'static field FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:131:23 'fun replaceSystemWindowInsets(p0: Int, p1: Int, p2: Int, p3: Int): WindowInsets' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:132:25 'val systemWindowInsetLeft: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:134:25 'val systemWindowInsetRight: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:135:25 'val systemWindowInsetBottom: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:150:15 'var statusBarColor: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:160:63 'static field FLAG_TRANSLUCENT_NAVIGATION: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:161:25 'var navigationBarColor: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:171:63 'static field FLAG_TRANSLUCENT_NAVIGATION: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:175:33 'var systemUiVisibility: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:176:33 'static field SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:177:21 'var systemUiVisibility: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:190:29 'var systemUiVisibility: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:191:62 'static field SYSTEM_UI_FLAG_HIDE_NAVIGATION: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:191:101 'static field SYSTEM_UI_FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:192:63 'static field SYSTEM_UI_FLAG_HIDE_NAVIGATION: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:192:102 'static field SYSTEM_UI_FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:192:136 'static field SYSTEM_UI_FLAG_IMMERSIVE: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:193:70 'static field SYSTEM_UI_FLAG_HIDE_NAVIGATION: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:193:109 'static field SYSTEM_UI_FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:193:143 'static field SYSTEM_UI_FLAG_IMMERSIVE_STICKY: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:196:17 'var systemUiVisibility: Int' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/modules/DevLauncherModule.kt:14:29 'fun getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/react/DevLauncherBridgelessDevSupportManager.kt:44:38 This code uses error suppression for 'NOTHING_TO_OVERRIDE'. While it might compile and work, the compiler behavior is UNSPECIFIED and WILL NOT BE PRESERVED. Please report your use case to the Kotlin issue tracker instead: https://kotl.in/issue
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/debug/java/expo/modules/devlauncher/react/DevLauncherDevSupportManagerFactory.kt:16:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/DevLauncherPackage.kt:15:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] > Task :expo-dev-launcher:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :expo-updates:compileDebugKotlin
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/UpdatesConfiguration.kt:322:13 'fun get(p0: String!): Any?' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/UpdatesDevLauncherController.kt:207:133 'fun getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/UpdatesModule.kt:49:5 'fun Constants(legacyConstantsProvider: () -> Map<String, Any?>): Unit' is deprecated. Use `Constant` or `Property` instead.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/UpdatesModule.kt:98:38 'fun toString(): String' is deprecated. Prefer to use specific field getters.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/Converters.kt:56:30 Java type mismatch: inferred type is 'ByteArray?', but 'ByteArray' was expected.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/DatabaseIntegrityCheck.kt:38:39 Java type mismatch: inferred type is 'String?', but 'String' was expected.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/Reaper.kt:50:41 Java type mismatch: inferred type is 'String?', but 'String' was expected.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/Reaper.kt:68:41 Java type mismatch: inferred type is 'String?', but 'String' was expected.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/loader/Loader.kt:246:63 Java type mismatch: inferred type is 'String?', but 'String' was expected.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/loader/LoaderTask.kt:365:101 'fun getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/manifest/EmbeddedUpdate.kt:33:89 'fun getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/manifest/ExpoUpdatesUpdate.kt:37:92 'fun getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/CheckForUpdateProcedure.kt:141:100 'fun getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/CheckForUpdateProcedure.kt:174:100 'fun getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/StartupProcedure.kt:161:36 'fun getCurrentState(): UpdatesStateValue' is deprecated. Avoid needing to access current state to know how to transition to next state.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/StartupProcedure.kt:195:34 'fun getCurrentState(): UpdatesStateValue' is deprecated. Avoid needing to access current state to know how to transition to next state.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/StateMachineSerialExecutorQueue.kt:64:45 'fun getCurrentState(): UpdatesStateValue' is deprecated. Avoid needing to access current state to know how to transition to next state.
+[RUN_GRADLEW] > Task :expo-updates:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :expo-dev-launcher:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :expo-dev-launcher:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :expo-dev-launcher:processDebugJavaRes
+[RUN_GRADLEW] > Task :expo-updates:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :expo-updates:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :expo-updates:processDebugJavaRes
+[RUN_GRADLEW] > Task :expo:compileDebugKotlin
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo/android/build/generated/expo/src/main/java/expo/modules/ExpoModulesPackageList.kt:29:26 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo/android/build/generated/expo/src/main/java/expo/modules/ExpoModulesPackageList.kt:29:45 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo/android/build/generated/expo/src/main/java/expo/modules/ExpoModulesPackageList.kt:29:50 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo/android/src/main/java/expo/modules/ExpoModulesPackage.kt:34:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo/android/src/main/java/expo/modules/ReactActivityDelegateWrapper.kt:22:8 'class ReactInstanceManager : Any' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo/android/src/main/java/expo/modules/ReactActivityDelegateWrapper.kt:102:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo/android/src/main/java/expo/modules/ReactActivityDelegateWrapper.kt:102:43 'class ReactInstanceManager : Any' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo/android/src/main/java/expo/modules/ReactActivityDelegateWrapper.kt:103:21 'val reactInstanceManager: ReactInstanceManager' is deprecated. Deprecated in Java.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo/android/src/main/java/expo/modules/fetch/ExpoFetchModule.kt:31:39 'constructor(reactContext: ReactContext): ForwardingCookieHandler' is deprecated. Use the default constructor.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo/android/src/main/java/expo/modules/fetch/NativeResponse.kt:42:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+[RUN_GRADLEW] w: file:///tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build/node_modules/expo/android/src/main/java/expo/modules/fetch/NativeResponse.kt:44:11 'fun deallocate(): Unit' is deprecated. Use sharedObjectDidRelease() instead.
+[RUN_GRADLEW] > Task :expo:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :expo:bundleLibCompileToJarDebug
+[RUN_GRADLEW] > Task :expo:bundleLibRuntimeToJarDebug
+[RUN_GRADLEW] > Task :expo:processDebugJavaRes
+[RUN_GRADLEW] > Task :app:compileDebugKotlin
+[RUN_GRADLEW] > Task :app:mergeLibDexDebug
+[RUN_GRADLEW] > Task :app:compileDebugJavaWithJavac
+[RUN_GRADLEW] > Task :app:transformDebugClassesWithAsm
+[RUN_GRADLEW] > Task :app:processDebugJavaRes
+[RUN_GRADLEW] > Task :app:dexBuilderDebug
+[RUN_GRADLEW] > Task :app:mergeDebugGlobalSynthetics
+[RUN_GRADLEW] > Task :app:mergeProjectDexDebug
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:buildCMakeDebug[armeabi-v7a][hermestooling,jsi,etc]
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:buildCMakeDebug[x86][hermestooling,jsi,etc]
+[RUN_GRADLEW] > Task :react-native:packages:react-native:ReactAndroid:buildCMakeDebug[x86_64][hermestooling,jsi,etc]
+[ABORT] Received termination signal.
+Terminated
+rekan@Rekan:/mnt/c/Users/rekan/OneDrive/Desktop/college-community$ [RUN_GRADLEW] Error: Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.
+[ON_BUILD_ERROR_HOOK]
+Error: package.json does not exist in /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build
+    at readPackageJson (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/utils/project.js:43:15)
+    at runHookIfPresent (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/utils/hooks.js:26:55)
+    at /home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/builders/common.js:20:52
+    at BuildContext.runBuildPhase (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/context.js:123:34)
+    at runBuilderWithHooksAsync (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/builders/common.js:19:23)
     at async Object.androidBuilder (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/builders/android.js:28:16)
     at async buildAndroidAsync (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/eas-cli-local-build-plugin/dist/android.js:43:12)
     at async buildAsync (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/eas-cli-local-build-plugin/dist/build.js:54:29)
     at async main (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/eas-cli-local-build-plugin/dist/main.js:16:9)
-npx -y eas-cli-local-build-plugin@18.0.2 eyJqb2IiOnsidHlwZSI6Im1hbmFnZWQiLCJwbGF0Zm9ybSI6ImFuZHJvaWQiLCJwcm9qZWN0Um9vdERpcmVjdG9yeSI6Ii4iLCJwcm9qZWN0QXJjaGl2ZSI6eyJ0eXBlIjoiUEFUSCIsInBhdGgiOiIvdG1wL3Jla2FuL2Vhcy1jbGktbm9kZWpzL2E3NmZiYTg3LWI0YWYtNGE5Mi1hODVhLTNjYmE2NTE3M2NjOC50YXIuZ3oifSwiYnVpbGRlckVudmlyb25tZW50Ijp7ImVudiI6e319LCJjYWNoZSI6eyJkaXNhYmxlZCI6ZmFsc2UsInBhdGhzIjpbXSwiY2xlYXIiOmZhbHNlfSwic2VjcmV0cyI6eyJidWlsZENyZWRlbnRpYWxzIjp7ImtleXN0b3JlIjp7ImRhdGFCYXNlNjQiOiIvdTMrN1FBQUFBSUFBQUFCQUFBQUFRQWdOREJpWm1SbU9UVm1ORE0xTVRNeU9UYzFZemN6TXpZMU5UQTVOakZrWVRFQUFBR2NQaHo5YmdBQUJRSXdnZ1QrTUE0R0Npc0dBUVFCS2dJUkFRRUZBQVNDQk9wZDk4NDV4SG1odUk4MmQ5cFpySHAzUDlJbHpseDZPdXFmNXY4RkVFK0h4WEdVOEVKZlJWYWJqdUU3NHROVTUxTXk1cVpMSFYzYmtVS29xNXVVWFo4QUFSTUxaTE1zR3RoTzFSdTZKS1Z1TkVpMFIyMThPaHRvL0g5UHFHdnFhQWpmdndyZWtCeTFyd2NOdTNDcng2aFAwKzNLTkgvaTNxaDNGam95Vm14ZHZqUGZNWDRxV0dnNFFHZDFxTkF5K3QyZ1lyNUY0dkIyTTdJeUsrL1F4ZnJjUzRoYURwZjRTL2tuVmw5VVZNRS9FQXhtNWN1OThlVEc2cFpkQkswamZ2Szlkc0JGc3VUQkM5bFd4OXBFS1d4SEhHdUM4QnZDenlSSkFNa21IQUE2UXRTWFNhOCtaeUlmU1kwcG1DRnNQa3VCcWxUdUNTOCtBSjF3Nkt3cGQyWmlzaEFRbEVMUE1TNUFtZUF4dXozc1k5ODJBc3MxalJ6dnU0WTZEMUFGN1JOQ09sRWNYWUZkV1ZRMW9lYUVIS3EvbElISzR6T00zZFljK1laeGI0a01rWHd3SnBpMS9MTnRxZndZZjVCOVpZME9TNXpnNS9qWWo2dTBBZ2I5WGNtaFEwbWFRVk5rQmhUNklvMjJyajNNSkhucnNKYXg2dC84ZWxjMUhMbC9MS2UvRUphZU0zSWZTU2c4SC9DTmZUeW1sR2ZtdWJRT0dWMGVzejhkakUydkhmc3ZXallyVjNGVzdVNWpybndIbkVodkl4U2VINVJGd1lJNGowWXZiNEsyRE9tOFR2cHFUM0ZnSDhveUhRZkcyZkd3ZXFZSmlzSm1YZnRTdGxCK29wR2ozVE5xQ1YrbHdWeGJoZ3lxbFZ6QXdvT1VqNThpd3B3NlRzSUxFbkNzZVFzRzBGSkRPM01janhMaTdEdVVvVlNaRU5SN0JpMGF5UWVsRHpiMEdrZnozT0JNTzkzUkRacVRkSXpGOXJDSWRXL25xQXBTaGR3WHdyYnFpNS9RU04yejNiVkFjbVBaYmNMSXg2VEpBN0RTeFJOOUtUSXBQSXdqN3V1YUxxUk14MlM2KzA4cDFEU3ZiVWZxWER6dWRVdHNEVWhaUlEzZ0JEMm9oazRJcmRTT0ZKVE9mRzNOd2VUNFVGZzJiaGtRLzVJOFk4aWE0dUt2ajZQcXVINnJib3JLMDhFQ3psdURQTjJKTDBwUHJ0a0xDVUVUcHVwVmdPR2YxMG9BZFRLdU8xSkIwZDRVd1F6cWJLUnlwclFta3g5V0dEWnZnK3hzS3BsOEFxdW14UlBzb1Y0ellBeHFzVlJDaEI1Qk1ZM2k1dHFtYTFUa0M1Y2c1R3JXbjl4cUVtY0pRQVZ2cllOVzlpMSszWGVuUmxTNW4xT0ZjSlpyVXRSN3hoOVV4VURXMUJOSTlKc0lMTXMxcWlHeWMxeUV1U1lsMkEzbkYxQXNpQktkOW5HY1o0aXQ1N2VjbENSYmQyb3hSWEQ5MGFFbkFMenZOd0VLNVZobGYwMEZKbFU1SGswUFhmOFFnYTN6cHFDT25JZVRFUzA2NUZOOTdVM2tyQ0x4N29uOG9nMjBMamNqcWx4eHQ1SzBuWGRoam03SFp1VHNmMWFObXo5YWhBZWtIRVNBaGNQUzNCVlFDZ3B1dkxhc1NWQ1A3NyswaTVWUEtqYXUwM0Fwd21xM0VwaEZOWXlGMmFqcEJEUnNOUnZKeGk3NGpBT2FWZWwwSjk1SDgrSXpyMUU2VTRoTHlLUVc4VHd3TnMzckZuVWgvSkppMVF5RUJ4c0d0dWV4NEk4R1Jpb2dpZXhWVmRkemNmRytOc2t6UHBSaGx0UE8yY0pMMEw2THF1b05LVTZyWWtJcy9MUmxIWHVPVjVIbWhsUXhKQnBQbzViT29jL0t2QjNSd1FqeHR0NGZzK0Y0NHQ4bVArcis3aEdlV3dMdEE3VTVaSjV6TnoyWUduKzg5SUZUNzJZN204Z1FpdEpMT094MS92ODVEaTk0TGxwaHF6WWo4YzNLMnNWc0NlRDlqYUczanFOZlUySW0zRncwNkc1OVN5QjFteWd4VklpbjJGNXo4Q251S1ZtUTJNVWhYNjhBTkVtcFRmNG5JdENhQTFjM0dvOFFLZUFEVy9uN3FVZDJ4blVQNjU2bnQ0V0pzRm1qanh1NU5BckJpdTBFWjJBRWpEL3pvS2xjYm5qRDVQb2t3MGRlWVB5Q2xTeDZzMHBHQUFBQUFRQUZXQzQxTURrQUFBTXRNSUlES1RDQ0FoR2dBd0lCQWdJSWY0ZmE2MVk5Vjdzd0RRWUpLb1pJaHZjTkFRRUxCUUF3UWpFSk1BY0dBMVVFQmhNQU1Ra3dCd1lEVlFRSUV3QXhDVEFIQmdOVkJBY1RBREVKTUFjR0ExVUVDaE1BTVFrd0J3WURWUVFMRXdBeENUQUhCZ05WQkFNVEFEQWdGdzB5TmpBeU1EZ3hOak0yTlRKYUdBOHlNRFV6TURZeU5qRTJNelkxTWxvd1FqRUpNQWNHQTFVRUJoTUFNUWt3QndZRFZRUUlFd0F4Q1RBSEJnTlZCQWNUQURFSk1BY0dBMVVFQ2hNQU1Ra3dCd1lEVlFRTEV3QXhDVEFIQmdOVkJBTVRBRENDQVNJd0RRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFEQ0NBUW9DZ2dFQkFNSFVwT00waHdJNzNkM2F3SE9oSWdGVFlQZnZEeG5zUFBzVEEwclFSWnVsZEdZRW43VzBDUFlRREkzRnpzWThOTHNrUlNkRGJFS25CZUdCckdOWU1yeUNjWkdGOCt6L3BsaUhKUGxsMnhDdG1sYnQwNTlhanNRUUhjNWF0QmdGYWxsNnRhcVlEUUJkYUhRd0lBSkVEMmNrbVhpMlYvYWpacktvY1lScVdsSjAzSjNMRFVvT3hxblFlZEp1cUpzUUNhazNmK3ozbzV5NjIxaG9SbEt1T01NVGpBbVhKbEdsTGRDZkEzUTlaYjJkTTVBOWJMTEIwK3h1dVdmdVNjb01PTCtiYVRhQTRpTHJoTjYrVnFobjMrK0U2ZUk2VUdIL3Vpc2Qvdlk4NTEvcktpVEMvVTlmTnhCVHNaYVpXK3QxSmRzTWlwQklSQ3JXMlVzZm10aVlISk1DQXdFQUFhTWhNQjh3SFFZRFZSME9CQllFRkJTcjM4TEErVXl1NXpHS3NHUmNMcUQzV245Q01BMEdDU3FHU0liM0RRRUJDd1VBQTRJQkFRQzErTGx3V1dzaElxZjdRbWZZL041M1BXcWFNMWNMVjFRTUJnL2tSazFZUWE3RE1sK3c2VTJWM2pOT2dPRWliU01qR2dCNTA1WTAvS2dIR05LMnJPOTY1cXNLZGJKVlNXMEtQcXVlbFEwa2FOWnZxdk1Vd1Zxay9YSEZlbWRxS0J5U3V5bGNSdHhqdVJqYnRWOWhpNE9raGZodklFN2NlRWU4eXloNkhqRFh2bDg1bW1yNG0vY2RhaVJrOFdHSEoydGR4VzJMT2JvYVlPL3UrODIzb2ZLWGdqS25QVjZSbUc3c1YrMjFWMzdiNGMvenBPVEpGZUZHTTVFYUlvUnNMaGl6OUhXTXlwb1FWU2pHT0xLdjRMUzdsTjdNWjY2eStxeWVZK2V0Ly9Jc2RLRVFsT2U1OHVPRVJKZjVBZkFsSTNwT1dCcW9aVzBQT2o3dFkzajdLazU5b0FZSGd4bzNSRTllVjdOUmZzWVhKN1B3MFR3PSIsImtleXN0b3JlUGFzc3dvcmQiOiI4ODM1MTg1MWVmMjgyMDY0NDFiZDdlOWQxNzJlNmM3ZSIsImtleUFsaWFzIjoiNDBiZmRmOTVmNDM1MTMyOTc1YzczMzY1NTA5NjFkYTEiLCJrZXlQYXNzd29yZCI6ImRmZGFlMDRjNjRkYmFkMTlkZTMyMDYyZTk2OWNhZjRkIn19fSwidXBkYXRlcyI6e30sImRldmVsb3BtZW50Q2xpZW50Ijp0cnVlLCJidWlsZFR5cGUiOiJhcGsiLCJ1c2VybmFtZSI6InJla2Fua295ZSIsInZlcnNpb24iOnsidmVyc2lvbkNvZGUiOiIxMCJ9LCJleHBlcmltZW50YWwiOnt9LCJtb2RlIjoiYnVpbGQiLCJ0cmlnZ2VyZWRCeSI6IkVBU19DTEkiLCJhcHBJZCI6ImQwYWY1MmU3LThlNjMtNDQyNi05ZTkyLTMwZjBlODM1NjUyZCIsImluaXRpYXRpbmdVc2VySWQiOiI1MGIzYjc2YS03ZmNiLTQwMDEtODJlOC00NTA3NTAyMzE2ZTYifSwibWV0YWRhdGEiOnsidHJhY2tpbmdDb250ZXh0Ijp7InRyYWNraW5nX2lkIjoiNDgwZWRjOTUtNmFmYS00M2Y1LTk5N2EtMWFlNjdjOTFhZjk4IiwicGxhdGZvcm0iOiJhbmRyb2lkIiwic2RrX3ZlcnNpb24iOiI1NS4wLjAiLCJhY2NvdW50X2lkIjoiNmZhMGNkZjgtOTJkNC00ZDVhLTljMDMtMDg2ZmViNjFlYTg5IiwicHJvamVjdF9pZCI6ImQwYWY1MmU3LThlNjMtNDQyNi05ZTkyLTMwZjBlODM1NjUyZCIsInByb2plY3RfdHlwZSI6Im1hbmFnZWQiLCJkZXZfY2xpZW50Ijp0cnVlLCJkZXZfY2xpZW50X3ZlcnNpb24iOiI1NS4wLjExIiwibm9fd2FpdCI6ZmFsc2UsInJ1bl9mcm9tX2NpIjpmYWxzZSwibG9jYWwiOnRydWV9LCJhcHBCdWlsZFZlcnNpb24iOiIxMCIsImFwcFZlcnNpb24iOiIxLjEuMCIsImNsaVZlcnNpb24iOiIxOC4xLjAiLCJ3b3JrZmxvdyI6Im1hbmFnZWQiLCJjcmVkZW50aWFsc1NvdXJjZSI6InJlbW90ZSIsInNka1ZlcnNpb24iOiI1NS4wLjAiLCJydW50aW1lVmVyc2lvbiI6IjEuMS4wIiwiZmluZ2VycHJpbnRIYXNoIjoiNWZlY2Q5ZTJjNTM2OWFjMzU4Yzk1ZTBhOTRlNTE2Y2VkYTgwOGI3MSIsInJlYWN0TmF0aXZlVmVyc2lvbiI6IjAuODMuMiIsImRpc3RyaWJ1dGlvbiI6ImludGVybmFsIiwiYXBwTmFtZSI6IkNvbGxlZ2UgQ29tbXVuaXR5IiwiYXBwSWRlbnRpZmllciI6ImNvbS5jb2xsZWdlY29tbXVuaXR5IiwiYnVpbGRQcm9maWxlIjoiZGV2ZWxvcG1lbnQiLCJnaXRDb21taXRIYXNoIjoiNWM4ZmU3NDQzYTJlOGM2OWQ2YWJkNjNhNDRkZDRmZGQ2ZjNhMGJjYSIsImdpdENvbW1pdE1lc3NhZ2UiOiJPUCAyIiwiaXNHaXRXb3JraW5nVHJlZURpcnR5Ijp0cnVlLCJ1c2VybmFtZSI6InJla2Fua295ZSIsInJ1bldpdGhOb1dhaXRGbGFnIjpmYWxzZSwicnVuRnJvbUNJIjpmYWxzZSwiZGV2ZWxvcG1lbnRDbGllbnQiOnRydWUsInJlcXVpcmVkUGFja2FnZU1hbmFnZXIiOiJucG0iLCJzaW11bGF0b3IiOmZhbHNlfX0= exited with non-zero code: 1
-    Error: build command failed.
+[ON_BUILD_COMPLETE_HOOK]
+Error: package.json does not exist in /tmp/rekan/eas-build-local-nodejs/18948e53-a9bb-4aff-a577-ba7439b3ee27/build
+    at readPackageJson (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/utils/project.js:43:15)
+    at runHookIfPresent (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/utils/hooks.js:26:55)
+    at /home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/builders/common.js:26:52
+    at BuildContext.runBuildPhase (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/context.js:123:34)
+    at runBuilderWithHooksAsync (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/builders/common.js:25:23)
+    at async Object.androidBuilder (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/@expo/build-tools/dist/builders/android.js:28:16)
+    at async buildAndroidAsync (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/eas-cli-local-build-plugin/dist/android.js:43:12)
+    at async buildAsync (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/eas-cli-local-build-plugin/dist/build.js:54:29)
+    at async main (/home/rekan/.npm/_npx/9dcdd6ab8c3634c3/node_modules/eas-cli-local-build-plugin/dist/main.js:16:9)
+
+Build failed
 rekan@Rekan:/mnt/c/Users/rekan/OneDrive/Desktop/college-community$

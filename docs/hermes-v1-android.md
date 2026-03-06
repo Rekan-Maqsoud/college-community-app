@@ -9,6 +9,7 @@ Hermes V1 requires `buildReactNativeFromSource: true` on Android. On hosts witho
 `Unable to find ICU.`
 
 To avoid blocking normal development builds, Hermes V1 is disabled by default and can be enabled per-profile.
+When requested, `app.config.js` now performs a local toolchain preflight and auto-falls back if ICU/CMake support is missing.
 
 ## How to enable Hermes V1
 
@@ -35,6 +36,10 @@ When enabled, it injects into `expo-build-properties`:
 - `buildReactNativeFromSource: true`
 - `useHermesV1: true`
 
+Additional override:
+
+- `EXPO_HERMES_V1_STRICT=1|true|yes` (forces Hermes V1 even if preflight checks fail)
+
 When disabled, those keys are removed from config.
 
 ## Host prerequisites for Hermes V1 source builds (Linux/WSL)
@@ -56,6 +61,12 @@ export CMAKE_PREFIX_PATH=/usr
 ```
 
 Then rerun the Hermes V1 profile build.
+
+If you intentionally want a hard failure instead of fallback while validating Hermes V1, run:
+
+```bash
+EXPO_HERMES_V1_STRICT=1 eas build --local --platform android --profile development-hermesv1
+```
 
 ## Notes
 

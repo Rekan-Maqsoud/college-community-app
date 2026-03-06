@@ -22,6 +22,18 @@
         "buildType": "apk"
       }
     },
+    "development-hermesv1-strict": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "NODE_ENV": "development",
+        "EXPO_ENABLE_HERMES_V1_ANDROID": "1",
+        "EXPO_HERMES_V1_STRICT": "1"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
     "preview": {
       "distribution": "internal",
       "env": {
