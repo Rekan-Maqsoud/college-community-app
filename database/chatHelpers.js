@@ -19,16 +19,16 @@ export const getOrCreateStageGroup = async (department, stage) => {
 
         const stageValue = typeof stage === 'number' ? String(stage) : stage;
         
-        const existingChats = await databases.listDocuments(
-            config.databaseId,
-            config.chatsCollectionId,
-            [
+        const existingChats = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.chatsCollectionId,
+            queries: [
                 Query.equal('department', department),
                 Query.equal('stage', stageValue),
                 Query.equal('type', CHAT_TYPES.STAGE_GROUP),
                 Query.limit(1)
             ]
-        );
+        });
 
         if (existingChats.documents.length > 0) {
             return existingChats.documents[0];
@@ -63,15 +63,15 @@ export const getOrCreateDepartmentGroup = async (department) => {
             return null;
         }
 
-        const existingChats = await databases.listDocuments(
-            config.databaseId,
-            config.chatsCollectionId,
-            [
+        const existingChats = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.chatsCollectionId,
+            queries: [
                 Query.equal('department', department),
                 Query.equal('type', CHAT_TYPES.DEPARTMENT_GROUP),
                 Query.limit(1)
             ]
-        );
+        });
 
         if (existingChats.documents.length > 0) {
             return existingChats.documents[0];
@@ -152,15 +152,15 @@ export const getPrivateChat = async (userId1, userId2) => {
         const sortedIds = [userId1, userId2].sort();
         const chatKey = `${sortedIds[0]}_${sortedIds[1]}`;
 
-        const existingChats = await databases.listDocuments(
-            config.databaseId,
-            config.chatsCollectionId,
-            [
+        const existingChats = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.chatsCollectionId,
+            queries: [
                 Query.equal('type', PRIVATE_CHAT_TYPE),
                 Query.equal('chatKey', chatKey),
                 Query.limit(1)
             ]
-        );
+        });
 
         if (existingChats.documents.length > 0) {
             return existingChats.documents[0];
@@ -243,16 +243,16 @@ export const getUserPrivateChats = async (userId) => {
             return [];
         }
 
-        const chats = await databases.listDocuments(
-            config.databaseId,
-            config.chatsCollectionId,
-            [
+        const chats = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.chatsCollectionId,
+            queries: [
                 Query.equal('type', PRIVATE_CHAT_TYPE),
                 Query.contains('participants', [userId]),
                 Query.orderDesc('lastMessageAt'),
                 Query.limit(50)
             ]
-        );
+        });
 
         return chats.documents;
     } catch (error) {
@@ -266,16 +266,16 @@ export const getUserCustomGroups = async (userId) => {
             return [];
         }
 
-        const chats = await databases.listDocuments(
-            config.databaseId,
-            config.chatsCollectionId,
-            [
+        const chats = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.chatsCollectionId,
+            queries: [
                 Query.equal('type', CUSTOM_GROUP_TYPE),
                 Query.contains('participants', [userId]),
                 Query.orderDesc('lastMessageAt'),
                 Query.limit(50)
             ]
-        );
+        });
 
         return chats.documents;
     } catch (error) {
@@ -490,12 +490,12 @@ export const updateGroupSettings = async (chatId, updates) => {
     try {
         if (!chatId) throw new Error('Chat ID is required');
 
-        const chat = await databases.updateDocument(
-            config.databaseId,
-            config.chatsCollectionId,
-            chatId,
-            updates
-        );
+        const chat = await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.chatsCollectionId,
+            documentId: chatId,
+            data: updates
+        });
         return chat;
     } catch (error) {
         throw error;
@@ -506,21 +506,21 @@ export const addGroupAdmin = async (chatId, userId) => {
     try {
         if (!chatId || !userId) throw new Error('Chat ID and user ID are required');
 
-        const chat = await databases.getDocument(
-            config.databaseId,
-            config.chatsCollectionId,
-            chatId
-        );
+        const chat = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.chatsCollectionId,
+            documentId: chatId
+        });
 
         const admins = chat.admins || [];
         if (!admins.includes(userId)) {
             admins.push(userId);
-            await databases.updateDocument(
-                config.databaseId,
-                config.chatsCollectionId,
-                chatId,
-                { admins, representatives: admins }
-            );
+            await databases.updateDocument({
+                databaseId: config.databaseId,
+                collectionId: config.chatsCollectionId,
+                documentId: chatId,
+                data: { admins, representatives: admins }
+            });
         }
         return true;
     } catch (error) {
@@ -532,21 +532,21 @@ export const removeGroupAdmin = async (chatId, userId) => {
     try {
         if (!chatId || !userId) throw new Error('Chat ID and user ID are required');
 
-        const chat = await databases.getDocument(
-            config.databaseId,
-            config.chatsCollectionId,
-            chatId
-        );
+        const chat = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.chatsCollectionId,
+            documentId: chatId
+        });
 
         const admins = (chat.admins || []).filter(id => id !== userId);
         const representatives = (chat.representatives || []).filter(id => id !== userId);
         
-        await databases.updateDocument(
-            config.databaseId,
-            config.chatsCollectionId,
-            chatId,
-            { admins, representatives }
-        );
+        await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.chatsCollectionId,
+            documentId: chatId,
+            data: { admins, representatives }
+        });
         return true;
     } catch (error) {
         throw error;
@@ -557,21 +557,21 @@ export const addGroupMember = async (chatId, userId) => {
     try {
         if (!chatId || !userId) throw new Error('Chat ID and user ID are required');
 
-        const chat = await databases.getDocument(
-            config.databaseId,
-            config.chatsCollectionId,
-            chatId
-        );
+        const chat = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.chatsCollectionId,
+            documentId: chatId
+        });
 
         const participants = chat.participants || [];
         if (!participants.includes(userId)) {
             participants.push(userId);
-            await databases.updateDocument(
-                config.databaseId,
-                config.chatsCollectionId,
-                chatId,
-                { participants }
-            );
+            await databases.updateDocument({
+                databaseId: config.databaseId,
+                collectionId: config.chatsCollectionId,
+                documentId: chatId,
+                data: { participants }
+            });
         }
         return true;
     } catch (error) {
@@ -583,22 +583,22 @@ export const removeGroupMember = async (chatId, userId) => {
     try {
         if (!chatId || !userId) throw new Error('Chat ID and user ID are required');
 
-        const chat = await databases.getDocument(
-            config.databaseId,
-            config.chatsCollectionId,
-            chatId
-        );
+        const chat = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.chatsCollectionId,
+            documentId: chatId
+        });
 
         const participants = (chat.participants || []).filter(id => id !== userId);
         const admins = (chat.admins || []).filter(id => id !== userId);
         const representatives = (chat.representatives || []).filter(id => id !== userId);
         
-        await databases.updateDocument(
-            config.databaseId,
-            config.chatsCollectionId,
-            chatId,
-            { participants, admins, representatives }
-        );
+        await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.chatsCollectionId,
+            documentId: chatId,
+            data: { participants, admins, representatives }
+        });
         return true;
     } catch (error) {
         throw error;
@@ -609,11 +609,11 @@ export const leaveGroup = async (chatId, userId) => {
     try {
         if (!chatId || !userId) throw new Error('Chat ID and user ID are required');
 
-        const chat = await databases.getDocument(
-            config.databaseId,
-            config.chatsCollectionId,
-            chatId
-        );
+        const chat = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.chatsCollectionId,
+            documentId: chatId
+        });
 
         // Check if user is the owner (first admin)
         const isOwner = chat.admins?.[0] === userId;
@@ -641,16 +641,16 @@ export const leaveGroup = async (chatId, userId) => {
             }
         }
 
-        await databases.updateDocument(
-            config.databaseId,
-            config.chatsCollectionId,
-            chatId,
-            { 
+        await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.chatsCollectionId,
+            documentId: chatId,
+            data: { 
                 participants: newParticipants, 
                 admins: newAdmins, 
                 representatives: newRepresentatives 
             }
-        );
+        });
 
         return true;
     } catch (error) {
@@ -662,11 +662,11 @@ export const deleteGroup = async (chatId) => {
     try {
         if (!chatId) throw new Error('Chat ID is required');
 
-        await databases.deleteDocument(
-            config.databaseId,
-            config.chatsCollectionId,
-            chatId
-        );
+        await databases.deleteDocument({
+            databaseId: config.databaseId,
+            collectionId: config.chatsCollectionId,
+            documentId: chatId
+        });
         return true;
     } catch (error) {
         throw error;

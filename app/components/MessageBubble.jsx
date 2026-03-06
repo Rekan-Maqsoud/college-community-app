@@ -554,7 +554,10 @@ const MessageBubble = ({
             ],
           });
 
-          const repairedUrl = storage.getFileView(config.voiceMessagesStorageId, voiceData.fileId)?.toString() || voiceData.url;
+          const repairedUrl = storage.getFileView({
+            bucketId: config.voiceMessagesStorageId,
+            fileId: voiceData.fileId,
+          })?.toString() || voiceData.url;
           downloadResponse = await fetchVoice(repairedUrl, downloadHeaders);
         } catch {}
       }

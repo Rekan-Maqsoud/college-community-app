@@ -28,7 +28,7 @@ export const LanguageProvider = ({ children }) => {
       const savedLanguage = await safeStorage.getItem('appLanguage');
       if (savedLanguage) {
         setCurrentLanguage(savedLanguage);
-        i18n.locale = savedLanguage;
+        await i18n.changeLanguage(savedLanguage);
         
         // Enable RTL for Arabic
         if (savedLanguage === 'ar') {
@@ -45,7 +45,7 @@ export const LanguageProvider = ({ children }) => {
         const defaultLang = supportedLanguages.includes(deviceLocale) ? deviceLocale : 'en';
         
         setCurrentLanguage(defaultLang);
-        i18n.locale = defaultLang;
+        await i18n.changeLanguage(defaultLang);
       }
     } catch (error) {
       // Failed to load language preference, using default
@@ -57,7 +57,7 @@ export const LanguageProvider = ({ children }) => {
   const changeLanguage = async (languageCode) => {
     try {
       setCurrentLanguage(languageCode);
-      i18n.locale = languageCode;
+      await i18n.changeLanguage(languageCode);
       await safeStorage.setItem('appLanguage', languageCode);
       
       // Enable RTL for Arabic

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LECTURE_UPLOAD_TYPES } from '../../../database/lectures';
+import { LECTURE_UPLOAD_TYPES } from '../../../../database/lectures';
 import styles from '../LectureChannelStyles';
 
 const LectureUploadComposerCard = ({

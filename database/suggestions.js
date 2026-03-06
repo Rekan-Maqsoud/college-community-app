@@ -95,17 +95,17 @@ export const createSuggestion = async (payload = {}) => {
   };
 
   try {
-    return await databases.createDocument(
-      config.databaseId,
-      config.suggestionsCollectionId,
-      ID.unique(),
-      extendedDocument,
-      [
+    return await databases.createDocument({
+      databaseId: config.databaseId,
+      collectionId: config.suggestionsCollectionId,
+      documentId: ID.unique(),
+      data: extendedDocument,
+      permissions: [
         Permission.read(Role.user(userId)),
         Permission.update(Role.user(userId)),
         Permission.delete(Role.user(userId)),
-      ]
-    );
+      ],
+    });
   } catch (error) {
     const messageText = String(error?.message || '');
     const isUnknownAttribute = messageText.includes('Unknown attribute');
@@ -113,17 +113,17 @@ export const createSuggestion = async (payload = {}) => {
       throw error;
     }
 
-    return await databases.createDocument(
-      config.databaseId,
-      config.suggestionsCollectionId,
-      ID.unique(),
-      baseDocument,
-      [
+    return await databases.createDocument({
+      databaseId: config.databaseId,
+      collectionId: config.suggestionsCollectionId,
+      documentId: ID.unique(),
+      data: baseDocument,
+      permissions: [
         Permission.read(Role.user(userId)),
         Permission.update(Role.user(userId)),
         Permission.delete(Role.user(userId)),
-      ]
-    );
+      ],
+    });
   }
 };
 
@@ -134,16 +134,16 @@ export const getMySuggestions = async (limit = 20, offset = 0) => {
 
   const userId = await getAuthenticatedUserId();
 
-  const result = await databases.listDocuments(
-    config.databaseId,
-    config.suggestionsCollectionId,
-    [
+  const result = await databases.listDocuments({
+    databaseId: config.databaseId,
+    collectionId: config.suggestionsCollectionId,
+    queries: [
       Query.equal('userId', userId),
       Query.orderDesc('$createdAt'),
       Query.limit(Math.min(Math.max(limit, 1), 100)),
       Query.offset(Math.max(offset, 0)),
-    ]
-  );
+    ],
+  });
 
   return result?.documents || [];
 };

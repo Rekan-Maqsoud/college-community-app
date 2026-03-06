@@ -31,12 +31,12 @@ export const ensureChatParticipant = async (chatId, userId) => {
       return chat;
     }
 
-    const updatedChat = await databases.updateDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId,
-      { participants: [...participants, userId] }
-    );
+    const updatedChat = await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+      data: { participants: [...participants, userId] }
+    });
 
     await rotateChatE2eeKeys(chatId, userId).catch(() => null);
 
@@ -139,12 +139,12 @@ export const rotateChatE2eeKeys = async (chatId, actorUserId = null) => {
       },
     };
 
-    await databases.updateDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId,
-      { settings: JSON.stringify(nextSettings) }
-    );
+    await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+      data: { settings: JSON.stringify(nextSettings) }
+    });
 
     return { success: true, keyVersion: nextKeyVersion };
   } catch (error) {

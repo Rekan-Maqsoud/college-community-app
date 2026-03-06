@@ -9,25 +9,25 @@ export const addRepresentative = async (chatId, userId) => {
       throw new Error('Invalid chat ID or user ID');
     }
 
-    const chat = await databases.getDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId
-    );
+    const chat = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+    });
 
     const currentReps = chat.representatives || [];
     if (currentReps.includes(userId)) {
       return chat;
     }
 
-    const updatedChat = await databases.updateDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId,
-      {
+    const updatedChat = await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+      data: {
         representatives: [...currentReps, userId],
       }
-    );
+    });
 
     return updatedChat;
   } catch (error) {
@@ -41,23 +41,23 @@ export const removeRepresentative = async (chatId, userId) => {
       throw new Error('Invalid chat ID or user ID');
     }
 
-    const chat = await databases.getDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId
-    );
+    const chat = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+    });
 
     const currentReps = chat.representatives || [];
     const updatedReps = currentReps.filter(id => id !== userId);
 
-    const updatedChat = await databases.updateDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId,
-      {
+    const updatedChat = await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+      data: {
         representatives: updatedReps,
       }
-    );
+    });
 
     return updatedChat;
   } catch (error) {
@@ -71,32 +71,32 @@ export const pinMessage = async (chatId, messageId, userId) => {
       throw new Error('Chat ID, message ID, and user ID are required');
     }
 
-    await databases.updateDocument(
-      config.databaseId,
-      config.messagesCollectionId,
-      messageId,
-      {
+    await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      documentId: messageId,
+      data: {
         isPinned: true,
         pinnedBy: userId,
         pinnedAt: new Date().toISOString(),
       }
-    );
+    });
 
-    const chat = await databases.getDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId
-    );
+    const chat = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+    });
 
     const pinnedMessages = chat.pinnedMessages || [];
     if (!pinnedMessages.includes(messageId)) {
       pinnedMessages.push(messageId);
-      await databases.updateDocument(
-        config.databaseId,
-        config.chatsCollectionId,
-        chatId,
-        { pinnedMessages }
-      );
+      await databases.updateDocument({
+        databaseId: config.databaseId,
+        collectionId: config.chatsCollectionId,
+        documentId: chatId,
+        data: { pinnedMessages }
+      });
     }
 
     return true;
@@ -111,30 +111,30 @@ export const unpinMessage = async (chatId, messageId) => {
       throw new Error('Chat ID and message ID are required');
     }
 
-    await databases.updateDocument(
-      config.databaseId,
-      config.messagesCollectionId,
-      messageId,
-      {
+    await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      documentId: messageId,
+      data: {
         isPinned: false,
         pinnedBy: null,
         pinnedAt: null,
       }
-    );
+    });
 
-    const chat = await databases.getDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId
-    );
+    const chat = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+    });
 
     const pinnedMessages = (chat.pinnedMessages || []).filter(id => id !== messageId);
-    await databases.updateDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId,
-      { pinnedMessages }
-    );
+    await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+      data: { pinnedMessages }
+    });
 
     return true;
   } catch (error) {
@@ -148,16 +148,16 @@ export const getPinnedMessages = async (chatId, userId = null) => {
       throw new Error('Chat ID is required');
     }
 
-    const messages = await databases.listDocuments(
-      config.databaseId,
-      config.messagesCollectionId,
-      [
+    const messages = await databases.listDocuments({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      queries: [
         Query.equal('chatId', chatId),
         Query.equal('isPinned', true),
         Query.orderDesc('pinnedAt'),
         Query.limit(50),
       ]
-    );
+    });
 
     if (!userId) {
       return messages.documents;
@@ -177,11 +177,11 @@ export const getPinnedMessages = async (chatId, userId = null) => {
 
 export const canUserPinMessage = async (chatId, userId) => {
   try {
-    const chat = await databases.getDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId
-    );
+    const chat = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+    });
 
     if (chat.type === 'private') {
       return chat.participants?.includes(userId) || false;
@@ -210,11 +210,11 @@ export { checkForEveryoneMention };
 
 export const canUserMentionEveryone = async (chatId, userId) => {
   try {
-    const chat = await databases.getDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId
-    );
+    const chat = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+    });
 
     if (chat.type === 'private') {
       return false;
@@ -251,12 +251,12 @@ export const updateChatSettings = async (chatId, settings) => {
 
     const settingsString = JSON.stringify(settings);
 
-    const chat = await databases.updateDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId,
-      { settings: settingsString }
-    );
+    const chat = await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+      data: { settings: settingsString }
+    });
 
     return chat;
   } catch (error) {
@@ -270,11 +270,11 @@ export const getChatSettings = async (chatId) => {
       return {};
     }
 
-    const chat = await databases.getDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId
-    );
+    const chat = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+    });
 
     try {
       return chat.settings ? JSON.parse(chat.settings) : {};
@@ -292,15 +292,15 @@ export const getUnreadCount = async (chatId, userId, options = {}) => {
       return 0;
     }
 
-    const messages = await databases.listDocuments(
-      config.databaseId,
-      config.messagesCollectionId,
-      [
+    const messages = await databases.listDocuments({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      queries: [
         Query.equal('chatId', chatId),
         Query.limit(100),
         Query.orderDesc('$createdAt'),
       ]
-    );
+    });
 
     let unreadCount = 0;
     for (const message of messages.documents) {
@@ -324,27 +324,27 @@ export const markChatAsRead = async (chatId, userId) => {
       return;
     }
 
-    const messages = await databases.listDocuments(
-      config.databaseId,
-      config.messagesCollectionId,
-      [
+    const messages = await databases.listDocuments({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      queries: [
         Query.equal('chatId', chatId),
         Query.limit(100),
         Query.orderDesc('$createdAt'),
       ]
-    );
+    });
 
     const updatePromises = messages.documents
       .filter(msg => msg.senderId !== userId && !(msg.readBy || []).includes(userId))
       .map(msg => {
         const readBy = msg.readBy || [];
         readBy.push(userId);
-        return databases.updateDocument(
-          config.databaseId,
-          config.messagesCollectionId,
-          msg.$id,
-          { readBy }
-        );
+        return databases.updateDocument({
+          databaseId: config.databaseId,
+          collectionId: config.messagesCollectionId,
+          documentId: msg.$id,
+          data: { readBy }
+        });
       });
 
     await Promise.all(updatePromises);

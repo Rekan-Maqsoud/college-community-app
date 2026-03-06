@@ -85,15 +85,15 @@ export const getUserChatSettings = async (userId, chatId) => {
             return getDefaultSettings(userId, chatId);
         }
 
-        const settings = await databases.listDocuments(
-            config.databaseId,
-            config.userChatSettingsCollectionId,
-            [
+        const settings = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.userChatSettingsCollectionId,
+            queries: [
                 Query.equal('userId', userId),
                 Query.equal('chatId', chatId),
                 Query.limit(1)
             ]
-        );
+        });
 
         if (settings.documents.length > 0) {
             return settings.documents[0];
@@ -186,15 +186,15 @@ export const updateReactionDefaultsForAllChats = async (userId, reactions = [], 
     const existingChatIds = new Set();
 
     while (hasMore) {
-        const settings = await databases.listDocuments(
-            config.databaseId,
-            config.userChatSettingsCollectionId,
-            [
+        const settings = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.userChatSettingsCollectionId,
+            queries: [
                 Query.equal('userId', userId),
                 Query.limit(100),
                 Query.offset(offset),
             ]
-        );
+        });
 
         const documents = settings.documents || [];
         if (documents.length === 0) {
@@ -205,12 +205,12 @@ export const updateReactionDefaultsForAllChats = async (userId, reactions = [], 
         await Promise.all(
             documents.map(async (item) => {
                 existingChatIds.add(item.chatId);
-                await databases.updateDocument(
-                    config.databaseId,
-                    config.userChatSettingsCollectionId,
-                    item.$id,
-                    { reactionDefaults: JSON.stringify(normalized) }
-                );
+                await databases.updateDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.userChatSettingsCollectionId,
+                    documentId: item.$id,
+                    data: { reactionDefaults: JSON.stringify(normalized) }
+                });
             })
         );
 
@@ -225,15 +225,15 @@ export const updateReactionDefaultsForAllChats = async (userId, reactions = [], 
         let hasMoreChats = true;
 
         while (hasMoreChats) {
-            const chats = await databases.listDocuments(
-                config.databaseId,
-                config.chatsCollectionId,
-                [
+            const chats = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.chatsCollectionId,
+                queries: [
                     Query.equal('participants', userId),
                     Query.limit(100),
                     Query.offset(chatsOffset),
                 ]
-            );
+            });
 
             const chatDocuments = chats.documents || [];
             if (chatDocuments.length === 0) {
@@ -283,42 +283,42 @@ export const updateUserChatSettings = async (userId, chatId, updates) => {
         }
 
         // Check if settings exist
-        const existing = await databases.listDocuments(
-            config.databaseId,
-            config.userChatSettingsCollectionId,
-            [
+        const existing = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.userChatSettingsCollectionId,
+            queries: [
                 Query.equal('userId', userId),
                 Query.equal('chatId', chatId),
                 Query.limit(1)
             ]
-        );
+        });
 
         if (existing.documents.length > 0) {
             // Update existing
-            const updated = await databases.updateDocument(
-                config.databaseId,
-                config.userChatSettingsCollectionId,
-                existing.documents[0].$id,
-                updates
-            );
+            const updated = await databases.updateDocument({
+                databaseId: config.databaseId,
+                collectionId: config.userChatSettingsCollectionId,
+                documentId: existing.documents[0].$id,
+                data: updates
+            });
             return updated;
         } else {
             // Create new
-            const created = await databases.createDocument(
-                config.databaseId,
-                config.userChatSettingsCollectionId,
-                ID.unique(),
-                {
+            const created = await databases.createDocument({
+                databaseId: config.databaseId,
+                collectionId: config.userChatSettingsCollectionId,
+                documentId: ID.unique(),
+                data: {
                     userId,
                     chatId,
                     ...updates,
                 },
-                [
+                permissions: [
                     Permission.read(Role.user(userId)),
                     Permission.update(Role.user(userId)),
                     Permission.delete(Role.user(userId)),
                 ]
-            );
+            });
             return created;
         }
     } catch (error) {
@@ -558,14 +558,14 @@ export const deleteUserChatSettingsByChatId = async (chatId) => {
         let hasMore = true;
 
         while (hasMore) {
-            const settings = await databases.listDocuments(
-                config.databaseId,
-                config.userChatSettingsCollectionId,
-                [
+            const settings = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.userChatSettingsCollectionId,
+                queries: [
                     Query.equal('chatId', chatId),
                     Query.limit(100)
                 ]
-            );
+            });
 
             if (settings.documents.length === 0) {
                 hasMore = false;
@@ -574,11 +574,11 @@ export const deleteUserChatSettingsByChatId = async (chatId) => {
 
             await Promise.all(
                 settings.documents.map(item =>
-                    databases.deleteDocument(
-                        config.databaseId,
-                        config.userChatSettingsCollectionId,
-                        item.$id
-                    )
+                    databases.deleteDocument({
+                        databaseId: config.databaseId,
+                        collectionId: config.userChatSettingsCollectionId,
+                        documentId: item.$id
+                    })
                 )
             );
 

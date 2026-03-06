@@ -10,15 +10,15 @@ const listAllDocuments = async (collectionId, queries = []) => {
   const pageSize = 100;
 
   while (true) {
-    const result = await databases.listDocuments(
-      config.databaseId,
+    const result = await databases.listDocuments({
+      databaseId: config.databaseId,
       collectionId,
-      [
+      queries: [
         ...queries,
         Query.limit(pageSize),
         Query.offset(offset),
       ]
-    );
+    });
 
     const docs = Array.isArray(result?.documents) ? result.documents : [];
     all.push(...docs);
@@ -117,7 +117,10 @@ export const deleteLectureChannelWithCleanup = async (channelId) => {
 
       if (uploadType === 'file' && fileId && config.lectureStorageId) {
         try {
-          await storage.deleteFile(config.lectureStorageId, fileId);
+          await storage.deleteFile({
+            bucketId: config.lectureStorageId,
+            fileId,
+          });
         } catch {
         }
       }
@@ -131,11 +134,11 @@ export const deleteLectureChannelWithCleanup = async (channelId) => {
         return;
       }
 
-      await databases.deleteDocument(
-        config.databaseId,
-        config.lectureCommentsCollectionId,
-        commentId
-      );
+      await databases.deleteDocument({
+        databaseId: config.databaseId,
+        collectionId: config.lectureCommentsCollectionId,
+        documentId: commentId,
+      });
     })
   );
 
@@ -146,11 +149,11 @@ export const deleteLectureChannelWithCleanup = async (channelId) => {
         return;
       }
 
-      await databases.deleteDocument(
-        config.databaseId,
-        config.messagesCollectionId,
-        messageId
-      );
+      await databases.deleteDocument({
+        databaseId: config.databaseId,
+        collectionId: config.messagesCollectionId,
+        documentId: messageId,
+      });
     })
   );
 
@@ -161,11 +164,11 @@ export const deleteLectureChannelWithCleanup = async (channelId) => {
         return;
       }
 
-      await databases.deleteDocument(
-        config.databaseId,
-        config.lectureAssetsCollectionId,
-        assetId
-      );
+      await databases.deleteDocument({
+        databaseId: config.databaseId,
+        collectionId: config.lectureAssetsCollectionId,
+        documentId: assetId,
+      });
     })
   );
 
@@ -176,11 +179,11 @@ export const deleteLectureChannelWithCleanup = async (channelId) => {
         return;
       }
 
-      await databases.deleteDocument(
-        config.databaseId,
-        config.lectureMembershipsCollectionId,
-        membershipId
-      );
+      await databases.deleteDocument({
+        databaseId: config.databaseId,
+        collectionId: config.lectureMembershipsCollectionId,
+        documentId: membershipId,
+      });
     })
   );
 
@@ -191,19 +194,19 @@ export const deleteLectureChannelWithCleanup = async (channelId) => {
         return;
       }
 
-      await databases.deleteDocument(
-        config.databaseId,
-        config.notificationsCollectionId,
-        notificationId
-      );
+      await databases.deleteDocument({
+        databaseId: config.databaseId,
+        collectionId: config.notificationsCollectionId,
+        documentId: notificationId,
+      });
     })
   );
 
-  await databases.deleteDocument(
-    config.databaseId,
-    config.lectureChannelsCollectionId,
-    normalizedChannelId
-  );
+  await databases.deleteDocument({
+    databaseId: config.databaseId,
+    collectionId: config.lectureChannelsCollectionId,
+    documentId: normalizedChannelId,
+  });
 
   return {
     success: true,

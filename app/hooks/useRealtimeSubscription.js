@@ -21,6 +21,8 @@ export const useRealtimeSubscription = (
   { documentId = null, enabled = true } = {}
 ) => {
   const unsubscribeRef = useRef(null);
+  const retryTimeoutRef = useRef(null);
+  const retryAttemptRef = useRef(0);
   const [isConnected, setIsConnected] = useState(false);
   const onUpdateRef = useRef(onUpdate);
   const onDeleteRef = useRef(onDelete);
@@ -74,6 +76,11 @@ export const useRealtimeSubscription = (
     };
 
     const cleanupSubscription = () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+
       if (unsubscribeRef.current) {
         try {
           unsubscribeRef.current();
@@ -85,9 +92,54 @@ export const useRealtimeSubscription = (
       setIsConnected(false);
     };
 
+    const getBackoffDelayMs = (attempt) => {
+      const baseDelayMs = 800;
+      const maxDelayMs = 30000;
+      const exponentialDelay = Math.min(maxDelayMs, baseDelayMs * (2 ** Math.max(0, attempt)));
+      const jitter = Math.floor(Math.random() * 400);
+      return exponentialDelay + jitter;
+    };
+
+    const scheduleSubscribe = () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+
+      const delayMs = getBackoffDelayMs(retryAttemptRef.current);
+      retryTimeoutRef.current = setTimeout(() => {
+        retryTimeoutRef.current = null;
+        subscribe();
+      }, delayMs);
+
+      realtimeDebugLogger.trace('realtime_subscribe_retry_scheduled', {
+        collectionId,
+        documentId,
+        attempt: retryAttemptRef.current,
+        delayMs,
+      });
+    };
+
     const subscribe = () => {
       cleanupSubscription();
-      unsubscribeRef.current = client.subscribe(channel, handleRealtimeEvent);
+
+      try {
+        unsubscribeRef.current = client.subscribe(channel, handleRealtimeEvent);
+        retryAttemptRef.current = 0;
+        setIsConnected(true);
+      } catch (error) {
+        setIsConnected(false);
+        retryAttemptRef.current += 1;
+
+        realtimeDebugLogger.warn('realtime_subscribe_failed', {
+          collectionId,
+          documentId,
+          attempt: retryAttemptRef.current,
+          message: error?.message,
+        });
+
+        scheduleSubscribe();
+      }
     };
 
     subscribe();

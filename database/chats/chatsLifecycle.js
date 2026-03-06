@@ -30,17 +30,17 @@ export const createGroupChat = async (chatData) => {
       ? Array.from(new Set([...chatData.participants, currentUserId]))
       : [currentUserId];
 
-    const chat = await databases.createDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      ID.unique(),
-      {
+    const chat = await databases.createDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: ID.unique(),
+      data: {
         ...chatData,
         participants,
         messageCount: 0,
       },
-      buildParticipantPermissions(participants)
-    );
+      permissions: buildParticipantPermissions(participants)
+    });
 
     await ensureChatEncryption(chat, currentUserId).catch(() => null);
     return chat;
@@ -62,16 +62,16 @@ export const createChat = async (chatData) => {
     const currentUserId = await getAuthenticatedUserId();
     const participants = Array.from(new Set([...chatData.participants, currentUserId]));
 
-    const chat = await databases.createDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      ID.unique(),
-      {
+    const chat = await databases.createDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: ID.unique(),
+      data: {
         ...chatData,
         participants,
       },
-      buildParticipantPermissions(participants)
-    );
+      permissions: buildParticipantPermissions(participants)
+    });
 
     await ensureChatEncryption(chat, currentUserId).catch(() => null);
     return chat;
@@ -97,29 +97,29 @@ export const getUserGroupChats = async (department, stage, userId = null) => {
     const departmentQuery = Query.equal('department', department);
     const allChats = [];
 
-    const departmentChats = await databases.listDocuments(
-      config.databaseId,
-      config.chatsCollectionId,
-      [
+    const departmentChats = await databases.listDocuments({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      queries: [
         departmentQuery,
         Query.equal('type', CHAT_TYPES.DEPARTMENT_GROUP),
         Query.orderDesc('lastMessageAt'),
       ]
-    );
+    });
     allChats.push(...departmentChats.documents);
 
     if (stage) {
       const stageValue = typeof stage === 'number' ? String(stage) : stage;
-      const stageChats = await databases.listDocuments(
-        config.databaseId,
-        config.chatsCollectionId,
-        [
+      const stageChats = await databases.listDocuments({
+        databaseId: config.databaseId,
+        collectionId: config.chatsCollectionId,
+        queries: [
           departmentQuery,
           Query.equal('stage', stageValue),
           Query.equal('type', CHAT_TYPES.STAGE_GROUP),
           Query.orderDesc('lastMessageAt'),
         ]
-      );
+      });
       allChats.push(...stageChats.documents);
     }
 
@@ -169,14 +169,14 @@ export const getChats = async (userId) => {
       throw new Error('Invalid user ID');
     }
 
-    const chats = await databases.listDocuments(
-      config.databaseId,
-      config.chatsCollectionId,
-      [
+    const chats = await databases.listDocuments({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      queries: [
         Query.equal('participants', userId),
         Query.orderDesc('lastMessageAt'),
       ]
-    );
+    });
     return await decryptChatPreviews(chats.documents, userId);
   } catch (error) {
     throw error;
@@ -189,11 +189,11 @@ export const getChat = async (chatId) => {
       throw new Error('Invalid chat ID');
     }
 
-    const chat = await databases.getDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId
-    );
+    const chat = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+    });
     return chat;
   } catch (error) {
     throw error;
@@ -216,14 +216,14 @@ export const clearChatMessages = async (chatId, actorUserId = null) => {
     let deletedCount = 0;
 
     while (hasMore) {
-      const messages = await databases.listDocuments(
-        config.databaseId,
-        config.messagesCollectionId,
-        [
+      const messages = await databases.listDocuments({
+        databaseId: config.databaseId,
+        collectionId: config.messagesCollectionId,
+        queries: [
           Query.equal('chatId', chatId),
           Query.limit(100),
         ]
-      );
+      });
 
       if (messages.documents.length === 0) {
         hasMore = false;
@@ -232,11 +232,11 @@ export const clearChatMessages = async (chatId, actorUserId = null) => {
 
       const deletePromises = messages.documents.map(async (msg) => {
         try {
-          await databases.deleteDocument(
-            config.databaseId,
-            config.messagesCollectionId,
-            msg.$id
-          );
+          await databases.deleteDocument({
+            databaseId: config.databaseId,
+            collectionId: config.messagesCollectionId,
+            documentId: msg.$id,
+          });
 
           if (msg.imageDeleteUrl) {
             try {
@@ -282,11 +282,11 @@ export const deleteChat = async (chatId, actorUserId = null) => {
     await clearChatMessages(chatId, effectiveActorUserId);
     await deleteUserChatSettingsByChatId(chatId);
 
-    await databases.deleteDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId
-    );
+    await databases.deleteDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+    });
     await removeStoredChatKey(chatId);
   } catch (error) {
     throw error;
@@ -299,11 +299,11 @@ export const removePrivateChatForUser = async (chatId, userId) => {
       throw new Error('Invalid chat ID or user ID');
     }
 
-    const chat = await databases.getDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId
-    );
+    const chat = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+    });
 
     if (chat.type !== 'private') {
       throw new Error('This function is only for private chats');
@@ -325,12 +325,12 @@ export const removePrivateChatForUser = async (chatId, userId) => {
     }
 
     const updatedSettings = { ...settings, removedBy };
-    await databases.updateDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId,
-      { settings: JSON.stringify(updatedSettings) }
-    );
+    await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+      data: { settings: JSON.stringify(updatedSettings) },
+    });
     return 'hidden';
   } catch (error) {
     throw error;
@@ -345,11 +345,11 @@ export const isChatRemovedByUser = (chat, userId) => {
 
 export const restorePrivateChatForUser = async (chatId, userId) => {
   try {
-    const chat = await databases.getDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId
-    );
+    const chat = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+    });
 
     const settings = parseChatSettings(chat.settings);
     if (!Array.isArray(settings.removedBy) || settings.removedBy.length === 0) return;
@@ -357,12 +357,12 @@ export const restorePrivateChatForUser = async (chatId, userId) => {
     const updatedRemovedBy = settings.removedBy.filter(id => id !== userId);
     const updatedSettings = { ...settings, removedBy: updatedRemovedBy };
 
-    await databases.updateDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId,
-      { settings: JSON.stringify(updatedSettings) }
-    );
+    await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+      data: { settings: JSON.stringify(updatedSettings) }
+    });
   } catch {
   }
 };
@@ -373,11 +373,11 @@ export const canUserSendMessage = async (chatId, userId) => {
       return false;
     }
 
-    const chat = await databases.getDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId
-    );
+    const chat = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+    });
 
     const participants = Array.isArray(chat.participants) ? chat.participants : [];
     if (!participants.includes(userId)) {
@@ -390,8 +390,16 @@ export const canUserSendMessage = async (chatId, userId) => {
       if (otherUserId) {
         try {
           const [currentUserDoc, otherUserDoc] = await Promise.all([
-            databases.getDocument(config.databaseId, config.usersCollectionId, userId),
-            databases.getDocument(config.databaseId, config.usersCollectionId, otherUserId),
+            databases.getDocument({
+              databaseId: config.databaseId,
+              collectionId: config.usersCollectionId,
+              documentId: userId,
+            }),
+            databases.getDocument({
+              databaseId: config.databaseId,
+              collectionId: config.usersCollectionId,
+              documentId: otherUserId,
+            }),
           ]);
           const myBlocked = currentUserDoc?.blockedUsers || [];
           const theirBlocked = otherUserDoc?.blockedUsers || [];

@@ -11,14 +11,28 @@
 
 const _docs = {};
 
-const mockGetDocument = jest.fn().mockImplementation((dbId, collId, docId) => {
-  if (_docs[docId]) return Promise.resolve(_docs[docId]);
+const mockGetDocument = jest.fn().mockImplementation((arg1, collId, docId) => {
+  const resolvedDocId =
+    arg1 && typeof arg1 === 'object'
+      ? arg1.documentId
+      : docId;
+
+  if (_docs[resolvedDocId]) return Promise.resolve(_docs[resolvedDocId]);
   return Promise.reject(new Error('Not found'));
 });
 
-const mockUpdateDocument = jest.fn().mockImplementation((dbId, collId, docId, data) => {
-  if (_docs[docId]) Object.assign(_docs[docId], data);
-  return Promise.resolve(_docs[docId] || {});
+const mockUpdateDocument = jest.fn().mockImplementation((arg1, collId, docId, data) => {
+  const resolvedDocId =
+    arg1 && typeof arg1 === 'object'
+      ? arg1.documentId
+      : docId;
+  const resolvedData =
+    arg1 && typeof arg1 === 'object'
+      ? (arg1.data || {})
+      : (data || {});
+
+  if (_docs[resolvedDocId]) Object.assign(_docs[resolvedDocId], resolvedData);
+  return Promise.resolve(_docs[resolvedDocId] || {});
 });
 
 jest.mock('appwrite', () => ({

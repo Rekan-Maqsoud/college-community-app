@@ -1,7 +1,6 @@
 import { account, databases, config } from '../config';
 import { Permission, Role } from 'appwrite';
 import * as SecureStore from 'expo-secure-store';
-import * as Crypto from 'expo-crypto';
 import nacl from 'tweetnacl';
 import { encodeBase64, decodeBase64, encodeUTF8, decodeUTF8 } from 'tweetnacl-util';
 import { getUserById, updateUserPublicKey } from '../users';
@@ -43,14 +42,26 @@ export const canManageChat = (chat, userId) => {
 };
 
 export const getSecureRandomBytes = (size) => {
-  if (Crypto && typeof Crypto.getRandomBytes === 'function') {
-    return Crypto.getRandomBytes(size);
+  if (!Number.isInteger(size) || size <= 0) {
+    return null;
+  }
+
+  try {
+    const { randomBytes } = require('react-native-quick-crypto');
+    if (typeof randomBytes === 'function') {
+      return new Uint8Array(randomBytes(size));
+    }
+  } catch {
   }
 
   if (typeof global !== 'undefined' && global?.crypto?.getRandomValues) {
     const buffer = new Uint8Array(size);
     global.crypto.getRandomValues(buffer);
     return buffer;
+  }
+
+  if (typeof nacl?.randomBytes === 'function') {
+    return nacl.randomBytes(size);
   }
 
   return null;
@@ -122,12 +133,12 @@ const ensureChatPublicKeyStored = async (chat, userId) => {
     },
   };
 
-  await databases.updateDocument(
-    config.databaseId,
-    config.chatsCollectionId,
-    chat.$id,
-    { settings: JSON.stringify(nextSettings) }
-  );
+  await databases.updateDocument({
+    databaseId: config.databaseId,
+    collectionId: config.chatsCollectionId,
+    documentId: chat.$id,
+    data: { settings: JSON.stringify(nextSettings) }
+  });
 
   return { publicKey, settings: nextSettings };
 };
@@ -456,12 +467,12 @@ const addMissingE2eeKeys = async (chat, chatKey, senderId) => {
     },
   };
 
-  await databases.updateDocument(
-    config.databaseId,
-    config.chatsCollectionId,
-    chat.$id,
-    { settings: JSON.stringify(nextSettings) }
-  );
+  await databases.updateDocument({
+    databaseId: config.databaseId,
+    collectionId: config.chatsCollectionId,
+    documentId: chat.$id,
+    data: { settings: JSON.stringify(nextSettings) }
+  });
 };
 
 export const ensureChatEncryption = async (chat, userId) => {
@@ -491,12 +502,12 @@ export const ensureChatEncryption = async (chat, userId) => {
     e2ee: built.e2ee,
   };
 
-  await databases.updateDocument(
-    config.databaseId,
-    config.chatsCollectionId,
-    chat.$id,
-    { settings: JSON.stringify(nextSettings) }
-  );
+  await databases.updateDocument({
+    databaseId: config.databaseId,
+    collectionId: config.chatsCollectionId,
+    documentId: chat.$id,
+    data: { settings: JSON.stringify(nextSettings) }
+  });
 
   await storeChatKey(chat.$id, built.chatKey);
   return built.chatKey;

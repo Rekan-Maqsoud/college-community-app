@@ -74,41 +74,64 @@ export const castVote = async (electionId, candidateId) => {
       }
     }
 
-    const voteCountBefore = await databases.listDocuments(DB_ID(), COLLECTION_ID(), [
-      Query.equal('electionId', electionId),
-      Query.limit(1),
-    ]);
+    const voteCountBefore = await databases.listDocuments({
+      databaseId: DB_ID(),
+      collectionId: COLLECTION_ID(),
+      queries: [
+        Query.equal('electionId', electionId),
+        Query.limit(1),
+      ],
+    });
     const isFirstVote = (voteCountBefore.documents?.length || 0) === 0;
 
     // Check for existing vote by this voter in this election
-    const existing = await databases.listDocuments(DB_ID(), COLLECTION_ID(), [
-      Query.equal('electionId', electionId),
-      Query.equal('voterId', voterId),
-      Query.limit(1),
-    ]);
+    const existing = await databases.listDocuments({
+      databaseId: DB_ID(),
+      collectionId: COLLECTION_ID(),
+      queries: [
+        Query.equal('electionId', electionId),
+        Query.equal('voterId', voterId),
+        Query.limit(1),
+      ],
+    });
 
     // Remove previous vote if exists
     if (existing.documents.length > 0) {
-      await databases.deleteDocument(DB_ID(), COLLECTION_ID(), existing.documents[0].$id);
+      await databases.deleteDocument({
+        databaseId: DB_ID(),
+        collectionId: COLLECTION_ID(),
+        documentId: existing.documents[0].$id,
+      });
     }
 
-    const vote = await databases.createDocument(DB_ID(), COLLECTION_ID(), ID.unique(), {
-      electionId,
-      department: election.department,
-      stage: election.stage,
-      voterId,
-      candidateId,
-    }, [
-      Permission.read(Role.users()),
-      Permission.update(Role.user(voterId)),
-      Permission.delete(Role.user(voterId)),
-    ]);
+    const vote = await databases.createDocument({
+      databaseId: DB_ID(),
+      collectionId: COLLECTION_ID(),
+      documentId: ID.unique(),
+      data: {
+        electionId,
+        department: election.department,
+        stage: election.stage,
+        voterId,
+        candidateId,
+      },
+      permissions: [
+        Permission.read(Role.users()),
+        Permission.update(Role.user(voterId)),
+        Permission.delete(Role.user(voterId)),
+      ],
+    });
 
     if (isFirstVote) {
       try {
-        await databases.updateDocument(config.databaseId, config.repElectionsCollectionId, electionId, {
-          status: ELECTION_STATUS.ACTIVE,
-          startedAt: new Date().toISOString(),
+        await databases.updateDocument({
+          databaseId: config.databaseId,
+          collectionId: config.repElectionsCollectionId,
+          documentId: electionId,
+          data: {
+            status: ELECTION_STATUS.ACTIVE,
+            startedAt: new Date().toISOString(),
+          },
         });
 
         const classStudents = await getClassStudents(election.department, election.stage);
@@ -142,14 +165,22 @@ export const removeVote = async (electionId) => {
     if (!currentUser) throw new Error('Not authenticated');
     const voterId = currentUser.$id;
 
-    const existing = await databases.listDocuments(DB_ID(), COLLECTION_ID(), [
-      Query.equal('electionId', electionId),
-      Query.equal('voterId', voterId),
-      Query.limit(1),
-    ]);
+    const existing = await databases.listDocuments({
+      databaseId: DB_ID(),
+      collectionId: COLLECTION_ID(),
+      queries: [
+        Query.equal('electionId', electionId),
+        Query.equal('voterId', voterId),
+        Query.limit(1),
+      ],
+    });
 
     if (existing.documents.length > 0) {
-      await databases.deleteDocument(DB_ID(), COLLECTION_ID(), existing.documents[0].$id);
+      await databases.deleteDocument({
+        databaseId: DB_ID(),
+        collectionId: COLLECTION_ID(),
+        documentId: existing.documents[0].$id,
+      });
     }
 
     return true;
@@ -173,11 +204,15 @@ export const getElectionResults = async (electionId) => {
     let hasMore = true;
 
     while (hasMore) {
-      const batch = await databases.listDocuments(DB_ID(), COLLECTION_ID(), [
-        Query.equal('electionId', electionId),
-        Query.limit(batchSize),
-        Query.offset(offset),
-      ]);
+      const batch = await databases.listDocuments({
+        databaseId: DB_ID(),
+        collectionId: COLLECTION_ID(),
+        queries: [
+          Query.equal('electionId', electionId),
+          Query.limit(batchSize),
+          Query.offset(offset),
+        ],
+      });
       allVotes = [...allVotes, ...batch.documents];
       hasMore = batch.documents.length === batchSize;
       offset += batchSize;
@@ -219,11 +254,15 @@ export const getMyVote = async (electionId) => {
     const currentUser = await getCurrentUser();
     if (!currentUser) return null;
 
-    const result = await databases.listDocuments(DB_ID(), COLLECTION_ID(), [
-      Query.equal('electionId', electionId),
-      Query.equal('voterId', currentUser.$id),
-      Query.limit(1),
-    ]);
+    const result = await databases.listDocuments({
+      databaseId: DB_ID(),
+      collectionId: COLLECTION_ID(),
+      queries: [
+        Query.equal('electionId', electionId),
+        Query.equal('voterId', currentUser.$id),
+        Query.limit(1),
+      ],
+    });
 
     return result.documents[0] || null;
   } catch (error) {

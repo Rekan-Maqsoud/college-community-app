@@ -1,34 +1,63 @@
-import { I18n } from 'i18n-js';
 import { getLocales } from 'expo-localization';
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import resourcesToBackend from 'i18next-resources-to-backend';
 import en from './en';
-import ar from './ar';
-import ku from './ku';
 
-// Create i18n instance
-const i18n = new I18n({
-  en,
-  ar,
-  ku,
-});
+const supportedLanguages = ['en', 'ar', 'ku'];
 
-// Get device locale safely
 const getDeviceLocale = () => {
   try {
     const locales = getLocales();
-    return locales && locales[0] ? locales[0].languageCode : 'en';
+    const languageCode = locales && locales[0] ? locales[0].languageCode : 'en';
+    return supportedLanguages.includes(languageCode) ? languageCode : 'en';
   } catch (error) {
     return 'en';
   }
 };
 
-// Set the locale with a safe fallback to 'en'
-i18n.locale = getDeviceLocale();
+if (!i18n.isInitialized) {
+  i18n
+    .use(initReactI18next)
+    .use(
+      resourcesToBackend(async (language) => {
+        if (language === 'ar') {
+          const module = await import('./ar');
+          return module.default;
+        }
 
-// Enable fallback to English if translation is missing
-i18n.enableFallback = true;
-i18n.defaultLocale = 'en';
+        if (language === 'ku') {
+          const module = await import('./ku');
+          return module.default;
+        }
 
-// Configure missing translation behavior
-i18n.missingBehavior = 'guess';
+        const module = await import('./en');
+        return module.default;
+      }),
+    )
+    .init({
+      lng: getDeviceLocale(),
+      fallbackLng: 'en',
+      supportedLngs: supportedLanguages,
+      resources: {
+        en: {
+          translation: en,
+        },
+      },
+      ns: ['translation'],
+      defaultNS: 'translation',
+      interpolation: {
+        escapeValue: false,
+        prefix: '%{',
+        suffix: '}',
+      },
+      returnNull: false,
+      react: {
+        useSuspense: false,
+      },
+      load: 'languageOnly',
+      partialBundledLanguages: true,
+    });
+}
 
 export default i18n;

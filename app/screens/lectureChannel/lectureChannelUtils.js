@@ -1,4 +1,4 @@
-import { CHAT_TYPES } from '../../database/chats';
+import { CHAT_TYPES } from '../../../database/chats';
 import { extractYouTubeVideoId } from '../../utils/lectureUtils';
 
 export const buildYouTubeVideoId = (url = '') => extractYouTubeVideoId(url);

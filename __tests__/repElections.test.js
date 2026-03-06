@@ -111,7 +111,7 @@ describe('repElections', () => {
 
       await repElections.getActiveElection('cs', 'secondYear', 2);
 
-      const queries = mockListDocuments.mock.calls[0][2];
+      const queries = mockListDocuments.mock.calls[0][0]?.queries || [];
       const hasSeatQuery = queries.some(
         (q) => typeof q === 'string' ? q.includes('"seatNumber"') : JSON.stringify(q).includes('seatNumber'),
       );
@@ -226,8 +226,8 @@ describe('repElections', () => {
 
     it('sets reselectionThreshold to ceil(totalStudents/2)', async () => {
       mockListDocuments.mockResolvedValueOnce({ documents: [] });
-      mockCreateDocument.mockImplementation((_db, _col, _id, data) =>
-        Promise.resolve({ $id: 'e-new', ...data }),
+      mockCreateDocument.mockImplementation((payload) =>
+        Promise.resolve({ $id: 'e-new', ...(payload?.data || {}) }),
       );
 
       const result = await repElections.createElection('cs', 'secondYear', 11, 1);
@@ -247,7 +247,7 @@ describe('repElections', () => {
       expect(result.status).toBe('completed');
       expect(result.winner).toBe('u1');
 
-      const updatePayload = mockUpdateDocument.mock.calls[0][3];
+      const updatePayload = mockUpdateDocument.mock.calls[0][0]?.data;
       expect(updatePayload.status).toBe('completed');
       expect(updatePayload.winner).toBe('u1');
       expect(updatePayload.endedAt).toBeDefined();
@@ -361,7 +361,11 @@ describe('repVotes', () => {
       mockCreateDocument.mockResolvedValueOnce({ $id: 'new-vote' });
 
       await repVotes.castVote('election-1', 'candidate-2');
-      expect(mockDeleteDocument).toHaveBeenCalledWith('test-db', 'rep-votes', 'old-vote');
+      expect(mockDeleteDocument).toHaveBeenCalledWith({
+        databaseId: 'test-db',
+        collectionId: 'rep-votes',
+        documentId: 'old-vote',
+      });
     });
 
     it('throws if voting for yourself', async () => {
@@ -382,7 +386,11 @@ describe('repVotes', () => {
 
       const result = await repVotes.removeVote('election-1');
       expect(result).toBe(true);
-      expect(mockDeleteDocument).toHaveBeenCalledWith('test-db', 'rep-votes', 'vote-to-remove');
+      expect(mockDeleteDocument).toHaveBeenCalledWith({
+        databaseId: 'test-db',
+        collectionId: 'rep-votes',
+        documentId: 'vote-to-remove',
+      });
     });
 
     it('succeeds even when no vote exists', async () => {

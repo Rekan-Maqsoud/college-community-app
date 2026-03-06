@@ -57,25 +57,29 @@ export const createReply = async (replyData) => {
             windowMs: 60 * 1000,
         });
         
-        const reply = await databases.createDocument(
-            config.databaseId,
-            config.repliesCollectionId,
-            ID.unique(),
-            effectiveReplyData,
-            [
+        const reply = await databases.createDocument({
+            databaseId: config.databaseId,
+            collectionId: config.repliesCollectionId,
+            documentId: ID.unique(),
+            data: effectiveReplyData,
+            permissions: [
                 Permission.read(Role.users()),
                 Permission.update(Role.users()),
                 Permission.update(Role.user(currentUserId)),
                 Permission.delete(Role.user(currentUserId)),
-            ]
-        );
+            ],
+        });
 
         await incrementPostReplyCount(effectiveReplyData.postId);
 
         try {
             const [actor, post] = await Promise.all([
                 getUserById(currentUserId),
-                databases.getDocument(config.databaseId, config.postsCollectionId, effectiveReplyData.postId),
+                databases.getDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.postsCollectionId,
+                    documentId: effectiveReplyData.postId,
+                }),
             ]);
 
             const actorName = actor?.name || actor?.fullName || 'Someone';
@@ -83,11 +87,11 @@ export const createReply = async (replyData) => {
             const replyTextPreview = (effectiveReplyData.text || '').trim();
 
             if (effectiveReplyData.parentReplyId) {
-                const parentReply = await databases.getDocument(
-                    config.databaseId,
-                    config.repliesCollectionId,
-                    effectiveReplyData.parentReplyId
-                );
+                const parentReply = await databases.getDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.repliesCollectionId,
+                    documentId: effectiveReplyData.parentReplyId,
+                });
 
                 if (parentReply?.userId && parentReply.userId !== currentUserId) {
                     notifyReplyReply(
@@ -135,11 +139,11 @@ export const getReply = async (replyId) => {
             throw new Error('Invalid reply ID');
         }
         
-        const reply = await databases.getDocument(
-            config.databaseId,
-            config.repliesCollectionId,
-            replyId
-        );
+        const reply = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.repliesCollectionId,
+            documentId: replyId,
+        });
         return reply;
     } catch (error) {
         throw error;
@@ -161,16 +165,16 @@ export const getRepliesByPost = async (postId, limit = 50, offset = 0, useCache 
             }
         }
         
-        const replies = await databases.listDocuments(
-            config.databaseId,
-            config.repliesCollectionId,
-            [
+        const replies = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.repliesCollectionId,
+            queries: [
                 Query.equal('postId', postId),
                 Query.orderDesc('upCount'),
                 Query.limit(Math.min(limit, 100)),
                 Query.offset(offset)
-            ]
-        );
+            ],
+        });
         
         // Cache the replies for initial load
         if (offset === 0) {
@@ -196,16 +200,16 @@ export const getRepliesByUser = async (userId, limit = 20, offset = 0) => {
             throw new Error('Invalid user ID');
         }
         
-        const replies = await databases.listDocuments(
-            config.databaseId,
-            config.repliesCollectionId,
-            [
+        const replies = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.repliesCollectionId,
+            queries: [
                 Query.equal('userId', userId),
                 Query.orderDesc('$createdAt'),
                 Query.limit(Math.min(limit, 100)),
                 Query.offset(offset)
-            ]
-        );
+            ],
+        });
         return replies.documents;
     } catch (error) {
         throw error;
@@ -223,11 +227,11 @@ export const updateReply = async (replyId, replyData, postId = null) => {
         }
         
         const currentUserId = await getAuthenticatedUserId();
-        const existingReply = await databases.getDocument(
-            config.databaseId,
-            config.repliesCollectionId,
-            replyId
-        );
+        const existingReply = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.repliesCollectionId,
+            documentId: replyId,
+        });
 
         const isContentEdit = (
             replyData.text !== undefined
@@ -312,12 +316,12 @@ export const updateReply = async (replyId, replyData, postId = null) => {
             updateData.isEdited = true;
         }
 
-        const reply = await databases.updateDocument(
-            config.databaseId,
-            config.repliesCollectionId,
-            replyId,
-            updateData
-        );
+        const reply = await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.repliesCollectionId,
+            documentId: replyId,
+            data: updateData,
+        });
         
         // Invalidate replies cache if postId is provided
         if (postId) {
@@ -342,8 +346,16 @@ export const deleteReply = async (replyId, postId, imageDeleteUrls = []) => {
 
         const currentUserId = await getAuthenticatedUserId();
         const [reply, post] = await Promise.all([
-            databases.getDocument(config.databaseId, config.repliesCollectionId, replyId),
-            databases.getDocument(config.databaseId, config.postsCollectionId, postId),
+            databases.getDocument({
+                databaseId: config.databaseId,
+                collectionId: config.repliesCollectionId,
+                documentId: replyId,
+            }),
+            databases.getDocument({
+                databaseId: config.databaseId,
+                collectionId: config.postsCollectionId,
+                documentId: postId,
+            }),
         ]);
 
         const canDelete = reply?.userId === currentUserId || post?.userId === currentUserId;
@@ -351,11 +363,11 @@ export const deleteReply = async (replyId, postId, imageDeleteUrls = []) => {
             throw new Error('Not authorized to delete this reply');
         }
         
-        await databases.deleteDocument(
-            config.databaseId,
-            config.repliesCollectionId,
-            replyId
-        );
+        await databases.deleteDocument({
+            databaseId: config.databaseId,
+            collectionId: config.repliesCollectionId,
+            documentId: replyId,
+        });
 
         await decrementPostReplyCount(postId);
         
@@ -379,14 +391,14 @@ export const deleteRepliesByPost = async (postId) => {
         const allImageDeleteUrls = [];
         
         while (hasMore) {
-            const replies = await databases.listDocuments(
-                config.databaseId,
-                config.repliesCollectionId,
-                [
+            const replies = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.repliesCollectionId,
+                queries: [
                     Query.equal('postId', postId),
                     Query.limit(100)
-                ]
-            );
+                ],
+            });
             
             if (replies.documents.length === 0) {
                 hasMore = false;
@@ -394,11 +406,11 @@ export const deleteRepliesByPost = async (postId) => {
             }
             
             for (const reply of replies.documents) {
-                await databases.deleteDocument(
-                    config.databaseId,
-                    config.repliesCollectionId,
-                    reply.$id
-                );
+                await databases.deleteDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.repliesCollectionId,
+                    documentId: reply.$id,
+                });
 
                 if (reply.imageDeleteUrls && reply.imageDeleteUrls.length > 0) {
                     allImageDeleteUrls.push(...reply.imageDeleteUrls);
@@ -427,12 +439,12 @@ export const markReplyAsAccepted = async (replyId) => {
             throw new Error('Invalid reply ID');
         }
         
-        await databases.updateDocument(
-            config.databaseId,
-            config.repliesCollectionId,
-            replyId,
-            { isAccepted: true }
-        );
+        await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.repliesCollectionId,
+            documentId: replyId,
+            data: { isAccepted: true },
+        });
     } catch (error) {
         throw error;
     }
@@ -444,12 +456,12 @@ export const unmarkReplyAsAccepted = async (replyId) => {
             throw new Error('Invalid reply ID');
         }
         
-        await databases.updateDocument(
-            config.databaseId,
-            config.repliesCollectionId,
-            replyId,
-            { isAccepted: false }
-        );
+        await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.repliesCollectionId,
+            documentId: replyId,
+            data: { isAccepted: false },
+        });
     } catch (error) {
         throw error;
     }
@@ -460,12 +472,12 @@ const incrementPostReplyCount = async (postId) => {
         const { getPost } = require('./posts');
         const post = await getPost(postId);
         const newCount = (post.replyCount || 0) + 1;
-        await databases.updateDocument(
-            config.databaseId,
-            config.postsCollectionId,
-            postId,
-            { replyCount: newCount }
-        );
+        await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            documentId: postId,
+            data: { replyCount: newCount },
+        });
     } catch (error) {
     }
 };
@@ -475,12 +487,12 @@ const decrementPostReplyCount = async (postId) => {
         const { getPost } = require('./posts');
         const post = await getPost(postId);
         const newCount = Math.max(0, (post.replyCount || 0) - 1);
-        await databases.updateDocument(
-            config.databaseId,
-            config.postsCollectionId,
-            postId,
-            { replyCount: newCount }
-        );
+        await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            documentId: postId,
+            data: { replyCount: newCount },
+        });
     } catch (error) {
     }
 };

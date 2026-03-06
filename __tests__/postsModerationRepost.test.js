@@ -102,15 +102,15 @@ describe('posts moderation and repost flows', () => {
 
     const result = await reportPost('post-1', 'u5', 'spam');
 
-    expect(databases.updateDocument).toHaveBeenCalledWith(
-      'db',
-      'posts',
-      'post-1',
-      expect.objectContaining({
+    expect(databases.updateDocument).toHaveBeenCalledWith(expect.objectContaining({
+      databaseId: 'db',
+      collectionId: 'posts',
+      documentId: 'post-1',
+      data: expect.objectContaining({
         reportCount: 5,
         isHidden: true,
-      })
-    );
+      }),
+    }));
     expect(notifyPostHiddenByReports).toHaveBeenCalledTimes(1);
     expect(result.isHidden).toBe(true);
   });
@@ -129,15 +129,15 @@ describe('posts moderation and repost flows', () => {
 
     const result = await reportPost('post-2', 'u5', 'misinformation');
 
-    expect(databases.updateDocument).toHaveBeenCalledWith(
-      'db',
-      'posts',
-      'post-2',
-      expect.objectContaining({
+    expect(databases.updateDocument).toHaveBeenCalledWith(expect.objectContaining({
+      databaseId: 'db',
+      collectionId: 'posts',
+      documentId: 'post-2',
+      data: expect.objectContaining({
         reportCount: 5,
         isHidden: false,
-      })
-    );
+      }),
+    }));
     expect(notifyPostHiddenByReports).not.toHaveBeenCalled();
     expect(result.isHidden).toBe(false);
   });
@@ -158,14 +158,14 @@ describe('posts moderation and repost flows', () => {
 
     expect(result.treatedAsFeedback).toBe(true);
     expect(result.reportCount).toBe(2);
-    expect(databases.createDocument).toHaveBeenCalledWith(
-      'db',
-      'postReports',
-      'new-doc-id',
-      expect.objectContaining({
+    expect(databases.createDocument).toHaveBeenCalledWith(expect.objectContaining({
+      databaseId: 'db',
+      collectionId: 'postReports',
+      documentId: 'new-doc-id',
+      data: expect.objectContaining({
         reason: 'dont_like',
-      })
-    );
+      }),
+    }));
   });
 
   it('prevents repost when original disallows reposts for others', async () => {
@@ -214,17 +214,17 @@ describe('posts moderation and repost flows', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(databases.createDocument).toHaveBeenCalledWith(
-      'db',
-      'posts',
-      'new-doc-id',
-      expect.objectContaining({
+    expect(databases.createDocument).toHaveBeenCalledWith(expect.objectContaining({
+      databaseId: 'db',
+      collectionId: 'posts',
+      documentId: 'new-doc-id',
+      data: expect.objectContaining({
         isRepost: true,
         originalPostId: 'orig-2',
         originalPostOwnerId: 'owner-2',
       }),
-      expect.any(Array)
-    );
+      permissions: expect.any(Array),
+    }));
   });
 
   it('blocks hidden posts for non-owners in getPost', async () => {
@@ -268,13 +268,13 @@ describe('posts moderation and repost flows', () => {
 
     expect(result.success).toBe(true);
     expect(global.fetch).toHaveBeenCalledTimes(1);
-    expect(databases.updateDocument).toHaveBeenCalledWith(
-      'db',
-      'posts',
-      'post-6',
-      expect.objectContaining({
+    expect(databases.updateDocument).toHaveBeenCalledWith(expect.objectContaining({
+      databaseId: 'db',
+      collectionId: 'posts',
+      documentId: 'post-6',
+      data: expect.objectContaining({
         reviewRequestedBy: 'owner-6',
-      })
-    );
+      }),
+    }));
   });
 });

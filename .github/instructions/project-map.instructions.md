@@ -2,33 +2,36 @@
 applyTo: "**"
 ---
 
-# COLLEGE COMMUNITY - PROJECT MAP
+# COLLEGE COMMUNITY - PROJECT MAP (2026)
 
-Use this map to edit the correct file with minimal drift.
+Use this map to route edits quickly and avoid broad, risky drift.
 
 ## Root
 
-- `app/App.js` - App providers, navigation tree, push + realtime orchestration
-- `package.json` - scripts/dependencies
-- `README.md` - product + setup docs
-- `__tests__/` - Jest tests for critical app logic
+- `app/App.js` - providers, navigation root, startup orchestration, push/realtime boot
+- `package.json` - dependency/runtime versions and scripts
+- `README.md` - setup and architecture docs
+- `__tests__/` - regression coverage for core app logic
 
 ## App Layer (`app/`)
 
 ### Auth (`app/auth/`)
-- `SignIn.jsx` - sign-in and social auth entry
+
+- `SignIn.jsx` - sign-in, social auth entry, session bootstrap
 - `SignUp.jsx` - registration flow
 - `VerifyEmail.jsx` - OTP verification
-- `ForgotPassword.jsx` - password recovery
+- `ForgotPassword.jsx` - recovery flow
 
 ### Tabs (`app/tabs/`)
-- `Home.jsx` - feed listing/filter/sort
-- `Chats.jsx` - chats overview
-- `Post.jsx` - create post
-- `Lecture.jsx` - lecture hub tab
+
+- `Home.jsx` - feed aggregation/filter/sort
+- `Chats.jsx` - chat list and unread summary
+- `Post.jsx` - create post flow
+- `Lecture.jsx` - lecture hub overview
 - `Profile.jsx` - current user profile
 
 ### Main Screens (`app/screens/`)
+
 - `Settings.jsx`
 - `ChatRoom.jsx`
 - `PostDetails.jsx`
@@ -42,65 +45,69 @@ Use this map to edit the correct file with minimal drift.
 - `LectureChannel.jsx`
 
 ### Screen Subfolders
-- `app/screens/chatRoom/` - chat room UI and hook (`useChatRoom.js`)
-- `app/screens/postDetails/` - post details subcomponents
-- `app/screens/chats/` - new chat/group/add members/forward flows
-- `app/screens/settings/`:
-  - `ProfileSettings.jsx`
-  - `PersonalizationSettings.jsx`
-  - `NotificationSettings.jsx`
-  - `SuggestionSettings.jsx`
-  - `AccountSettings.jsx`
-  - `ChatSettings.jsx`
-  - `BlockList.jsx`
-  - `SavedPosts.jsx`
-- `app/screens/lectureChannel/` - lecture-channel modals and actions
-- `app/screens/representatives/` - voting/reselection screens
+
+- `app/screens/chatRoom/` - chat room components + `useChatRoom.js`
+- `app/screens/postDetails/` - post details view logic/components
+- `app/screens/chats/` - chat creation/group/member management/forwarding
+- `app/screens/settings/` - profile, personalization, notifications, account, suggestions, chat prefs, block list, saved posts
+- `app/screens/lectureChannel/` - lecture channel actions/modals/assets/comments
+- `app/screens/representatives/` - elections, voting, reselection flows
 
 ### Other App Directories
-- `app/components/` - reusable UI and feature components
-- `app/context/` - user/app/language/global-alert contexts
-- `app/hooks/` - custom hooks (translation/realtime/etc.)
-- `app/utils/` - caching, network handling, responsive utils, telemetry
-- `app/constants/` - feed/post constants
-- `app/theme/` - design tokens
-- `app/data/` - academic metadata
+
+- `app/components/` - shared UI + feature widgets
+- `app/context/` - app/user/language/alerts state providers
+- `app/hooks/` - reusable hooks (translation/realtime/navigation helpers)
+- `app/utils/` - utilities (cache/network/telemetry/responsive)
+- `app/constants/` - feed/chat/post constants
+- `app/theme/` - design tokens and theme primitives
+- `app/data/` - static/seeded academic metadata
 
 ## Database Layer (`database/`)
 
-- `config.js` - Appwrite client and env-backed IDs
-- `auth.js` - auth operations
-- `users.js` - user profile/follow/block/update
-- `posts.js` - post CRUD, likes, repost/moderation fields
-- `replies.js` - reply CRUD and votes
-- `chats.js` - chats + messages core operations
-- `chatHelpers.js` - chat utility reads/formatters
-- `groupChatHelpers.js` - default group setup
-- `notifications.js` - notifications read/write helpers
-- `userChatSettings.js` - per-chat user preferences
-- `lectures.js` - lecture channels/assets/comments membership flows
-- `lectureCleanup.js` - lecture cleanup helpers
+- `config.js` - Appwrite clients and env-backed IDs
+- `auth.js` - account/session auth operations
+- `users.js` - profile/follow/block/update operations
+- `posts.js` - post CRUD, moderation, likes/reposts
+- `replies.js` - replies and vote state
+- `chats.js` - chat/message write/read flows
+- `chatHelpers.js` - chat fetch/transform helpers
+- `groupChatHelpers.js` - group defaults and setup helpers
+- `notifications.js` - notification read/write
+- `userChatSettings.js` - per-user per-chat preferences
+- `lectures.js` - channels, assets, memberships, comments
+- `lectureCleanup.js` - cleanup and maintenance helpers
 - `repElections.js` - election lifecycle
-- `repVotes.js` - election votes
-- `suggestions.js` - user feedback/suggestions
-- `securityGuards.js` - permission/validation guard logic
+- `repVotes.js` - voting writes/reads
+- `suggestions.js` - user suggestion pipeline
+- `securityGuards.js` - permission and ownership validation
 
 ## Services (`services/`)
 
-- `imgbbService.js` - image upload
-- `appwriteFileUpload.js` - Appwrite storage uploads
-- `uploadQueue.js` - upload queue/retry support
-- `pushNotificationService.js` - push registration/handlers
-- `giphyService.js` - Giphy integration
+- `appwriteFileUpload.js` - Appwrite file uploads
+- `imgbbService.js` - image hosting uploads
+- `uploadQueue.js` - upload retry/queue behavior
+- `pushNotificationService.js` - push setup and handlers
+- `giphyService.js` - GIF search integration
 
-## Locales (`locales/`)
+## Localization (`locales/`)
 
-- `en.js`, `ar.js`, `ku.js` translations
-- `i18n.js` setup
+- `en.js`, `ar.js`, `ku.js` - current translation sources
+- `i18n.js` - current i18n bootstrap
+- `locales/en/`, `locales/ar/`, `locales/ku/` - language resource folders for progressive migration
+
+## Modernization Hotspots
+
+- Appwrite object-argument refactors: `database/`, `services/`, `appwrite-functions/`
+- Realtime resilience/backoff: `app/utils/`, `database/chats.js`, `database/posts.js`, `app/App.js`
+- Storage migration to MMKV wrappers: `app/utils/`, `database/`, feature cache consumers
+- i18n migration to `react-i18next`: `locales/`, `app/hooks/`, screen/component translation usage
+- FlashList migration/perf tuning: high-traffic lists in `app/tabs/`, `app/screens/`, `app/components/`
+- Media migration (`expo-av` -> `expo-video` / `expo-audio`): lecture/chat media modules
 
 ## Common Edit Routing
 
-- Post creation/display/moderation: `app/tabs/Post.jsx`, `app/components/PostCard.jsx`, `database/posts.js`
+- Feed/post behavior: `app/tabs/Home.jsx`, `app/components/PostCard.jsx`, `database/posts.js`
 - Chat behavior/messages: `app/screens/chatRoom/`, `database/chats.js`, `database/userChatSettings.js`
 - Lecture channels/assets/comments: `app/screens/LectureChannel.jsx`, `app/screens/lectureChannel/`, `database/lectures.js`
 - Representatives voting: `app/screens/representatives/`, `database/repElections.js`, `database/repVotes.js`

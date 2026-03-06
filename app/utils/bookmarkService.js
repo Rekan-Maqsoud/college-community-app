@@ -5,7 +5,7 @@ const BOOKMARKS_KEY = '@bookmarked_posts';
 
 /**
  * Get all bookmarked post IDs.
- * Reads from AsyncStorage first (fast). Falls back to empty array.
+ * Reads from local storage first (fast). Falls back to empty array.
  */
 export const getBookmarkedPostIds = async () => {
   try {
@@ -26,7 +26,7 @@ export const isPostBookmarked = async (postId) => {
 
 /**
  * Toggle bookmark for a post. Returns the new bookmark state.
- * Writes to AsyncStorage immediately, then syncs to Appwrite in background.
+ * Writes to local storage immediately, then syncs to Appwrite in background.
  */
 export const togglePostBookmark = async (postId, userId) => {
   const ids = await getBookmarkedPostIds();
@@ -57,12 +57,12 @@ export const togglePostBookmark = async (postId, userId) => {
 const syncBookmarksToServer = async (userId, bookmarkIds) => {
   try {
     if (!config.usersCollectionId || !userId) return;
-    await databases.updateDocument(
-      config.databaseId,
-      config.usersCollectionId,
-      userId,
-      { bookmarkedPostIds: bookmarkIds }
-    );
+    await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.usersCollectionId,
+      documentId: userId,
+      data: { bookmarkedPostIds: bookmarkIds },
+    });
   } catch {
     // Attribute may not exist yet — silent fail
   }
@@ -75,11 +75,11 @@ const syncBookmarksToServer = async (userId, bookmarkIds) => {
 export const restoreBookmarksFromServer = async (userId) => {
   try {
     if (!config.usersCollectionId || !userId) return;
-    const userDoc = await databases.getDocument(
-      config.databaseId,
-      config.usersCollectionId,
-      userId
-    );
+    const userDoc = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.usersCollectionId,
+      documentId: userId,
+    });
 
     const serverIds = userDoc?.bookmarkedPostIds || [];
     if (!Array.isArray(serverIds) || serverIds.length === 0) return;

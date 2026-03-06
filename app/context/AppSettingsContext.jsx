@@ -332,7 +332,7 @@ export const AppSettingsProvider = ({ children }) => {
 
       if (savedLanguage) {
         setCurrentLanguage(savedLanguage);
-        i18n.locale = savedLanguage;
+        await i18n.changeLanguage(savedLanguage);
         if (savedLanguage === 'ar') {
           I18nManager.allowRTL(true);
           I18nManager.forceRTL(true);
@@ -344,10 +344,10 @@ export const AppSettingsProvider = ({ children }) => {
           const supportedLanguages = ['en', 'ar', 'ku'];
           const defaultLang = supportedLanguages.includes(deviceLocale) ? deviceLocale : 'en';
           setCurrentLanguage(defaultLang);
-          i18n.locale = defaultLang;
+          await i18n.changeLanguage(defaultLang);
         } catch (error) {
           setCurrentLanguage('en');
-          i18n.locale = 'en';
+          await i18n.changeLanguage('en');
         }
       }
 
@@ -469,7 +469,7 @@ export const AppSettingsProvider = ({ children }) => {
   const changeLanguage = async (languageCode) => {
     try {
       setCurrentLanguage(languageCode);
-      i18n.locale = languageCode;
+      await i18n.changeLanguage(languageCode);
       await safeStorage.setItem('appLanguage', languageCode);
 
       // Enable RTL for Arabic
@@ -741,7 +741,7 @@ export const AppSettingsProvider = ({ children }) => {
         'dataSaverMode',
       ]);
       setCurrentLanguage('en');
-      i18n.locale = 'en';
+      await i18n.changeLanguage('en');
       setThemePreference('system');
       const systemColorScheme = Appearance.getColorScheme();
       setIsDarkMode(systemColorScheme === 'dark');

@@ -73,7 +73,7 @@ const updateFilePermissions = async ({ bucketId, fileId, uploaderUserId }) => {
       permissions,
     });
   } catch {
-    await storage.updateFile(bucketId, fileId, permissions);
+    throw new Error('APPWRITE_UPDATE_FILE_FAILED');
   }
 };
 
@@ -89,7 +89,7 @@ const uploadWithSdk = async ({ bucketId, fileId, file }) => {
       file,
     });
   } catch {
-    return storage.createFile(bucketId, fileId, file);
+    throw new Error('APPWRITE_CREATE_FILE_FAILED');
   }
 };
 
@@ -226,7 +226,7 @@ export const uploadFileToAppwrite = async ({
 
     return {
       fileId: uploadedFileId,
-      viewUrl: storage.getFileView(bucketId, uploadedFileId)?.toString() || '',
+      viewUrl: storage.getFileView({ bucketId, fileId: uploadedFileId })?.toString() || '',
       size: Number(file.size || uploadResult?.sizeOriginal || 0),
       mimeType: file.type || file.mimeType || uploadResult?.mimeType || 'application/octet-stream',
       name: file.name,

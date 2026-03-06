@@ -94,14 +94,14 @@ const sendExpoGeneralPush = async ({
     return null;
   }
 
-  const pushTokens = await databases.listDocuments(
-    config.databaseId,
-    config.pushTokensCollectionId,
-    [
+  const pushTokens = await databases.listDocuments({
+    databaseId: config.databaseId,
+    collectionId: config.pushTokensCollectionId,
+    queries: [
       Query.equal('userId', recipientUserId),
       Query.limit(1)
-    ]
-  );
+    ],
+  });
 
   if (!pushTokens?.documents || pushTokens.documents.length === 0) {
     return null;
@@ -783,11 +783,11 @@ export const sendChatPushNotification = async ({
     const { Query } = require('appwrite');
     
     // Get chat to find participants
-    const chat = await databases.getDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId
-    );
+    const chat = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+    });
     
     const participants = chat.participants || [];
     const recipientIds = participants.filter(id => id !== senderId);
@@ -802,14 +802,14 @@ export const sendChatPushNotification = async ({
     const batchSize = 25;
     for (let i = 0; i < recipientIds.length; i += batchSize) {
       const batch = recipientIds.slice(i, i + batchSize);
-      const pushTokens = await databases.listDocuments(
-        config.databaseId,
-        config.pushTokensCollectionId,
-        [
+      const pushTokens = await databases.listDocuments({
+        databaseId: config.databaseId,
+        collectionId: config.pushTokensCollectionId,
+        queries: [
           Query.contains('userId', batch),
           Query.limit(batch.length)
-        ]
-      );
+        ],
+      });
       if (pushTokens.documents) {
         allTokenDocs.push(...pushTokens.documents);
       }
@@ -926,7 +926,10 @@ export const registerAppwriteTarget = async () => {
     if (storedTargetId) {
       // Try to update existing target with current token
       try {
-        const updated = await account.updatePushTarget(storedTargetId, nativePushToken);
+        const updated = await account.updatePushTarget({
+          targetId: storedTargetId,
+          identifier: nativePushToken,
+        });
         return updated;
       } catch (updateErr) {
         await safeStorage.removeItem(APPWRITE_TARGET_ID_KEY);
@@ -936,7 +939,11 @@ export const registerAppwriteTarget = async () => {
     // Create a new target
     const targetId = ID.unique();
     try {
-      const target = await account.createPushTarget(targetId, nativePushToken, providerId);
+      const target = await account.createPushTarget({
+        targetId,
+        identifier: nativePushToken,
+        providerId,
+      });
       await safeStorage.setItem(APPWRITE_TARGET_ID_KEY, target?.$id || targetId);
       return target;
     } catch (createErr) {
@@ -957,7 +964,10 @@ export const registerAppwriteTarget = async () => {
 
           if (pushTarget) {
             await safeStorage.setItem(APPWRITE_TARGET_ID_KEY, pushTarget.$id);
-            const updated = await account.updatePushTarget(pushTarget.$id, nativePushToken);
+            const updated = await account.updatePushTarget({
+              targetId: pushTarget.$id,
+              identifier: nativePushToken,
+            });
             return updated;
           }
         } catch (listErr) {

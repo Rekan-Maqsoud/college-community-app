@@ -115,12 +115,12 @@ export const initiateSignup = async (email, password, name, additionalData = {})
         const userId = ID.unique();
 
         try {
-            await account.create(
+            await account.create({
                 userId,
-                sanitizedEmail,
+                email: sanitizedEmail,
                 password,
-                sanitizedName
-            );
+                name: sanitizedName,
+            });
         } catch (createError) {
             if (createError.message?.includes('already exists') ||
                 createError.message?.includes('user with the same email')) {
@@ -136,7 +136,10 @@ export const initiateSignup = async (email, password, name, additionalData = {})
             // createEmailToken sends a 6-digit OTP to the user's email
             // If user already exists, it uses that account; otherwise it would create one
             // But we already created the account above, so this just sends the OTP
-            tokenResponse = await account.createEmailToken(userId, sanitizedEmail);
+            tokenResponse = await account.createEmailToken({
+                userId,
+                email: sanitizedEmail,
+            });
         } catch (otpError) {
             // If OTP sending fails, clean up the created account
             // Check for specific error types to provide better feedback
@@ -240,7 +243,10 @@ export const verifyOTPCode = async (otpCode) => {
         // Verify OTP by creating a session with the code
         // The OTP code acts as the "secret" for createSession
         try {
-            await account.createSession(pendingData.otpUserId, normalizedCode);
+            await account.createSession({
+                userId: pendingData.otpUserId,
+                secret: normalizedCode,
+            });
         } catch (sessionError) {
             if (sessionError.message?.includes('Invalid') ||
                 sessionError.message?.includes('expired') ||
@@ -325,7 +331,10 @@ export const resendVerificationEmail = async () => {
         }
 
         // Send new OTP using Email OTP
-        const tokenResponse = await account.createEmailToken(pendingData.userId, pendingData.email);
+        const tokenResponse = await account.createEmailToken({
+            userId: pendingData.userId,
+            email: pendingData.email,
+        });
 
         // Update expiration time and token data
         pendingData.expiresAt = Date.now() + VERIFICATION_TIMEOUT;
@@ -400,11 +409,11 @@ export const signInWithGoogle = async () => {
 
         // Use createOAuth2Token for React Native - it returns userId and secret
         // that we use to create a session manually
-        const authUrl = account.createOAuth2Token(
-            OAuthProvider.Google,
-            redirectUrl, // success URL
-            redirectUrl  // failure URL (same, we parse the result)
-        );
+        const authUrl = account.createOAuth2Token({
+            provider: OAuthProvider.Google,
+            success: redirectUrl, // success URL
+            failure: redirectUrl,  // failure URL (same, we parse the result)
+        });
 
         // Open the browser for OAuth authentication
         const result = await WebBrowser.openAuthSessionAsync(
@@ -432,7 +441,7 @@ export const signInWithGoogle = async () => {
 
             if (secret && userId) {
                 // Create a session using the token
-                await account.createSession(userId, secret);
+                await account.createSession({ userId, secret });
                 console.log('[GoogleAuth] Session created successfully');
                 return { success: true };
             }
@@ -553,7 +562,7 @@ export const completeOAuthSignup = async (userId, email, name, additionalData = 
         // Check if email is educational
         if (!isEducationalEmail(email)) {
             // Sign out the user since they can't use this app
-            await account.deleteSession('current');
+            await account.deleteSession({ sessionId: 'current' });
             throw new Error('Only educational email addresses are allowed. Please use your university or college email.');
         }
 
@@ -587,7 +596,7 @@ export const cancelPendingVerification = async () => {
 
         try {
             // Delete the current session
-            await account.deleteSession('current');
+            await account.deleteSession({ sessionId: 'current' });
         } catch (sessionError) {
             // Session might already be deleted
         }
@@ -617,7 +626,7 @@ export const checkExpiredVerification = async () => {
         if (pendingData.expiresAt && now > pendingData.expiresAt) {
             // Verification expired, cleanup
             try {
-                await account.deleteSession('current');
+                await account.deleteSession({ sessionId: 'current' });
             } catch (sessionError) {
                 // Session might already be deleted
             }
@@ -676,12 +685,12 @@ export const signUp = async (email, password, name, additionalData = {}) => {
 
         userId = ID.unique();
 
-        const user = await account.create(
+        const user = await account.create({
             userId,
-            sanitizedEmail,
+            email: sanitizedEmail,
             password,
-            sanitizedName
-        );
+            name: sanitizedName,
+        });
         userCreated = true;
 
         await signIn(sanitizedEmail, password);
@@ -693,16 +702,16 @@ export const signUp = async (email, password, name, additionalData = {}) => {
 
         if (userCreated && userId) {
             try {
-                await account.deleteSession('current');
+                await account.deleteSession({ sessionId: 'current' });
             } catch (sessionError) {
             }
 
             try {
-                await databases.deleteDocument(
-                    config.databaseId,
-                    config.usersCollectionId || '68fc7b42001bf7efbba3',
-                    userId
-                );
+                await databases.deleteDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
+                    documentId: userId,
+                });
             } catch (cleanupError) {
             }
         }
@@ -749,30 +758,30 @@ const createUserDocument = async (userId, name, email, additionalData = {}) => {
 
         let userDoc;
         try {
-            userDoc = await databases.createDocument(
-                config.databaseId,
-                config.usersCollectionId || '68fc7b42001bf7efbba3',
-                userId,
-                payloadWithRole,
-                [
+            userDoc = await databases.createDocument({
+                databaseId: config.databaseId,
+                collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
+                documentId: userId,
+                data: payloadWithRole,
+                permissions: [
                     Permission.read(Role.users()),
                     Permission.update(Role.users()),
                     Permission.delete(Role.user(userId)),
-                ]
-            );
+                ],
+            });
         } catch (createError) {
             if (createError?.message?.includes('Unknown attribute') && createError?.message?.includes('role')) {
-                userDoc = await databases.createDocument(
-                    config.databaseId,
-                    config.usersCollectionId || '68fc7b42001bf7efbba3',
-                    userId,
-                    basePayload,
-                    [
+                userDoc = await databases.createDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
+                    documentId: userId,
+                    data: basePayload,
+                    permissions: [
                         Permission.read(Role.users()),
                         Permission.update(Role.users()),
                         Permission.delete(Role.user(userId)),
-                    ]
-                );
+                    ],
+                });
             } else {
                 throw createError;
             }
@@ -792,7 +801,10 @@ export const signIn = async (email, password) => {
             throw new Error('Email and password are required');
         }
 
-        const session = await account.createEmailPasswordSession(sanitizedEmail, password);
+        const session = await account.createEmailPasswordSession({
+            email: sanitizedEmail,
+            password,
+        });
         return session;
     } catch (error) {
         throw error;
@@ -801,7 +813,7 @@ export const signIn = async (email, password) => {
 
 export const signOut = async () => {
     try {
-        await account.deleteSession('current');
+        await account.deleteSession({ sessionId: 'current' });
     } catch (error) {
         throw error;
     }
@@ -852,11 +864,11 @@ export const getUserDocument = async (userId, skipCache = false) => {
             }
         }
 
-        const userDoc = await databases.getDocument(
-            config.databaseId,
-            config.usersCollectionId || '68fc7b42001bf7efbba3',
-            userId
-        );
+        const userDoc = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
+            documentId: userId,
+        });
 
         // Cache the user data for future requests
         await userCacheManager.cacheUserData(userId, userDoc);
@@ -892,12 +904,12 @@ export const updateUserDocument = async (userId, data) => {
             data.department = sanitizeInput(data.department);
         }
 
-        const userDoc = await databases.updateDocument(
-            config.databaseId,
-            config.usersCollectionId || '68fc7b42001bf7efbba3',
-            userId,
-            data
-        );
+        const userDoc = await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
+            documentId: userId,
+            data,
+        });
 
         // Invalidate user cache
         await userCacheManager.invalidateUser(userId);
@@ -910,7 +922,7 @@ export const updateUserDocument = async (userId, data) => {
 
 export const updateUserName = async (name) => {
     try {
-        const user = await account.updateName(name);
+        const user = await account.updateName({ name });
         return user;
     } catch (error) {
         throw error;
@@ -919,7 +931,10 @@ export const updateUserName = async (name) => {
 
 export const updateUserPassword = async (newPassword, oldPassword) => {
     try {
-        const user = await account.updatePassword(newPassword, oldPassword);
+        const user = await account.updatePassword({
+            password: newPassword,
+            oldPassword,
+        });
         return user;
     } catch (error) {
         throw error;
@@ -928,9 +943,9 @@ export const updateUserPassword = async (newPassword, oldPassword) => {
 
 export const sendEmailVerification = async () => {
     try {
-        const verification = await account.createVerification(
-            `${config.endpoint}/verify`
-        );
+        const verification = await account.createVerification({
+            url: `${config.endpoint}/verify`,
+        });
         return verification;
     } catch (error) {
         throw error;
@@ -939,7 +954,7 @@ export const sendEmailVerification = async () => {
 
 export const confirmEmailVerification = async (userId, secret) => {
     try {
-        await account.updateVerification(userId, secret);
+        await account.updateVerification({ userId, secret });
 
         const user = await getCurrentUser();
         if (user) {
@@ -963,9 +978,9 @@ export const checkEmailVerification = async () => {
 
 export const resendEmailVerification = async () => {
     try {
-        const verification = await account.createVerification(
-            `${config.endpoint}/verify`
-        );
+        const verification = await account.createVerification({
+            url: `${config.endpoint}/verify`,
+        });
         return verification;
     } catch (error) {
         throw error;
@@ -985,7 +1000,10 @@ export const deleteAccount = async (password) => {
         const trimmedPassword = typeof password === 'string' ? password.trim() : '';
         if (trimmedPassword) {
             try {
-                await account.createEmailPasswordSession(currentUser.email, trimmedPassword);
+                await account.createEmailPasswordSession({
+                    email: currentUser.email,
+                    password: trimmedPassword,
+                });
             } catch (reauthError) {
                 const reauthMessage = reauthError?.message || '';
                 const invalidCredentials = reauthError?.code === 401
@@ -1035,11 +1053,11 @@ export const deleteAccount = async (password) => {
         // 9. Anonymize the user document instead of deleting it
         // This ensures any remaining references resolve to "Deleted Account"
         try {
-            await databases.updateDocument(
-                config.databaseId,
-                config.usersCollectionId,
-                userId,
-                {
+            await databases.updateDocument({
+                databaseId: config.databaseId,
+                collectionId: config.usersCollectionId,
+                documentId: userId,
+                data: {
                     name: 'Deleted Account',
                     email: `deleted_${userId}@deleted.local`,
                     bio: null,
@@ -1056,15 +1074,15 @@ export const deleteAccount = async (password) => {
                     followersCount: 0,
                     followingCount: 0,
                     postsCount: 0,
-                }
-            );
+                },
+            });
         } catch (err) {
             // If update fails, try to delete the document entirely
-            await databases.deleteDocument(
-                config.databaseId,
-                config.usersCollectionId,
-                userId
-            );
+            await databases.deleteDocument({
+                databaseId: config.databaseId,
+                collectionId: config.usersCollectionId,
+                documentId: userId,
+            });
         }
 
         // 10. Disable the Appwrite auth identity
@@ -1076,7 +1094,7 @@ export const deleteAccount = async (password) => {
 
         // 11. Clear sessions from this device
         try {
-            await account.deleteSession('current');
+            await account.deleteSession({ sessionId: 'current' });
         } catch (err) {
             // Continue even if session cleanup fails
         }
@@ -1094,11 +1112,11 @@ const _deleteAllUserPosts = async (userId) => {
     try {
         let hasMore = true;
         while (hasMore) {
-            const posts = await databases.listDocuments(
-                config.databaseId,
-                config.postsCollectionId,
-                [Query.equal('userId', userId), Query.limit(100)]
-            );
+            const posts = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.postsCollectionId,
+                queries: [Query.equal('userId', userId), Query.limit(100)],
+            });
 
             if (posts.documents.length === 0) {
                 hasMore = false;
@@ -1113,11 +1131,11 @@ const _deleteAllUserPosts = async (userId) => {
                     await deleteRepliesByPost(post.$id);
                     await deleteNotificationsByPostId(post.$id);
 
-                    await databases.deleteDocument(
-                        config.databaseId,
-                        config.postsCollectionId,
-                        post.$id
-                    );
+                    await databases.deleteDocument({
+                        databaseId: config.databaseId,
+                        collectionId: config.postsCollectionId,
+                        documentId: post.$id,
+                    });
                 } catch (err) {
                     // Continue deleting other posts
                 }
@@ -1139,11 +1157,11 @@ const _deleteAllUserReplies = async (userId) => {
     try {
         let hasMore = true;
         while (hasMore) {
-            const replies = await databases.listDocuments(
-                config.databaseId,
-                config.repliesCollectionId,
-                [Query.equal('userId', userId), Query.limit(100)]
-            );
+            const replies = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.repliesCollectionId,
+                queries: [Query.equal('userId', userId), Query.limit(100)],
+            });
 
             if (replies.documents.length === 0) {
                 hasMore = false;
@@ -1152,27 +1170,27 @@ const _deleteAllUserReplies = async (userId) => {
 
             for (const reply of replies.documents) {
                 try {
-                    await databases.deleteDocument(
-                        config.databaseId,
-                        config.repliesCollectionId,
-                        reply.$id
-                    );
+                    await databases.deleteDocument({
+                        databaseId: config.databaseId,
+                        collectionId: config.repliesCollectionId,
+                        documentId: reply.$id,
+                    });
 
                     // Decrement reply count on the parent post
                     if (reply.postId) {
                         try {
-                            const post = await databases.getDocument(
-                                config.databaseId,
-                                config.postsCollectionId,
-                                reply.postId
-                            );
+                            const post = await databases.getDocument({
+                                databaseId: config.databaseId,
+                                collectionId: config.postsCollectionId,
+                                documentId: reply.postId,
+                            });
                             if (post) {
-                                await databases.updateDocument(
-                                    config.databaseId,
-                                    config.postsCollectionId,
-                                    reply.postId,
-                                    { replyCount: Math.max(0, (post.replyCount || 1) - 1) }
-                                );
+                                await databases.updateDocument({
+                                    databaseId: config.databaseId,
+                                    collectionId: config.postsCollectionId,
+                                    documentId: reply.postId,
+                                    data: { replyCount: Math.max(0, (post.replyCount || 1) - 1) },
+                                });
                             }
                         } catch (err) {
                             // Post may already be deleted
@@ -1200,17 +1218,21 @@ const _deleteAllUserNotifications = async (userId) => {
         // Delete notifications received by the user
         let hasMore = true;
         while (hasMore) {
-            const notifs = await databases.listDocuments(
-                config.databaseId,
-                config.notificationsCollectionId,
-                [Query.equal('userId', userId), Query.limit(100)]
-            );
+            const notifs = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.notificationsCollectionId,
+                queries: [Query.equal('userId', userId), Query.limit(100)],
+            });
 
             if (notifs.documents.length === 0) break;
 
             for (const n of notifs.documents) {
                 try {
-                    await databases.deleteDocument(config.databaseId, config.notificationsCollectionId, n.$id);
+                    await databases.deleteDocument({
+                        databaseId: config.databaseId,
+                        collectionId: config.notificationsCollectionId,
+                        documentId: n.$id,
+                    });
                 } catch (err) { /* continue */ }
             }
 
@@ -1220,17 +1242,21 @@ const _deleteAllUserNotifications = async (userId) => {
         // Delete notifications sent by the user
         hasMore = true;
         while (hasMore) {
-            const notifs = await databases.listDocuments(
-                config.databaseId,
-                config.notificationsCollectionId,
-                [Query.equal('senderId', userId), Query.limit(100)]
-            );
+            const notifs = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.notificationsCollectionId,
+                queries: [Query.equal('senderId', userId), Query.limit(100)],
+            });
 
             if (notifs.documents.length === 0) break;
 
             for (const n of notifs.documents) {
                 try {
-                    await databases.deleteDocument(config.databaseId, config.notificationsCollectionId, n.$id);
+                    await databases.deleteDocument({
+                        databaseId: config.databaseId,
+                        collectionId: config.notificationsCollectionId,
+                        documentId: n.$id,
+                    });
                 } catch (err) { /* continue */ }
             }
 
@@ -1246,15 +1272,19 @@ const _deleteAllUserNotifications = async (userId) => {
  */
 const _deleteAllUserPushTokens = async (userId) => {
     try {
-        const tokens = await databases.listDocuments(
-            config.databaseId,
-            config.pushTokensCollectionId,
-            [Query.equal('userId', userId), Query.limit(100)]
-        );
+        const tokens = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.pushTokensCollectionId,
+            queries: [Query.equal('userId', userId), Query.limit(100)],
+        });
 
         for (const token of tokens.documents) {
             try {
-                await databases.deleteDocument(config.databaseId, config.pushTokensCollectionId, token.$id);
+                await databases.deleteDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.pushTokensCollectionId,
+                    documentId: token.$id,
+                });
             } catch (err) { /* continue */ }
         }
     } catch (error) {
@@ -1269,17 +1299,21 @@ const _deleteAllUserChatSettings = async (userId) => {
     try {
         let hasMore = true;
         while (hasMore) {
-            const settings = await databases.listDocuments(
-                config.databaseId,
-                config.userChatSettingsCollectionId,
-                [Query.equal('userId', userId), Query.limit(100)]
-            );
+            const settings = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.userChatSettingsCollectionId,
+                queries: [Query.equal('userId', userId), Query.limit(100)],
+            });
 
             if (settings.documents.length === 0) break;
 
             for (const s of settings.documents) {
                 try {
-                    await databases.deleteDocument(config.databaseId, config.userChatSettingsCollectionId, s.$id);
+                    await databases.deleteDocument({
+                        databaseId: config.databaseId,
+                        collectionId: config.userChatSettingsCollectionId,
+                        documentId: s.$id,
+                    });
                 } catch (err) { /* continue */ }
             }
 
@@ -1297,22 +1331,22 @@ const _anonymizeUserMessages = async (userId) => {
     try {
         let hasMore = true;
         while (hasMore) {
-            const messages = await databases.listDocuments(
-                config.databaseId,
-                config.messagesCollectionId,
-                [Query.equal('senderId', userId), Query.limit(100)]
-            );
+            const messages = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.messagesCollectionId,
+                queries: [Query.equal('senderId', userId), Query.limit(100)],
+            });
 
             if (messages.documents.length === 0) break;
 
             for (const msg of messages.documents) {
                 try {
-                    await databases.updateDocument(
-                        config.databaseId,
-                        config.messagesCollectionId,
-                        msg.$id,
-                        { senderName: 'Deleted Account' }
-                    );
+                    await databases.updateDocument({
+                        databaseId: config.databaseId,
+                        collectionId: config.messagesCollectionId,
+                        documentId: msg.$id,
+                        data: { senderName: 'Deleted Account' },
+                    });
                 } catch (err) { /* continue */ }
             }
 
@@ -1330,11 +1364,11 @@ const _removeUserFromChats = async (userId) => {
     try {
         let hasMore = true;
         while (hasMore) {
-            const chats = await databases.listDocuments(
-                config.databaseId,
-                config.chatsCollectionId,
-                [Query.contains('participants', [userId]), Query.limit(50)]
-            );
+            const chats = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.chatsCollectionId,
+                queries: [Query.contains('participants', [userId]), Query.limit(50)],
+            });
 
             if (chats.documents.length === 0) break;
 
@@ -1344,16 +1378,16 @@ const _removeUserFromChats = async (userId) => {
                     const updatedAdmins = (chat.admins || []).filter(id => id !== userId);
                     const updatedReps = (chat.representatives || []).filter(id => id !== userId);
 
-                    await databases.updateDocument(
-                        config.databaseId,
-                        config.chatsCollectionId,
-                        chat.$id,
-                        {
+                    await databases.updateDocument({
+                        databaseId: config.databaseId,
+                        collectionId: config.chatsCollectionId,
+                        documentId: chat.$id,
+                        data: {
                             participants: updatedParticipants,
                             admins: updatedAdmins,
                             representatives: updatedReps,
-                        }
-                    );
+                        },
+                    });
                 } catch (err) { /* continue */ }
             }
 
@@ -1372,11 +1406,11 @@ const _removeUserFromFollowLists = async (userId) => {
         // Get the user's followers and following lists
         let userDoc;
         try {
-            userDoc = await databases.getDocument(
-                config.databaseId,
-                config.usersCollectionId,
-                userId
-            );
+            userDoc = await databases.getDocument({
+                databaseId: config.databaseId,
+                collectionId: config.usersCollectionId,
+                documentId: userId,
+            });
         } catch (err) {
             return;
         }
@@ -1387,42 +1421,42 @@ const _removeUserFromFollowLists = async (userId) => {
         // Remove this user from each follower's "following" list
         for (const followerId of followers) {
             try {
-                const follower = await databases.getDocument(
-                    config.databaseId,
-                    config.usersCollectionId,
-                    followerId
-                );
+                const follower = await databases.getDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.usersCollectionId,
+                    documentId: followerId,
+                });
                 const updatedFollowing = (follower.following || []).filter(id => id !== userId);
-                await databases.updateDocument(
-                    config.databaseId,
-                    config.usersCollectionId,
-                    followerId,
-                    {
+                await databases.updateDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.usersCollectionId,
+                    documentId: followerId,
+                    data: {
                         following: updatedFollowing,
                         followingCount: Math.max(0, (follower.followingCount || 1) - 1),
-                    }
-                );
+                    },
+                });
             } catch (err) { /* continue */ }
         }
 
         // Remove this user from each followed user's "followers" list
         for (const followedId of following) {
             try {
-                const followed = await databases.getDocument(
-                    config.databaseId,
-                    config.usersCollectionId,
-                    followedId
-                );
+                const followed = await databases.getDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.usersCollectionId,
+                    documentId: followedId,
+                });
                 const updatedFollowers = (followed.followers || []).filter(id => id !== userId);
-                await databases.updateDocument(
-                    config.databaseId,
-                    config.usersCollectionId,
-                    followedId,
-                    {
+                await databases.updateDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.usersCollectionId,
+                    documentId: followedId,
+                    data: {
                         followers: updatedFollowers,
                         followersCount: Math.max(0, (followed.followersCount || 1) - 1),
-                    }
-                );
+                    },
+                });
             } catch (err) { /* continue */ }
         }
     } catch (error) {
@@ -1543,7 +1577,10 @@ export const sendPasswordResetOTP = async (email) => {
                 email: sanitizedEmail,
                 redirectUrl,
             });
-            const recoveryResult = await account.createRecovery(sanitizedEmail, redirectUrl);
+            const recoveryResult = await account.createRecovery({
+                email: sanitizedEmail,
+                url: redirectUrl,
+            });
             console.log('[reset-password][sendPasswordResetOTP] createRecovery success', recoveryResult);
 
             await saveResetAttempt();
@@ -1611,7 +1648,11 @@ export const completePasswordReset = async (userId, secret, newPassword) => {
             userId,
             hasSecret: Boolean(secret),
         });
-        const updateRecoveryResult = await account.updateRecovery(userId, secret, newPassword);
+        const updateRecoveryResult = await account.updateRecovery({
+            userId,
+            secret,
+            password: newPassword,
+        });
         console.log('[reset-password][completePasswordReset] updateRecovery success', updateRecoveryResult);
 
         // Clean up stored data

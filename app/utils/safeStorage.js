@@ -1,20 +1,37 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { MMKV } from 'react-native-mmkv';
 
 const memoryStore = new Map();
+let mmkvInstance = null;
 
-const getAsyncStorage = () => {
-  if (AsyncStorage && typeof AsyncStorage.getItem === 'function') {
-    return AsyncStorage;
+const getMmkvStorage = () => {
+  try {
+    if (!mmkvInstance) {
+      mmkvInstance = new MMKV({
+        id: 'college-community-storage',
+      });
+    }
+
+    if (
+      mmkvInstance &&
+      typeof mmkvInstance.getString === 'function' &&
+      typeof mmkvInstance.set === 'function'
+    ) {
+      return mmkvInstance;
+    }
+  } catch (error) {
+    return null;
   }
+
   return null;
 };
 
 const safeStorage = {
   async getItem(key) {
-    const storage = getAsyncStorage();
+    const storage = getMmkvStorage();
     if (storage) {
       try {
-        return await storage.getItem(key);
+        const value = storage.getString(key);
+        return value ?? null;
       } catch (error) {
         return memoryStore.has(key) ? memoryStore.get(key) : null;
       }
@@ -22,10 +39,11 @@ const safeStorage = {
     return memoryStore.has(key) ? memoryStore.get(key) : null;
   },
   async setItem(key, value) {
-    const storage = getAsyncStorage();
+    const storage = getMmkvStorage();
     if (storage) {
       try {
-        return await storage.setItem(key, value);
+        storage.set(key, value);
+        return null;
       } catch (error) {
         memoryStore.set(key, value);
         return null;
@@ -35,10 +53,11 @@ const safeStorage = {
     return null;
   },
   async removeItem(key) {
-    const storage = getAsyncStorage();
+    const storage = getMmkvStorage();
     if (storage) {
       try {
-        return await storage.removeItem(key);
+        storage.delete(key);
+        return null;
       } catch (error) {
         memoryStore.delete(key);
         return null;
@@ -48,10 +67,11 @@ const safeStorage = {
     return null;
   },
   async multiRemove(keys) {
-    const storage = getAsyncStorage();
+    const storage = getMmkvStorage();
     if (storage) {
       try {
-        return await storage.multiRemove(keys);
+        keys.forEach((key) => storage.delete(key));
+        return null;
       } catch (error) {
         keys.forEach((key) => memoryStore.delete(key));
         return null;
@@ -61,10 +81,13 @@ const safeStorage = {
     return null;
   },
   async getAllKeys() {
-    const storage = getAsyncStorage();
+    const storage = getMmkvStorage();
     if (storage) {
       try {
-        return await storage.getAllKeys();
+        if (typeof storage.getAllKeys === 'function') {
+          return storage.getAllKeys();
+        }
+        return Array.from(memoryStore.keys());
       } catch (error) {
         return Array.from(memoryStore.keys());
       }

@@ -10,7 +10,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -81,6 +80,8 @@
       [
         "expo-build-properties",
         {
+          "buildReactNativeFromSource": true,
+          "useHermesV1": true,
           "android": {
             "ndkVersion": "26.1.10909125",
             "extraProguardRules": "",
@@ -123,7 +124,9 @@
         }
       ],
       "expo-asset",
-      "@sentry/react-native/expo"
+      "@sentry/react-native/expo",
+      "expo-secure-store",
+      "expo-sharing"
     ],
     "extra": {
       "eas": {
@@ -134,7 +137,8 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/d0af52e7-8e63-4426-9e92-30f0e835652d"
+      "url": "https://u.expo.dev/d0af52e7-8e63-4426-9e92-30f0e835652d",
+      "enableBsdiffPatchSupport": true
     }
   }
 }

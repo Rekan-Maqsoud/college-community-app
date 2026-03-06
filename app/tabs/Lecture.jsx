@@ -436,7 +436,7 @@ const Lecture = ({ navigation }) => {
     }
 
     try {
-      const pinnedIds = await getLecturePinnedChannelIds(user.$id);
+      const pinnedIds = await getLecturePinnedChannelIds();
       const normalized = Array.isArray(pinnedIds) ? pinnedIds.filter(Boolean).map(id => String(id)) : [];
       setPinnedChannelIds(normalized);
       logLectureTab('loadPinnedChannels:success', {
@@ -461,7 +461,7 @@ const Lecture = ({ navigation }) => {
     setPinnedChannelIds(normalized);
 
     try {
-      await setLecturePinnedChannelIds(normalized, user.$id);
+      await setLecturePinnedChannelIds(normalized);
       logLectureTab('persistPinnedChannels:success', {
         userId: user.$id,
         pinnedCount: normalized.length,
@@ -508,8 +508,8 @@ const Lecture = ({ navigation }) => {
           limit: 50,
           offset: 0,
         }),
-        getMyLectureChannels(user?.$id),
-        getMyPendingLectureChannelIds(user?.$id),
+        getMyLectureChannels(),
+        getMyPendingLectureChannelIds(),
       ]);
 
       setAllChannels(channels);
@@ -621,6 +621,10 @@ const Lecture = ({ navigation }) => {
       return;
     }
 
+    if (!myChannelIds.has(channel.$id)) {
+      return;
+    }
+
     navigation.navigate('LectureChannel', {
       channelId: channel.$id,
     });
@@ -632,12 +636,14 @@ const Lecture = ({ navigation }) => {
     const isPinned = pinnedChannelIdSet.has(item.$id);
     const isJoining = joiningChannelId === item.$id;
     const isOfficial = item.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL;
+    const canOpen = joined;
 
     return (
       <TouchableOpacity
         style={[styles.channelCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-        activeOpacity={0.7}
+        activeOpacity={canOpen ? 0.7 : 1}
         onPress={() => openChannel(item)}
+        disabled={!canOpen}
         onLongPress={() => {
           setChannelMenuTarget(item);
           setChannelMenuOpen(true);
@@ -834,7 +840,8 @@ const Lecture = ({ navigation }) => {
               return (
                 <TouchableOpacity
                   style={[styles.suggestedCard, { borderColor: colors.border, backgroundColor: colors.card }]}
-                  activeOpacity={0.7}
+                  activeOpacity={sugJoined ? 0.7 : 1}
+                  disabled={!sugJoined}
                   onPress={() => openChannel(item)}>
                   <View style={styles.suggestedCardTop}>
                     <Ionicons
@@ -930,17 +937,19 @@ const Lecture = ({ navigation }) => {
               </Text>
             </View>
 
-            <TouchableOpacity
-              style={[styles.channelMenuItem, { borderTopColor: colors.border }]}
-              onPress={() => {
-                setChannelMenuOpen(false);
-                if (channelMenuTarget) {
-                  openChannel(channelMenuTarget);
-                }
-              }}>
-              <Ionicons name="enter-outline" size={16} color={colors.text} />
-              <Text style={[styles.channelMenuItemText, { color: colors.text }]}>{t('lectures.openChannel')}</Text>
-            </TouchableOpacity>
+            {channelMenuTargetJoined && (
+              <TouchableOpacity
+                style={[styles.channelMenuItem, { borderTopColor: colors.border }]}
+                onPress={() => {
+                  setChannelMenuOpen(false);
+                  if (channelMenuTarget) {
+                    openChannel(channelMenuTarget);
+                  }
+                }}>
+                <Ionicons name="enter-outline" size={16} color={colors.text} />
+                <Text style={[styles.channelMenuItemText, { color: colors.text }]}>{t('lectures.openChannel')}</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[styles.channelMenuItem, { borderTopColor: colors.border }]}

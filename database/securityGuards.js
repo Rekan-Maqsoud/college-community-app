@@ -65,8 +65,16 @@ export const hasBlockedRelationship = async (userIdA, userIdB, options = {}) => 
         const { includeChatBlocks = false } = options;
 
         const [userA, userB] = await Promise.all([
-            databases.getDocument(config.databaseId, config.usersCollectionId, userIdA),
-            databases.getDocument(config.databaseId, config.usersCollectionId, userIdB),
+            databases.getDocument({
+                databaseId: config.databaseId,
+                collectionId: config.usersCollectionId,
+                documentId: userIdA,
+            }),
+            databases.getDocument({
+                databaseId: config.databaseId,
+                collectionId: config.usersCollectionId,
+                documentId: userIdB,
+            }),
         ]);
 
         const aBlocked = getArray(userA?.blockedUsers);

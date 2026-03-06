@@ -28,11 +28,11 @@ export const searchUsers = async (searchQuery, limit = 10) => {
                 Query.orderDesc('$createdAt')
             ];
 
-            const users = await databases.listDocuments(
-                config.databaseId,
-                config.usersCollectionId || '68fc7b42001bf7efbba3',
-                searchQueries
-            );
+            const users = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
+                queries: searchQueries,
+            });
             
             if (users.documents.length > 0) {
                 return users.documents;
@@ -50,11 +50,11 @@ export const searchUsers = async (searchQuery, limit = 10) => {
                     Query.orderDesc('$createdAt')
                 ];
 
-                const users = await databases.listDocuments(
-                    config.databaseId,
-                    config.usersCollectionId || '68fc7b42001bf7efbba3',
-                    startsWithQueries
-                );
+                const users = await databases.listDocuments({
+                    databaseId: config.databaseId,
+                    collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
+                    queries: startsWithQueries,
+                });
 
                 if (users.documents.length > 0) {
                     return users.documents;
@@ -70,11 +70,11 @@ export const searchUsers = async (searchQuery, limit = 10) => {
             Query.orderDesc('$createdAt')
         ];
 
-        const broadResult = await databases.listDocuments(
-            config.databaseId,
-            config.usersCollectionId || '68fc7b42001bf7efbba3',
-            broadQueries
-        );
+        const broadResult = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
+            queries: broadQueries,
+        });
 
         const lowered = sanitizedQuery.toLowerCase();
         return (broadResult.documents || [])
@@ -132,11 +132,11 @@ export const getUserById = async (userId, skipCache = false) => {
             }
         }
         
-        const user = await databases.getDocument(
-            config.databaseId,
-            config.usersCollectionId || '68fc7b42001bf7efbba3',
-            userId
-        );
+        const user = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
+            documentId: userId,
+        });
         
         // Cache the user data for future requests
         await userCacheManager.cacheUserData(userId, user);
@@ -160,11 +160,11 @@ export const getUsersByDepartment = async (department, limit = 20, offset = 0) =
             Query.orderDesc('$createdAt')
         ];
 
-        const users = await databases.listDocuments(
-            config.databaseId,
-            config.usersCollectionId || '68fc7b42001bf7efbba3',
-            queries
-        );
+        const users = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
+            queries,
+        });
         
         return users.documents;
     } catch (error) {
@@ -196,17 +196,17 @@ export const getClassStudents = async (department, stage) => {
         let hasMore = true;
 
         while (hasMore) {
-            const batch = await databases.listDocuments(
-                config.databaseId,
-                config.usersCollectionId,
-                [
+            const batch = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.usersCollectionId,
+                queries: [
                     Query.equal('department', department),
                     Query.equal('year', year),
                     Query.limit(batchSize),
                     Query.offset(offset),
                     Query.orderAsc('name'),
                 ],
-            );
+            });
             allStudents = [...allStudents, ...batch.documents];
             hasMore = batch.documents.length === batchSize;
             offset += batchSize;
@@ -228,12 +228,12 @@ export const updateUserPublicKey = async (userId, publicKey) => {
             throw new Error('Invalid public key');
         }
 
-        const userDoc = await databases.updateDocument(
-            config.databaseId,
-            config.usersCollectionId || '68fc7b42001bf7efbba3',
-            userId,
-            { publicKey }
-        );
+        const userDoc = await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
+            documentId: userId,
+            data: { publicKey },
+        });
 
         await userCacheManager.invalidateUser(userId);
 
@@ -286,13 +286,23 @@ export const followUser = async (followerId, followingId) => {
 
         // Update both users
         await Promise.all([
-            databases.updateDocument(config.databaseId, config.usersCollectionId, followerId, {
-                following: newFollowing,
-                followingCount: newFollowing.length,
+            databases.updateDocument({
+                databaseId: config.databaseId,
+                collectionId: config.usersCollectionId,
+                documentId: followerId,
+                data: {
+                    following: newFollowing,
+                    followingCount: newFollowing.length,
+                },
             }),
-            databases.updateDocument(config.databaseId, config.usersCollectionId, followingId, {
-                followers: newFollowers,
-                followersCount: newFollowers.length,
+            databases.updateDocument({
+                databaseId: config.databaseId,
+                collectionId: config.usersCollectionId,
+                documentId: followingId,
+                data: {
+                    followers: newFollowers,
+                    followersCount: newFollowers.length,
+                },
             }),
         ]);
 
@@ -352,13 +362,23 @@ export const unfollowUser = async (followerId, followingId) => {
 
         // Update both users
         await Promise.all([
-            databases.updateDocument(config.databaseId, config.usersCollectionId, followerId, {
-                following: newFollowing,
-                followingCount: newFollowing.length,
+            databases.updateDocument({
+                databaseId: config.databaseId,
+                collectionId: config.usersCollectionId,
+                documentId: followerId,
+                data: {
+                    following: newFollowing,
+                    followingCount: newFollowing.length,
+                },
             }),
-            databases.updateDocument(config.databaseId, config.usersCollectionId, followingId, {
-                followers: newFollowers,
-                followersCount: newFollowers.length,
+            databases.updateDocument({
+                databaseId: config.databaseId,
+                collectionId: config.usersCollectionId,
+                documentId: followingId,
+                data: {
+                    followers: newFollowers,
+                    followersCount: newFollowers.length,
+                },
             }),
         ]);
 
@@ -527,10 +547,15 @@ export const blockUser = async (userId, blockedUserId) => {
         const following = user.following || [];
         const newFollowing = following.filter(id => id !== blockedUserId);
 
-        await databases.updateDocument(config.databaseId, config.usersCollectionId, userId, {
-            blockedUsers: newBlockedUsers,
-            following: newFollowing,
-            followingCount: newFollowing.length,
+        await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.usersCollectionId,
+            documentId: userId,
+            data: {
+                blockedUsers: newBlockedUsers,
+                following: newFollowing,
+                followingCount: newFollowing.length,
+            },
         });
 
         // Remove blocker from blocked user's followers
@@ -541,11 +566,16 @@ export const blockUser = async (userId, blockedUserId) => {
             const blockedUserFollowing = blockedUser.following || [];
             const newBlockedUserFollowing = blockedUserFollowing.filter(id => id !== userId);
 
-            await databases.updateDocument(config.databaseId, config.usersCollectionId, blockedUserId, {
-                followers: newBlockedUserFollowers,
-                followersCount: newBlockedUserFollowers.length,
-                following: newBlockedUserFollowing,
-                followingCount: newBlockedUserFollowing.length,
+            await databases.updateDocument({
+                databaseId: config.databaseId,
+                collectionId: config.usersCollectionId,
+                documentId: blockedUserId,
+                data: {
+                    followers: newBlockedUserFollowers,
+                    followersCount: newBlockedUserFollowers.length,
+                    following: newBlockedUserFollowing,
+                    followingCount: newBlockedUserFollowing.length,
+                },
             });
         } catch (e) {
             // Blocked user update failed, continue
@@ -587,8 +617,13 @@ export const blockUserChatOnly = async (userId, blockedUserId) => {
 
         const newChatBlockedUsers = [...chatBlockedUsers, blockedUserId];
 
-        await databases.updateDocument(config.databaseId, config.usersCollectionId, userId, {
-            chatBlockedUsers: newChatBlockedUsers,
+        await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.usersCollectionId,
+            documentId: userId,
+            data: {
+                chatBlockedUsers: newChatBlockedUsers,
+            },
         });
 
         await userCacheManager.invalidateUser(userId);
@@ -619,8 +654,13 @@ export const unblockUserChatOnly = async (userId, blockedUserId) => {
         const chatBlockedUsers = user.chatBlockedUsers || [];
         const newChatBlockedUsers = chatBlockedUsers.filter(id => id !== blockedUserId);
 
-        await databases.updateDocument(config.databaseId, config.usersCollectionId, userId, {
-            chatBlockedUsers: newChatBlockedUsers,
+        await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.usersCollectionId,
+            documentId: userId,
+            data: {
+                chatBlockedUsers: newChatBlockedUsers,
+            },
         });
 
         await userCacheManager.invalidateUser(userId);
@@ -651,8 +691,13 @@ export const unblockUser = async (userId, blockedUserId) => {
         const blockedUsers = user.blockedUsers || [];
         const newBlockedUsers = blockedUsers.filter(id => id !== blockedUserId);
 
-        await databases.updateDocument(config.databaseId, config.usersCollectionId, userId, {
-            blockedUsers: newBlockedUsers,
+        await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.usersCollectionId,
+            documentId: userId,
+            data: {
+                blockedUsers: newBlockedUsers,
+            },
         });
 
         // Invalidate cache for the user
@@ -754,47 +799,47 @@ export const syncUserNameInChats = async (userId, newName) => {
 
         // Update senderName on the user's recent messages (last 200)
         const { config: dbConfig } = require('./config');
-        const recentMessages = await databases.listDocuments(
-            dbConfig.databaseId,
-            dbConfig.messagesCollectionId,
-            [
+        const recentMessages = await databases.listDocuments({
+            databaseId: dbConfig.databaseId,
+            collectionId: dbConfig.messagesCollectionId,
+            queries: [
                 Query.equal('senderId', userId),
                 Query.orderDesc('$createdAt'),
                 Query.limit(200),
-            ]
-        );
+            ],
+        });
 
         const msgPromises = recentMessages.documents
             .filter(msg => msg.senderName !== newName)
             .map(msg =>
-                databases.updateDocument(
-                    dbConfig.databaseId,
-                    dbConfig.messagesCollectionId,
-                    msg.$id,
-                    { senderName: newName }
-                ).catch(() => null)
+                databases.updateDocument({
+                    databaseId: dbConfig.databaseId,
+                    collectionId: dbConfig.messagesCollectionId,
+                    documentId: msg.$id,
+                    data: { senderName: newName },
+                }).catch(() => null)
             );
 
         // Update senderName on the user's recent notifications (last 200)
-        const recentNotifications = await databases.listDocuments(
-            dbConfig.databaseId,
-            dbConfig.notificationsCollectionId,
-            [
+        const recentNotifications = await databases.listDocuments({
+            databaseId: dbConfig.databaseId,
+            collectionId: dbConfig.notificationsCollectionId,
+            queries: [
                 Query.equal('senderId', userId),
                 Query.orderDesc('$createdAt'),
                 Query.limit(200),
-            ]
-        );
+            ],
+        });
 
         const notifPromises = recentNotifications.documents
             .filter(n => n.senderName !== newName)
             .map(n =>
-                databases.updateDocument(
-                    dbConfig.databaseId,
-                    dbConfig.notificationsCollectionId,
-                    n.$id,
-                    { senderName: newName }
-                ).catch(() => null)
+                databases.updateDocument({
+                    databaseId: dbConfig.databaseId,
+                    collectionId: dbConfig.notificationsCollectionId,
+                    documentId: n.$id,
+                    data: { senderName: newName },
+                }).catch(() => null)
             );
 
         await Promise.all([...msgPromises, ...notifPromises]);
@@ -814,25 +859,25 @@ export const syncUserProfilePicture = async (userId, newProfilePicture) => {
         await userCacheManager.invalidateUser(userId);
 
         const { config: dbConfig } = require('./config');
-        const recentNotifications = await databases.listDocuments(
-            dbConfig.databaseId,
-            dbConfig.notificationsCollectionId,
-            [
+        const recentNotifications = await databases.listDocuments({
+            databaseId: dbConfig.databaseId,
+            collectionId: dbConfig.notificationsCollectionId,
+            queries: [
                 Query.equal('senderId', userId),
                 Query.orderDesc('$createdAt'),
                 Query.limit(200),
-            ]
-        );
+            ],
+        });
 
         const promises = recentNotifications.documents
             .filter(n => n.senderProfilePicture !== (newProfilePicture || null))
             .map(n =>
-                databases.updateDocument(
-                    dbConfig.databaseId,
-                    dbConfig.notificationsCollectionId,
-                    n.$id,
-                    { senderProfilePicture: newProfilePicture || null }
-                ).catch(() => null)
+                databases.updateDocument({
+                    databaseId: dbConfig.databaseId,
+                    collectionId: dbConfig.notificationsCollectionId,
+                    documentId: n.$id,
+                    data: { senderProfilePicture: newProfilePicture || null },
+                }).catch(() => null)
             );
 
         await Promise.all(promises);
@@ -854,12 +899,12 @@ export const updateLastSeen = async (userId) => {
         if (now - _lastSeenWriteTimestamp < 60000) return; // throttle to 1 min
         _lastSeenWriteTimestamp = now;
 
-        await databases.updateDocument(
-            config.databaseId,
-            config.usersCollectionId,
-            userId,
-            { lastSeen: new Date().toISOString() }
-        );
+        await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.usersCollectionId,
+            documentId: userId,
+            data: { lastSeen: new Date().toISOString() },
+        });
     } catch (error) {
         // Non-critical — silently fail
     }
@@ -878,30 +923,30 @@ export const updateUserPushToken = async (userId, token, platform = 'unknown') =
         await assertActorIdentity(userId);
 
         // Check if user already has a token document
-        const existing = await databases.listDocuments(
-            config.databaseId,
-            config.pushTokensCollectionId,
-            [Query.equal('userId', userId), Query.limit(1)]
-        );
+        const existing = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.pushTokensCollectionId,
+            queries: [Query.equal('userId', userId), Query.limit(1)],
+        });
 
         if (existing.documents.length > 0) {
             const doc = existing.documents[0];
             if (doc.token !== token) {
-                return await databases.updateDocument(
-                    config.databaseId,
-                    config.pushTokensCollectionId,
-                    doc.$id,
-                    { token, platform }
-                );
+                return await databases.updateDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.pushTokensCollectionId,
+                    documentId: doc.$id,
+                    data: { token, platform },
+                });
             }
             return doc;
         } else {
-            return await databases.createDocument(
-                config.databaseId,
-                config.pushTokensCollectionId,
-                ID.unique(),
-                { userId, token, platform }
-            );
+            return await databases.createDocument({
+                databaseId: config.databaseId,
+                collectionId: config.pushTokensCollectionId,
+                documentId: ID.unique(),
+                data: { userId, token, platform },
+            });
         }
     } catch (error) {
         throw error;
@@ -913,11 +958,11 @@ export const getUserPushToken = async (userId) => {
             return null;
         }
 
-        const result = await databases.listDocuments(
-            config.databaseId,
-            config.pushTokensCollectionId,
-            [Query.equal('userId', userId), Query.limit(1)]
-        );
+        const result = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.pushTokensCollectionId,
+            queries: [Query.equal('userId', userId), Query.limit(1)],
+        });
 
         if (result.documents.length > 0) {
             return result.documents[0].token;
@@ -935,18 +980,18 @@ export const deleteUserPushToken = async (userId) => {
     try {
         if (!userId) return;
 
-        const existing = await databases.listDocuments(
-            config.databaseId,
-            config.pushTokensCollectionId,
-            [Query.equal('userId', userId), Query.limit(1)]
-        );
+        const existing = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.pushTokensCollectionId,
+            queries: [Query.equal('userId', userId), Query.limit(1)],
+        });
 
         if (existing.documents.length > 0) {
-            await databases.deleteDocument(
-                config.databaseId,
-                config.pushTokensCollectionId,
-                existing.documents[0].$id
-            );
+            await databases.deleteDocument({
+                databaseId: config.databaseId,
+                collectionId: config.pushTokensCollectionId,
+                documentId: existing.documents[0].$id,
+            });
         }
     } catch (error) {
         // Silent fail

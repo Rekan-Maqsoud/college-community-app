@@ -16,18 +16,25 @@ const mockListDocuments = jest.fn().mockResolvedValue({
   total: 2,
 });
 
-const mockGetDocument = jest.fn().mockImplementation((dbId, collId, docId) => {
+const mockGetDocument = jest.fn().mockImplementation((payloadOrDbId, _collId, legacyDocId) => {
+  const docId = payloadOrDbId?.documentId || legacyDocId;
   if (docId === 'n1') return Promise.resolve({ $id: 'n1', userId: 'user-1', type: 'post_like', isRead: false });
   if (docId === 'n2') return Promise.resolve({ $id: 'n2', userId: 'user-1', type: 'follow', isRead: false });
   return Promise.reject(new Error('Not found'));
 });
 
-const mockCreateDocument = jest.fn().mockImplementation((dbId, collId, docId, data) =>
-  Promise.resolve({ $id: docId, ...data })
+const mockCreateDocument = jest.fn().mockImplementation((payloadOrDbId, _collId, legacyDocId, legacyData) => {
+  const documentId = payloadOrDbId?.documentId || legacyDocId;
+  const data = payloadOrDbId?.data || legacyData || {};
+  return Promise.resolve({ $id: documentId, ...data });
+}
 );
 
-const mockUpdateDocument = jest.fn().mockImplementation((dbId, collId, docId, data) =>
-  Promise.resolve({ $id: docId, userId: 'user-1', ...data })
+const mockUpdateDocument = jest.fn().mockImplementation((payloadOrDbId, _collId, legacyDocId, legacyData) => {
+  const documentId = payloadOrDbId?.documentId || legacyDocId;
+  const data = payloadOrDbId?.data || legacyData || {};
+  return Promise.resolve({ $id: documentId, userId: 'user-1', ...data });
+}
 );
 
 jest.mock('appwrite', () => ({

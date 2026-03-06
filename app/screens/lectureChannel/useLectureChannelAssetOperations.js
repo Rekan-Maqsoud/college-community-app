@@ -3,9 +3,9 @@ import { Linking, Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as Sharing from 'expo-sharing';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { config } from '../../database/config';
-import { LECTURE_UPLOAD_TYPES, trackLectureAssetInteraction } from '../../database/lectures';
+import safeStorage from '../../utils/safeStorage';
+import { config } from '../../../database/config';
+import { LECTURE_UPLOAD_TYPES, trackLectureAssetInteraction } from '../../../database/lectures';
 import {
   buildYouTubeVideoId,
   getLectureDeviceChannelDownloadsUriKey,
@@ -94,7 +94,7 @@ export const useLectureChannelAssetOperations = ({
 
     const nextUri = permissions.directoryUri;
     setDeviceDownloadsUri(nextUri);
-    await AsyncStorage.setItem(LECTURE_DEVICE_DOWNLOADS_URI_KEY, nextUri);
+    await safeStorage.setItem(LECTURE_DEVICE_DOWNLOADS_URI_KEY, nextUri);
     return nextUri;
   }, [deviceDownloadsUri]);
 
@@ -120,9 +120,9 @@ export const useLectureChannelAssetOperations = ({
     let appDirectoryUri = '';
     try {
       appDirectoryUri = await saf.makeDirectoryAsync(rootDirectoryUri, LECTURE_DOWNLOADS_ROOT_FOLDER);
-      await AsyncStorage.setItem(LECTURE_DEVICE_APP_DOWNLOADS_URI_KEY, appDirectoryUri);
+      await safeStorage.setItem(LECTURE_DEVICE_APP_DOWNLOADS_URI_KEY, appDirectoryUri);
     } catch (error) {
-      const savedAppDirectoryUri = await AsyncStorage.getItem(LECTURE_DEVICE_APP_DOWNLOADS_URI_KEY);
+      const savedAppDirectoryUri = await safeStorage.getItem(LECTURE_DEVICE_APP_DOWNLOADS_URI_KEY);
       if (savedAppDirectoryUri) {
         appDirectoryUri = savedAppDirectoryUri;
       } else {
@@ -133,9 +133,9 @@ export const useLectureChannelAssetOperations = ({
     let channelDirectoryUri = '';
     try {
       channelDirectoryUri = await saf.makeDirectoryAsync(appDirectoryUri, safeChannelFolderName);
-      await AsyncStorage.setItem(deviceChannelDownloadsUriKey, channelDirectoryUri);
+      await safeStorage.setItem(deviceChannelDownloadsUriKey, channelDirectoryUri);
     } catch (error) {
-      const savedChannelDirectoryUri = await AsyncStorage.getItem(deviceChannelDownloadsUriKey);
+      const savedChannelDirectoryUri = await safeStorage.getItem(deviceChannelDownloadsUriKey);
       if (savedChannelDirectoryUri) {
         channelDirectoryUri = savedChannelDirectoryUri;
       } else {
@@ -190,8 +190,8 @@ export const useLectureChannelAssetOperations = ({
 
       try {
         const [savedDownloadsRootUri, savedChannelUri] = await Promise.all([
-          AsyncStorage.getItem(LECTURE_DEVICE_DOWNLOADS_URI_KEY),
-          AsyncStorage.getItem(deviceChannelDownloadsUriKey),
+          safeStorage.getItem(LECTURE_DEVICE_DOWNLOADS_URI_KEY),
+          safeStorage.getItem(deviceChannelDownloadsUriKey),
         ]);
 
         if (savedDownloadsRootUri) {
@@ -278,9 +278,9 @@ export const useLectureChannelAssetOperations = ({
     } catch {
       setDeviceDownloadsUri('');
       setDeviceChannelDownloadsUri('');
-      await AsyncStorage.removeItem(LECTURE_DEVICE_DOWNLOADS_URI_KEY);
-      await AsyncStorage.removeItem(LECTURE_DEVICE_APP_DOWNLOADS_URI_KEY);
-      await AsyncStorage.removeItem(deviceChannelDownloadsUriKey);
+      await safeStorage.removeItem(LECTURE_DEVICE_DOWNLOADS_URI_KEY);
+      await safeStorage.removeItem(LECTURE_DEVICE_APP_DOWNLOADS_URI_KEY);
+      await safeStorage.removeItem(deviceChannelDownloadsUriKey);
       directoryUri = await ensureDeviceChannelDownloadsUri();
       if (!directoryUri) {
         return '';

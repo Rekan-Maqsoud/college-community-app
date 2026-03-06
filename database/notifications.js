@@ -75,11 +75,11 @@ const listRecentInteractionNotifications = async ({ userId, type, postId = null,
         queries.push(Query.equal('postId', postId));
     }
 
-    const result = await databases.listDocuments(
-        config.databaseId,
-        config.notificationsCollectionId,
-        queries
-    );
+    const result = await databases.listDocuments({
+        databaseId: config.databaseId,
+        collectionId: config.notificationsCollectionId,
+        queries,
+    });
 
     return result?.documents || [];
 };
@@ -125,12 +125,12 @@ const createInteractionNotification = async ({
         const newCount = oldCount + 1;
 
         try {
-            await databases.updateDocument(
-                config.databaseId,
-                config.notificationsCollectionId,
-                existingBatch.$id,
-                { postPreview: trimPreview(`[batch:${newCount}]${postPreview || ''}`, 80) }
-            );
+            await databases.updateDocument({
+                databaseId: config.databaseId,
+                collectionId: config.notificationsCollectionId,
+                documentId: existingBatch.$id,
+                data: { postPreview: trimPreview(`[batch:${newCount}]${postPreview || ''}`, 80) }
+            });
         } catch (e) {}
 
         if (batchedPush) {
@@ -177,11 +177,11 @@ const createInteractionNotification = async ({
     if (recentStandardDocs.length > 0) {
         Promise.all(
             recentStandardDocs.map((doc) =>
-                databases.deleteDocument(
-                    config.databaseId,
-                    config.notificationsCollectionId,
-                    doc.$id
-                ).catch(() => {})
+                databases.deleteDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.notificationsCollectionId,
+                    documentId: doc.$id,
+                }).catch(() => {})
             )
         ).then(() => {
             unreadCountCacheManager.invalidateNotificationUnreadCount(userId).catch(() => {});
@@ -284,24 +284,24 @@ export const createNotification = async (notificationData) => {
 
         let notification;
         try {
-            notification = await databases.createDocument(
-                config.databaseId,
-                config.notificationsCollectionId,
-                ID.unique(),
-                safeNotificationDoc,
-                [
+            notification = await databases.createDocument({
+                databaseId: config.databaseId,
+                collectionId: config.notificationsCollectionId,
+                documentId: ID.unique(),
+                data: safeNotificationDoc,
+                permissions: [
                     Permission.read(Role.user(notificationData.userId)),
                     Permission.update(Role.user(notificationData.userId)),
                     Permission.delete(Role.user(notificationData.userId)),
-                ]
-            );
+                ],
+            });
         } catch (permissionError) {
-            notification = await databases.createDocument(
-                config.databaseId,
-                config.notificationsCollectionId,
-                ID.unique(),
-                safeNotificationDoc
-            );
+            notification = await databases.createDocument({
+                databaseId: config.databaseId,
+                collectionId: config.notificationsCollectionId,
+                documentId: ID.unique(),
+                data: safeNotificationDoc,
+            });
         }
 
         await unreadCountCacheManager.invalidateNotificationUnreadCount(notificationData.userId);
@@ -336,12 +336,12 @@ export const createNotification = async (notificationData) => {
                 emergencyDoc.postPreview = String(notificationData.postPreview).substring(0, 1000);
             }
 
-            const emergencyNotification = await databases.createDocument(
-                config.databaseId,
-                config.notificationsCollectionId,
-                ID.unique(),
-                emergencyDoc
-            );
+            const emergencyNotification = await databases.createDocument({
+                databaseId: config.databaseId,
+                collectionId: config.notificationsCollectionId,
+                documentId: ID.unique(),
+                data: emergencyDoc,
+            });
 
             await unreadCountCacheManager.invalidateNotificationUnreadCount(notificationData.userId);
             await notificationsCacheManager.invalidateUserNotifications(notificationData.userId);
@@ -392,16 +392,16 @@ export const getNotifications = async (userId, limit = 20, offset = 0, options =
             return [];
         }
 
-        const notifications = await databases.listDocuments(
-            config.databaseId,
-            config.notificationsCollectionId,
-            [
+        const notifications = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.notificationsCollectionId,
+            queries: [
                 Query.equal('userId', userId),
                 Query.orderDesc('$createdAt'),
                 Query.limit(Math.min(limit, 100)),
                 Query.offset(offset),
             ]
-        );
+        });
 
         const docs = notifications.documents || [];
         await notificationsCacheManager.cacheNotifications(userId, docs, limit, offset);
@@ -444,15 +444,15 @@ export const getUnreadNotificationCount = async (userId, options = {}) => {
             return 0;
         }
 
-        const notifications = await databases.listDocuments(
-            config.databaseId,
-            config.notificationsCollectionId,
-            [
+        const notifications = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.notificationsCollectionId,
+            queries: [
                 Query.equal('userId', userId),
                 Query.equal('isRead', false),
                 Query.limit(100),
             ]
-        );
+        });
 
         await unreadCountCacheManager.cacheNotificationUnreadCount(userId, notifications.total);
 
@@ -473,23 +473,23 @@ export const markNotificationAsRead = async (notificationId) => {
             throw new Error('Invalid notification ID');
         }
 
-        const existing = await databases.getDocument(
-            config.databaseId,
-            config.notificationsCollectionId,
-            notificationId
-        );
+        const existing = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.notificationsCollectionId,
+            documentId: notificationId,
+        });
 
         const currentUserId = await getAuthenticatedUserId();
         if (existing?.userId !== currentUserId) {
             throw new Error('Not authorized to update this notification');
         }
 
-        const notification = await databases.updateDocument(
-            config.databaseId,
-            config.notificationsCollectionId,
-            notificationId,
-            { isRead: true }
-        );
+        const notification = await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.notificationsCollectionId,
+            documentId: notificationId,
+            data: { isRead: true }
+        });
 
         await unreadCountCacheManager.invalidateNotificationUnreadCount(notification?.userId);
         await notificationsCacheManager.invalidateUserNotifications(notification?.userId);
@@ -521,24 +521,24 @@ export const markAllNotificationsAsRead = async (userId) => {
         }
 
         // Get all unread notifications
-        const unreadNotifications = await databases.listDocuments(
-            config.databaseId,
-            config.notificationsCollectionId,
-            [
+        const unreadNotifications = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.notificationsCollectionId,
+            queries: [
                 Query.equal('userId', userId),
                 Query.equal('isRead', false),
                 Query.limit(100),
             ]
-        );
+        });
 
         // Mark each as read
         const updatePromises = unreadNotifications.documents.map(notification =>
-            databases.updateDocument(
-                config.databaseId,
-                config.notificationsCollectionId,
-                notification.$id,
-                { isRead: true }
-            )
+            databases.updateDocument({
+                databaseId: config.databaseId,
+                collectionId: config.notificationsCollectionId,
+                documentId: notification.$id,
+                data: { isRead: true }
+            })
         );
 
         await Promise.all(updatePromises);
@@ -563,22 +563,22 @@ export const deleteNotification = async (notificationId) => {
             throw new Error('Invalid notification ID');
         }
 
-        const existing = await databases.getDocument(
-            config.databaseId,
-            config.notificationsCollectionId,
-            notificationId
-        );
+        const existing = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.notificationsCollectionId,
+            documentId: notificationId,
+        });
 
         const currentUserId = await getAuthenticatedUserId();
         if (existing?.userId !== currentUserId) {
             throw new Error('Not authorized to delete this notification');
         }
 
-        await databases.deleteDocument(
-            config.databaseId,
-            config.notificationsCollectionId,
-            notificationId
-        );
+        await databases.deleteDocument({
+            databaseId: config.databaseId,
+            collectionId: config.notificationsCollectionId,
+            documentId: notificationId,
+        });
 
         await unreadCountCacheManager.invalidateNotificationUnreadCount(existing?.userId);
         await notificationsCacheManager.invalidateUserNotifications(existing?.userId);
@@ -610,22 +610,22 @@ export const deleteAllNotifications = async (userId) => {
         }
 
         // Get all notifications for user
-        const notifications = await databases.listDocuments(
-            config.databaseId,
-            config.notificationsCollectionId,
-            [
+        const notifications = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.notificationsCollectionId,
+            queries: [
                 Query.equal('userId', userId),
                 Query.limit(100),
             ]
-        );
+        });
 
         // Delete each notification
         const deletePromises = notifications.documents.map(notification =>
-            databases.deleteDocument(
-                config.databaseId,
-                config.notificationsCollectionId,
-                notification.$id
-            )
+            databases.deleteDocument({
+                databaseId: config.databaseId,
+                collectionId: config.notificationsCollectionId,
+                documentId: notification.$id,
+            })
         );
 
         await Promise.all(deletePromises);
@@ -657,14 +657,14 @@ export const deleteNotificationsByPostId = async (postId) => {
         let hasMore = true;
 
         while (hasMore) {
-            const notifications = await databases.listDocuments(
-                config.databaseId,
-                config.notificationsCollectionId,
-                [
+            const notifications = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.notificationsCollectionId,
+                queries: [
                     Query.equal('postId', postId),
                     Query.limit(100),
                 ]
-            );
+            });
 
             if (notifications.documents.length === 0) {
                 hasMore = false;
@@ -673,11 +673,11 @@ export const deleteNotificationsByPostId = async (postId) => {
 
             await Promise.all(
                 notifications.documents.map(notification =>
-                    databases.deleteDocument(
-                        config.databaseId,
-                        config.notificationsCollectionId,
-                        notification.$id
-                    )
+                    databases.deleteDocument({
+                        databaseId: config.databaseId,
+                        collectionId: config.notificationsCollectionId,
+                        documentId: notification.$id,
+                    })
                 )
             );
 
@@ -1125,11 +1125,11 @@ export const getNotificationsCursor = async (userId, limit = 20, afterCursor = n
             queries.push(Query.cursorAfter(afterCursor));
         }
 
-        const response = await databases.listDocuments(
-            config.databaseId,
-            config.notificationsCollectionId,
-            queries
-        );
+        const response = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.notificationsCollectionId,
+            queries,
+        });
 
         const documents = response.documents || [];
         const lastDoc = documents.length > 0 ? documents[documents.length - 1] : null;
@@ -1192,11 +1192,11 @@ export const markNotificationsAsReadByContext = async (userId, filters = {}) => 
             queries.push(Query.equal('type', types));
         }
 
-        const result = await databases.listDocuments(
-            config.databaseId,
-            config.notificationsCollectionId,
-            queries
-        );
+        const result = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.notificationsCollectionId,
+            queries,
+        });
 
         const unread = result?.documents || [];
         if (unread.length === 0) {
@@ -1205,12 +1205,12 @@ export const markNotificationsAsReadByContext = async (userId, filters = {}) => 
 
         await Promise.all(
             unread.map((notification) =>
-                databases.updateDocument(
-                    config.databaseId,
-                    config.notificationsCollectionId,
-                    notification.$id,
-                    { isRead: true }
-                )
+                databases.updateDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.notificationsCollectionId,
+                    documentId: notification.$id,
+                    data: { isRead: true }
+                })
             )
         );
 

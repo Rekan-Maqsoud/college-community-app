@@ -2,280 +2,77 @@
 applyTo: "**"
 ---
 
-# 🔧 AI EDITING RULES & PATTERNS
-
-> **FOR AI**: Follow these rules strictly to avoid breaking the codebase.
-
----
-
-## ⛔ NEVER DO THESE
-
-1. **NEVER use TypeScript syntax** - This is a JavaScript-only project
-2. **NEVER hardcode text** - Always use translation keys
-3. **NEVER add self-referential chatter** - Keep responses concise and task-focused
-4. **NEVER leave TODO/FIXME incomplete** - Complete them or remove
-5. **NEVER leave commented-out code**
-6. **NEVER delete multiple files at once** - Make minimal changes
-7. **NEVER use `var`** - Use `const` or `let`
-8. **NEVER use class components** - Use functional components with hooks
-9. **NEVER remove telemetry traces** when cleaning debug logs - keep `telemetry.startTrace` / `telemetry.recordEvent` instrumentation in loading flows
-
----
-
-## ✅ ALWAYS DO THESE
-
-1. **Use translation keys** for ALL user-visible text:
-
-   ```javascript
-   // ❌ BAD
-   <Text>Hello World</Text>
-
-   // ✅ GOOD
-   <Text>{t('common.helloWorld')}</Text>
-   ```
-
-2. **Use responsive utilities** for sizing:
-
-   ```javascript
-   import { wp, hp, normalize } from '../utils/responsive';
-
-   // ❌ BAD
-   width: 300, fontSize: 16
-
-   // ✅ GOOD
-   width: wp(80), fontSize: normalize(16)
-   ```
-
-3. **Follow existing patterns** in each file
-
-4. **Import from design tokens** for colors:
-
-   ```javascript
-   import { lightColors, darkColors } from "../theme/designTokens";
-   ```
-
-5. **Use the useTranslation hook**:
-   ```javascript
-   const { t } = useTranslation();
-   ```
-6. **Keep telemetry in loading windows**: when removing `console.log`, replace with or retain `telemetry` calls for fetch/init/load/refresh paths
-
----
-
-## 📁 FILE PATTERNS
-
-### Component File Pattern
-
-```javascript
-import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { useTranslation } from "../hooks/useTranslation";
-import { useAppSettings } from "../context/AppSettingsContext";
-import { wp, hp, normalize } from "../utils/responsive";
-
-const ComponentName = ({ prop1, prop2 }) => {
-  const { t } = useTranslation();
-  const { theme, colors } = useAppSettings();
-
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.text, { color: colors.text }]}>
-        {t("component.text")}
-      </Text>
-    </View>
-  );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    padding: wp(4),
-  },
-  text: {
-    fontSize: normalize(16),
-  },
-});
-
-export default ComponentName;
-```
-
-### Screen File Pattern
-
-```javascript
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, RefreshControl } from 'react-native';
-import { useTranslation } from '../hooks/useTranslation';
-import { useAppSettings } from '../context/AppSettingsContext';
-import { useUser } from '../context/UserContext';
-
-const ScreenName = ({ navigation, route }) => {
-  const { t } = useTranslation();
-  const { colors } = useAppSettings();
-  const { user } = useUser();
-
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const fetchData = useCallback(async () => {
-    // ...
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  return (
-    // ...
-  );
-};
-
-export default ScreenName;
-```
-
-### Database Function Pattern
-
-```javascript
-import { databases, DATABASE_ID, COLLECTION_ID } from "./config";
-import { Query, ID } from "appwrite";
-
-export const functionName = async (param1, param2) => {
-  try {
-    const result = await databases.createDocument(
-      DATABASE_ID,
-      COLLECTION_ID,
-      ID.unique(),
-      {
-        field1: param1,
-        field2: param2,
-      },
-    );
-    return result;
-  } catch (error) {
-    throw error;
-  }
-};
-```
-
----
-
-## 🔄 TRANSLATION KEY CONVENTIONS
-
-When adding new translations:
-
-1. **Add to ALL 3 locale files**: `en.js`, `ar.js`, `ku.js`
-2. **Use nested structure**:
-
-   ```javascript
-   // locales/en.js
-   export default {
-     screenName: {
-       title: "Screen Title",
-       subtitle: "Screen subtitle",
-       buttons: {
-         save: "Save",
-         cancel: "Cancel",
-       },
-     },
-   };
-   ```
-
-3. **Naming conventions**:
-   - `auth.*` - Authentication related
-   - `posts.*` - Post related
-   - `chats.*` - Chat related
-   - `settings.*` - Settings related
-   - `common.*` - Shared/common text
-   - `errors.*` - Error messages
-   - `validation.*` - Form validation
-
----
-
-## 🎨 STYLING CONVENTIONS
-
-1. **Use theme colors from context**:
-
-   ```javascript
-   const { colors } = useAppSettings();
-   style={{ backgroundColor: colors.background }}
-   ```
-
-2. **Use responsive sizing**:
-   - `wp(percent)` - Width percentage
-   - `hp(percent)` - Height percentage
-   - `normalize(size)` - Font size scaling
-
-3. **Use spacing tokens from designTokens.js**:
-   ```javascript
-   import { spacing } from "../theme/designTokens";
-   padding: spacing.md;
-   ```
-
----
-
-## 🗄️ DATABASE PATTERNS
-
-### Appwrite Collections Used
-
-- `USERS_COLLECTION_ID` - User profiles
-- `POSTS_COLLECTION_ID` - Posts
-- `REPLIES_COLLECTION_ID` - Post replies
-- `CHATS_COLLECTION_ID` - Chat rooms
-- `MESSAGES_COLLECTION_ID` - Chat messages
-- `NOTIFICATIONS_COLLECTION_ID` - Notifications
-- `USER_CHAT_SETTINGS_COLLECTION_ID` - Per-user chat preferences
-- `PUSH_TOKENS_COLLECTION_ID` - Push notification tokens
-- `LECTURE_CHANNELS_COLLECTION_ID` - Lecture channels
-- `LECTURE_MEMBERSHIPS_COLLECTION_ID` - Lecture memberships
-- `LECTURE_ASSETS_COLLECTION_ID` - Lecture assets
-- `LECTURE_COMMENTS_COLLECTION_ID` - Lecture comments
-- `REP_ELECTIONS_COLLECTION_ID` - Representative elections
-- `REP_VOTES_COLLECTION_ID` - Election votes
-- `SUGGESTIONS_COLLECTION_ID` - User suggestions/feedback
-
-### Common Query Patterns
-
-```javascript
-import { Query } from 'appwrite';
-
-// Pagination
-Query.limit(20),
-Query.offset(page * 20),
-
-// Ordering
-Query.orderDesc('$createdAt'),
-
-// Filtering
-Query.equal('userId', userId),
-Query.search('content', searchTerm),
-```
-
----
-
-## ⚠️ COMMON MISTAKES TO AVOID
-
-1. **Editing wrong file** - Always verify file location first
-2. **Missing translations** - Add to ALL 3 locale files
-3. **Hardcoded colors** - Use `colors` from context
-4. **Hardcoded sizes** - Use responsive utils
-5. **Not handling loading states** - Always show loading indicator
-6. **Not handling errors** - Always try/catch database calls
-7. **Forgetting navigation params** - Check `route.params`
-
----
-
-## 🔍 BEFORE MAKING CHANGES
-
-1. **Identify the correct file(s)** using project-map.instructions.md
-2. **Read the existing code** to understand patterns
-3. **Check related files** that might need updates
-4. **Plan minimal changes** - don't refactor unnecessarily
-5. **Consider translations** - add keys if new text needed
-
----
-
-## 📝 AFTER MAKING CHANGES
-
-2. **Verify no TODO/FIXME left incomplete**
-3. **Verify no commented-out code**
-4. **Verify translations added to all 3 locales**
-5. **Verify responsive sizing used**
-6. **Verify error handling added**
+# COLLEGE COMMUNITY - AI ENGINEERING RULES (2026)
+
+This file is the enforcement layer for AI edits. If a rule here conflicts with older docs, follow this file.
+
+## Non-Negotiable Constraints
+
+1. JavaScript-only codebase. Do not introduce TypeScript syntax.
+2. Never hardcode user-visible strings in components/screens. Use translation keys.
+3. Never remove telemetry coverage in loading paths. Preserve `telemetry.startTrace` and `telemetry.recordEvent` for init/fetch/refresh flows.
+4. Never leave TODO/FIXME or commented-out dead code in committed edits.
+5. Never use `var` or class components.
+6. Never use positional Appwrite SDK arguments in new or touched code. Use object arguments only.
+7. Never add new `AsyncStorage` usage in app logic. Use MMKV-based storage wrappers for persistent local cache.
+8. Never introduce new `expo-av` usage. Use `expo-video` and `expo-audio` patterns.
+9. Never add legacy JavaScript crypto polyfills for E2EE flows. Use native-backed crypto modules.
+10. Never ship unbounded list/document queries. Use explicit limits and pagination strategy.
+
+## Required Coding Standards
+
+1. Keep changes minimal, local, and reversible.
+2. Follow existing file-local patterns unless modernizing that file end-to-end.
+3. Add robust error handling for all async data operations.
+4. Prefer batch reads to avoid N+1 query patterns.
+5. For high-frequency lists/chats, favor stable references (`useMemo`, `useCallback`, `React.memo`) and avoid inline object/function recreation in render.
+6. Keep optimistic UI + server reconciliation explicit in realtime flows.
+7. Validate user permissions and ownership before destructive writes.
+
+## Internationalization Standards
+
+Target architecture is `react-i18next` with lazy-loaded resources.
+
+1. Use `useTranslation` from `react-i18next` in migrated files.
+2. Use namespaced keys (`common.*`, `auth.*`, `posts.*`, `chats.*`, `settings.*`, `errors.*`, `validation.*`).
+3. Maintain key parity across English, Arabic, and Kurdish resources.
+4. During migration windows, do not mix incompatible i18n patterns in the same file. Either:
+   - keep file-local existing i18n API unchanged, or
+   - migrate that file fully to the new pattern.
+
+## UI, Theme, and Responsiveness
+
+1. Use theme/context colors and design tokens, not hardcoded color literals.
+2. Use responsive utilities for dimensions and font scaling where existing screens expect them.
+3. Keep RTL-safe layout behavior for Arabic/Kurdish screens.
+4. Ensure loading, empty, and error states are present for data-driven screens.
+
+## Data and Realtime Guardrails
+
+1. For `listDocuments`, always define pagination (`limit` + cursor/offset strategy) and ordering.
+2. Keep Appwrite writes and reads schema-aligned with `database-schema.instructions.md`.
+3. Realtime reconnect logic must use exponential backoff with jitter for large reconnect storms.
+4. Prefer querying historical data on demand and reserve live subscriptions for active channels.
+
+## Media, Storage, and Performance Defaults
+
+1. Local persistence default: MMKV wrappers for sync access and low-latency hydration.
+2. List rendering default: FlashList v2 for large/interactive feeds and chat histories.
+3. Video/audio default: `expo-video` / `expo-audio` split usage.
+4. Keep navigation and heavy screens resilient to background update pressure.
+
+## Testing and Verification
+
+1. Update or add tests when behavior changes in data, caching, auth, chat, or notifications flows.
+2. Run targeted test files for touched areas when feasible.
+3. Do not silently change public behavior without documenting it in the PR/summary.
+
+## Quick Anti-Patterns Checklist
+
+- Hardcoded visible text.
+- Appwrite positional parameter calls.
+- New AsyncStorage usage.
+- Unbounded queries.
+- Inline heavy closures in item renderers.
+- Missing telemetry in loading paths.
+- Missing translation parity across `en/ar/ku`.

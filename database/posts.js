@@ -82,11 +82,11 @@ const getAuthenticatedUserId = async () => {
 
 const assertPostOwner = async (postId) => {
     const currentUserId = await getAuthenticatedUserId();
-    const post = await databases.getDocument(
-        config.databaseId,
-        config.postsCollectionId,
-        postId
-    );
+    const post = await databases.getDocument({
+        databaseId: config.databaseId,
+        collectionId: config.postsCollectionId,
+        documentId: postId,
+    });
 
     if (!post || post.userId !== currentUserId) {
         throw new Error('Not authorized to modify this post');
@@ -127,18 +127,18 @@ export const createPost = async (postData) => {
             windowMs: 60 * 1000,
         });
 
-        const post = await databases.createDocument(
-            config.databaseId,
-            config.postsCollectionId,
-            ID.unique(),
-            documentData,
-            [
+        const post = await databases.createDocument({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            documentId: ID.unique(),
+            data: documentData,
+            permissions: [
                 Permission.read(Role.users()),
                 Permission.update(Role.users()),
                 Permission.update(Role.user(currentUserId)),
                 Permission.delete(Role.user(currentUserId)),
             ]
-        );
+        });
         
         // Invalidate posts cache for the department
         await postsCacheManager.invalidatePostsCache(documentData.department);
@@ -171,11 +171,11 @@ export const getPost = async (postId, viewerId = null) => {
             throw new Error('Invalid post ID');
         }
         
-        const post = await databases.getDocument(
-            config.databaseId,
-            config.postsCollectionId,
-            postId
-        );
+        const post = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            documentId: postId,
+        });
 
         if (isHiddenForViewer(post, viewerId)) {
             throw new Error('Post not found');
@@ -234,11 +234,11 @@ export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = 
             queries.push(Query.equal('userId', filters.userId));
         }
 
-        const posts = await databases.listDocuments(
-            config.databaseId,
-            config.postsCollectionId,
-            queries
-        );
+        const posts = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            queries,
+        });
         
         // Cache the results for first page
         if (offset === 0) {
@@ -308,11 +308,11 @@ export const getPostsByDepartments = async (departments = [], stage = 'all', lim
             queries.push(Query.equal('isResolved', answerStatus === 'answered'));
         }
 
-        const posts = await databases.listDocuments(
-            config.databaseId,
-            config.postsCollectionId,
-            queries
-        );
+        const posts = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            queries,
+        });
         
         // Cache the results for first page
         if (offset === 0) {
@@ -377,11 +377,11 @@ export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, u
             queries.push(Query.equal('isResolved', answerStatus === 'answered'));
         }
 
-        const posts = await databases.listDocuments(
-            config.databaseId,
-            config.postsCollectionId,
-            queries
-        );
+        const posts = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            queries,
+        });
         
         // Cache the results for first page
         if (offset === 0) {
@@ -435,15 +435,15 @@ export const searchPosts = async (searchQuery, userDepartment = null, userMajor 
 
         // Search in topic field
         try {
-            const topicResults = await databases.listDocuments(
-                config.databaseId,
-                config.postsCollectionId,
-                [
+            const topicResults = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.postsCollectionId,
+                queries: [
                     Query.contains('topic', [searchTerm]),
                     Query.limit(limit),
                     Query.orderDesc('$createdAt')
                 ]
-            );
+            });
             allResults = [...topicResults.documents];
         } catch (e) {
             // Topic search failed
@@ -451,15 +451,15 @@ export const searchPosts = async (searchQuery, userDepartment = null, userMajor 
 
         // Search in description field (some posts may use this)
         try {
-            const descriptionResults = await databases.listDocuments(
-                config.databaseId,
-                config.postsCollectionId,
-                [
+            const descriptionResults = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.postsCollectionId,
+                queries: [
                     Query.contains('description', [searchTerm]),
                     Query.limit(limit),
                     Query.orderDesc('$createdAt')
                 ]
-            );
+            });
             // Add unique results
             descriptionResults.documents.forEach(doc => {
                 if (!allResults.find(r => r.$id === doc.$id)) {
@@ -472,15 +472,15 @@ export const searchPosts = async (searchQuery, userDepartment = null, userMajor 
 
         // Search in text field (post content)
         try {
-            const textResults = await databases.listDocuments(
-                config.databaseId,
-                config.postsCollectionId,
-                [
+            const textResults = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.postsCollectionId,
+                queries: [
                     Query.contains('text', [searchTerm]),
                     Query.limit(limit),
                     Query.orderDesc('$createdAt')
                 ]
-            );
+            });
             // Add unique results
             textResults.documents.forEach(doc => {
                 if (!allResults.find(r => r.$id === doc.$id)) {
@@ -493,15 +493,15 @@ export const searchPosts = async (searchQuery, userDepartment = null, userMajor 
 
         // Search in tags array
         try {
-            const tagsResults = await databases.listDocuments(
-                config.databaseId,
-                config.postsCollectionId,
-                [
+            const tagsResults = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.postsCollectionId,
+                queries: [
                     Query.contains('tags', [searchTerm]),
                     Query.limit(limit),
                     Query.orderDesc('$createdAt')
                 ]
-            );
+            });
             // Add unique results
             tagsResults.documents.forEach(doc => {
                 if (!allResults.find(r => r.$id === doc.$id)) {
@@ -514,15 +514,15 @@ export const searchPosts = async (searchQuery, userDepartment = null, userMajor 
 
         // Search in links array
         try {
-            const linksResults = await databases.listDocuments(
-                config.databaseId,
-                config.postsCollectionId,
-                [
+            const linksResults = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.postsCollectionId,
+                queries: [
                     Query.contains('links', [searchTerm]),
                     Query.limit(limit),
                     Query.orderDesc('$createdAt')
                 ]
-            );
+            });
             // Add unique results
             linksResults.documents.forEach(doc => {
                 if (!allResults.find(r => r.$id === doc.$id)) {
@@ -557,11 +557,11 @@ export const createRepost = async (originalPostId, userId, repostData = {}) => {
             windowMs: 60 * 1000,
         });
 
-        const directOriginal = await databases.getDocument(
-            config.databaseId,
-            config.postsCollectionId,
-            originalPostId
-        );
+        const directOriginal = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            documentId: originalPostId,
+        });
 
         const rootOriginalId = directOriginal?.isRepost && directOriginal?.originalPostId
             ? directOriginal.originalPostId
@@ -569,11 +569,11 @@ export const createRepost = async (originalPostId, userId, repostData = {}) => {
 
         const rootOriginal = rootOriginalId === directOriginal.$id
             ? directOriginal
-            : await databases.getDocument(
-                config.databaseId,
-                config.postsCollectionId,
-                rootOriginalId
-            );
+            : await databases.getDocument({
+                databaseId: config.databaseId,
+                collectionId: config.postsCollectionId,
+                documentId: rootOriginalId,
+            });
 
         if (!rootOriginal || rootOriginal.isHidden) {
             throw new Error('Original post is not available');
@@ -584,16 +584,16 @@ export const createRepost = async (originalPostId, userId, repostData = {}) => {
             throw new Error('Repost is not allowed for this post');
         }
 
-        const existingRepost = await databases.listDocuments(
-            config.databaseId,
-            config.postsCollectionId,
-            [
+        const existingRepost = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            queries: [
                 Query.equal('userId', effectiveUserId),
                 Query.equal('isRepost', true),
                 Query.equal('originalPostId', rootOriginal.$id),
                 Query.limit(1),
             ]
-        );
+        });
 
         if (existingRepost.documents.length > 0) {
             return {
@@ -633,12 +633,12 @@ export const createRepost = async (originalPostId, userId, repostData = {}) => {
 
         try {
             const nextRepostCount = Number(rootOriginal.repostCount || 0) + 1;
-            await databases.updateDocument(
-                config.databaseId,
-                config.postsCollectionId,
-                rootOriginal.$id,
-                { repostCount: nextRepostCount }
-            );
+            await databases.updateDocument({
+                databaseId: config.databaseId,
+                collectionId: config.postsCollectionId,
+                documentId: rootOriginal.$id,
+                data: { repostCount: nextRepostCount }
+            });
         } catch (error) {
             // Silent fail - repost must not fail because of counter update
         }
@@ -661,11 +661,11 @@ export const requestPostReview = async (postId, requesterUserId = null) => {
         const currentUserId = await getAuthenticatedUserId();
         const effectiveRequesterUserId = currentUserId;
 
-        const post = await databases.getDocument(
-            config.databaseId,
-            config.postsCollectionId,
-            postId
-        );
+        const post = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            documentId: postId,
+        });
 
         if (!post) {
             throw new Error('Post not found');
@@ -766,15 +766,15 @@ export const requestPostReview = async (postId, requesterUserId = null) => {
             }
         }
 
-        await databases.updateDocument(
-            config.databaseId,
-            config.postsCollectionId,
-            postId,
-            {
+        await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            documentId: postId,
+            data: {
                 reviewRequestedAt: new Date().toISOString(),
                 reviewRequestedBy: currentUserId,
             }
-        ).catch(() => {
+        }).catch(() => {
             // Optional columns may not exist yet.
         });
 
@@ -813,12 +813,12 @@ export const updatePost = async (postId, postData) => {
             updateData.pollData = JSON.stringify(updateData.pollData);
         }
         
-        const post = await databases.updateDocument(
-            config.databaseId,
-            config.postsCollectionId,
-            postId,
-            updateData
-        );
+        const post = await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            documentId: postId,
+            data: updateData
+        });
         
         // Invalidate posts cache
         await postsCacheManager.invalidateSinglePost(postId);
@@ -838,11 +838,11 @@ export const voteOnPostPoll = async (postId, userId, selectedOptionIds) => {
         const currentUserId = await getAuthenticatedUserId();
         const effectiveUserId = currentUserId;
 
-        const post = await databases.getDocument(
-            config.databaseId,
-            config.postsCollectionId,
-            postId
-        );
+        const post = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            documentId: postId,
+        });
 
         const parsedPoll = parsePollPayload(post.pollData);
         if (!parsedPoll) {
@@ -851,14 +851,14 @@ export const voteOnPostPoll = async (postId, userId, selectedOptionIds) => {
 
         const nextPoll = applyPollVote(parsedPoll, effectiveUserId, selectedOptionIds);
 
-        const updatedPost = await databases.updateDocument(
-            config.databaseId,
-            config.postsCollectionId,
-            postId,
-            {
+        const updatedPost = await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            documentId: postId,
+            data: {
                 pollData: JSON.stringify(nextPoll),
             }
-        );
+        });
 
         await postsCacheManager.invalidateSinglePost(postId);
 
@@ -882,11 +882,11 @@ export const deletePost = async (postId, imageDeleteUrls = []) => {
         await deleteRepliesByPost(postId);
         await deleteNotificationsByPostId(postId);
         
-        await databases.deleteDocument(
-            config.databaseId,
-            config.postsCollectionId,
-            postId
-        );
+        await databases.deleteDocument({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            documentId: postId,
+        });
 
         const postImageDeleteUrls = Array.isArray(post.imageDeleteUrls) ? post.imageDeleteUrls : imageDeleteUrls;
 
@@ -915,23 +915,23 @@ export const incrementPostViewCount = async (postId, userId = null) => {
         
         if (userId && !viewedBy.includes(userId)) {
             viewedBy.push(userId);
-            await databases.updateDocument(
-                config.databaseId,
-                config.postsCollectionId,
-                postId,
-                { 
+            await databases.updateDocument({
+                databaseId: config.databaseId,
+                collectionId: config.postsCollectionId,
+                documentId: postId,
+                data: { 
                     viewedBy: viewedBy,
                     viewCount: viewedBy.length 
                 }
-            );
+            });
         } else if (!userId) {
             const newCount = (post.viewCount || 0) + 1;
-            await databases.updateDocument(
-                config.databaseId,
-                config.postsCollectionId,
-                postId,
-                { viewCount: newCount }
-            );
+            await databases.updateDocument({
+                databaseId: config.databaseId,
+                collectionId: config.postsCollectionId,
+                documentId: postId,
+                data: { viewCount: newCount }
+            });
         }
     } catch (error) {
         throw error;
@@ -965,15 +965,15 @@ export const togglePostLike = async (postId, userId) => {
             updatedLikedBy = [...likedBy, effectiveUserId];
         }
         
-        const updatedPost = await databases.updateDocument(
-            config.databaseId,
-            config.postsCollectionId,
-            postId,
-            { 
+        const updatedPost = await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            documentId: postId,
+            data: { 
                 likedBy: updatedLikedBy,
                 likeCount: updatedLikedBy.length 
             }
-        );
+        });
 
         // Invalidate posts cache so refreshes show the updated like state
         await postsCacheManager.invalidatePostsCache();
@@ -1024,12 +1024,12 @@ export const setQuestionResolvedStatus = async (postId, isResolved) => {
         
         await assertPostOwner(postId);
 
-        await databases.updateDocument(
-            config.databaseId,
-            config.postsCollectionId,
-            postId,
-            { isResolved }
-        );
+        await databases.updateDocument({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            documentId: postId,
+            data: { isResolved }
+        });
     } catch (error) {
         throw error;
     }
@@ -1054,21 +1054,21 @@ export const createReply = async (postId, replyData) => {
             windowMs: 60 * 1000,
         });
         
-        const reply = await databases.createDocument(
-            config.databaseId,
-            config.repliesCollectionId,
-            ID.unique(),
-            {
+        const reply = await databases.createDocument({
+            databaseId: config.databaseId,
+            collectionId: config.repliesCollectionId,
+            documentId: ID.unique(),
+            data: {
                 ...effectiveReplyData,
                 postId
             },
-            [
+            permissions: [
                 Permission.read(Role.users()),
                 Permission.update(Role.users()),
                 Permission.update(Role.user(currentUserId)),
                 Permission.delete(Role.user(currentUserId)),
             ]
-        );
+        });
         return reply;
     } catch (error) {
         throw error;
@@ -1081,14 +1081,14 @@ export const getReplies = async (postId) => {
             throw new Error('Invalid post ID');
         }
         
-        const replies = await databases.listDocuments(
-            config.databaseId,
-            config.repliesCollectionId,
-            [
+        const replies = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.repliesCollectionId,
+            queries: [
                 Query.equal('postId', postId),
                 Query.orderAsc('$createdAt')
             ]
-        );
+        });
         return replies.documents;
     } catch (error) {
         throw error;
@@ -1102,21 +1102,21 @@ export const deleteReply = async (replyId) => {
         }
 
         const currentUserId = await getAuthenticatedUserId();
-        const reply = await databases.getDocument(
-            config.databaseId,
-            config.repliesCollectionId,
-            replyId
-        );
+        const reply = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.repliesCollectionId,
+            documentId: replyId,
+        });
 
         if (!reply || reply.userId !== currentUserId) {
             throw new Error('Not authorized to delete this reply');
         }
         
-        await databases.deleteDocument(
-            config.databaseId,
-            config.repliesCollectionId,
-            replyId
-        );
+        await databases.deleteDocument({
+            databaseId: config.databaseId,
+            collectionId: config.repliesCollectionId,
+            documentId: replyId,
+        });
     } catch (error) {
         throw error;
     }
@@ -1128,11 +1128,11 @@ export const uploadImage = async (file) => {
             throw new Error('File is required');
         }
         
-        const uploadedFile = await storage.createFile(
-            config.bucketId,
-            ID.unique(),
-            file
-        );
+        const uploadedFile = await storage.createFile({
+            bucketId: config.bucketId,
+            fileId: ID.unique(),
+            file,
+        });
         return uploadedFile;
     } catch (error) {
         throw error;
@@ -1140,7 +1140,7 @@ export const uploadImage = async (file) => {
 };
 
 export const getImageUrl = (fileId) => {
-    return storage.getFileView(config.bucketId, fileId);
+    return storage.getFileView({ bucketId: config.bucketId, fileId });
 };
 
 export const deleteImage = async (fileId) => {
@@ -1149,7 +1149,7 @@ export const deleteImage = async (fileId) => {
             throw new Error('Invalid file ID');
         }
         
-        await storage.deleteFile(config.bucketId, fileId);
+        await storage.deleteFile({ bucketId: config.bucketId, fileId });
     } catch (error) {
         throw error;
     }
@@ -1243,17 +1243,17 @@ export const reportPost = async (postId, userId, reason = '') => {
         if (REPORT_FEEDBACK_REASONS.includes(moderationReason)) {
             if (config.postReportsCollectionId) {
                 try {
-                    await databases.createDocument(
-                        config.databaseId,
-                        config.postReportsCollectionId,
-                        ID.unique(),
-                        {
+                    await databases.createDocument({
+                        databaseId: config.databaseId,
+                        collectionId: config.postReportsCollectionId,
+                        documentId: ID.unique(),
+                        data: {
                             postId,
                             reporterId: effectiveUserId,
                             postOwnerId: post.userId,
                             reason: moderationReason,
                         }
-                    );
+                    });
                 } catch (error) {
                     // Silent fail if optional collection is not available
                 }
@@ -1278,17 +1278,17 @@ export const reportPost = async (postId, userId, reason = '') => {
         let moderationStatePersisted = true;
 
         try {
-            await databases.updateDocument(
-                config.databaseId,
-                config.postsCollectionId,
-                postId,
-                {
+            await databases.updateDocument({
+                databaseId: config.databaseId,
+                collectionId: config.postsCollectionId,
+                documentId: postId,
+                data: {
                     reportedBy: newReportedBy,
                     reportCount: reportCount,
                     reportReasons: nextReportReasons,
                     isHidden,
                 }
-            );
+            });
         } catch (error) {
             if (isSchemaAttributeError(error)) {
                 moderationStatePersisted = false;
@@ -1311,17 +1311,17 @@ export const reportPost = async (postId, userId, reason = '') => {
 
         if (config.postReportsCollectionId) {
             try {
-                await databases.createDocument(
-                    config.databaseId,
-                    config.postReportsCollectionId,
-                    ID.unique(),
-                    {
+                await databases.createDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.postReportsCollectionId,
+                    documentId: ID.unique(),
+                    data: {
                         postId,
                         reporterId: userId,
                         postOwnerId: post.userId,
                         reason: reportReason,
                     }
-                );
+                });
             } catch (error) {
                 // Silent fail if optional collection is not available
             }
@@ -1399,11 +1399,11 @@ export const getPostsCursor = async (
             queries.push(Query.equal('userId', filters.userId));
         }
 
-        const response = await databases.listDocuments(
-            config.databaseId,
-            config.postsCollectionId,
-            queries
-        );
+        const response = await databases.listDocuments({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            queries,
+        });
 
         let documents = filterPostsByVisibility(response.documents, currentUserId);
         if (Array.isArray(blockedUserIds) && blockedUserIds.length > 0) {

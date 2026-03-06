@@ -3,7 +3,7 @@ import { FlatList, Image, Linking, Text, TouchableOpacity, View } from 'react-na
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { moderateScale } from '../../../utils/responsive';
-import { LECTURE_UPLOAD_TYPES } from '../../../database/lectures';
+import { LECTURE_UPLOAD_TYPES } from '../../../../database/lectures';
 import {
   buildYouTubeVideoId,
   formatBytesAsMb,

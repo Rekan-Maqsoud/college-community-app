@@ -79,9 +79,14 @@ const syncElectionClassStats = async (election) => {
     return election;
   }
 
-  return databases.updateDocument(DB_ID(), COLLECTION_ID(), election.$id, {
-    totalStudents,
-    reselectionThreshold: threshold,
+  return databases.updateDocument({
+    databaseId: DB_ID(),
+    collectionId: COLLECTION_ID(),
+    documentId: election.$id,
+    data: {
+      totalStudents,
+      reselectionThreshold: threshold,
+    },
   });
 };
 
@@ -107,8 +112,13 @@ const resetDailyReselectionRequestsIfNeeded = async (election) => {
     return election;
   }
 
-  return databases.updateDocument(DB_ID(), COLLECTION_ID(), election.$id, {
-    reselectionVoters: [],
+  return databases.updateDocument({
+    databaseId: DB_ID(),
+    collectionId: COLLECTION_ID(),
+    documentId: election.$id,
+    data: {
+      reselectionVoters: [],
+    },
   });
 };
 
@@ -128,7 +138,11 @@ export const getActiveElection = async (department, stage, seatNumber = null) =>
     if (seatNumber) {
       queries.splice(3, 0, Query.equal('seatNumber', seatNumber));
     }
-    const response = await databases.listDocuments(DB_ID(), COLLECTION_ID(), queries);
+    const response = await databases.listDocuments({
+      databaseId: DB_ID(),
+      collectionId: COLLECTION_ID(),
+      queries,
+    });
     const activeElection = response.documents[0] || null;
     return activeElection;
   } catch (error) {
@@ -154,7 +168,11 @@ export const getLatestElection = async (department, stage, seatNumber = null) =>
     if (seatNumber) {
       queries.splice(2, 0, Query.equal('seatNumber', seatNumber));
     }
-    const response = await databases.listDocuments(DB_ID(), COLLECTION_ID(), queries);
+    const response = await databases.listDocuments({
+      databaseId: DB_ID(),
+      collectionId: COLLECTION_ID(),
+      queries,
+    });
     const latestElection = response.documents[0] || null;
     return latestElection;
   } catch (error) {
@@ -171,13 +189,17 @@ export const getLatestElection = async (department, stage, seatNumber = null) =>
  */
 export const getCompletedElections = async (department, stage) => {
   try {
-    const response = await databases.listDocuments(DB_ID(), COLLECTION_ID(), [
-      Query.equal('department', department),
-      Query.equal('stage', stage),
-      Query.equal('status', ELECTION_STATUS.COMPLETED),
-      Query.orderDesc('$createdAt'),
-      Query.limit(10),
-    ]);
+    const response = await databases.listDocuments({
+      databaseId: DB_ID(),
+      collectionId: COLLECTION_ID(),
+      queries: [
+        Query.equal('department', department),
+        Query.equal('stage', stage),
+        Query.equal('status', ELECTION_STATUS.COMPLETED),
+        Query.orderDesc('$createdAt'),
+        Query.limit(10),
+      ],
+    });
     // Keep only the latest completed election per seat
     const bySeat = {};
     response.documents.forEach((doc) => {
@@ -285,10 +307,14 @@ export const ensureActiveElectionsForAllClasses = async () => {
     const classCounts = {};
 
     while (hasMore) {
-      const batch = await databases.listDocuments(DB_ID(), config.usersCollectionId, [
-        Query.limit(batchSize),
-        Query.offset(offset),
-      ]);
+      const batch = await databases.listDocuments({
+        databaseId: DB_ID(),
+        collectionId: config.usersCollectionId,
+        queries: [
+          Query.limit(batchSize),
+          Query.offset(offset),
+        ],
+      });
       const docs = batch.documents || [];
       docs.forEach((doc) => {
         const department = doc.department;
@@ -358,18 +384,24 @@ export const createElection = async (department, stage, totalStudents = 0, seatN
       Permission.update(Role.users()),
     ];
 
-    const election = await databases.createDocument(DB_ID(), COLLECTION_ID(), ID.unique(), {
-      department,
-      stage,
-      status: ELECTION_STATUS.IDLE,
-      seatNumber,
-      winner: null,
-      totalStudents: resolvedTotalStudents,
-      reselectionVoters: [],
-      reselectionThreshold: threshold,
-      startedAt: null,
-      endedAt: null,
-    }, permissions);
+    const election = await databases.createDocument({
+      databaseId: DB_ID(),
+      collectionId: COLLECTION_ID(),
+      documentId: ID.unique(),
+      data: {
+        department,
+        stage,
+        status: ELECTION_STATUS.IDLE,
+        seatNumber,
+        winner: null,
+        totalStudents: resolvedTotalStudents,
+        reselectionVoters: [],
+        reselectionThreshold: threshold,
+        startedAt: null,
+        endedAt: null,
+      },
+      permissions,
+    });
     return election;
   } catch (error) {
     throw error;
@@ -381,10 +413,15 @@ export const createElection = async (department, stage, totalStudents = 0, seatN
  */
 export const finalizeElection = async (electionId, winnerId = null) => {
   try {
-    const election = await databases.updateDocument(DB_ID(), COLLECTION_ID(), electionId, {
-      status: ELECTION_STATUS.COMPLETED,
-      winner: winnerId,
-      endedAt: new Date().toISOString(),
+    const election = await databases.updateDocument({
+      databaseId: DB_ID(),
+      collectionId: COLLECTION_ID(),
+      documentId: electionId,
+      data: {
+        status: ELECTION_STATUS.COMPLETED,
+        winner: winnerId,
+        endedAt: new Date().toISOString(),
+      },
     });
     return election;
   } catch (error) {
@@ -403,7 +440,11 @@ export const requestReselection = async (electionId) => {
     if (!currentUser) throw new Error('Not authenticated');
     const userId = currentUser.$id;
 
-    const election = await databases.getDocument(DB_ID(), COLLECTION_ID(), electionId);
+    const election = await databases.getDocument({
+      databaseId: DB_ID(),
+      collectionId: COLLECTION_ID(),
+      documentId: electionId,
+    });
     const syncedElection = await syncElectionClassStats(election);
     const dailyResetElection = await resetDailyReselectionRequestsIfNeeded(syncedElection);
 
@@ -417,10 +458,15 @@ export const requestReselection = async (electionId) => {
 
     if (updatedVoters.length >= threshold) {
       // Threshold reached — archive old election and create new one
-      await databases.updateDocument(DB_ID(), COLLECTION_ID(), electionId, {
-        reselectionVoters: updatedVoters,
-        status: ELECTION_STATUS.RESELECTION_PENDING,
-        endedAt: new Date().toISOString(),
+      await databases.updateDocument({
+        databaseId: DB_ID(),
+        collectionId: COLLECTION_ID(),
+        documentId: electionId,
+        data: {
+          reselectionVoters: updatedVoters,
+          status: ELECTION_STATUS.RESELECTION_PENDING,
+          endedAt: new Date().toISOString(),
+        },
       });
 
       const newElection = await createElection(
@@ -432,8 +478,13 @@ export const requestReselection = async (electionId) => {
       return { election: newElection, reselectionTriggered: true, alreadyVoted: false };
     }
 
-    const updated = await databases.updateDocument(DB_ID(), COLLECTION_ID(), electionId, {
-      reselectionVoters: updatedVoters,
+    const updated = await databases.updateDocument({
+      databaseId: DB_ID(),
+      collectionId: COLLECTION_ID(),
+      documentId: electionId,
+      data: {
+        reselectionVoters: updatedVoters,
+      },
     });
 
     return { election: updated, reselectionTriggered: false, alreadyVoted: false };
@@ -453,7 +504,11 @@ export const requestNextRepresentativeElection = async (electionId) => {
     if (!currentUser) throw new Error('Not authenticated');
     const userId = currentUser.$id;
 
-    const election = await databases.getDocument(DB_ID(), COLLECTION_ID(), electionId);
+    const election = await databases.getDocument({
+      databaseId: DB_ID(),
+      collectionId: COLLECTION_ID(),
+      documentId: electionId,
+    });
     const syncedElection = await syncElectionClassStats(election);
     const dailyResetElection = await resetDailyReselectionRequestsIfNeeded(syncedElection);
 
@@ -495,8 +550,13 @@ export const requestNextRepresentativeElection = async (electionId) => {
 
     if (updatedVoters.length >= threshold) {
       // Reset requester list on current election and create next seat election
-      await databases.updateDocument(DB_ID(), COLLECTION_ID(), electionId, {
-        reselectionVoters: [],
+      await databases.updateDocument({
+        databaseId: DB_ID(),
+        collectionId: COLLECTION_ID(),
+        documentId: electionId,
+        data: {
+          reselectionVoters: [],
+        },
       });
 
       const nextElection = await createElection(
@@ -514,9 +574,14 @@ export const requestNextRepresentativeElection = async (electionId) => {
       };
     }
 
-    const updated = await databases.updateDocument(DB_ID(), COLLECTION_ID(), electionId, {
-      reselectionVoters: updatedVoters,
-      reselectionThreshold: threshold,
+    const updated = await databases.updateDocument({
+      databaseId: DB_ID(),
+      collectionId: COLLECTION_ID(),
+      documentId: electionId,
+      data: {
+        reselectionVoters: updatedVoters,
+        reselectionThreshold: threshold,
+      },
     });
 
     return {
@@ -544,7 +609,11 @@ export const hasUserRequestedReselection = (election, userId) => {
  */
 export const getElectionById = async (electionId) => {
   try {
-    return await databases.getDocument(DB_ID(), COLLECTION_ID(), electionId);
+    return await databases.getDocument({
+      databaseId: DB_ID(),
+      collectionId: COLLECTION_ID(),
+      documentId: electionId,
+    });
   } catch (error) {
     throw error;
   }
@@ -612,10 +681,15 @@ export const handleElectionTimerExpiry = async (electionId, results) => {
         .map((c) => c.candidateId)
         .slice(0, 2);
 
-      const updated = await databases.updateDocument(DB_ID(), COLLECTION_ID(), electionId, {
-        status: ELECTION_STATUS.TIEBREAKER,
-        startedAt: new Date().toISOString(),
-        reselectionVoters: tiedCandidates,
+      const updated = await databases.updateDocument({
+        databaseId: DB_ID(),
+        collectionId: COLLECTION_ID(),
+        documentId: electionId,
+        data: {
+          status: ELECTION_STATUS.TIEBREAKER,
+          startedAt: new Date().toISOString(),
+          reselectionVoters: tiedCandidates,
+        },
       });
       return updated;
     }

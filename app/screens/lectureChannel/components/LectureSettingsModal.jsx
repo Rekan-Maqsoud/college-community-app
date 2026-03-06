@@ -3,8 +3,8 @@ import { ActivityIndicator, Modal, ScrollView, Text, TextInput, TouchableOpacity
 import { Ionicons } from '@expo/vector-icons';
 import ProfilePicture from '../../../components/ProfilePicture';
 import { moderateScale, spacing } from '../../../utils/responsive';
-import { CHAT_TYPES } from '../../../database/chats';
-import { LECTURE_ACCESS_TYPES, LECTURE_CHANNEL_TYPES } from '../../../database/lectures';
+import { CHAT_TYPES } from '../../../../database/chats';
+import { LECTURE_ACCESS_TYPES, LECTURE_CHANNEL_TYPES } from '../../../../database/lectures';
 import { formatBytesAsMb } from '../lectureChannelUtils';
 import styles from '../LectureChannelStyles';
 

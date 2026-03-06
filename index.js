@@ -1,7 +1,7 @@
 import { registerRootComponent } from 'expo';
 import React, { useState, useEffect } from 'react';
 import { setGlobalFontScale } from './app/utils/responsive';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import safeStorage from './app/utils/safeStorage';
 
 // A wrapper component to load font scale before rendering the main App
 const RootWrapper = () => {
@@ -11,7 +11,7 @@ const RootWrapper = () => {
   useEffect(() => {
     const bootstrap = async () => {
       try {
-        const saved = await AsyncStorage.getItem('fontScale');
+        const saved = await safeStorage.getItem('fontScale');
         if (saved) {
           const scale = parseFloat(saved);
           if (!isNaN(scale) && scale >= 0.85 && scale <= 1.3) {

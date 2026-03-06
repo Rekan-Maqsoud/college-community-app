@@ -130,13 +130,13 @@ export const sendMessage = async (chatId, messageData) => {
       documentData.replyToSender = messageData.replyToSender || '';
     }
 
-    const message = await databases.createDocument(
-      config.databaseId,
-      config.messagesCollectionId,
-      ID.unique(),
-      documentData,
-      buildParticipantPermissions(chat.participants || [senderId])
-    );
+    const message = await databases.createDocument({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      documentId: ID.unique(),
+      data: documentData,
+      permissions: buildParticipantPermissions(chat.participants || [senderId])
+    });
 
     const latestChatDoc = await getChat(chatId, true);
     const currentCount = Math.max(
@@ -170,17 +170,17 @@ export const sendMessage = async (chatId, messageData) => {
 
     const lastMessageAtTimestamp = new Date().toISOString();
 
-    await databases.updateDocument(
-      config.databaseId,
-      config.chatsCollectionId,
-      chatId,
-      {
+    await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.chatsCollectionId,
+      documentId: chatId,
+      data: {
         lastMessage: lastMessagePreview,
         lastMessageAt: lastMessageAtTimestamp,
         lastMessageSenderId: senderId,
         messageCount: currentCount + 1,
       }
-    );
+    });
 
     sendChatPushNotification({
       chatId,
@@ -221,16 +221,16 @@ export const getMessages = async (chatId, userIdOrLimit = 50, limitOrOffset = 0,
       offset = typeof limitOrOffset === 'number' ? limitOrOffset : 0;
     }
 
-    const messages = await databases.listDocuments(
-      config.databaseId,
-      config.messagesCollectionId,
-      [
+    const messages = await databases.listDocuments({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      queries: [
         Query.equal('chatId', chatId),
         Query.orderDesc('$createdAt'),
         Query.limit(Math.min(limit, 100)),
         Query.offset(offset),
       ]
-    );
+    });
 
     let documents = messages.documents;
     if (userId) {
@@ -260,11 +260,11 @@ export const voteOnMessagePoll = async (chatId, messageId, userId, selectedOptio
 
     const chat = await ensureChatParticipant(chatId, effectiveUserId);
     const chatKey = await resolveChatKey(chat, effectiveUserId);
-    const message = await databases.getDocument(
-      config.databaseId,
-      config.messagesCollectionId,
-      messageId
-    );
+    const message = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      documentId: messageId,
+    });
 
     if (message.chatId !== chatId) {
       throw new Error('Message does not belong to this chat');
@@ -285,14 +285,14 @@ export const voteOnMessagePoll = async (chatId, messageId, userId, selectedOptio
     const shouldEncrypt = chatKey && isEncryptedContent(message.content);
     const contentToSave = shouldEncrypt ? encryptContent(serializedPoll, chatKey) : serializedPoll;
 
-    const updatedMessage = await databases.updateDocument(
-      config.databaseId,
-      config.messagesCollectionId,
-      messageId,
-      {
+    const updatedMessage = await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      documentId: messageId,
+      data: {
         content: contentToSave,
       }
-    );
+    });
 
     if (chatKey) {
       return decryptMessageFields(updatedMessage, chatKey);
@@ -311,11 +311,11 @@ export const deleteMessage = async (messageId, imageDeleteUrl = null) => {
     }
 
     const currentUserId = await getAuthenticatedUserId();
-    const message = await databases.getDocument(
-      config.databaseId,
-      config.messagesCollectionId,
-      messageId
-    );
+    const message = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      documentId: messageId,
+    });
 
     const chat = await getChat(message.chatId, true);
     const canDelete = message.senderId === currentUserId || canManageChat(chat, currentUserId);
@@ -323,11 +323,11 @@ export const deleteMessage = async (messageId, imageDeleteUrl = null) => {
       throw new Error('Not authorized to delete this message');
     }
 
-    await databases.deleteDocument(
-      config.databaseId,
-      config.messagesCollectionId,
-      messageId
-    );
+    await databases.deleteDocument({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      documentId: messageId,
+    });
 
     const deleteUrl = message?.imageDeleteUrl || imageDeleteUrl;
     if (deleteUrl) {
@@ -353,11 +353,11 @@ export const updateMessage = async (messageId, messageData) => {
     }
 
     const currentUserId = await getAuthenticatedUserId();
-    const existingMessage = await databases.getDocument(
-      config.databaseId,
-      config.messagesCollectionId,
-      messageId
-    );
+    const existingMessage = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      documentId: messageId,
+    });
 
     const chat = await getChat(existingMessage.chatId, true);
     const canEdit = existingMessage.senderId === currentUserId || canManageChat(chat, currentUserId);
@@ -365,12 +365,12 @@ export const updateMessage = async (messageId, messageData) => {
       throw new Error('Not authorized to update this message');
     }
 
-    const message = await databases.updateDocument(
-      config.databaseId,
-      config.messagesCollectionId,
-      messageId,
-      messageData
-    );
+    const message = await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      documentId: messageId,
+      data: messageData
+    });
     return message;
   } catch (error) {
     throw error;
@@ -391,11 +391,11 @@ export const toggleMessageReaction = async (chatId, messageId, userId, emoji) =>
       windowMs: 60 * 1000,
     });
 
-    const message = await databases.getDocument(
-      config.databaseId,
-      config.messagesCollectionId,
-      messageId
-    );
+    const message = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      documentId: messageId,
+    });
 
     if (chatId && message.chatId !== chatId) {
       throw new Error('Message does not belong to this chat');
@@ -422,12 +422,12 @@ export const toggleMessageReaction = async (chatId, messageId, userId, emoji) =>
       nextReactions[emoji] = [...(nextReactions[emoji] || []), currentUserId];
     }
 
-    const updatedMessage = await databases.updateDocument(
-      config.databaseId,
-      config.messagesCollectionId,
-      messageId,
-      { reactions: JSON.stringify(nextReactions) }
-    );
+    const updatedMessage = await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      documentId: messageId,
+      data: { reactions: JSON.stringify(nextReactions) }
+    });
 
     return updatedMessage;
   } catch (error) {
@@ -441,26 +441,26 @@ export const markMessageAsDelivered = async (messageId, userId) => {
       return null;
     }
 
-    const message = await databases.getDocument(
-      config.databaseId,
-      config.messagesCollectionId,
-      messageId
-    );
+    const message = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      documentId: messageId,
+    });
 
     const currentDeliveredTo = message.deliveredTo || [];
     if (currentDeliveredTo.includes(userId)) {
       return message;
     }
 
-    const updatedMessage = await databases.updateDocument(
-      config.databaseId,
-      config.messagesCollectionId,
-      messageId,
-      {
+    const updatedMessage = await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      documentId: messageId,
+      data: {
         deliveredTo: [...currentDeliveredTo, userId],
         status: 'delivered',
       }
-    );
+    });
 
     return updatedMessage;
   } catch {
@@ -474,26 +474,26 @@ export const markMessageAsRead = async (messageId, userId) => {
       return null;
     }
 
-    const message = await databases.getDocument(
-      config.databaseId,
-      config.messagesCollectionId,
-      messageId
-    );
+    const message = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      documentId: messageId,
+    });
 
     const currentReadBy = message.readBy || [];
     if (currentReadBy.includes(userId)) {
       return message;
     }
 
-    const updatedMessage = await databases.updateDocument(
-      config.databaseId,
-      config.messagesCollectionId,
-      messageId,
-      {
+    const updatedMessage = await databases.updateDocument({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      documentId: messageId,
+      data: {
         readBy: [...currentReadBy, userId],
         status: 'read',
       }
-    );
+    });
 
     return updatedMessage;
   } catch {
@@ -507,15 +507,15 @@ export const markAllMessagesAsRead = async (chatId, userId) => {
       return;
     }
 
-    const messages = await databases.listDocuments(
-      config.databaseId,
-      config.messagesCollectionId,
-      [
+    const messages = await databases.listDocuments({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      queries: [
         Query.equal('chatId', chatId),
         Query.orderDesc('$createdAt'),
         Query.limit(50),
       ]
-    );
+    });
 
     const updatePromises = messages.documents
       .filter(msg => msg.senderId !== userId && !(msg.readBy || []).includes(userId))
@@ -532,11 +532,11 @@ export const getMessageReadReceipts = async (messageId) => {
       return [];
     }
 
-    const message = await databases.getDocument(
-      config.databaseId,
-      config.messagesCollectionId,
-      messageId
-    );
+    const message = await databases.getDocument({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      documentId: messageId,
+    });
 
     return message.readBy || [];
   } catch {
@@ -563,11 +563,11 @@ export const getMessagesCursor = async (chatId, userId = null, limit = 50, after
       queries.push(Query.cursorAfter(afterCursor));
     }
 
-    const response = await databases.listDocuments(
-      config.databaseId,
-      config.messagesCollectionId,
-      queries
-    );
+    const response = await databases.listDocuments({
+      databaseId: config.databaseId,
+      collectionId: config.messagesCollectionId,
+      queries,
+    });
 
     let documents = response.documents;
 

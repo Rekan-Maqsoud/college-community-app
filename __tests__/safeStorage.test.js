@@ -1,29 +1,39 @@
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  multiRemove: jest.fn(),
+const mockStorage = {
+  getString: jest.fn(),
+  set: jest.fn(),
+  delete: jest.fn(),
   getAllKeys: jest.fn(),
+};
+
+jest.mock('react-native-mmkv', () => ({
+  MMKV: jest.fn(() => mockStorage),
 }));
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import safeStorage from '../app/utils/safeStorage';
 
 describe('safeStorage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockStorage.getString.mockReturnValue(null);
+    mockStorage.set.mockImplementation(() => {});
+    mockStorage.delete.mockImplementation(() => {});
+    mockStorage.getAllKeys.mockReturnValue([]);
   });
 
-  it('uses AsyncStorage when available', async () => {
-    AsyncStorage.getItem.mockResolvedValue('value-1');
+  it('uses MMKV when available', async () => {
+    mockStorage.getString.mockReturnValue('value-1');
     const value = await safeStorage.getItem('k1');
     expect(value).toBe('value-1');
-    expect(AsyncStorage.getItem).toHaveBeenCalledWith('k1');
+    expect(mockStorage.getString).toHaveBeenCalledWith('k1');
   });
 
   it('falls back to memory store when setItem/getItem fail', async () => {
-    AsyncStorage.setItem.mockRejectedValue(new Error('storage down'));
-    AsyncStorage.getItem.mockRejectedValue(new Error('storage down'));
+    mockStorage.set.mockImplementation(() => {
+      throw new Error('storage down');
+    });
+    mockStorage.getString.mockImplementation(() => {
+      throw new Error('storage down');
+    });
 
     await safeStorage.setItem('k2', 'value-2');
     const value = await safeStorage.getItem('k2');
@@ -32,9 +42,15 @@ describe('safeStorage', () => {
   });
 
   it('removes item from fallback memory on removeItem failure', async () => {
-    AsyncStorage.setItem.mockRejectedValue(new Error('storage down'));
-    AsyncStorage.getItem.mockRejectedValue(new Error('storage down'));
-    AsyncStorage.removeItem.mockRejectedValue(new Error('storage down'));
+    mockStorage.set.mockImplementation(() => {
+      throw new Error('storage down');
+    });
+    mockStorage.getString.mockImplementation(() => {
+      throw new Error('storage down');
+    });
+    mockStorage.delete.mockImplementation(() => {
+      throw new Error('storage down');
+    });
 
     await safeStorage.setItem('k3', 'value-3');
     await safeStorage.removeItem('k3');
@@ -44,8 +60,12 @@ describe('safeStorage', () => {
   });
 
   it('returns keys from fallback memory when getAllKeys fails', async () => {
-    AsyncStorage.setItem.mockRejectedValue(new Error('storage down'));
-    AsyncStorage.getAllKeys.mockRejectedValue(new Error('storage down'));
+    mockStorage.set.mockImplementation(() => {
+      throw new Error('storage down');
+    });
+    mockStorage.getAllKeys.mockImplementation(() => {
+      throw new Error('storage down');
+    });
 
     await safeStorage.setItem('k4', 'value-4');
     await safeStorage.setItem('k5', 'value-5');
