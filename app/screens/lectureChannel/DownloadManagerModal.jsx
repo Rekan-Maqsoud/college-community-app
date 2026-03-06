@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity,  StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { FlashList } from '@shopify/flash-list';
 import { spacing, fontSize, moderateScale, wp } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
 

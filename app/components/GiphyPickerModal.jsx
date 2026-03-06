@@ -23,6 +23,7 @@ import {
   wp,
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { FlashList } from '@shopify/flash-list';
 import {
   searchGifs,
   searchStickers,

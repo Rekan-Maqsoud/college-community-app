@@ -24,6 +24,7 @@ import PostCard from './PostCard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { searchUsers } from '../../database/users';
 import { searchPosts, enrichPostsWithUserData } from '../../database/posts';
+import { FlashList } from '@shopify/flash-list';
 
 const SEARCH_FILTERS = {
   ALL: 'all',

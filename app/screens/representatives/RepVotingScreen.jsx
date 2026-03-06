@@ -21,6 +21,7 @@ import RepBadge from '../../components/RepBadge';
 import ProfilePicture from '../../components/ProfilePicture';
 import { wp, hp, fontSize, normalize, spacing } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
+import { FlashList } from '@shopify/flash-list';
 import { getClassStudents } from '../../../database/users';
 import {
   getActiveElection,

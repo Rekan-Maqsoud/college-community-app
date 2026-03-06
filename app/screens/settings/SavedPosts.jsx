@@ -22,8 +22,7 @@ import { togglePostLike } from '../../../database/posts';
 import { wp, hp, fontSize, spacing, moderateScale } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
 import useLayout from '../../hooks/useLayout';
-
-
+import { FlashList } from '@shopify/flash-list';
 
 const SavedPosts = ({ navigation }) => {
   const { t, theme, isDarkMode, triggerHaptic } = useAppSettings();

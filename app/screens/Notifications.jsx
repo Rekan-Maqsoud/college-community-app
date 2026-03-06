@@ -33,6 +33,7 @@ import {
   deleteAllNotifications,
   markNotificationsAsReadByContext,
 } from '../../database/notifications';
+import { FlashList } from '@shopify/flash-list';
 import { useNotifications } from '../hooks/useRealtimeSubscription';
 import PostViewModal from '../components/PostViewModal';
 import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';

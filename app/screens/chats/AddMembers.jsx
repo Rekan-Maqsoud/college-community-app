@@ -29,6 +29,7 @@ import {
 } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
 import useLayout from '../../hooks/useLayout';
+import { FlashList } from '@shopify/flash-list';
 
 const AddMembers = ({ navigation, route }) => {
   const { chat } = route.params || {};

@@ -3,6 +3,7 @@ import { Modal, View, Text, TouchableOpacity, TextInput,  StyleSheet } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, fontSize, wp, moderateScale } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
+import { FlashList } from '@shopify/flash-list';
 
 const buildOrder = (assets = [], currentOrder = []) => {
   const ids = (Array.isArray(assets) ? assets : []).map(item => item.$id).filter(Boolean);

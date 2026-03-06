@@ -22,6 +22,7 @@ import {
   hp,
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { FlashList } from '@shopify/flash-list';
 
 const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
   const { t, theme, isDarkMode } = useAppSettings();

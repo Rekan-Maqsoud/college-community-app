@@ -28,6 +28,7 @@ import {
   moderateScale,
 } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
+import { FlashList } from '@shopify/flash-list';
 
 const UserSearch = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();

@@ -20,6 +20,7 @@ import AnimatedBackground from '../components/AnimatedBackground';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
+import { FlashList } from '@shopify/flash-list';
 
 const FollowList = ({ route, navigation }) => {
   const { userId, initialTab = 'followers', userName } = route.params || {};

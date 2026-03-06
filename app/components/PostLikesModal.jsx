@@ -14,6 +14,7 @@ import { getUserById } from '../../database/users';
 import UserCard from './UserCard';
 import { fontSize, spacing, moderateScale, hp } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { FlashList } from '@shopify/flash-list';
 
 const PostLikesModal = ({ visible, onClose, likedByIds }) => {
   const { t, theme, isDarkMode } = useAppSettings();

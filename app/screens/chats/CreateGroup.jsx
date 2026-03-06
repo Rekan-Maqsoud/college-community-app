@@ -35,6 +35,7 @@ import { borderRadius } from '../../theme/designTokens';
 import useLayout from '../../hooks/useLayout';
 import { pickAndCompressImages } from '../../utils/imageCompression';
 import { uploadToImgbb } from '../../../services/imgbbService';
+import { FlashList } from '@shopify/flash-list';
 
 const CreateGroup = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();

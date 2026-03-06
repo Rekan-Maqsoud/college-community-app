@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { FlashList } from '@shopify/flash-list';
 import styles from '../LectureChannelStyles';
 
 const LectureCommentsModal = ({

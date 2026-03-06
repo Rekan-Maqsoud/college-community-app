@@ -24,6 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import CustomAlert from './CustomAlert';
+import { FlashList } from '@shopify/flash-list';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 

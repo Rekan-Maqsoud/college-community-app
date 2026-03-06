@@ -126,7 +126,7 @@ const sendExpoGeneralPush = async ({
 
   const message = {
     to: token,
-    sound: 'default',
+    sound: true,
     title,
     body,
     data: notifData,
@@ -419,7 +419,7 @@ const setupAndroidNotificationChannels = async () => {
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#FF231F7C',
-    sound: 'default',
+    sound: true,
   });
 
   // Channel for chat messages
@@ -429,7 +429,7 @@ const setupAndroidNotificationChannels = async () => {
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#007AFF',
-    sound: 'default',
+    sound: true,
   });
 
   // Channel for post interactions
@@ -473,7 +473,7 @@ export const scheduleLocalNotification = async ({
       title,
       body,
       data,
-      sound: 'default',
+      sound: true,
     };
 
     if (Platform.OS === 'android') {
@@ -839,7 +839,7 @@ export const sendChatPushNotification = async ({
     // Send notifications using Expo Push API
     const messages = allTokenDocs.map(tokenDoc => ({
       to: tokenDoc.token,
-      sound: 'default',
+      sound: true,
       title,
       body,
       data: {
