@@ -1115,7 +1115,7 @@ const _deleteAllUserPosts = async (userId) => {
             const posts = await databases.listDocuments({
                 databaseId: config.databaseId,
                 collectionId: config.postsCollectionId,
-                queries: [Query.equal('userId', userId), Query.limit(100)],
+                queries: [Query.equal('userId', userId), Query.orderAsc('$createdAt'), Query.limit(100)],
             });
 
             if (posts.documents.length === 0) {
@@ -1160,7 +1160,7 @@ const _deleteAllUserReplies = async (userId) => {
             const replies = await databases.listDocuments({
                 databaseId: config.databaseId,
                 collectionId: config.repliesCollectionId,
-                queries: [Query.equal('userId', userId), Query.limit(100)],
+                queries: [Query.equal('userId', userId), Query.orderAsc('$createdAt'), Query.limit(100)],
             });
 
             if (replies.documents.length === 0) {
@@ -1221,7 +1221,7 @@ const _deleteAllUserNotifications = async (userId) => {
             const notifs = await databases.listDocuments({
                 databaseId: config.databaseId,
                 collectionId: config.notificationsCollectionId,
-                queries: [Query.equal('userId', userId), Query.limit(100)],
+                queries: [Query.equal('userId', userId), Query.orderAsc('$createdAt'), Query.limit(100)],
             });
 
             if (notifs.documents.length === 0) break;
@@ -1245,7 +1245,7 @@ const _deleteAllUserNotifications = async (userId) => {
             const notifs = await databases.listDocuments({
                 databaseId: config.databaseId,
                 collectionId: config.notificationsCollectionId,
-                queries: [Query.equal('senderId', userId), Query.limit(100)],
+                queries: [Query.equal('senderId', userId), Query.orderAsc('$createdAt'), Query.limit(100)],
             });
 
             if (notifs.documents.length === 0) break;
@@ -1275,7 +1275,7 @@ const _deleteAllUserPushTokens = async (userId) => {
         const tokens = await databases.listDocuments({
             databaseId: config.databaseId,
             collectionId: config.pushTokensCollectionId,
-            queries: [Query.equal('userId', userId), Query.limit(100)],
+            queries: [Query.equal('userId', userId), Query.orderAsc('$createdAt'), Query.limit(100)],
         });
 
         for (const token of tokens.documents) {
@@ -1302,7 +1302,7 @@ const _deleteAllUserChatSettings = async (userId) => {
             const settings = await databases.listDocuments({
                 databaseId: config.databaseId,
                 collectionId: config.userChatSettingsCollectionId,
-                queries: [Query.equal('userId', userId), Query.limit(100)],
+                queries: [Query.equal('userId', userId), Query.orderAsc('$createdAt'), Query.limit(100)],
             });
 
             if (settings.documents.length === 0) break;
@@ -1334,7 +1334,7 @@ const _anonymizeUserMessages = async (userId) => {
             const messages = await databases.listDocuments({
                 databaseId: config.databaseId,
                 collectionId: config.messagesCollectionId,
-                queries: [Query.equal('senderId', userId), Query.limit(100)],
+                queries: [Query.equal('senderId', userId), Query.orderAsc('$createdAt'), Query.limit(100)],
             });
 
             if (messages.documents.length === 0) break;
@@ -1367,7 +1367,7 @@ const _removeUserFromChats = async (userId) => {
             const chats = await databases.listDocuments({
                 databaseId: config.databaseId,
                 collectionId: config.chatsCollectionId,
-                queries: [Query.contains('participants', [userId]), Query.limit(50)],
+                queries: [Query.contains('participants', [userId]), Query.orderAsc('$createdAt'), Query.limit(50)],
             });
 
             if (chats.documents.length === 0) break;

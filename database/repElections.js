@@ -311,6 +311,7 @@ export const ensureActiveElectionsForAllClasses = async () => {
         databaseId: DB_ID(),
         collectionId: config.usersCollectionId,
         queries: [
+          Query.orderAsc('$createdAt'),
           Query.limit(batchSize),
           Query.offset(offset),
         ],

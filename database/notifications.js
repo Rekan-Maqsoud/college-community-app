@@ -450,6 +450,7 @@ export const getUnreadNotificationCount = async (userId, options = {}) => {
             queries: [
                 Query.equal('userId', userId),
                 Query.equal('isRead', false),
+                Query.orderDesc('$createdAt'),
                 Query.limit(100),
             ]
         });
@@ -527,6 +528,7 @@ export const markAllNotificationsAsRead = async (userId) => {
             queries: [
                 Query.equal('userId', userId),
                 Query.equal('isRead', false),
+                Query.orderDesc('$createdAt'),
                 Query.limit(100),
             ]
         });
@@ -615,6 +617,7 @@ export const deleteAllNotifications = async (userId) => {
             collectionId: config.notificationsCollectionId,
             queries: [
                 Query.equal('userId', userId),
+                Query.orderDesc('$createdAt'),
                 Query.limit(100),
             ]
         });
@@ -662,6 +665,7 @@ export const deleteNotificationsByPostId = async (postId) => {
                 collectionId: config.notificationsCollectionId,
                 queries: [
                     Query.equal('postId', postId),
+                    Query.orderAsc('$createdAt'),
                     Query.limit(100),
                 ]
             });
@@ -1173,51 +1177,68 @@ export const markNotificationsAsReadByContext = async (userId, filters = {}) => 
         const types = Array.isArray(filters?.types)
             ? filters.types.filter((type) => typeof type === 'string' && type.trim().length > 0)
             : [];
+        const pageSize = 100;
+        let totalMarked = 0;
+        let lastCursor = null;
+        let hasMore = true;
 
-        const queries = [
-            Query.equal('userId', userId),
-            Query.equal('isRead', false),
-            Query.limit(100),
-        ];
+        while (hasMore) {
+            const queries = [
+                Query.equal('userId', userId),
+                Query.equal('isRead', false),
+                Query.orderDesc('$createdAt'),
+                Query.limit(pageSize),
+            ];
 
-        if (postId) {
-            queries.push(Query.equal('postId', postId));
+            if (postId) {
+                queries.push(Query.equal('postId', postId));
+            }
+
+            if (senderId) {
+                queries.push(Query.equal('senderId', senderId));
+            }
+
+            if (types.length > 0) {
+                queries.push(Query.equal('type', types));
+            }
+
+            if (lastCursor) {
+                queries.push(Query.cursorAfter(lastCursor));
+            }
+
+            const result = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.notificationsCollectionId,
+                queries,
+            });
+
+            const unread = result?.documents || [];
+            if (unread.length === 0) {
+                break;
+            }
+
+            await Promise.all(
+                unread.map((notification) =>
+                    databases.updateDocument({
+                        databaseId: config.databaseId,
+                        collectionId: config.notificationsCollectionId,
+                        documentId: notification.$id,
+                        data: { isRead: true }
+                    })
+                )
+            );
+
+            totalMarked += unread.length;
+            hasMore = unread.length === pageSize;
+            lastCursor = unread[unread.length - 1]?.$id || null;
         }
 
-        if (senderId) {
-            queries.push(Query.equal('senderId', senderId));
+        if (totalMarked > 0) {
+            await unreadCountCacheManager.invalidateNotificationUnreadCount(userId);
+            await notificationsCacheManager.invalidateUserNotifications(userId);
         }
 
-        if (types.length > 0) {
-            queries.push(Query.equal('type', types));
-        }
-
-        const result = await databases.listDocuments({
-            databaseId: config.databaseId,
-            collectionId: config.notificationsCollectionId,
-            queries,
-        });
-
-        const unread = result?.documents || [];
-        if (unread.length === 0) {
-            return 0;
-        }
-
-        await Promise.all(
-            unread.map((notification) =>
-                databases.updateDocument({
-                    databaseId: config.databaseId,
-                    collectionId: config.notificationsCollectionId,
-                    documentId: notification.$id,
-                    data: { isRead: true }
-                })
-            )
-        );
-
-        await unreadCountCacheManager.invalidateNotificationUnreadCount(userId);
-        await notificationsCacheManager.invalidateUserNotifications(userId);
-
-        return unread.length;
+        return totalMarked;
     } catch (error) {
         return 0;
     }

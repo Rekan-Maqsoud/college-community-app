@@ -227,6 +227,7 @@ export const clearChatMessages = async (chatId, actorUserId = null) => {
         collectionId: config.messagesCollectionId,
         queries: [
           Query.equal('chatId', chatId),
+          Query.orderAsc('$createdAt'),
           Query.limit(100),
         ]
       });

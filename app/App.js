@@ -21,6 +21,12 @@ import realtimeDebugLogger from './utils/realtimeDebugLogger';
 import telemetry from './utils/telemetry';
 import { initCrashReporting, setCrashReportingUser } from './utils/crashReporting';
 import { REFRESH_TOPICS, publishRefreshEvent, subscribeToRefreshTopic } from './utils/dataRefreshBus';
+import {
+  computeReconnectDelayMs,
+  isRealtimeSocketConnected,
+  shouldReconnectRealtime,
+  tryReconnectRealtime,
+} from './utils/realtimeReconnect';
 import { getCurrentUser, getUserDocument, signOut } from '../database/auth';
 import { getAllUserChats } from '../database/chatHelpers';
 import { getTotalUnreadCount, getChat } from '../database/chats';
@@ -992,31 +998,68 @@ const NotificationSetup = ({ navigationRef }) => {
 
 const RealtimeLifecycleManager = () => {
   const resumeTimeoutRef = useRef(null);
+  const reconnectTimerRef = useRef(null);
+  const reconnectAttemptRef = useRef(0);
   const appStateRef = useRef(AppState.currentState);
 
-  const reconnectRealtimeSafely = useCallback((realtime) => {
-    if (!realtime || typeof realtime.connect !== 'function') {
-      return;
-    }
-
-    const channels = realtime.channels instanceof Set
-      ? Array.from(realtime.channels)
-      : Array.isArray(realtime.channels)
-        ? realtime.channels
-        : [];
-
-    if (channels.length === 0) {
-      return;
-    }
-
-    try {
-      realtime.connect();
-    } catch (error) {
-      // Avoid calling connect() without channels to prevent SDK shape mismatch errors
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
     }
   }, []);
 
+  const scheduleReconnect = useCallback(() => {
+    clearReconnectTimer();
+
+    const delayMs = computeReconnectDelayMs(reconnectAttemptRef.current);
+    reconnectTimerRef.current = setTimeout(() => {
+      reconnectTimerRef.current = null;
+
+      if (appStateRef.current !== 'active') {
+        return;
+      }
+
+      const realtime = appwriteClient?.realtime;
+      if (!realtime || !shouldReconnectRealtime(realtime)) {
+        reconnectAttemptRef.current = 0;
+        return;
+      }
+
+      const connected = tryReconnectRealtime(realtime);
+      if (connected || isRealtimeSocketConnected(realtime)) {
+        reconnectAttemptRef.current = 0;
+        return;
+      }
+
+      reconnectAttemptRef.current += 1;
+      scheduleReconnect();
+    }, delayMs);
+  }, [clearReconnectTimer]);
+
+  const reconnectRealtimeSafely = useCallback(() => {
+    const realtime = appwriteClient?.realtime;
+    if (!realtime || !shouldReconnectRealtime(realtime)) {
+      reconnectAttemptRef.current = 0;
+      clearReconnectTimer();
+      return;
+    }
+
+    const connected = tryReconnectRealtime(realtime);
+    if (connected || isRealtimeSocketConnected(realtime)) {
+      reconnectAttemptRef.current = 0;
+      clearReconnectTimer();
+      return;
+    }
+
+    reconnectAttemptRef.current += 1;
+    scheduleReconnect();
+  }, [clearReconnectTimer, scheduleReconnect]);
+
   const pauseRealtime = useCallback(() => {
+    clearReconnectTimer();
+    reconnectAttemptRef.current = 0;
+
     const realtime = appwriteClient?.realtime;
     if (!realtime) {
       return;
@@ -1035,7 +1078,7 @@ const RealtimeLifecycleManager = () => {
     } catch (error) {
       // Ignore realtime teardown errors
     }
-  }, []);
+  }, [clearReconnectTimer]);
 
   const resumeRealtime = useCallback(() => {
     const realtime = appwriteClient?.realtime;
@@ -1053,7 +1096,7 @@ const RealtimeLifecycleManager = () => {
           : false;
 
       if (hasChannels && (!realtime.socket || realtime.socket.readyState > 1)) {
-        reconnectRealtimeSafely(realtime);
+        reconnectRealtimeSafely();
       }
     } catch (error) {
       // Ignore realtime startup errors
@@ -1084,8 +1127,9 @@ const RealtimeLifecycleManager = () => {
       if (resumeTimeoutRef.current) {
         clearTimeout(resumeTimeoutRef.current);
       }
+      clearReconnectTimer();
     };
-  }, [pauseRealtime, resumeRealtime]);
+  }, [clearReconnectTimer, pauseRealtime, resumeRealtime]);
 
   return null;
 };

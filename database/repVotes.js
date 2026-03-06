@@ -79,6 +79,7 @@ export const castVote = async (electionId, candidateId) => {
       collectionId: COLLECTION_ID(),
       queries: [
         Query.equal('electionId', electionId),
+        Query.orderDesc('$createdAt'),
         Query.limit(1),
       ],
     });
@@ -91,6 +92,7 @@ export const castVote = async (electionId, candidateId) => {
       queries: [
         Query.equal('electionId', electionId),
         Query.equal('voterId', voterId),
+        Query.orderDesc('$createdAt'),
         Query.limit(1),
       ],
     });
@@ -171,6 +173,7 @@ export const removeVote = async (electionId) => {
       queries: [
         Query.equal('electionId', electionId),
         Query.equal('voterId', voterId),
+        Query.orderDesc('$createdAt'),
         Query.limit(1),
       ],
     });
@@ -209,6 +212,7 @@ export const getElectionResults = async (electionId) => {
         collectionId: COLLECTION_ID(),
         queries: [
           Query.equal('electionId', electionId),
+          Query.orderAsc('$createdAt'),
           Query.limit(batchSize),
           Query.offset(offset),
         ],
@@ -260,6 +264,7 @@ export const getMyVote = async (electionId) => {
       queries: [
         Query.equal('electionId', electionId),
         Query.equal('voterId', currentUser.$id),
+        Query.orderDesc('$createdAt'),
         Query.limit(1),
       ],
     });

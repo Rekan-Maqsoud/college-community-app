@@ -149,3 +149,4 @@ npm run audit:acl
 - JavaScript-only project (no TypeScript).
 - Translation keys are used for user-visible UI text.
 - Live database schema reference: `.github/instructions/database-schema.instructions.md`.
+- Hermes V1 Android source-build guard and ICU setup: `docs/hermes-v1-android.md`.

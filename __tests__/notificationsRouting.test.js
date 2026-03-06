@@ -106,6 +106,7 @@ import {
   createNotification,
   getNotifications,
   getNotificationsCursor,
+  markNotificationsAsReadByContext,
   markNotificationAsRead,
   NOTIFICATION_TYPES,
 } from '../database/notifications';
@@ -194,5 +195,33 @@ describe('markNotificationAsRead', () => {
   it('marks notification as read', async () => {
     const result = await markNotificationAsRead('n1');
     expect(result.isRead).toBe(true);
+  });
+});
+
+describe('markNotificationsAsReadByContext', () => {
+  it('marks all matching unread notifications in one batch', async () => {
+    mockListDocuments.mockResolvedValueOnce({
+      documents: [
+        { $id: 'n1', userId: 'user-1', isRead: false },
+        { $id: 'n2', userId: 'user-1', isRead: false },
+      ],
+      total: 2,
+    });
+
+    const count = await markNotificationsAsReadByContext('user-1', { postId: 'p1' });
+    expect(count).toBe(2);
+    expect(mockUpdateDocument).toHaveBeenCalled();
+  });
+
+  it('paginates when more than one batch is required', async () => {
+    const pageOne = Array.from({ length: 100 }, (_, i) => ({ $id: `a${i}` }));
+    const pageTwo = [{ $id: 'b1' }, { $id: 'b2' }];
+
+    mockListDocuments
+      .mockResolvedValueOnce({ documents: pageOne, total: 102 })
+      .mockResolvedValueOnce({ documents: pageTwo, total: 102 });
+
+    const count = await markNotificationsAsReadByContext('user-1', { senderId: 'user-2' });
+    expect(count).toBe(102);
   });
 });

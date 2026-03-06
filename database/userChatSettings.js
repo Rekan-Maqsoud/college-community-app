@@ -91,6 +91,7 @@ export const getUserChatSettings = async (userId, chatId) => {
             queries: [
                 Query.equal('userId', userId),
                 Query.equal('chatId', chatId),
+                Query.orderDesc('$createdAt'),
                 Query.limit(1)
             ]
         });
@@ -191,6 +192,7 @@ export const updateReactionDefaultsForAllChats = async (userId, reactions = [], 
             collectionId: config.userChatSettingsCollectionId,
             queries: [
                 Query.equal('userId', userId),
+                Query.orderAsc('$createdAt'),
                 Query.limit(100),
                 Query.offset(offset),
             ]
@@ -230,6 +232,7 @@ export const updateReactionDefaultsForAllChats = async (userId, reactions = [], 
                 collectionId: config.chatsCollectionId,
                 queries: [
                     Query.equal('participants', userId),
+                    Query.orderAsc('$createdAt'),
                     Query.limit(100),
                     Query.offset(chatsOffset),
                 ]
@@ -289,6 +292,7 @@ export const updateUserChatSettings = async (userId, chatId, updates) => {
             queries: [
                 Query.equal('userId', userId),
                 Query.equal('chatId', chatId),
+                Query.orderDesc('$createdAt'),
                 Query.limit(1)
             ]
         });
@@ -563,6 +567,7 @@ export const deleteUserChatSettingsByChatId = async (chatId) => {
                 collectionId: config.userChatSettingsCollectionId,
                 queries: [
                     Query.equal('chatId', chatId),
+                    Query.orderAsc('$createdAt'),
                     Query.limit(100)
                 ]
             });

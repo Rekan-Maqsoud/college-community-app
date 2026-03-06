@@ -396,6 +396,7 @@ export const deleteRepliesByPost = async (postId) => {
                 collectionId: config.repliesCollectionId,
                 queries: [
                     Query.equal('postId', postId),
+                    Query.orderAsc('$createdAt'),
                     Query.limit(100)
                 ],
             });

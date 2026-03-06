@@ -926,7 +926,7 @@ export const updateUserPushToken = async (userId, token, platform = 'unknown') =
         const existing = await databases.listDocuments({
             databaseId: config.databaseId,
             collectionId: config.pushTokensCollectionId,
-            queries: [Query.equal('userId', userId), Query.limit(1)],
+            queries: [Query.equal('userId', userId), Query.orderDesc('$createdAt'), Query.limit(1)],
         });
 
         if (existing.documents.length > 0) {
@@ -961,7 +961,7 @@ export const getUserPushToken = async (userId) => {
         const result = await databases.listDocuments({
             databaseId: config.databaseId,
             collectionId: config.pushTokensCollectionId,
-            queries: [Query.equal('userId', userId), Query.limit(1)],
+            queries: [Query.equal('userId', userId), Query.orderDesc('$createdAt'), Query.limit(1)],
         });
 
         if (result.documents.length > 0) {
@@ -983,7 +983,7 @@ export const deleteUserPushToken = async (userId) => {
         const existing = await databases.listDocuments({
             databaseId: config.databaseId,
             collectionId: config.pushTokensCollectionId,
-            queries: [Query.equal('userId', userId), Query.limit(1)],
+            queries: [Query.equal('userId', userId), Query.orderDesc('$createdAt'), Query.limit(1)],
         });
 
         if (existing.documents.length > 0) {

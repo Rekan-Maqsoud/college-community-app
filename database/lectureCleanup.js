@@ -15,6 +15,7 @@ const listAllDocuments = async (collectionId, queries = []) => {
       collectionId,
       queries: [
         ...queries,
+        Query.orderAsc('$createdAt'),
         Query.limit(pageSize),
         Query.offset(offset),
       ]

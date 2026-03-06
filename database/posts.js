@@ -591,6 +591,7 @@ export const createRepost = async (originalPostId, userId, repostData = {}) => {
                 Query.equal('userId', effectiveUserId),
                 Query.equal('isRepost', true),
                 Query.equal('originalPostId', rootOriginal.$id),
+                Query.orderDesc('$createdAt'),
                 Query.limit(1),
             ]
         });
@@ -1086,7 +1087,8 @@ export const getReplies = async (postId) => {
             collectionId: config.repliesCollectionId,
             queries: [
                 Query.equal('postId', postId),
-                Query.orderAsc('$createdAt')
+                Query.orderAsc('$createdAt'),
+                Query.limit(200),
             ]
         });
         return replies.documents;

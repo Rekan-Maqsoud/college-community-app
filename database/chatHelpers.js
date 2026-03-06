@@ -26,6 +26,7 @@ export const getOrCreateStageGroup = async (department, stage) => {
                 Query.equal('department', department),
                 Query.equal('stage', stageValue),
                 Query.equal('type', CHAT_TYPES.STAGE_GROUP),
+                Query.orderDesc('$createdAt'),
                 Query.limit(1)
             ]
         });
@@ -69,6 +70,7 @@ export const getOrCreateDepartmentGroup = async (department) => {
             queries: [
                 Query.equal('department', department),
                 Query.equal('type', CHAT_TYPES.DEPARTMENT_GROUP),
+                Query.orderDesc('$createdAt'),
                 Query.limit(1)
             ]
         });
@@ -158,6 +160,7 @@ export const getPrivateChat = async (userId1, userId2) => {
             queries: [
                 Query.equal('type', PRIVATE_CHAT_TYPE),
                 Query.equal('chatKey', chatKey),
+                Query.orderDesc('$createdAt'),
                 Query.limit(1)
             ]
         });
