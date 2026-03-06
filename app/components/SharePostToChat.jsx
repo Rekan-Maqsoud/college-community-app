@@ -4,8 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
-  FlatList,
+  TextInput, 
   ActivityIndicator,
   Modal,
   Pressable,
@@ -208,7 +207,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
               <ActivityIndicator size="large" color={theme.primary} />
             </View>
           ) : (
-            <FlatList
+            <FlashList
               data={filteredChats}
               renderItem={renderChatItem}
               keyExtractor={(item) => item.$id}

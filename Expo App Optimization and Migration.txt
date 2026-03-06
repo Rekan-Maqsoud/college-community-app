@@ -1,13 +1,4 @@
-✅ Prompt 1: The Core Runtime (Start Here). Instruct your AI to upgrade to Expo SDK 55, enforce the New Architecture, and enable Hermes V1 via the expo-build-properties plugin. This requires zero logic changes but immediately improves execution speed.
-✅ Prompt 2: Appwrite Refactor. Direct the AI to refactor all Appwrite endpoints to use object-based arguments instead of positional ones. Tell it to add exponential backoff to your safeSubscribe wrapper. With your self-hosted DigitalOcean server handling the backend traffic, this prevents server overload when thousands of students reconnect simultaneously.
-Prompt 3: Memory & Storage. Tell the AI to swap AsyncStorage for react-native-mmkv to achieve synchronous local caching. Migrate the English, Arabic, and Kurdish localizations from i18n-js to react-i18next. This ensures the heavy translation dictionaries load dynamically rather than blocking the app's startup sequence.
-Prompt 4: List Rendering. Target the UI bottlenecks by prompting the AI to replace every FlatList with FlashList v2. Ensure it removes the deprecated inverted props and relies on maintainVisibleContentPosition for the encrypted chat screens.
-✅ Prompt 5: Media & Crypto. Instruct the AI to split expo-av into expo-video and expo-audio. Have it replace legacy browserify crypto packages with react-native-quick-crypto for the end-to-end encryption module to stop the UI from freezing.
 
-
-
-
-*****************************************
 Strategic 2026 Codebase Modernization 
 and Performance Audit for the College 
 Community Application
@@ -29,9 +20,9 @@ associated with altering an 80,000-line codebase. Instead, the optimization stra
 strictly on late-stage, low-risk drop-in replacements, the modernization of deprecated 
 dependencies, and the aggressive leveraging of the new synchronous native execution 
 environments introduced in React Native 0.83 and Expo SDK 55.
-✅ The Core Runtime: Enforcing the New Architecture 
+ The Core Runtime: Enforcing the New Architecture 
 and Hermes V1
-✅ The foundational runtime environment of the application must be updated to align with the 
+ The foundational runtime environment of the application must be updated to align with the 
 stringent 2026 React Native standards. The transition from Expo SDK 54 to SDK 55 marks the 
 definitive end of the legacy React Native architecture.
 Historically, React Native relied upon an asynchronous bridge to facilitate communication 
@@ -109,13 +100,13 @@ restore the exact search status, scroll position, and user input selections with
 network re-fetch or a complete component remount. This API effectively isolates performance 
 degradation, ensuring that the JavaScript thread remains fully dedicated to the screen the user 
 is currently interacting with.
-✅ High-Performance Cryptography and Local State 
+ High-Performance Cryptography and Local State 
 Persistence
 The technical specifications of the application indicate the implementation of End-to-End 
 Encryption (E2EE) primitives within the database/chats.js module. Furthermore, managing 
 realtime updates for feeds and chat messages necessitates a highly robust local caching 
 strategy to ensure data integrity and offline availability.
-✅ Replacing JavaScript Cryptographic Polyfills
+ Replacing JavaScript Cryptographic Polyfills
 In the absence of a native browser environment, React Native developers historically relied 
 upon JavaScript-based cryptographic polyfills, such as crypto-browserify, hybrid-crypto-js, or 
 tweetnacl. These pure JavaScript implementations present a severe risk in a mobile context. 
@@ -133,7 +124,7 @@ and decryption algorithms hundreds of times faster than previous iterations. Bec
 signatures intentionally mirror standard Node.js crypto modules, this migration represents a 
 remarkably low-risk intervention that fundamentally hardens the performance and security 
 posture of the private messaging infrastructure.
-Accelerating Data Synchronization with MMKV
+ Accelerating Data Synchronization with MMKV
 The application's reliance on Appwrite for realtime feed updates and chat delivery requires an 
 offline-first architecture to manage the "double-update" synchronization problem. When a user 
 submits a post or a chat message, the application must immediately commit an optimistic 
@@ -173,13 +164,13 @@ leverage MMKV will allow the application to serialize and deserialize complex th
 trees and encrypted message objects without dropping rendering frames. Furthermore, the 
 recent release of react-native-mmkv version 4.1.0 introduces enhanced storage management 
 APIs and streamlined iOS podspecs, ensuring deep compatibility with the New Architecture.
-✅ Modernizing Media Handling and External Asset 
+ Modernizing Media Handling and External Asset 
 Integration
 The "Lecture Hub" and "Chats" modules are heavily dependent on external media assets, 
 including voice notes, video files, and embedded YouTube lectures. The libraries governing 
 these interactions have undergone drastic ecosystem shifts, rendering previous 
 implementations unstable.
-✅ Deprecation of expo-av and the Dual-System Migration
+ Deprecation of expo-av and the Dual-System Migration
 Historically, Expo applications managed all audiovisual assets through the monolithic expo-av 
 package. This legacy package forced a conceptual entanglement between the native playback 
 logic and the React visual rendering layer. Developers were required to attach a React useRef 
@@ -288,7 +279,7 @@ implementation)
 Native Only
 Low (Automatic sizing, 
 robust type safety)
-✅ Backend Synchronization: Appwrite Integration 
+ Backend Synchronization: Appwrite Integration 
 Standards
 The College Community application utilizes Appwrite as a comprehensive Backend-as-a-
 Service, governing authentication, database querying, storage manipulation, and realtime event 
@@ -310,7 +301,7 @@ Furthermore, concerning the authentication flow (initiateSignup and verifyOTPCod
 integration of the React Native SDK ensures that secure storage mechanisms are properly 
 utilized to manage the lifecycle of session tokens, compensating for the lack of browser-based 
 cookie management within the mobile environment.
-✅ Migration to Object-Based Arguments
+ Migration to Object-Based Arguments
 The Appwrite JavaScript SDKs have undergone a significant API redesign, moving away from 
 legacy positional arguments in favor of modern object-based arguments.
 Historically, executing a query or manipulating a storage bucket required developers to pass 
@@ -338,7 +329,7 @@ The object-argument architecture vastly improves code maintainability. All inter
 database/, appwrite-functions/, and services/ directories must be refactored to this syntax. This 
 upgrade prevents parameter misalignment and ensures strict type-checking safety as the 
 Appwrite platform evolves.
-✅ Enhancing Realtime Subscription Resiliency
+ Enhancing Realtime Subscription Resiliency
 The document notes the deployment of a safeSubscribe wrapper designed to manage realtime 
 post updates and connection retries. While this foundational logic is sound, it must be hardened 
 against the realities of mobile network instability.
@@ -354,7 +345,7 @@ throttling. Furthermore, developers must distinguish between scenarios requiring
 subscriptions versus smart querying. For historical chat data, the application should leverage 
 listDocuments with robust filtering and pagination boundaries, reserving the memory-intensive 
 Realtime API strictly for active, live channels.
-Internationalization and Bundle Optimization
+ Internationalization and Bundle Optimization
 The application currently utilizes the i18n-js library to facilitate English, Arabic, and Kurdish 
 localizations. While historically popular for its lightweight nature, i18n-js lacks the sophisticated 
 performance features required by large-scale applications in 2026, and its maintenance lifecycle 

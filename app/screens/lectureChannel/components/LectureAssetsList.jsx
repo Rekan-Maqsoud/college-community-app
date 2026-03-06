@@ -1,5 +1,6 @@
 import React from 'react';
-import { FlatList, Image, Linking, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, Text, TouchableOpacity, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { moderateScale } from '../../../utils/responsive';
@@ -263,7 +264,7 @@ const LectureAssetsList = ({
   return (
     <>
       <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('lectures.uploads')}</Text>
-      <FlatList
+      <FlashList
         data={assetListData}
         keyExtractor={(item) => item.id}
         renderItem={renderAsset}

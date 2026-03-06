@@ -5,8 +5,7 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  ActivityIndicator,
-  FlatList,
+  ActivityIndicator, 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -133,7 +132,7 @@ const PostLikesModal = ({ visible, onClose, likedByIds }) => {
               <Text style={[styles.stateText, { color: theme.textSecondary }]}>{error}</Text>
             </View>
           ) : (
-            <FlatList
+            <FlashList
               data={users}
               renderItem={renderUser}
               keyExtractor={(item) => item.$id}

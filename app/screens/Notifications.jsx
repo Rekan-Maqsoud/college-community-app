@@ -3,8 +3,7 @@ import {
   AppState,
   View,
   Text,
-  StyleSheet,
-  FlatList,
+  StyleSheet, 
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
@@ -1079,7 +1078,7 @@ const Notifications = ({ navigation }) => {
             <NotificationSkeleton count={7} />
           </View>
         ) : (
-          <FlatList
+          <FlashList
             data={groupedNotifications}
             keyExtractor={(item) => item.isGroup ? item.id : item.notification.$id}
             renderItem={({ item, index }) => {

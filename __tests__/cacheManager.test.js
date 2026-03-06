@@ -76,7 +76,7 @@ describe('cacheManager', () => {
 
     expect(safeStorage.setItem).toHaveBeenCalled();
     const payload = JSON.parse(safeStorage.setItem.mock.calls[0][1]);
-    expect(payload.value[0].$id).toBe('m2');
-    expect(payload.value[1].$id).toBe('m1');
+    expect(payload.value[0].$id).toBe('m1');
+    expect(payload.value[1].$id).toBe('m2');
   });
 });

@@ -6,8 +6,7 @@ import {
   StatusBar,
   Platform,
   TouchableOpacity,
-  TextInput,
-  FlatList,
+  TextInput, 
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -296,7 +295,7 @@ const AddMembers = ({ navigation, route }) => {
               </Text>
             </View>
           ) : (
-            <FlatList
+            <FlashList
               data={displayUsers}
               keyExtractor={(item) => item.$id}
               renderItem={renderUserItem}

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
+import React, { Activity, useEffect, useState, useCallback, useRef } from 'react';
+import { NavigationContainer, useIsFocused, useNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +11,6 @@ import * as Linking from 'expo-linking';
 import * as Updates from 'expo-updates';
 import { AppSettingsProvider, useAppSettings } from './context/AppSettingsContext';
 import { UserProvider, useUser } from './context/UserContext';
-import { LanguageProvider } from './context/LanguageContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import PostViewModal from './components/PostViewModal';
 import CustomAlert from './components/CustomAlert';
@@ -127,6 +126,27 @@ if (__DEV__ && !global.__APPWRITE_SERVER_ERROR_FILTER__) {
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+
+const withActivityBoundary = (ScreenComponent, screenName) => {
+  const WrappedScreen = (props) => {
+    const isFocused = useIsFocused();
+
+    return (
+      <Activity mode={isFocused ? 'visible' : 'hidden'}>
+        <ScreenComponent {...props} />
+      </Activity>
+    );
+  };
+
+  WrappedScreen.displayName = `${screenName}ActivityBoundary`;
+  return WrappedScreen;
+};
+
+const HomeWithActivity = withActivityBoundary(Home, 'Home');
+const ChatsWithActivity = withActivityBoundary(Chats, 'Chats');
+const PostWithActivity = withActivityBoundary(Post, 'Post');
+const LectureWithActivity = withActivityBoundary(Lecture, 'Lecture');
+const ProfileWithActivity = withActivityBoundary(Profile, 'Profile');
 
 const AnimatedTabIcon = ({ focused, iconName, color, size }) => {
   const scaleValue = React.useRef(new Animated.Value(1)).current;
@@ -277,12 +297,12 @@ const TabNavigator = () => {
     >
       <Tab.Screen 
         name="Home" 
-        component={Home} 
+        component={HomeWithActivity} 
         options={{ title: t('tabs.home') }}
       />
       <Tab.Screen 
         name="Chats" 
-        component={Chats} 
+        component={ChatsWithActivity} 
         options={{ 
           title: t('tabs.chats'),
           tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined,
@@ -297,7 +317,7 @@ const TabNavigator = () => {
       />
       <Tab.Screen 
         name="Post" 
-        component={Post} 
+        component={PostWithActivity} 
         options={{ 
           title: t('tabs.post'),
           tabBarIconStyle: { marginTop: -4 }
@@ -305,12 +325,12 @@ const TabNavigator = () => {
       />
       <Tab.Screen 
         name="Lecture" 
-        component={Lecture} 
+        component={LectureWithActivity} 
         options={{ title: t('tabs.lecture') }}
       />
       <Tab.Screen 
         name="Profile" 
-        component={Profile} 
+        component={ProfileWithActivity} 
         options={{ title: t('tabs.profile') }}
       />
     </Tab.Navigator>
@@ -1226,36 +1246,34 @@ export default function App() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <ErrorBoundary>
-            <LanguageProvider>
-              <AppSettingsProvider>
-                <UserProvider>
-                  <GlobalAlertProvider>
-                    <NavigationContainer
-                      ref={navigationRef}
-                      onReady={() => {
-                        if (coldStartTrace.current) {
-                          coldStartTrace.current.finish({ success: true });
-                          coldStartTrace.current = null;
-                        }
-                        if (pendingRouteRef.current && navigationRef.isReady()) {
-                          const { name, params } = pendingRouteRef.current;
-                          pendingRouteRef.current = null;
-                          navigationRef.navigate(name, params);
-                        }
-                      }}>
-                      <RealtimeLifecycleManager />
-                      <CrashReportingUserSync />
-                      <LastSeenTracker />
-                      <NotificationSetup navigationRef={navigationRef} />
-                      <DeepLinkHandler navigationRef={navigationRef} pendingRouteRef={pendingRouteRef} />
-                      <UpdatePrompt />
-                      <MainStack />
-                    </NavigationContainer>
-                    <GlobalCustomAlert />
-                  </GlobalAlertProvider>
-                </UserProvider>
-              </AppSettingsProvider>
-            </LanguageProvider>
+            <AppSettingsProvider>
+              <UserProvider>
+                <GlobalAlertProvider>
+                  <NavigationContainer
+                    ref={navigationRef}
+                    onReady={() => {
+                      if (coldStartTrace.current) {
+                        coldStartTrace.current.finish({ success: true });
+                        coldStartTrace.current = null;
+                      }
+                      if (pendingRouteRef.current && navigationRef.isReady()) {
+                        const { name, params } = pendingRouteRef.current;
+                        pendingRouteRef.current = null;
+                        navigationRef.navigate(name, params);
+                      }
+                    }}>
+                    <RealtimeLifecycleManager />
+                    <CrashReportingUserSync />
+                    <LastSeenTracker />
+                    <NotificationSetup navigationRef={navigationRef} />
+                    <DeepLinkHandler navigationRef={navigationRef} pendingRouteRef={pendingRouteRef} />
+                    <UpdatePrompt />
+                    <MainStack />
+                  </NavigationContainer>
+                  <GlobalCustomAlert />
+                </GlobalAlertProvider>
+              </UserProvider>
+            </AppSettingsProvider>
           </ErrorBoundary>
         </SafeAreaProvider>
       </GestureHandlerRootView>

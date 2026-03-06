@@ -5,7 +5,6 @@ import {
   StyleSheet,
   StatusBar,
   Platform,
-  FlatList,
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
@@ -14,6 +13,7 @@ import {
   ScrollView,
   useWindowDimensions,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,7 +52,7 @@ import useLayout from '../hooks/useLayout';
 import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
 
 const POSTS_PER_PAGE = 15;
-const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
+const AnimatedFlatList = Animated.createAnimatedComponent(FlashList);
 
 const Home = ({ navigation, route }) => {
   const {

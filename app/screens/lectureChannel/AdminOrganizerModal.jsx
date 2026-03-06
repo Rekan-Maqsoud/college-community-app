@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, TextInput, FlatList, StyleSheet } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, TextInput,  StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, fontSize, wp, moderateScale } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
@@ -146,7 +146,7 @@ const AdminOrganizerModal = ({
           </View>
 
           <View style={styles.foldersWrap}>
-            <FlatList
+            <FlashList
               horizontal
               data={draftFolders}
               keyExtractor={(item) => item.id}
@@ -165,7 +165,7 @@ const AdminOrganizerModal = ({
             />
           </View>
 
-          <FlatList
+          <FlashList
             data={orderedAssets}
             keyExtractor={(item) => item.$id}
             renderItem={({ item, index }) => {

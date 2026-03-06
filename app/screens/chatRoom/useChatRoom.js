@@ -124,7 +124,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       decryptedPayload = normalizedPayload;
     }
 
-    // Insert at beginning for inverted FlatList (newest first)
+    // Keep chronological order (oldest -> newest) for non-inverted FlashList.
     if (!isMountedRef.current) {
       return;
     }
@@ -150,7 +150,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
         );
       }
 
-      return [decryptedPayload, ...prev];
+      return [...prev, decryptedPayload];
     });
 
     // Keep cache in sync with new messages
@@ -338,6 +338,9 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
         if (hiddenMessageIds.length > 0) {
           cachedMessages = cachedMessages.filter(m => !hiddenMessageIds.includes(m.$id));
         }
+        cachedMessages = cachedMessages
+          .slice()
+          .sort((a, b) => new Date(a.$createdAt || a.createdAt) - new Date(b.$createdAt || b.createdAt));
         if (cachedMessages.length > 0) {
           setMessages(cachedMessages);
           setLoading(false);
@@ -373,9 +376,6 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
 
       lastMessageId.current = freshMessages.length > 0 ? freshMessages[freshMessages.length - 1].$id : null;
 
-      // Reverse for inverted FlatList (newest first)
-      const invertedFresh = freshMessages.slice().reverse();
-
       if (!isMountedRef.current) {
         return;
       }
@@ -383,10 +383,10 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       // Merge silently: only update if there are meaningful changes
       setMessages(prev => {
         const prevIds = prev.map(m => m.$id).join(',');
-        const newIds = invertedFresh.map(m => m.$id).join(',');
-        if (prevIds === newIds && prev.length === invertedFresh.length) {
+        const newIds = freshMessages.map(m => m.$id).join(',');
+        if (prevIds === newIds && prev.length === freshMessages.length) {
           // Check for content updates (like readBy, status)
-          const hasUpdates = invertedFresh.some((newMsg, idx) => {
+          const hasUpdates = freshMessages.some((newMsg, idx) => {
             const oldMsg = prev[idx];
             return oldMsg && (
               (newMsg.readBy?.length || 0) !== (oldMsg.readBy?.length || 0) ||
@@ -399,23 +399,23 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
         // Keep any optimistic messages that haven't appeared on server yet
         const optimistic = prev.filter(m => m._isOptimistic);
         const remaining = optimistic.filter(opt =>
-          !invertedFresh.some(m =>
+          !freshMessages.some(m =>
             m.senderId === opt.senderId &&
             m.content === opt.content &&
             Math.abs(new Date(m.$createdAt) - new Date(opt.$createdAt)) < 30000
           )
         );
-        return [...remaining, ...invertedFresh];
+        return [...freshMessages, ...remaining];
       });
 
-      // Cache the fresh messages for next open (inverted = newest first)
-      messagesCacheManager.cacheMessages(chat.$id, invertedFresh, MESSAGES_CACHE_LIMIT).catch(() => {});
+      // Cache messages in chronological order to match UI ordering.
+      messagesCacheManager.cacheMessages(chat.$id, freshMessages, MESSAGES_CACHE_LIMIT).catch(() => {});
       
       if (user?.$id) {
         markChatAsRead(chat.$id, user.$id);
       }
       
-      const uniqueSenderIds = [...new Set(invertedFresh.map(m => m.senderId))];
+      const uniqueSenderIds = [...new Set(freshMessages.map(m => m.senderId))];
       const newUserCache = { ...userCacheRef.current };
       
       for (const senderId of uniqueSenderIds) {
@@ -441,7 +441,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       messagesTrace.finish({
         success: true,
         meta: {
-          messageCount: Array.isArray(invertedFresh) ? invertedFresh.length : 0,
+          messageCount: Array.isArray(freshMessages) ? freshMessages.length : 0,
           cachedVisibleCount: Array.isArray(messages) ? messages.length : 0,
         },
       });
@@ -780,8 +780,8 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       optimisticMessage.replyToSender = replyingTo.senderName || '';
     }
 
-    // Add optimistic message immediately (at beginning for inverted FlatList)
-    setMessages(prev => [optimisticMessage, ...prev]);
+    // Add optimistic message at the end to keep chronological ordering.
+    setMessages(prev => [...prev, optimisticMessage]);
     setReplyingTo(null);
 
     try {

@@ -293,10 +293,11 @@ export const messagesCacheManager = {
     if (cached?.value) {
       const messages = cached.value;
       if (!messages.some(m => m.$id === message.$id)) {
-        const updatedMessages = [message, ...messages];
-        // Keep only the last 'limit' messages (newest first)
+        const updatedMessages = [...messages, message]
+          .sort((a, b) => new Date(a.$createdAt || a.createdAt) - new Date(b.$createdAt || b.createdAt));
+        // Keep only the last 'limit' messages in chronological order.
         if (updatedMessages.length > limit) {
-          updatedMessages.pop();
+          updatedMessages.splice(0, updatedMessages.length - limit);
         }
         await cacheManager.set(key, updatedMessages, CACHE_DURATIONS.messages);
       }

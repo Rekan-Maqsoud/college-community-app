@@ -6,8 +6,7 @@ import {
   StatusBar,
   Platform,
   TouchableOpacity,
-  TextInput,
-  FlatList,
+  TextInput, 
   ActivityIndicator,
   ScrollView,
   Switch,
@@ -1001,7 +1000,7 @@ const GroupSettings = ({ navigation, route }) => {
                     borderRadius: borderRadius.lg,
                   }
                 ]}>
-                  <FlatList
+                  <FlashList
                     data={members}
                     renderItem={renderMemberItem}
                     keyExtractor={(item) => item.$id}

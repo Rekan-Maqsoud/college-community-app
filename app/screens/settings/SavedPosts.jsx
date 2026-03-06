@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
-  Text,
-  FlatList,
+  Text, 
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
@@ -148,7 +147,7 @@ const SavedPosts = ({ navigation }) => {
             <SavedPostSkeleton count={4} />
           </View>
         ) : (
-          <FlatList
+          <FlashList
             data={posts}
             renderItem={renderPost}
             keyExtractor={(item) => item.$id}

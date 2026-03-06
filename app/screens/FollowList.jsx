@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  FlatList,
+  StyleSheet, 
   TouchableOpacity,
   ActivityIndicator,
   StatusBar,
@@ -272,7 +271,7 @@ const FollowList = ({ route, navigation }) => {
             <ActivityIndicator size="large" color={theme.primary} />
           </View>
         ) : (
-          <FlatList
+          <FlashList
             data={currentList}
             renderItem={renderUser}
             keyExtractor={(item) => item.$id}

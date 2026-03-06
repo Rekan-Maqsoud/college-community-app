@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useLanguage } from '../context/LanguageContext';
+import { useAppSettings } from '../context/AppSettingsContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import CustomAlert from './CustomAlert';
 
 const LanguageSelector = () => {
-  const { currentLanguage, changeLanguage } = useLanguage();
+  const { currentLanguage, changeLanguage } = useAppSettings();
   const { t } = useTranslation();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 

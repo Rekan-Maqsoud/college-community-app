@@ -95,6 +95,7 @@ export const getUserGroupChats = async (department, stage, userId = null) => {
     }
 
     const departmentQuery = Query.equal('department', department);
+    const classGroupLimit = 100;
     const allChats = [];
 
     const departmentChats = await databases.listDocuments({
@@ -104,6 +105,7 @@ export const getUserGroupChats = async (department, stage, userId = null) => {
         departmentQuery,
         Query.equal('type', CHAT_TYPES.DEPARTMENT_GROUP),
         Query.orderDesc('lastMessageAt'),
+        Query.limit(classGroupLimit),
       ]
     });
     allChats.push(...departmentChats.documents);
@@ -118,6 +120,7 @@ export const getUserGroupChats = async (department, stage, userId = null) => {
           Query.equal('stage', stageValue),
           Query.equal('type', CHAT_TYPES.STAGE_GROUP),
           Query.orderDesc('lastMessageAt'),
+          Query.limit(classGroupLimit),
         ]
       });
       allChats.push(...stageChats.documents);
@@ -163,11 +166,13 @@ export const getUserGroupChats = async (department, stage, userId = null) => {
   }
 };
 
-export const getChats = async (userId) => {
+export const getChats = async (userId, limit = 200) => {
   try {
     if (!userId || typeof userId !== 'string') {
       throw new Error('Invalid user ID');
     }
+
+    const boundedLimit = Math.min(Math.max(limit, 1), 200);
 
     const chats = await databases.listDocuments({
       databaseId: config.databaseId,
@@ -175,6 +180,7 @@ export const getChats = async (userId) => {
       queries: [
         Query.equal('participants', userId),
         Query.orderDesc('lastMessageAt'),
+        Query.limit(boundedLimit),
       ]
     });
     return await decryptChatPreviews(chats.documents, userId);

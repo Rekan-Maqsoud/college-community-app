@@ -6,8 +6,7 @@ import {
   StatusBar,
   Platform,
   TouchableOpacity,
-  TextInput,
-  FlatList,
+  TextInput, 
   ActivityIndicator,
   ScrollView,
   Switch,
@@ -535,7 +534,7 @@ const CreateGroup = ({ navigation }) => {
                     </Text>
                   </View>
                 ) : (
-                  <FlatList
+                  <FlashList
                     data={searchResults}
                     renderItem={renderUserItem}
                     keyExtractor={(item) => item.$id}
@@ -551,7 +550,7 @@ const CreateGroup = ({ navigation }) => {
                       <Text style={[styles.subSectionTitle, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
                         {t('chats.friends')}
                       </Text>
-                      <FlatList
+                      <FlashList
                         data={friends}
                         renderItem={renderUserItem}
                         keyExtractor={(item) => item.$id}
@@ -566,7 +565,7 @@ const CreateGroup = ({ navigation }) => {
                       <Text style={[styles.subSectionTitle, { color: theme.textSecondary, fontSize: fontSize(12), marginTop: spacing.md }]}>
                         {t('chats.departmentUsers')}
                       </Text>
-                      <FlatList
+                      <FlashList
                         data={departmentUsers}
                         renderItem={renderUserItem}
                         keyExtractor={(item) => item.$id}

@@ -8,8 +8,7 @@ import {
   Share,
   Dimensions,
   Platform,
-  ActivityIndicator,
-  FlatList,
+  ActivityIndicator, 
 } from 'react-native';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
@@ -317,7 +316,7 @@ const ZoomableImageModal = ({
             isActive={true}
           />
         ) : (
-          <FlatList
+          <FlashList
             data={imageArray}
             horizontal
             pagingEnabled

@@ -6,8 +6,7 @@ import {
   StatusBar,
   Platform,
   TouchableOpacity,
-  TextInput,
-  FlatList,
+  TextInput, 
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -297,7 +296,7 @@ const UserSearch = ({ navigation }) => {
               <ActivityIndicator size="large" color={theme.primary} />
             </View>
           ) : (
-            <FlatList
+            <FlashList
               data={displayData}
               renderItem={renderUserItem}
               keyExtractor={(item) => item.$id}

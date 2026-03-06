@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
-  Text,
-  FlatList,
+  Text, 
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -585,7 +584,7 @@ const RepVotingScreen = ({ navigation, route }) => {
         </TouchableOpacity>
       </Modal>
 
-      <FlatList
+      <FlashList
         data={hasRepNoActiveElection ? [] : candidatesWithInfo}
         keyExtractor={(item) => item.$id}
         renderItem={renderItem}

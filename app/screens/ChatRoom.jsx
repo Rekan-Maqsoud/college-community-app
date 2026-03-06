@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import {
   View,
   Text,
-  FlatList,
   StatusBar,
   Platform,
   TouchableOpacity,
@@ -12,6 +11,7 @@ import {
   ImageBackground,
   TextInput,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -249,7 +249,7 @@ const ChatRoom = ({ route, navigation }) => {
         .map((msg, index) => ({ ...msg, originalIndex: index }))
         .filter(msg => msg.content && msg.content.toLowerCase().includes(query));
       setSearchResults(results);
-      setCurrentSearchIndex(0); // Start from newest (index 0 in inverted list)
+      setCurrentSearchIndex(results.length > 0 ? results.length - 1 : 0);
     } else {
       setSearchResults([]);
       setCurrentSearchIndex(0);
@@ -425,9 +425,8 @@ const ChatRoom = ({ route, navigation }) => {
     const otherUserId = chat.otherUser?.$id;
     if (!otherUserId) return null;
 
-    // Messages are in inverted order (newest first / index 0 = newest)
-    // Find the newest message sent by current user that was read by other user
-    for (let i = 0; i < messages.length; i++) {
+    // Messages are chronological (oldest first), so scan from the end.
+    for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
       if (msg.senderId === user.$id && msg.readBy?.includes(otherUserId)) {
         return msg.$id;
@@ -442,16 +441,15 @@ const ChatRoom = ({ route, navigation }) => {
     const senderName = senderData?.name || item.senderName || 'Unknown';
     const senderPhoto = senderData?.profilePicture || item.senderPhoto;
     
-    // With inverted FlatList: index 0 = newest (visually at bottom)
-    // Visual "above" = index + 1, visual "below" = index - 1
+    // In chronological order, visual "above" = index - 1 and "below" = index + 1.
     const showSenderName = !isCurrentUser && (
-      index === memoizedMessages.length - 1 || 
-      memoizedMessages[index + 1]?.senderId !== item.senderId
+      index === 0 || 
+      memoizedMessages[index - 1]?.senderId !== item.senderId
     );
     
     const showAvatar = !isCurrentUser && (
-      index === 0 ||
-      memoizedMessages[index - 1]?.senderId !== item.senderId
+      index === memoizedMessages.length - 1 ||
+      memoizedMessages[index + 1]?.senderId !== item.senderId
     );
 
     const isBookmarked = bookmarkedMsgIds.includes(item.$id);
@@ -697,7 +695,7 @@ const ChatRoom = ({ route, navigation }) => {
         </View>
       )}
 
-      <FlatList
+      <FlashList
         ref={flatListRef}
         data={memoizedMessages}
         renderItem={renderMessage}
@@ -705,11 +703,10 @@ const ChatRoom = ({ route, navigation }) => {
         contentContainerStyle={[styles.messagesList, chatStyle]}
         ListEmptyComponent={renderEmpty}
         onScrollToIndexFailed={handleScrollToIndexFailed}
-        removeClippedSubviews={Platform.OS === 'android'}
-        maxToRenderPerBatch={12}
-        windowSize={12}
-        initialNumToRender={16}
-        inverted={true}
+        maintainVisibleContentPosition={{
+          startRenderingFromBottom: true,
+          autoscrollToBottomThreshold: 0.2,
+        }}
       />
 
       {renderEmptyOverlay()}

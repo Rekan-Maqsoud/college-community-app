@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlatList, Modal, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Modal, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import styles from '../LectureChannelStyles';
 
@@ -30,7 +30,7 @@ const LectureCommentsModal = ({
           </TouchableOpacity>
         </View>
 
-        <FlatList
+        <FlashList
           data={assetComments}
           keyExtractor={(item) => item.$id}
           contentContainerStyle={styles.commentsList}

@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   View,
   Text,
-  Modal,
-  FlatList,
+  Modal, 
   Image,
   TextInput,
   TouchableOpacity,
@@ -363,7 +362,7 @@ const GiphyPickerModal = ({ visible, onClose, onSelect }) => {
             </Text>
           </View>
         ) : (
-          <FlatList
+          <FlashList
             data={items}
             renderItem={renderItem}
             keyExtractor={(item, index) => `${item.id}-${index}`}

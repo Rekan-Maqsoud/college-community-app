@@ -5,8 +5,7 @@ import {
   StyleSheet,
   StatusBar,
   TouchableOpacity,
-  TextInput,
-  FlatList,
+  TextInput, 
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -215,7 +214,7 @@ const ForwardMessage = ({ navigation, route }) => {
             <ActivityIndicator size="large" color={theme.primary} />
           </View>
         ) : (
-          <FlatList
+          <FlashList
             data={filteredChats}
             renderItem={renderChatItem}
             keyExtractor={(item) => item.$id}

@@ -6,13 +6,13 @@ import {
   StyleSheet,
   StatusBar,
   Platform,
-  FlatList,
   RefreshControl,
   TouchableOpacity,
   SectionList,
   Modal,
   Alert,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useIsFocused } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -1281,7 +1281,7 @@ const Chats = ({ navigation }) => {
                   }
                 />
               ) : (
-                <FlatList
+                <FlashList
                   data={[]}
                   renderItem={() => null}
                   ListHeaderComponent={renderHeader}

@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  FlatList,
+  StyleSheet, 
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
@@ -291,7 +290,7 @@ const ManageRepresentatives = ({ navigation }) => {
             <Text style={[styles.sectionTitle, { fontSize: fontSize(16), color: theme.text }]}>
               {t('chats.selectChat')}
             </Text>
-            <FlatList
+            <FlashList
               data={chats}
               renderItem={renderChatItem}
               keyExtractor={(item) => item.$id}
@@ -308,7 +307,7 @@ const ManageRepresentatives = ({ navigation }) => {
                   {t('chats.currentRepresentatives')} ({selectedChat.representatives?.length || 0})
                 </Text>
                 {selectedChat.representatives && selectedChat.representatives.length > 0 ? (
-                  <FlatList
+                  <FlashList
                     data={selectedChat.representatives}
                     renderItem={renderRepresentative}
                     keyExtractor={(item) => item}
@@ -338,7 +337,7 @@ const ManageRepresentatives = ({ navigation }) => {
                 </GlassContainer>
                 
                 {searchResults.length > 0 && (
-                  <FlatList
+                  <FlashList
                     data={searchResults}
                     renderItem={renderSearchResult}
                     keyExtractor={(item) => item.$id}

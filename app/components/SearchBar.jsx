@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } f
 import {
   View,
   TextInput,
-  TouchableOpacity,
-  FlatList,
+  TouchableOpacity, 
   Text,
   StyleSheet,
   Modal,
@@ -237,7 +236,7 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
     }
 
     return (
-      <FlatList
+      <FlashList
         data={[
           ...(filteredUsers.length > 0 ? [{ type: 'header', title: t('search.users') || 'Users', icon: 'people' }] : []),
           ...filteredUsers.map(searchedUser => ({ type: 'user', data: searchedUser })),

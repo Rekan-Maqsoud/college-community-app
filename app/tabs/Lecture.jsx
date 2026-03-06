@@ -6,12 +6,12 @@ import {
   StatusBar,
   TextInput,
   TouchableOpacity,
-  FlatList,
   Modal,
   RefreshControl,
   Share,
   ActivityIndicator,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -830,7 +830,7 @@ const Lecture = ({ navigation }) => {
       {suggestedChannels.length > 0 && !searchVisible && (
         <View style={styles.suggestedWrap}>
           <Text style={[styles.suggestedTitle, { color: colors.text }]}>{t('lectures.suggestedChannels')}</Text>
-          <FlatList
+          <FlashList
             horizontal
             showsHorizontalScrollIndicator={false}
             data={sortChannelsWithPins(suggestedChannels)}
@@ -867,7 +867,7 @@ const Lecture = ({ navigation }) => {
         </View>
       )}
 
-      <FlatList
+      <FlashList
         style={styles.list}
         contentContainerStyle={[styles.listContent, { paddingBottom: spacing.xxl + insets.bottom }, contentStyle]}
         data={listData}

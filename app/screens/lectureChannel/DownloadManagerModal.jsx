@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
+import { Modal, View, Text, TouchableOpacity,  StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, fontSize, moderateScale, wp } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
@@ -52,7 +52,7 @@ const DownloadManagerModal = ({
 
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('lectures.savedDownloads')}</Text>
-            <FlatList
+            <FlashList
               data={downloadedFiles}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
