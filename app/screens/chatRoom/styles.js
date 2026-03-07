@@ -11,6 +11,39 @@ export const chatRoomStyles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  headerTitleTouchable: {
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontWeight: '600',
+    textAlign: 'center',
+    maxWidth: wp(52),
+  },
+  headerSubtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: moderateScale(4),
+  },
+  headerSubtitle: {
+    textAlign: 'center',
+  },
+  headerOnlineIndicator: {
+    width: moderateScale(7),
+    height: moderateScale(7),
+    borderRadius: moderateScale(4),
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  headerActionButton: {
+    marginRight: spacing.sm,
+  },
+  headerActionButtonLast: {
+    marginRight: spacing.md,
+  },
   gradient: {
     flex: 1,
   },

@@ -24,17 +24,15 @@ import { getUserById, blockUser, blockUserChatOnly, getFriends } from '../../../
 import { 
   muteChat, 
   unmuteChat, 
-  getMuteStatus, 
   bookmarkMessage, 
   unbookmarkMessage, 
-  getBookmarkedMessages,
+  getUserChatSettings,
   MUTE_TYPES,
   setChatClearedAt,
-  getChatClearedAt,
   hideMessagesForUser,
-  getHiddenMessageIds,
   getReactionDefaults,
   updateReactionDefaults,
+  updateChatViewportState,
   DEFAULT_REACTION_SET,
 } from '../../../database/userChatSettings';
 import { useChatMessages } from '../../hooks/useRealtimeSubscription';
@@ -85,6 +83,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   const [isChatBlockedByOtherUser, setIsChatBlockedByOtherUser] = useState(false);
   const [reactionDefaults, setReactionDefaultsState] = useState(DEFAULT_REACTION_SET);
   const [chatSettingsLoaded, setChatSettingsLoaded] = useState(false);
+  const [chatViewportState, setChatViewportState] = useState(null);
   
   const flatListRef = useRef(null);
   const lastMessageId = useRef(null);
@@ -193,22 +192,27 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       userId: user?.$id,
     });
     try {
-      const [status, pinPermission, mentionPermission, bookmarks, chatClearedAt, hidden, defaults] = await Promise.all([
-        getMuteStatus(user.$id, chat.$id),
-        canUserPinMessage(chat.$id, user.$id),
-        canUserMentionEveryone(chat.$id, user.$id),
-        getBookmarkedMessages(user.$id, chat.$id),
-        getChatClearedAt(user.$id, chat.$id),
-        getHiddenMessageIds(user.$id, chat.$id),
-        getReactionDefaults(user.$id, chat.$id),
-      ]);
+      const settings = await getUserChatSettings(user.$id, chat.$id);
+      const isMuted = Boolean(settings?.isMuted);
+      const status = isMuted
+        ? {
+            isMuted: true,
+            muteType: settings?.muteType || MUTE_TYPES.NONE,
+            expiresAt: settings?.muteExpiresAt || null,
+          }
+        : { isMuted: false, muteType: MUTE_TYPES.NONE, expiresAt: null };
+      const bookmarks = settings?.bookmarkedMsgs || [];
+      const chatClearedAt = settings?.clearedAt || null;
+      const hidden = settings?.hiddenMessageIds || [];
+      const defaults = settings?.reactionDefaults || DEFAULT_REACTION_SET;
+      const viewport = settings?.settingsState?.chatViewport || null;
+
       setMuteStatus(status);
-      setCanPin(pinPermission);
-      setCanMentionEveryone(mentionPermission);
       setBookmarkedMsgIds(bookmarks);
       setClearedAtState(chatClearedAt);
       setHiddenMessageIds(hidden);
       setReactionDefaultsState(defaults || DEFAULT_REACTION_SET);
+      setChatViewportState(viewport);
       settingsTrace.finish({
         success: true,
         meta: {
@@ -216,6 +220,20 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
           hiddenCount: Array.isArray(hidden) ? hidden.length : 0,
         },
       });
+
+      Promise.all([
+        canUserPinMessage(chat.$id, user.$id),
+        canUserMentionEveryone(chat.$id, user.$id),
+      ])
+        .then(([pinPermission, mentionPermission]) => {
+          if (!isMountedRef.current) {
+            return;
+          }
+
+          setCanPin(pinPermission);
+          setCanMentionEveryone(mentionPermission);
+        })
+        .catch(() => {});
     } catch (error) {
       settingsTrace.finish({ success: false, error });
       // Silently fail
@@ -312,11 +330,8 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     }
   };
 
-  const loadMessages = async () => {
-    if (!chatSettingsLoaded) {
-      return;
-    }
-
+  const loadMessages = async (options = {}) => {
+    const { allowNetwork = true } = options;
     const messagesTrace = telemetry.startTrace('chatroom_load_messages', {
       chatId: chat?.$id,
       userId: user?.$id,
@@ -326,8 +341,9 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     try {
       // Show cached messages instantly while loading from server
       const cached = await messagesCacheManager.getCachedMessages(chat.$id, MESSAGES_CACHE_LIMIT);
+      let cachedMessages = [];
       if (cached?.value && Array.isArray(cached.value) && cached.value.length > 0) {
-        let cachedMessages = cached.value;
+        cachedMessages = cached.value;
         if (deletedMessageIds.current.size > 0) {
           cachedMessages = cachedMessages.filter(m => !deletedMessageIds.current.has(m.$id));
         }
@@ -342,13 +358,49 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
           .slice()
           .sort((a, b) => new Date(a.$createdAt || a.createdAt) - new Date(b.$createdAt || b.createdAt));
         if (cachedMessages.length > 0) {
+          lastMessageId.current = cachedMessages[cachedMessages.length - 1].$id;
           setMessages(cachedMessages);
           setLoading(false);
         }
       }
 
       if (!cached?.value || cached.value.length === 0) {
-        setLoading(true);
+        if (allowNetwork) {
+          setLoading(true);
+        } else {
+          setLoading(false);
+        }
+      }
+
+      const cachedLatestMessage = cachedMessages.length > 0
+        ? cachedMessages[cachedMessages.length - 1]
+        : null;
+      const cachedLatestAt = cachedLatestMessage?.$createdAt || cachedLatestMessage?.createdAt || null;
+      const chatLatestAt = chat?.lastMessageAt || chat?.$updatedAt || null;
+      const cacheSatisfiesChat = Boolean(
+        cachedLatestAt &&
+        chatLatestAt &&
+        new Date(cachedLatestAt).getTime() >= new Date(chatLatestAt).getTime()
+      );
+
+      if (cacheSatisfiesChat || !allowNetwork) {
+        if (user?.$id) {
+          markChatAsRead(chat.$id, user.$id).catch(() => {});
+          if (cacheSatisfiesChat) {
+            markAllMessagesAsRead(chat.$id, user.$id).catch(() => {});
+          }
+        }
+
+        messagesTrace.finish({
+          success: true,
+          meta: {
+            messageCount: cachedMessages.length,
+            cachedVisibleCount: cachedMessages.length,
+            usedCachedOnly: true,
+            skippedNetwork: !allowNetwork,
+          },
+        });
+        return;
       }
 
       // Fetch fresh data from server (RAM-safe initial page)
@@ -449,7 +501,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       messagesTrace.finish({ success: false, error });
       // Only show error on initial load when there are no messages yet
       // Subsequent load failures are silently ignored since realtime will auto-recover
-      if (messages.length === 0) {
+      if (allowNetwork && messages.length === 0) {
         triggerAlert(t('common.error'), error.message || t('chats.errorLoadingMessages'));
       }
     } finally {
@@ -519,18 +571,22 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   useEffect(() => {
     isMountedRef.current = true;
 
-    if (!chatSettingsLoaded) {
-      return;
-    }
-
-    loadMessages();
-    checkPermissions();
-    checkIfBlockedByOther();
-    loadMembersAndFriends();
+    loadMessages({ allowNetwork: false });
 
     return () => {
       isMountedRef.current = false;
     };
+  }, [chat.$id]);
+
+  useEffect(() => {
+    if (!chatSettingsLoaded) {
+      return;
+    }
+
+    loadMessages({ allowNetwork: true });
+    checkPermissions();
+    checkIfBlockedByOther();
+    loadMembersAndFriends();
   }, [chat.$id, chatSettingsLoaded]);
 
   useEffect(() => {
@@ -1080,8 +1136,21 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   }, []);
 
   const handleManualRefresh = useCallback(async () => {
-    await loadMessages();
+    await loadMessages({ allowNetwork: true });
   }, [loadMessages]);
+
+  const saveChatViewport = useCallback(async (viewport) => {
+    if (!user?.$id || !chat?.$id) {
+      return;
+    }
+
+    try {
+      const nextViewport = await updateChatViewportState(user.$id, chat.$id, viewport);
+      setChatViewportState(nextViewport);
+    } catch (error) {
+      // Ignore viewport persistence failures so they never block chat interactions.
+    }
+  }, [chat?.$id, user?.$id]);
 
   return {
     // State
@@ -1110,6 +1179,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     isBlockedByOtherUser,
     isChatBlockedByOtherUser,
     reactionDefaults,
+    chatViewportState,
     
     // Setters
     setShowMuteModal,
@@ -1146,5 +1216,6 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     handleBatchCopy,
     handleBatchDeleteForMe,
     handleManualRefresh,
+    saveChatViewport,
   };
 };

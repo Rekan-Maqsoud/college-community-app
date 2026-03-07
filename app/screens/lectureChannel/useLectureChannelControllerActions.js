@@ -520,7 +520,8 @@ export const useLectureChannelControllerActions = ({
   };
 
   const submitComment = async () => {
-    if (!commentsModalAsset?.$id || !newComment.trim() || !membership || membership.joinStatus !== 'approved') {
+    const canComment = isManager || (membership && membership.joinStatus === 'approved');
+    if (!commentsModalAsset?.$id || !newComment.trim() || !canComment) {
       return;
     }
 
@@ -579,8 +580,12 @@ export const useLectureChannelControllerActions = ({
       return false;
     }
 
-    return isManager || asset.uploaderId === user?.$id;
-  }, [isManager, user?.$id]);
+    const actorIdentityIds = [user?.accountId, user?.userId, user?.$id]
+      .map(value => String(value || '').trim())
+      .filter(Boolean);
+
+    return isManager || actorIdentityIds.includes(String(asset.uploaderId || '').trim());
+  }, [isManager, user?.$id, user?.accountId, user?.userId]);
 
   const openAssetMenu = (asset) => {
     if (!asset) {

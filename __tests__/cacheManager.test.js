@@ -10,7 +10,7 @@ jest.mock('../app/utils/safeStorage', () => ({
 }));
 
 import safeStorage from '../app/utils/safeStorage';
-import { cacheManager, postsCacheManager, messagesCacheManager } from '../app/utils/cacheManager';
+import { cacheManager, postsCacheManager, messagesCacheManager, chatSettingsCacheManager } from '../app/utils/cacheManager';
 
 describe('cacheManager', () => {
   beforeEach(() => {
@@ -78,5 +78,25 @@ describe('cacheManager', () => {
     const payload = JSON.parse(safeStorage.setItem.mock.calls[0][1]);
     expect(payload.value[0].$id).toBe('m1');
     expect(payload.value[1].$id).toBe('m2');
+  });
+
+  it('stores and retrieves cached chat settings with a stable key', async () => {
+    const settings = { userId: 'u1', chatId: 'c1', isMuted: true, bookmarkedMsgs: ['m1'] };
+
+    await chatSettingsCacheManager.cacheChatSettings('u1', 'c1', settings);
+
+    expect(safeStorage.setItem).toHaveBeenCalledWith(
+      'cache_chat_settings_u1_c1',
+      expect.any(String)
+    );
+
+    safeStorage.getItem.mockResolvedValueOnce(JSON.stringify({
+      value: settings,
+      timestamp: Date.now(),
+      expiryTime: 10000,
+    }));
+
+    const cached = await chatSettingsCacheManager.getCachedChatSettings('u1', 'c1');
+    expect(cached).toMatchObject({ value: settings, isStale: false });
   });
 });

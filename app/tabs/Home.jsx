@@ -50,9 +50,11 @@ import { postsCacheManager } from '../utils/cacheManager';
 import { scheduleLocalNotification } from '../../services/pushNotificationService';
 import useLayout from '../hooks/useLayout';
 import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
+import { REFRESH_TOPICS, subscribeToRefreshTopic } from '../utils/dataRefreshBus';
 
 const POSTS_PER_PAGE = 15;
 const AnimatedFlatList = Animated.createAnimatedComponent(FlashList);
+const homeFeedViewportCache = new Map();
 
 const Home = ({ navigation, route }) => {
   const {
@@ -91,6 +93,9 @@ const Home = ({ navigation, route }) => {
 
   const flatListRef = useRef(null);
   const searchBarRef = useRef(null);
+  const scrollOffsetRef = useRef(0);
+  const hasAppliedViewportRef = useRef(false);
+  const lastLoadedFeedSignatureRef = useRef('');
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerTranslateY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
@@ -127,6 +132,16 @@ const Home = ({ navigation, route }) => {
     department: user?.department,
   });
   const scopedDepartment = isAcademicOtherUser ? ACADEMIC_OTHER_KEY : user?.department;
+  const feedLoadSignature = JSON.stringify({
+    userId: user?.$id || '',
+    scopedDepartment: scopedDepartment || '',
+    selectedFeed,
+    selectedStage,
+    sortBy,
+    filterType,
+    answerStatus,
+    blockedUsers: [...(user?.blockedUsers || [])].sort(),
+  });
 
   // Real-time subscription for new/updated posts
   const handleRealtimePostUpdate = useCallback(async (payload) => {
@@ -175,10 +190,19 @@ const Home = ({ navigation, route }) => {
   );
 
   useEffect(() => {
-    if (user && scopedDepartment) {
-      loadPosts(true);
+    if (!user?.$id || !scopedDepartment) {
+      return;
     }
-  }, [selectedFeed, selectedStage, sortBy, filterType, answerStatus, user, scopedDepartment]);
+
+    const shouldReload = lastLoadedFeedSignatureRef.current !== feedLoadSignature || posts.length === 0;
+    if (!shouldReload) {
+      return;
+    }
+
+    lastLoadedFeedSignatureRef.current = feedLoadSignature;
+    hasAppliedViewportRef.current = false;
+    loadPosts(true);
+  }, [feedLoadSignature, posts.length, scopedDepartment, user?.$id]);
 
   // Load unread notification count
   useEffect(() => {
@@ -301,6 +325,7 @@ const Home = ({ navigation, route }) => {
       useNativeDriver: true,
       listener: (event) => {
         const currentScrollY = event.nativeEvent.contentOffset.y;
+        scrollOffsetRef.current = currentScrollY;
         const diff = currentScrollY - lastScrollY.current;
 
         if (currentScrollY <= 50 && !headerVisible.current) {
@@ -347,6 +372,67 @@ const Home = ({ navigation, route }) => {
       },
     }
   );
+
+  useEffect(() => {
+    hasAppliedViewportRef.current = false;
+  }, [feedLoadSignature]);
+
+  useEffect(() => {
+    if (!posts.length || isLoadingPosts || hasAppliedViewportRef.current) {
+      return;
+    }
+
+    const cachedViewport = homeFeedViewportCache.get(feedLoadSignature);
+    if (!cachedViewport || !Number.isFinite(cachedViewport.scrollOffset) || cachedViewport.scrollOffset <= 0) {
+      hasAppliedViewportRef.current = true;
+      return;
+    }
+
+    hasAppliedViewportRef.current = true;
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToOffset({
+        offset: cachedViewport.scrollOffset,
+        animated: false,
+      });
+    });
+  }, [feedLoadSignature, isLoadingPosts, posts.length]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToRefreshTopic(REFRESH_TOPICS.FEED, (payload = {}) => {
+      const updatedPost = payload?.post;
+      if (!updatedPost?.$id) {
+        return;
+      }
+
+      setPosts(prevPosts => prevPosts.map(post => (
+        post.$id === updatedPost.$id
+          ? { ...post, ...updatedPost }
+          : post
+      )));
+    });
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    const persistViewport = () => {
+      if (!posts.length) {
+        return;
+      }
+
+      homeFeedViewportCache.set(feedLoadSignature, {
+        scrollOffset: Math.max(0, Number(scrollOffsetRef.current || 0)),
+        savedAt: Date.now(),
+      });
+    };
+
+    const unsubscribeBlur = navigation.addListener('blur', persistViewport);
+
+    return () => {
+      unsubscribeBlur();
+      persistViewport();
+    };
+  }, [feedLoadSignature, navigation, posts.length]);
 
   const loadPosts = async (reset = false, options = {}) => {
     if (!user || !scopedDepartment) {
@@ -500,15 +586,6 @@ const Home = ({ navigation, route }) => {
   const handlePostPress = (post) => {
     navigation.navigate('PostDetails', {
       post,
-      onPostUpdate: (updatedPost) => {
-        if (updatedPost?.$id) {
-          setPosts(prevPosts =>
-            prevPosts.map(p =>
-              p.$id === updatedPost.$id ? { ...p, ...updatedPost } : p
-            )
-          );
-        }
-      },
     });
   };
 

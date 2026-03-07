@@ -795,6 +795,7 @@ export const setLecturePinnedChannelIds = async (channelIds = [], userId) => {
       queries: [
         Query.equal('userId', currentUserId),
         Query.equal('joinStatus', 'approved'),
+        Query.orderDesc('$updatedAt'),
         Query.limit(200),
       ],
     });
@@ -1324,6 +1325,7 @@ const notifyLectureUpload = async ({ channel, uploaderId, asset }) => {
       queries: [
         Query.equal('channelId', channel.$id),
         Query.equal('joinStatus', 'approved'),
+        Query.orderDesc('$updatedAt'),
         Query.limit(400),
       ],
     });

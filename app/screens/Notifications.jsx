@@ -289,6 +289,14 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
   };
   
   const message = getNotificationMessage();
+  const cardBackground = isUnread
+    ? (isDarkMode ? 'rgba(10, 132, 255, 0.12)' : 'rgba(0, 122, 255, 0.08)')
+    : (isDarkMode ? 'rgba(255, 255, 255, 0.045)' : 'rgba(255, 255, 255, 0.9)');
+  const cardBorder = isUnread
+    ? `${icon.color}55`
+    : (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)');
+  const iconBadgeBorder = isDarkMode ? 'rgba(16,18,27,0.88)' : 'rgba(255,255,255,0.95)';
+  const timestamp = createdAt ? formatNotificationTime(createdAt, t) : '';
   
   if (!senderName && !message) {
     return null;
@@ -300,10 +308,8 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
         style={[
           styles.notificationCard,
           { 
-            backgroundColor: isUnread
-              ? (isDarkMode ? 'rgba(0, 122, 255, 0.08)' : 'rgba(0, 122, 255, 0.04)')
-              : (isDarkMode ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.85)'),
-            borderColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+            backgroundColor: cardBackground,
+            borderColor: cardBorder,
           },
         ]}
         onPress={() => onPress(notification)}
@@ -314,6 +320,8 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
         accessibilityLabel={`${senderName} ${message}`}
       >
         <View style={styles.notificationContent}>
+          <View style={[styles.notificationAccent, { backgroundColor: icon.color }]} />
+
           <View style={styles.avatarContainer}>
             <ProfilePicture
               uri={notification.senderProfilePicture}
@@ -323,7 +331,7 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
             <View
               style={[
                 styles.iconBadge,
-                { backgroundColor: icon.color },
+                { backgroundColor: icon.color, borderColor: iconBadgeBorder },
               ]}
             >
               <Ionicons name={icon.name} size={moderateScale(11)} color="#fff" />
@@ -352,9 +360,9 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
               </Text>
             ) : null}
             <View style={styles.timeRow}>
-              <Ionicons name="time-outline" size={moderateScale(10)} color={theme.textSecondary} />
+              <Ionicons name="sparkles-outline" size={moderateScale(10)} color={icon.color} />
               <Text style={[styles.timeText, { color: theme.textSecondary }]}>
-                {createdAt ? formatNotificationTime(createdAt, t) : ''}
+                {timestamp}
               </Text>
             </View>
           </View>
@@ -417,6 +425,13 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
 const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }) => {
   const icon = getNotificationIcon(group.type);
   const count = group.totalCount || group.notifications.length;
+  const cardBackground = group.hasUnread
+    ? (isDarkMode ? 'rgba(10, 132, 255, 0.12)' : 'rgba(0, 122, 255, 0.08)')
+    : (isDarkMode ? 'rgba(255, 255, 255, 0.045)' : 'rgba(255, 255, 255, 0.9)');
+  const cardBorder = group.hasUnread
+    ? `${icon.color}55`
+    : (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)');
+  const iconBadgeBorder = isDarkMode ? 'rgba(16,18,27,0.88)' : 'rgba(255,255,255,0.95)';
   // Get unique users (avoid showing same user twice)
   const uniqueUsers = [];
   const seenIds = new Set();
@@ -490,10 +505,8 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
         style={[
           styles.notificationCard,
           { 
-            backgroundColor: group.hasUnread
-              ? (isDarkMode ? 'rgba(0, 122, 255, 0.08)' : 'rgba(0, 122, 255, 0.04)')
-              : (isDarkMode ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.85)'),
-            borderColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+            backgroundColor: cardBackground,
+            borderColor: cardBorder,
           },
         ]}
       >
@@ -503,6 +516,8 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
         activeOpacity={0.7}
       >
         <View style={styles.notificationContent}>
+          <View style={[styles.notificationAccent, { backgroundColor: icon.color }]} />
+
           <View style={styles.groupedAvatarContainer}>
             {uniqueUsers.slice(0, 3).map((notif, avatarIdx) => (
               <View 
@@ -522,7 +537,7 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
             <View
               style={[
                 styles.groupIconBadge,
-                { backgroundColor: icon.color },
+                { backgroundColor: icon.color, borderColor: iconBadgeBorder },
               ]}
             >
               <Ionicons name={icon.name} size={moderateScale(8)} color="#fff" />
@@ -543,7 +558,7 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
                 <Text style={{ color: theme.textSecondary }}>{message.action}</Text>
               </Text>
               <View style={styles.timeRow}>
-                <Ionicons name="time-outline" size={moderateScale(10)} color={theme.textSecondary} />
+                <Ionicons name="sparkles-outline" size={moderateScale(10)} color={icon.color} />
                 <Text style={[styles.timeText, { color: theme.textSecondary }]}>
                   {formatNotificationTime(group.latestTimestamp, t)}
                 </Text>
@@ -1063,13 +1078,23 @@ const Notifications = ({ navigation }) => {
 
         {(notifications.length > 0 || unreadCount > 0) && (
           <View style={styles.summaryRow}>
-            <View style={[styles.summaryChip, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.85)', borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
-              <Ionicons name="mail-unread-outline" size={moderateScale(14)} color={theme.primary} />
-              <Text style={[styles.summaryValue, { color: theme.text }]}>{unreadCount}</Text>
+            <View style={[styles.summaryChip, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.88)', borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)' }]}>
+              <View style={[styles.summaryIconWrap, { backgroundColor: `${theme.primary}18` }]}>
+                <Ionicons name="mail-unread-outline" size={moderateScale(14)} color={theme.primary} />
+              </View>
+              <View>
+                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>{t('notifications.markAllRead')}</Text>
+                <Text style={[styles.summaryValue, { color: theme.text }]}>{unreadCount}</Text>
+              </View>
             </View>
-            <View style={[styles.summaryChip, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.85)', borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
-              <Ionicons name="notifications-outline" size={moderateScale(14)} color={theme.textSecondary} />
-              <Text style={[styles.summaryValue, { color: theme.text }]}>{notifications.length}</Text>
+            <View style={[styles.summaryChip, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.88)', borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)' }]}>
+              <View style={[styles.summaryIconWrap, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)' }]}>
+                <Ionicons name="notifications-outline" size={moderateScale(14)} color={theme.textSecondary} />
+              </View>
+              <View>
+                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>{t('notifications.title')}</Text>
+                <Text style={[styles.summaryValue, { color: theme.text }]}>{notifications.length}</Text>
+              </View>
             </View>
           </View>
         )}
@@ -1212,11 +1237,23 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    paddingVertical: spacing.xs + 2,
+    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
+    flex: 1,
+  },
+  summaryIconWrap: {
+    width: moderateScale(28),
+    height: moderateScale(28),
+    borderRadius: moderateScale(14),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryLabel: {
+    fontSize: fontSize(10),
+    fontWeight: '600',
   },
   summaryValue: {
-    fontSize: fontSize(12),
+    fontSize: fontSize(14),
     fontWeight: '700',
   },
   emptyList: {
@@ -1230,11 +1267,17 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm + 3,
     paddingHorizontal: spacing.sm,
   },
+  notificationAccent: {
+    width: 4,
+    alignSelf: 'stretch',
+    borderRadius: 999,
+    marginRight: spacing.sm,
+  },
   notificationItem: {
   },
   notificationContent: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'stretch',
   },
   avatarContainer: {
     position: 'relative',
@@ -1299,13 +1342,23 @@ const styles = StyleSheet.create({
   },
   previewText: {
     fontSize: fontSize(12),
-    marginTop: 2,
-    opacity: 0.7,
+    marginTop: spacing.xs,
+    opacity: 0.92,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: 'rgba(127,127,127,0.08)',
   },
   timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: spacing.xs / 2,
+    marginTop: spacing.sm,
+    alignSelf: 'flex-start',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.pill || 999,
+    backgroundColor: 'rgba(127,127,127,0.08)',
   },
   timeText: {
     fontSize: fontSize(10),

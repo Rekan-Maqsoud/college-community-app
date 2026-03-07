@@ -7,6 +7,28 @@ import { chatsCacheManager } from '../app/utils/cacheManager';
 export const PRIVATE_CHAT_TYPE = 'private';
 export const CUSTOM_GROUP_TYPE = 'custom_group';
 
+const DEFAULT_INITIALIZE_MEMBERSHIP_CONCURRENCY = 4;
+
+const mapWithConcurrency = async (items, mapper, concurrency = DEFAULT_INITIALIZE_MEMBERSHIP_CONCURRENCY) => {
+    const boundedConcurrency = Math.max(1, Math.min(concurrency, items.length || 1));
+    const results = new Array(items.length);
+    let nextIndex = 0;
+
+    const runWorker = async () => {
+        while (nextIndex < items.length) {
+            const currentIndex = nextIndex;
+            nextIndex += 1;
+            results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+        }
+    };
+
+    await Promise.all(
+        Array.from({ length: boundedConcurrency }, () => runWorker())
+    );
+
+    return results;
+};
+
 export const getOrCreateStageGroup = async (department, stage) => {
     try {
         if (!department || !stage) {
@@ -125,12 +147,33 @@ export const initializeUserGroups = async (department, stage, userId = null) => 
         const allChats = await getUserGroupChats(department, stage, userId);
 
         if (userId) {
-            const updatedChats = [];
+            const uniqueChatsById = new Map();
             for (const chat of allChats) {
-                const updatedChat = await ensureChatParticipant(chat.$id, userId);
-                updatedChats.push(updatedChat || chat);
+                if (chat?.$id && !uniqueChatsById.has(chat.$id)) {
+                    uniqueChatsById.set(chat.$id, chat);
+                }
             }
-            results.allChats = updatedChats;
+
+            const chatsNeedingMembership = Array.from(uniqueChatsById.values()).filter((chat) => {
+                const participants = Array.isArray(chat?.participants) ? chat.participants : [];
+                return !participants.includes(userId);
+            });
+
+            if (chatsNeedingMembership.length === 0) {
+                results.allChats = allChats;
+                return results;
+            }
+
+            const ensuredChats = await mapWithConcurrency(
+                chatsNeedingMembership,
+                async (chat) => {
+                    const updatedChat = await ensureChatParticipant(chat.$id, userId);
+                    return [chat.$id, updatedChat || chat];
+                }
+            );
+
+            const ensuredChatMap = new Map(ensuredChats);
+            results.allChats = allChats.map((chat) => ensuredChatMap.get(chat?.$id) || chat);
         } else {
             results.allChats = allChats;
         }

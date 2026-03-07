@@ -10,6 +10,25 @@ const CHAT_KEY_PREFIX = 'e2ee_chat_key_';
 const PUBLIC_KEY_PREFIX = 'e2ee_public_key_';
 const PRIVATE_KEY_PREFIX = 'e2ee_private_key_';
 
+const isByteArray = (value) => value instanceof Uint8Array;
+const hasExpectedByteLength = (value, length) => isByteArray(value) && value.length === length;
+
+export const decodeBytesOfLength = (value, length) => {
+  if (!value || typeof value !== 'string') {
+    return null;
+  }
+
+  try {
+    const decoded = decodeBytes(value);
+    return hasExpectedByteLength(decoded, length) ? decoded : null;
+  } catch {
+    return null;
+  }
+};
+
+const isValidPublicKeyBase64 = (value) => Boolean(decodeBytesOfLength(value, nacl.box.publicKeyLength));
+const isValidChatKey = (value) => hasExpectedByteLength(value, nacl.secretbox.keyLength);
+
 export const buildParticipantPermissions = () => {
   return [
     Permission.read(Role.users()),
@@ -86,14 +105,24 @@ export const getOrCreateUserKeypair = async (userId) => {
   const storedPrivateKey = await SecureStore.getItemAsync(privateKeyKey);
 
   if (storedPublicKey && storedPrivateKey) {
-    return {
-      publicKey: decodeBytes(storedPublicKey),
-      secretKey: decodeBytes(storedPrivateKey),
-    };
+    const decodedPublicKey = decodeBytesOfLength(storedPublicKey, nacl.box.publicKeyLength);
+    const decodedPrivateKey = decodeBytesOfLength(storedPrivateKey, nacl.box.secretKeyLength);
+
+    if (decodedPublicKey && decodedPrivateKey) {
+      return {
+        publicKey: decodedPublicKey,
+        secretKey: decodedPrivateKey,
+      };
+    }
+
+    await SecureStore.deleteItemAsync(publicKeyKey).catch(() => {});
+    await SecureStore.deleteItemAsync(privateKeyKey).catch(() => {});
   }
 
   const keypair = generateBoxKeypair();
-  if (!keypair) return null;
+  if (!keypair || !hasExpectedByteLength(keypair.publicKey, nacl.box.publicKeyLength) || !hasExpectedByteLength(keypair.secretKey, nacl.box.secretKeyLength)) {
+    return null;
+  }
 
   await SecureStore.setItemAsync(publicKeyKey, encodeBytes(keypair.publicKey));
   await SecureStore.setItemAsync(privateKeyKey, encodeBytes(keypair.secretKey));
@@ -102,6 +131,10 @@ export const getOrCreateUserKeypair = async (userId) => {
 };
 
 export const ensureUserPublicKeyStored = async (userId, publicKeyBase64) => {
+  if (!isValidPublicKeyBase64(publicKeyBase64)) {
+    return;
+  }
+
   const userDoc = await getUserById(userId, true);
   if (!userDoc?.publicKey) {
     await updateUserPublicKey(userId, publicKeyBase64);
@@ -145,7 +178,7 @@ const ensureChatPublicKeyStored = async (chat, userId) => {
 
 export const getParticipantPublicKey = async (settings, userId) => {
   const storedKey = settings?.e2ee?.publicKeys?.[userId];
-  if (storedKey && typeof storedKey === 'string') {
+  if (storedKey && typeof storedKey === 'string' && isValidPublicKeyBase64(storedKey)) {
     return storedKey;
   }
 
@@ -154,27 +187,51 @@ export const getParticipantPublicKey = async (settings, userId) => {
 
 const getUserPublicKey = async (userId) => {
   const userDoc = await getUserById(userId, true);
-  if (userDoc?.publicKey && typeof userDoc.publicKey === 'string') {
+  if (userDoc?.publicKey && typeof userDoc.publicKey === 'string' && isValidPublicKeyBase64(userDoc.publicKey)) {
     return userDoc.publicKey;
   }
   return null;
 };
 
 export const encryptWithBox = (dataBytes, senderSecretKey, recipientPublicKey) => {
+  if (!isByteArray(dataBytes) || !hasExpectedByteLength(senderSecretKey, nacl.box.secretKeyLength) || !hasExpectedByteLength(recipientPublicKey, nacl.box.publicKeyLength)) {
+    return null;
+  }
+
   const nonce = getSecureRandomBytes(nacl.box.nonceLength);
-  if (!nonce) return null;
-  const cipher = nacl.box(dataBytes, nonce, recipientPublicKey, senderSecretKey);
-  return { nonce, cipher };
+  if (!hasExpectedByteLength(nonce, nacl.box.nonceLength)) return null;
+
+  try {
+    const cipher = nacl.box(dataBytes, nonce, recipientPublicKey, senderSecretKey);
+    return { nonce, cipher };
+  } catch {
+    return null;
+  }
 };
 
 const decryptWithBox = (cipherBytes, nonceBytes, recipientSecretKey, senderPublicKey) => {
-  return nacl.box.open(cipherBytes, nonceBytes, senderPublicKey, recipientSecretKey);
+  if (!isByteArray(cipherBytes) || !hasExpectedByteLength(nonceBytes, nacl.box.nonceLength) || !hasExpectedByteLength(recipientSecretKey, nacl.box.secretKeyLength) || !hasExpectedByteLength(senderPublicKey, nacl.box.publicKeyLength)) {
+    return null;
+  }
+
+  try {
+    return nacl.box.open(cipherBytes, nonceBytes, senderPublicKey, recipientSecretKey);
+  } catch {
+    return null;
+  }
 };
 
 export const encryptContent = (content, chatKey) => {
   if (!content) return '';
+  if (!isValidChatKey(chatKey)) {
+    throw new Error('Invalid chat encryption key');
+  }
+
   const nonce = getSecureRandomBytes(nacl.secretbox.nonceLength);
-  if (!nonce) return content;
+  if (!hasExpectedByteLength(nonce, nacl.secretbox.nonceLength)) {
+    throw new Error('Secure random generator unavailable');
+  }
+
   const contentBytes = decodeUTF8(content);
   const cipher = nacl.secretbox(contentBytes, nonce, chatKey);
   return `${E2EE_PREFIX}${encodeBytes(nonce)}:${encodeBytes(cipher)}`;
@@ -183,14 +240,19 @@ export const encryptContent = (content, chatKey) => {
 export const decryptContent = (content, chatKey) => {
   if (!content || typeof content !== 'string') return content;
   if (!content.startsWith(E2EE_PREFIX)) return content;
+  if (!isValidChatKey(chatKey)) return '';
 
   const payload = content.substring(E2EE_PREFIX.length);
   const [nonceB64, cipherB64] = payload.split(':');
   if (!nonceB64 || !cipherB64) return '';
 
   try {
-    const nonce = decodeBytes(nonceB64);
+    const nonce = decodeBytesOfLength(nonceB64, nacl.secretbox.nonceLength);
     const cipher = decodeBytes(cipherB64);
+    if (!nonce || !isByteArray(cipher) || cipher.length === 0) {
+      return '';
+    }
+
     const decrypted = nacl.secretbox.open(cipher, nonce, chatKey);
     if (!decrypted) return '';
     return encodeUTF8(decrypted);
@@ -232,6 +294,10 @@ export const parseChatSettings = (settingsString) => {
 };
 
 const storeChatKey = async (chatId, chatKey) => {
+  if (!isValidChatKey(chatKey)) {
+    return;
+  }
+
   const key = getSecureStoreKey(CHAT_KEY_PREFIX, chatId);
   await SecureStore.setItemAsync(key, encodeBytes(chatKey));
 };
@@ -240,7 +306,14 @@ const getStoredChatKey = async (chatId) => {
   const key = getSecureStoreKey(CHAT_KEY_PREFIX, chatId);
   const stored = await SecureStore.getItemAsync(key);
   if (!stored) return null;
-  return decodeBytes(stored);
+
+  const decoded = decodeBytesOfLength(stored, nacl.secretbox.keyLength);
+  if (decoded) {
+    return decoded;
+  }
+
+  await SecureStore.deleteItemAsync(key).catch(() => {});
+  return null;
 };
 
 export const clearStoredChatKey = async (chatId) => {
@@ -288,6 +361,11 @@ const buildE2eeSettings = async (chat, creatorId) => {
       continue;
     }
 
+    const participantPublicKeyBytes = decodeBytesOfLength(participantPublicKey, nacl.box.publicKeyLength);
+    if (!participantPublicKeyBytes) {
+      continue;
+    }
+
     if (!publicKeys[participantId]) {
       publicKeys[participantId] = participantPublicKey;
     }
@@ -295,7 +373,7 @@ const buildE2eeSettings = async (chat, creatorId) => {
     const encrypted = encryptWithBox(
       chatKey,
       keypair.secretKey,
-      decodeBytes(participantPublicKey)
+      participantPublicKeyBytes
     );
     if (!encrypted) {
       continue;
@@ -384,14 +462,26 @@ export const resolveChatKey = async (chat, userId, options = {}) => {
       continue;
     }
 
+    let cipherBytes = null;
+    try {
+      cipherBytes = decodeBytes(candidate.cipher);
+    } catch {
+      cipherBytes = null;
+    }
+    const nonceBytes = decodeBytesOfLength(candidate.nonce, nacl.box.nonceLength);
+    const senderPublicKeyBytes = decodeBytesOfLength(senderPublicKey, nacl.box.publicKeyLength);
+    if (!isByteArray(cipherBytes) || !nonceBytes || !senderPublicKeyBytes) {
+      continue;
+    }
+
     const decrypted = decryptWithBox(
-      decodeBytes(candidate.cipher),
-      decodeBytes(candidate.nonce),
+      cipherBytes,
+      nonceBytes,
       keypair.secretKey,
-      decodeBytes(senderPublicKey)
+      senderPublicKeyBytes
     );
 
-    if (!decrypted) {
+    if (!isValidChatKey(decrypted)) {
       continue;
     }
 
@@ -435,6 +525,11 @@ const addMissingE2eeKeys = async (chat, chatKey, senderId) => {
       continue;
     }
 
+    const participantPublicKeyBytes = decodeBytesOfLength(participantPublicKey, nacl.box.publicKeyLength);
+    if (!participantPublicKeyBytes) {
+      continue;
+    }
+
     if (!publicKeys[participantId]) {
       publicKeys[participantId] = participantPublicKey;
     }
@@ -442,7 +537,7 @@ const addMissingE2eeKeys = async (chat, chatKey, senderId) => {
     const encrypted = encryptWithBox(
       chatKey,
       senderKeypair.secretKey,
-      decodeBytes(participantPublicKey)
+      participantPublicKeyBytes
     );
     if (!encrypted) {
       continue;

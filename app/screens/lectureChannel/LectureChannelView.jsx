@@ -65,7 +65,11 @@ const LectureChannelView = ({
     canUpload,
     isManager,
     membership,
+    membershipResolved,
   } = computed;
+
+  const hasApprovedMembership = membership?.joinStatus === 'approved';
+  const showJoinButton = membershipResolved && !isManager && !hasApprovedMembership;
 
   const {
     assetComments,
@@ -121,9 +125,17 @@ const LectureChannelView = ({
         <ScrollView
           contentContainerStyle={[styles.content, contentStyle]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}>
-          {!membership || membership.joinStatus !== 'approved' ? (
-            <TouchableOpacity style={[styles.joinBtn, { backgroundColor: colors.primary }]} onPress={actionState.handleJoin}>
-              <Text style={styles.joinBtnText}>{membership?.joinStatus === 'pending' ? t('lectures.joinPending') : t('lectures.join')}</Text>
+          {showJoinButton ? (
+            <TouchableOpacity
+              style={[
+                styles.joinBtn,
+                { backgroundColor: membership?.joinStatus === 'pending' ? colors.card : colors.primary },
+              ]}
+              onPress={actionState.handleJoin}
+              disabled={membership?.joinStatus === 'pending'}>
+              <Text style={[styles.joinBtnText, membership?.joinStatus === 'pending' && { color: colors.textSecondary }]}>
+                {membership?.joinStatus === 'pending' ? t('lectures.joinPending') : t('lectures.join')}
+              </Text>
             </TouchableOpacity>
           ) : null}
 
@@ -150,7 +162,7 @@ const LectureChannelView = ({
             youtubeUrl={youtubeUrl}
           />
 
-          {!!membership && membership.joinStatus === 'approved' && !canUpload && (
+          {!isManager && !!membership && membership.joinStatus === 'approved' && !canUpload && (
             <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}> 
               <Text style={[styles.infoText, { color: colors.textSecondary }]}>{t('lectures.onlyAdminsCanUpload')}</Text>
             </View>

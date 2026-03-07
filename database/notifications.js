@@ -1009,6 +1009,7 @@ export const notifyDepartmentPost = async (posterId, posterName, posterPhoto, po
         // Build queries for same department AND same stage
         const queries = [
             Q.equal('department', department),
+            Q.orderDesc('$createdAt'),
             Q.limit(100),
         ];
         if (stage && stage !== 'all') {
@@ -1018,11 +1019,11 @@ export const notifyDepartmentPost = async (posterId, posterName, posterPhoto, po
             }
         }
 
-        const usersResult = await db.listDocuments(
-            cfg.databaseId,
-            cfg.usersCollectionId,
-            queries
-        );
+        const usersResult = await db.listDocuments({
+            databaseId: cfg.databaseId,
+            collectionId: cfg.usersCollectionId,
+            queries,
+        });
 
         const recipients = (usersResult.documents || []).filter(u => u.$id !== posterId && u.userID !== posterId);
 

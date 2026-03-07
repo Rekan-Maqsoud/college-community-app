@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   AppState,
   View, 
@@ -40,8 +40,7 @@ import {
 } from '../../database/chats';
 import { blockUser, blockUserChatOnly } from '../../database/users';
 import {
-  getChatClearedAt,
-  getUserChatSettings,
+  getUserChatSettingsMap,
   muteChat,
   unmuteChat,
   setChatArchived,
@@ -103,6 +102,7 @@ const Chats = ({ navigation }) => {
   const [appStateStatus, setAppStateStatus] = useState(AppState.currentState);
   const lastNetworkSyncAtRef = useRef(0);
   const isSyncInFlightRef = useRef(false);
+  const initializeSignatureRef = useRef(null);
 
   useEffect(() => {
     defaultGroupsRef.current = defaultGroups;
@@ -141,6 +141,27 @@ const Chats = ({ navigation }) => {
   }, []);
 
   const isScreenActive = isFocused && appStateStatus === 'active';
+  const userChatLoadSignature = useMemo(() => {
+    if (!user?.$id) {
+      return null;
+    }
+
+    return JSON.stringify({
+      userId: user.$id,
+      department: user.department || '',
+      stage: user.stage || '',
+      academicOther: isAcademicOtherUser,
+      blockedUsers: [...(user.blockedUsers || [])].sort(),
+      chatBlockedUsers: [...(user.chatBlockedUsers || [])].sort(),
+    });
+  }, [
+    isAcademicOtherUser,
+    user?.$id,
+    user?.department,
+    user?.stage,
+    user?.blockedUsers,
+    user?.chatBlockedUsers,
+  ]);
 
   const hasProcessedMessageEvent = useCallback((messageId) => {
     if (!messageId) {
@@ -411,13 +432,20 @@ const Chats = ({ navigation }) => {
   );
 
   useEffect(() => {
-    if (user?.$id) {
-      initializeAndLoadChats();
-    } else {
+    if (!user?.$id) {
+      initializeSignatureRef.current = null;
       setLoading(false);
       setInitializing(false);
+      return;
     }
-  }, [user]);
+
+    if (initializeSignatureRef.current === userChatLoadSignature) {
+      return;
+    }
+
+    initializeSignatureRef.current = userChatLoadSignature;
+    initializeAndLoadChats();
+  }, [user?.$id, userChatLoadSignature]);
 
   const initializeAndLoadChats = async () => {
     if (!user?.$id) {
@@ -440,7 +468,7 @@ const Chats = ({ navigation }) => {
       const groupsInitPromise = initializeUserGroups(departmentForGroups, stageForGroups, user.$id)
         .catch(() => null);
 
-      await loadChats({ showLoader: true, preferCache: true });
+      await loadChats({ showLoader: true, preferCache: true, skipAuxiliary: true });
       setInitializing(false);
 
       await groupsInitPromise;
@@ -491,7 +519,7 @@ const Chats = ({ navigation }) => {
     }
   };
 
-  const loadClearedAtTimestamps = async (allChats) => {
+  const loadChatStateMaps = async (allChats) => {
     if (!user?.$id || allChats.length === 0) return;
     const clearedTrace = telemetry.startTrace('chats_load_cleared_timestamps', {
       userId: user.$id,
@@ -499,16 +527,37 @@ const Chats = ({ navigation }) => {
     });
     
     try {
+      const settingsMap = await getUserChatSettingsMap(user.$id, allChats.map((chat) => chat.$id));
       const timestamps = {};
-      await Promise.all(
-        allChats.map(async (chat) => {
-          const clearedAt = await getChatClearedAt(user.$id, chat.$id);
-          if (clearedAt) {
-            timestamps[chat.$id] = clearedAt;
-          }
-        })
-      );
+      const muteMap = {};
+      const archivedMap = {};
+      const now = Date.now();
+      const expiredMuteChatIds = [];
+
+      allChats.forEach((chat) => {
+        const settings = settingsMap?.[chat.$id] || null;
+        const muteExpiresAt = settings?.muteExpiresAt ? new Date(settings.muteExpiresAt).getTime() : null;
+        const isMuteExpired = Boolean(muteExpiresAt && muteExpiresAt <= now);
+
+        if (settings?.clearedAt) {
+          timestamps[chat.$id] = settings.clearedAt;
+        }
+
+        muteMap[chat.$id] = Boolean(settings?.isMuted) && !isMuteExpired;
+        archivedMap[chat.$id] = Boolean(settings?.isArchived);
+
+        if (isMuteExpired) {
+          expiredMuteChatIds.push(chat.$id);
+        }
+      });
+
       setClearedAtMap(timestamps);
+      setMuteStatusMap(muteMap);
+      setArchivedChatMap(archivedMap);
+      expiredMuteChatIds.forEach((chatId) => {
+        unmuteChat(user.$id, chatId).catch(() => {});
+      });
+
       clearedTrace.finish({ success: true, meta: { resolvedCount: Object.keys(timestamps).length } });
     } catch (error) {
       clearedTrace.finish({ success: false, error });
@@ -549,6 +598,7 @@ const Chats = ({ navigation }) => {
       showLoader = true,
       preferCache = false,
       forceNetwork = false,
+      skipAuxiliary = false,
     } = options;
 
     const loadTrace = telemetry.startTrace('chats_load', {
@@ -587,8 +637,6 @@ const Chats = ({ navigation }) => {
         const cachedAllChats = applyChatBuckets(cachedChats);
         if (cachedAllChats.length > 0) {
           setLoading(false);
-          loadUnreadCounts(cachedAllChats).catch(() => {});
-          loadClearedAtTimestamps(cachedAllChats).catch(() => {});
         }
       }
 
@@ -612,45 +660,16 @@ const Chats = ({ navigation }) => {
         },
       });
 
-      const loadAuxiliaryData = async () => {
-        await Promise.all([
-          loadUnreadCounts(allChats),
-          loadClearedAtTimestamps(allChats),
-        ]);
+      if (!skipAuxiliary) {
+        const loadAuxiliaryData = async () => {
+          await Promise.all([
+            loadUnreadCounts(allChats),
+            loadChatStateMaps(allChats),
+          ]);
+        };
 
-        if (user?.$id) {
-          const muteMap = {};
-          const archivedMap = {};
-
-          await Promise.all(
-            allChats.map(async (chat) => {
-              try {
-                const settings = await getUserChatSettings(user.$id, chat.$id);
-
-                let isMuted = Boolean(settings?.isMuted);
-                if (isMuted && settings?.muteExpiresAt) {
-                  const expiresAt = new Date(settings.muteExpiresAt);
-                  if (expiresAt <= new Date()) {
-                    await unmuteChat(user.$id, chat.$id);
-                    isMuted = false;
-                  }
-                }
-
-                muteMap[chat.$id] = isMuted;
-                archivedMap[chat.$id] = Boolean(settings?.isArchived);
-              } catch {
-                muteMap[chat.$id] = false;
-                archivedMap[chat.$id] = false;
-              }
-            })
-          );
-
-          setMuteStatusMap(muteMap);
-          setArchivedChatMap(archivedMap);
-        }
-      };
-
-      loadAuxiliaryData().catch(() => {});
+        loadAuxiliaryData().catch(() => {});
+      }
     } catch (error) {
       loadTrace.finish({ success: false, error });
       setDefaultGroups([]);

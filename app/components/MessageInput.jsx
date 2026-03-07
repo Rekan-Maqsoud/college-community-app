@@ -318,8 +318,9 @@ const MessageInput = ({
 
     try {
       const permission = await requestRecordingPermissionsAsync();
-      if (!permission.granted) {
-        if (!permission.canAskAgain) {
+      const hasPermission = Boolean(permission?.granted || permission?.status === 'granted');
+      if (!hasPermission) {
+        if (!permission?.canAskAgain) {
           showPermissionDeniedAlert('microphone');
         } else {
           triggerAlert(t('common.error'), t('chats.microphonePermissionDenied'));
@@ -327,23 +328,34 @@ const MessageInput = ({
         return;
       }
 
-      await setAudioModeAsync({
-        allowsRecording: true,
-        playsInSilentMode: true,
-        shouldRouteThroughEarpiece: false,
-      });
+      const configureRecorder = async () => {
+        await setAudioModeAsync({
+          allowsRecording: true,
+          playsInSilentMode: true,
+          shouldRouteThroughEarpiece: false,
+        });
 
-      try {
-        await audioRecorder.prepareToRecordAsync();
-      } catch (prepareError) {
-        const prepareMessage = String(prepareError?.message || '').toLowerCase();
-        const isAlreadyPrepared = prepareMessage.includes('prepared') || prepareMessage.includes('already');
-        if (!isAlreadyPrepared) {
+        await audioRecorder.stop().catch(() => {});
+
+        try {
+          await audioRecorder.prepareToRecordAsync();
+        } catch (prepareError) {
           await audioRecorder.stop().catch(() => {});
+          await setAudioModeAsync({
+            allowsRecording: false,
+            playsInSilentMode: true,
+            shouldRouteThroughEarpiece: false,
+          }).catch(() => {});
+          await setAudioModeAsync({
+            allowsRecording: true,
+            playsInSilentMode: true,
+            shouldRouteThroughEarpiece: false,
+          });
           await audioRecorder.prepareToRecordAsync();
         }
-      }
+      };
 
+      await configureRecorder();
       await audioRecorder.record();
 
       recordingStartedAtRef.current = Date.now();
@@ -357,7 +369,15 @@ const MessageInput = ({
       setIsLockTargetActive(false);
       startRecordingTicker();
     } catch (error) {
+      console.warn('[MessageInput] voice recording start failed', {
+        message: error?.message,
+      });
       resetRecordingState();
+      await setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
+        shouldRouteThroughEarpiece: false,
+      }).catch(() => {});
       triggerAlert(t('common.error'), t('chats.voiceRecordingFailed'));
     }
   };

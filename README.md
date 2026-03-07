@@ -60,11 +60,21 @@ Last verified against codebase: 2026-03-05.
 
 ## Tech Stack
 
-- Expo SDK 54 / React Native 0.81 / React 19
-- Appwrite (Auth, Databases, Storage, Realtime)
-- React Navigation (Stack + Bottom Tabs)
-- i18n-js (`en`, `ar`, `ku`)
-- Jest (`jest-expo`) for core utility/realtime/moderation tests
+- Expo SDK 55 / React Native 0.83.2 / React 19.2.4
+- Appwrite 21.x (Auth, Databases, Storage, Realtime)
+- React Navigation 7 (Stack + Bottom Tabs)
+- react-i18next + i18next with lazy-loaded `en`, `ar`, and `ku` resources
+- `@shopify/flash-list` v2 for high-volume list paths
+- `react-native-mmkv` for local persistence and low-latency hydration
+- `expo-video` and `expo-audio` for media flows
+- Jest (`jest-expo`) for utility, realtime, moderation, lecture, and upload coverage
+
+## Architecture Notes
+
+- JavaScript-only Expo app with Appwrite-backed auth, data, storage, and realtime flows.
+- `locales/i18n.js` is the active translation bootstrap; `i18n-js` is not the active architecture.
+- The app already includes telemetry coverage in critical loading and refresh paths.
+- Hermes V1 Android support is guarded in `app.config.js`: source builds are enabled only when explicitly requested and when local toolchain prerequisites are available, otherwise the app falls back to Expo's default Hermes configuration.
 
 ## Project Structure
 

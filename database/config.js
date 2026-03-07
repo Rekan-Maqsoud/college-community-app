@@ -1,24 +1,33 @@
 import { Client, Account, Databases, Storage } from 'appwrite';
 
-// Patch WebSocket.send to guard against INVALID_STATE_ERR.
-// The Appwrite SDK's internal heartbeat (setInterval) calls socket.send()
-// without checking readyState first. If the socket is CLOSING (2) or
-// CLOSED (3), React Native throws INVALID_STATE_ERR. This patch silently
-// ignores sends on non-OPEN sockets so the heartbeat can't crash the app.
-if (typeof globalThis !== 'undefined' && globalThis.WebSocket) {
-    const _origSend = globalThis.WebSocket.prototype.send;
-    globalThis.WebSocket.prototype.send = function safeSend(...args) {
+// Appwrite 21.5.0 in this repo only exports the web SDK entrypoint.
+// There is no appwrite/sdk-for-react-native subpath available to switch to.
+const patchWebSocketSendForAppwrite = () => {
+    const websocketPrototype = globalThis?.WebSocket?.prototype;
+    const originalSend = websocketPrototype?.send;
+
+    if (!websocketPrototype || typeof originalSend !== 'function' || originalSend.__ccSafeSendPatched) {
+        return;
+    }
+
+    function safeSend(...args) {
         if (this.readyState !== 1 /* OPEN */) {
             return;
         }
-        return _origSend.apply(this, args);
-    };
-}
 
-// Polyfill window.localStorage for the Appwrite web SDK.
-// The SDK's realtime handler accesses window.localStorage.getItem('cookieFallback')
-// without a guard, which crashes in React Native where localStorage doesn't exist.
-if (typeof window !== 'undefined' && !window.localStorage) {
+        return originalSend.apply(this, args);
+    }
+
+    safeSend.__ccSafeSendPatched = true;
+    safeSend.__ccOriginalSend = originalSend;
+    websocketPrototype.send = safeSend;
+};
+
+const ensureWindowLocalStorageForAppwrite = () => {
+    if (typeof window === 'undefined' || window.localStorage) {
+        return;
+    }
+
     const memoryStorage = {};
     window.localStorage = {
         getItem(key) {
@@ -40,7 +49,10 @@ if (typeof window !== 'undefined' && !window.localStorage) {
             return Object.keys(memoryStorage)[index] || null;
         },
     };
-}
+};
+
+patchWebSocketSendForAppwrite();
+ensureWindowLocalStorageForAppwrite();
 
 const client = new Client();
 

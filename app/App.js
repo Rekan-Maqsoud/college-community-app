@@ -3,7 +3,7 @@ import { NavigationContainer, useIsFocused, useNavigationContainerRef } from '@r
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, ActivityIndicator, View, Animated, Image, StyleSheet, AppState, Modal, TouchableOpacity, Text } from 'react-native';
+import { Platform, ActivityIndicator, View, Animated, Image, StyleSheet, AppState, Modal, TouchableOpacity, Text, LogBox } from 'react-native';
 import * as ExpoNotifications from 'expo-notifications';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -129,6 +129,12 @@ if (__DEV__ && !global.__APPWRITE_SERVER_ERROR_FILTER__) {
     originalConsoleError.apply(console, args);
   };
 }
+
+LogBox.ignoreLogs([
+  'Require cycle:',
+  'Non-serializable values were found in the navigation state',
+  'InteractionManager is deprecated',
+]);
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();

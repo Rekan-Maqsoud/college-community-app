@@ -36,10 +36,17 @@ const LectureCommentsModal = ({
           keyExtractor={(item) => item.$id}
           contentContainerStyle={styles.commentsList}
           renderItem={({ item }) => (
+            (() => {
+              const actorIdentityIds = [user?.accountId, user?.userId, user?.$id]
+                .map(value => String(value || '').trim())
+                .filter(Boolean);
+              const isOwnComment = actorIdentityIds.includes(String(item.userId || '').trim());
+
+              return (
             <View style={[styles.commentCard, { borderColor: colors.border, backgroundColor: colors.card }]}> 
               <View style={styles.commentTopRow}>
                 <Text style={[styles.commentUser, { color: colors.text }]}>{resolveName(item.userId)}</Text>
-                {(isManager || item.userId === user?.$id) && (
+                {(isManager || isOwnComment) && (
                   <TouchableOpacity onPress={() => removeComment(item.$id)}>
                     <Ionicons name="trash-outline" size={16} color={colors.danger} />
                   </TouchableOpacity>
@@ -47,6 +54,8 @@ const LectureCommentsModal = ({
               </View>
               <Text style={[styles.commentText, { color: colors.textSecondary }]}>{item.text}</Text>
             </View>
+              );
+            })()
           )}
           ListEmptyComponent={
             <View style={styles.emptyWrap}>

@@ -64,6 +64,8 @@ export const UserProvider = ({ children }) => {
           
           const userData = {
             $id: completeUserData.$id,
+            accountId: appwriteUser.$id,
+            userId: completeUserData.userId || appwriteUser.$id,
             email: completeUserData.email,
             fullName: completeUserData.name,
             bio: completeUserData.bio || '',
@@ -133,6 +135,8 @@ export const UserProvider = ({ children }) => {
           
           const userData = {
             $id: completeUserData.$id,
+            accountId: appwriteUser.$id,
+            userId: completeUserData.userId || appwriteUser.$id,
             email: completeUserData.email,
             fullName: completeUserData.name,
             bio: completeUserData.bio || '',

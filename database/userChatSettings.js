@@ -1,6 +1,7 @@
 import { databases, config } from './config';
 import { ID, Query, Permission, Role } from 'appwrite';
 import { assertActorIdentity } from './securityGuards';
+import { chatSettingsCacheManager } from '../app/utils/cacheManager';
 
 // Mute types
 export const MUTE_TYPES = {
@@ -20,6 +21,18 @@ export const MUTE_DURATIONS = {
 
 export const DEFAULT_REACTION_SET = ['👍', '❤️', '😂', '😡', '😕'];
 export const MAX_REACTION_DEFAULTS = 7;
+
+const settingsRequestInflight = new Map();
+
+const getSettingsRequestKey = (userId, chatId) => `${userId}::${chatId}`;
+
+const chunkValues = (values = [], size = 50) => {
+    const chunks = [];
+    for (let index = 0; index < values.length; index += size) {
+        chunks.push(values.slice(index, index + size));
+    }
+    return chunks;
+};
 
 const containsEmoji = (value) => /\p{Extended_Pictographic}/u.test(value);
 
@@ -70,40 +83,46 @@ const normalizeReactionDefaults = (value) => {
     return limited.length > 0 ? limited : DEFAULT_REACTION_SET;
 };
 
-/**
- * Get or create user chat settings for a specific chat
- */
-export const getUserChatSettings = async (userId, chatId) => {
-    try {
-        if (!userId || !chatId) {
-            return null;
-        }
-
-        await assertActorIdentity(userId);
-
-        if (!config.userChatSettingsCollectionId) {
-            return getDefaultSettings(userId, chatId);
-        }
-
-        const settings = await databases.listDocuments({
-            databaseId: config.databaseId,
-            collectionId: config.userChatSettingsCollectionId,
-            queries: [
-                Query.equal('userId', userId),
-                Query.equal('chatId', chatId),
-                Query.orderDesc('$createdAt'),
-                Query.limit(1)
-            ]
-        });
-
-        if (settings.documents.length > 0) {
-            return settings.documents[0];
-        }
-
-        return getDefaultSettings(userId, chatId);
-    } catch (error) {
-        return getDefaultSettings(userId, chatId);
+const parseSettingsState = (value) => {
+    if (!value) {
+        return {};
     }
+
+    if (typeof value === 'object' && !Array.isArray(value)) {
+        return value;
+    }
+
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                return parsed;
+            }
+        } catch (error) {
+            return {};
+        }
+    }
+
+    return {};
+};
+
+const normalizeChatViewportState = (value) => {
+    const messageId = String(value?.messageId || '').trim();
+    if (!messageId) {
+        return null;
+    }
+
+    const rawScrollOffset = Number(value?.scrollOffset);
+    const scrollOffset = Number.isFinite(rawScrollOffset)
+        ? Math.max(0, rawScrollOffset)
+        : 0;
+    const savedAt = String(value?.savedAt || '').trim() || new Date().toISOString();
+
+    return {
+        messageId,
+        scrollOffset,
+        savedAt,
+    };
 };
 
 /**
@@ -122,6 +141,197 @@ const getDefaultSettings = (userId, chatId) => ({
     notifyOnAll: true,
     reactionDefaults: DEFAULT_REACTION_SET,
 });
+
+const normalizeSettingsDocument = (userId, chatId, settings) => {
+    if (!settings || typeof settings !== 'object') {
+        return getDefaultSettings(userId, chatId);
+    }
+
+    const settingsState = parseSettingsState(settings.settings);
+
+    return {
+        ...getDefaultSettings(userId, chatId),
+        ...settings,
+        userId,
+        chatId,
+        settings: typeof settings.settings === 'string'
+            ? settings.settings
+            : (settings.settings ? JSON.stringify(settings.settings) : ''),
+        settingsState,
+    };
+};
+
+const getChatViewportStateFromSettings = (settings) => {
+    const settingsState = parseSettingsState(settings?.settingsState || settings?.settings);
+    return normalizeChatViewportState(settingsState?.chatViewport);
+};
+
+const fetchUserChatSettingsFromNetwork = async (userId, chatId) => {
+    await assertActorIdentity(userId);
+
+    if (!config.userChatSettingsCollectionId) {
+        return getDefaultSettings(userId, chatId);
+    }
+
+    const settings = await databases.listDocuments({
+        databaseId: config.databaseId,
+        collectionId: config.userChatSettingsCollectionId,
+        queries: [
+            Query.equal('userId', userId),
+            Query.equal('chatId', chatId),
+            Query.orderDesc('$createdAt'),
+            Query.limit(1)
+        ]
+    });
+
+    const resolved = settings.documents.length > 0
+        ? normalizeSettingsDocument(userId, chatId, settings.documents[0])
+        : getDefaultSettings(userId, chatId);
+
+    await chatSettingsCacheManager.cacheChatSettings(userId, chatId, resolved);
+    return resolved;
+};
+
+/**
+ * Get or create user chat settings for a specific chat
+ */
+export const getUserChatSettings = async (userId, chatId, options = {}) => {
+    try {
+        if (!userId || !chatId) {
+            return null;
+        }
+
+        const {
+            preferCache = true,
+            skipNetwork = false,
+            forceRefresh = false,
+        } = options;
+
+        if (preferCache && !forceRefresh) {
+            const cached = await chatSettingsCacheManager.getCachedChatSettings(userId, chatId);
+            if (cached?.value) {
+                return normalizeSettingsDocument(userId, chatId, cached.value);
+            }
+        }
+
+        if (skipNetwork) {
+            return getDefaultSettings(userId, chatId);
+        }
+
+        const requestKey = getSettingsRequestKey(userId, chatId);
+        if (!settingsRequestInflight.has(requestKey)) {
+            settingsRequestInflight.set(
+                requestKey,
+                fetchUserChatSettingsFromNetwork(userId, chatId)
+                    .finally(() => {
+                        settingsRequestInflight.delete(requestKey);
+                    })
+            );
+        }
+
+        return await settingsRequestInflight.get(requestKey);
+    } catch (error) {
+        return getDefaultSettings(userId, chatId);
+    }
+};
+
+export const getUserChatSettingsMap = async (userId, chatIds = [], options = {}) => {
+    if (!userId || !Array.isArray(chatIds) || chatIds.length === 0) {
+        return {};
+    }
+
+    const {
+        preferCache = true,
+        skipNetwork = false,
+        forceRefresh = false,
+    } = options;
+
+    const uniqueChatIds = Array.from(new Set(chatIds.filter(Boolean)));
+    const results = {};
+    const missingChatIds = [];
+
+    if (preferCache && !forceRefresh) {
+        const cachedResults = await Promise.all(
+            uniqueChatIds.map(async (chatId) => {
+                const cached = await chatSettingsCacheManager.getCachedChatSettings(userId, chatId);
+                return [chatId, cached?.value ? normalizeSettingsDocument(userId, chatId, cached.value) : null];
+            })
+        );
+
+        cachedResults.forEach(([chatId, settings]) => {
+            if (settings) {
+                results[chatId] = settings;
+            } else {
+                missingChatIds.push(chatId);
+            }
+        });
+    } else {
+        missingChatIds.push(...uniqueChatIds);
+    }
+
+    if (skipNetwork || missingChatIds.length === 0) {
+        uniqueChatIds.forEach((chatId) => {
+            if (!results[chatId]) {
+                results[chatId] = getDefaultSettings(userId, chatId);
+            }
+        });
+        return results;
+    }
+
+    try {
+        await assertActorIdentity(userId);
+
+        if (!config.userChatSettingsCollectionId) {
+            uniqueChatIds.forEach((chatId) => {
+                results[chatId] = getDefaultSettings(userId, chatId);
+            });
+            return results;
+        }
+
+        const networkResults = {};
+        const chatIdChunks = chunkValues(missingChatIds, 50);
+
+        for (const chatIdChunk of chatIdChunks) {
+            const settings = await databases.listDocuments({
+                databaseId: config.databaseId,
+                collectionId: config.userChatSettingsCollectionId,
+                queries: [
+                    Query.equal('userId', userId),
+                    Query.equal('chatId', chatIdChunk),
+                    Query.orderDesc('$createdAt'),
+                    Query.limit(Math.min(chatIdChunk.length, 100))
+                ]
+            });
+
+            settings.documents.forEach((document) => {
+                if (!document?.chatId || networkResults[document.chatId]) {
+                    return;
+                }
+                networkResults[document.chatId] = normalizeSettingsDocument(userId, document.chatId, document);
+            });
+        }
+
+        await Promise.all(
+            missingChatIds.map(async (chatId) => {
+                const resolved = networkResults[chatId] || getDefaultSettings(userId, chatId);
+                results[chatId] = resolved;
+                await chatSettingsCacheManager.cacheChatSettings(userId, chatId, resolved);
+            })
+        );
+    } catch (error) {
+        missingChatIds.forEach((chatId) => {
+            results[chatId] = getDefaultSettings(userId, chatId);
+        });
+    }
+
+    uniqueChatIds.forEach((chatId) => {
+        if (!results[chatId]) {
+            results[chatId] = getDefaultSettings(userId, chatId);
+        }
+    });
+
+    return results;
+};
 
 /**
  * Archive or unarchive a chat for a specific user
@@ -156,6 +366,36 @@ export const getReactionDefaults = async (userId, chatId) => {
     } catch (error) {
         return DEFAULT_REACTION_SET;
     }
+};
+
+export const getChatViewportState = async (userId, chatId) => {
+    try {
+        const settings = await getUserChatSettings(userId, chatId);
+        return getChatViewportStateFromSettings(settings);
+    } catch (error) {
+        return null;
+    }
+};
+
+export const updateChatViewportState = async (userId, chatId, viewport) => {
+    const normalizedViewport = normalizeChatViewportState(viewport);
+    const settings = await getUserChatSettings(userId, chatId, { preferCache: true });
+    const settingsState = parseSettingsState(settings?.settingsState || settings?.settings);
+    const nextSettingsState = {
+        ...settingsState,
+    };
+
+    if (normalizedViewport) {
+        nextSettingsState.chatViewport = normalizedViewport;
+    } else {
+        delete nextSettingsState.chatViewport;
+    }
+
+    await updateUserChatSettings(userId, chatId, {
+        settings: JSON.stringify(nextSettingsState),
+    });
+
+    return normalizedViewport;
 };
 
 export const updateReactionDefaults = async (userId, chatId, reactions = []) => {
@@ -305,6 +545,7 @@ export const updateUserChatSettings = async (userId, chatId, updates) => {
                 documentId: existing.documents[0].$id,
                 data: updates
             });
+            await chatSettingsCacheManager.cacheChatSettings(userId, chatId, normalizeSettingsDocument(userId, chatId, updated));
             return updated;
         } else {
             // Create new
@@ -323,6 +564,7 @@ export const updateUserChatSettings = async (userId, chatId, updates) => {
                     Permission.delete(Role.user(userId)),
                 ]
             });
+            await chatSettingsCacheManager.cacheChatSettings(userId, chatId, normalizeSettingsDocument(userId, chatId, created));
             return created;
         }
     } catch (error) {

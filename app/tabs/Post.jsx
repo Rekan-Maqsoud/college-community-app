@@ -261,8 +261,12 @@ const Post = () => {
         const results = await Promise.all(uploadPromises);
         
         results.forEach(result => {
-          if (result.success) {
-            imageUrls.push(result.url);
+          if (!result?.success || !result?.url) {
+            throw new Error(result?.error || t('post.createError'));
+          }
+
+          imageUrls.push(result.url);
+          if (result.deleteUrl) {
             imageDeleteUrls.push(result.deleteUrl);
           }
         });
@@ -343,7 +347,11 @@ const Post = () => {
       setCorrectPollOptionId('');
       setPollExplanation('');
     } catch (error) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('post.createError') });
+      showAlert({
+        type: 'error',
+        title: t('common.error'),
+        message: error?.message || t('post.createError'),
+      });
     } finally {
       setLoading(false);
     }

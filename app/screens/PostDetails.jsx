@@ -25,6 +25,7 @@ import { incrementPostViewCount, getPost } from '../../database/posts';
 import { repliesCacheManager, postsCacheManager } from '../utils/cacheManager';
 import { markNotificationsAsReadByContext } from '../../database/notifications';
 import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
+import { REFRESH_TOPICS, publishRefreshEvent } from '../utils/dataRefreshBus';
 import ImageGalleryModal from './postDetails/ImageGalleryModal';
 import ReplyItem from './postDetails/ReplyItem';
 import ReplyInputSection from './postDetails/ReplyInputSection';
@@ -37,7 +38,7 @@ const PostDetails = ({ navigation, route }) => {
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { contentStyle } = useLayout();
   const insets = useSafeAreaInsets();
-  const { post: initialPost, postId: routePostId, replyId: routeReplyId, targetReplyId, onPostUpdate, source, autoFocusReply } = route.params || {};
+  const { post: initialPost, postId: routePostId, replyId: routeReplyId, targetReplyId, source, autoFocusReply } = route.params || {};
 
   // Resolve effective target reply - from either replyId or targetReplyId
   const effectiveReplyId = routeReplyId || targetReplyId || null;
@@ -73,17 +74,18 @@ const PostDetails = ({ navigation, route }) => {
 
   // Handle going back and updating the parent screen with new reply count
   const handleGoBack = useCallback(() => {
-    // Always sync the reply count back to the parent
     if (post?.$id) {
-      onPostUpdate?.({
+      publishRefreshEvent(REFRESH_TOPICS.FEED, {
+        post: {
         ...post,
         replyCount: currentReplyCount,
+        },
       });
     }
 
     navigation.goBack();
     return true;
-  }, [currentReplyCount, post, navigation, onPostUpdate]);
+  }, [currentReplyCount, navigation, post]);
 
   // Handle Android hardware back button
   useEffect(() => {

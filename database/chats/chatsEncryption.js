@@ -16,15 +16,26 @@ import {
   getSecureRandomBytes,
   getParticipantPublicKey,
   encryptWithBox,
-  decodeBytes,
+  decodeBytesOfLength,
 } from './chatsShared';
-import { getChat } from './chatsLifecycle';
+
+const getChatDocument = async (chatId) => {
+  if (!chatId || typeof chatId !== 'string') {
+    throw new Error('Invalid chat ID');
+  }
+
+  return await databases.getDocument({
+    databaseId: config.databaseId,
+    collectionId: config.chatsCollectionId,
+    documentId: chatId,
+  });
+};
 
 export const ensureChatParticipant = async (chatId, userId) => {
   try {
     if (!chatId || !userId) return null;
 
-    const chat = await getChat(chatId);
+    const chat = await getChatDocument(chatId);
     const participants = Array.isArray(chat.participants) ? chat.participants : [];
 
     if (participants.includes(userId)) {
@@ -55,7 +66,7 @@ export const rotateChatE2eeKeys = async (chatId, actorUserId = null) => {
     const currentUserId = actorUserId || await getAuthenticatedUserId();
     await assertActorIdentity(currentUserId);
 
-    const chat = await getChat(chatId, true);
+    const chat = await getChatDocument(chatId);
     const participants = Array.isArray(chat?.participants) ? Array.from(new Set(chat.participants)) : [];
     if (!participants.includes(currentUserId)) {
       throw new Error('Not authorized to rotate chat keys');
@@ -75,7 +86,7 @@ export const rotateChatE2eeKeys = async (chatId, actorUserId = null) => {
     await ensureUserPublicKeyStored(currentUserId, senderPublicKey);
 
     const nextChatKey = getSecureRandomBytes(nacl.secretbox.keyLength);
-    if (!nextChatKey) {
+    if (!(nextChatKey instanceof Uint8Array) || nextChatKey.length !== nacl.secretbox.keyLength) {
       throw new Error('Unable to rotate chat key');
     }
 
@@ -93,6 +104,11 @@ export const rotateChatE2eeKeys = async (chatId, actorUserId = null) => {
         continue;
       }
 
+      const participantPublicKeyBytes = decodeBytesOfLength(participantPublicKey, nacl.box.publicKeyLength);
+      if (!participantPublicKeyBytes) {
+        continue;
+      }
+
       if (!publicKeys[participantId]) {
         publicKeys[participantId] = participantPublicKey;
       }
@@ -100,7 +116,7 @@ export const rotateChatE2eeKeys = async (chatId, actorUserId = null) => {
       const encrypted = encryptWithBox(
         nextChatKey,
         senderKeypair.secretKey,
-        decodeBytes(participantPublicKey)
+        participantPublicKeyBytes
       );
       if (!encrypted) {
         continue;
@@ -162,7 +178,7 @@ export const recoverChatE2eeKey = async (chatId, userId = null) => {
     await assertActorIdentity(effectiveUserId);
 
     await clearStoredChatKey(chatId);
-    const chat = await getChat(chatId, true);
+    const chat = await getChatDocument(chatId);
     return await resolveChatKey(chat, effectiveUserId, { forceRefresh: true });
   } catch {
     return null;
@@ -214,7 +230,7 @@ export const decryptChatPreviews = async (chats, userId) => {
 export const decryptMessageForChat = async (chatId, message, userId) => {
   try {
     if (!chatId || !message || !userId) return message;
-    const chat = await getChat(chatId);
+    const chat = await getChatDocument(chatId);
     const chatKey = await resolveChatKey(chat, userId);
     return await decryptMessageFieldsWithRecovery(chat, userId, message, chatKey);
   } catch {

@@ -506,127 +506,155 @@ const UserProfile = ({ route, navigation }) => {
     }
   };
 
-  const renderInfoRow = ({ iconName, iconColor, label, value }) => {
+  const renderAboutTile = ({ key, iconName, iconColor, label, value, fullWidth = false }) => {
     if (!value) {
       return null;
     }
 
     return (
-      <View style={styles.infoRow}>
-        <View style={styles.infoIconWrap}>
+      <GlassContainer
+        key={key}
+        borderRadius={borderRadius.lg}
+        style={[styles.aboutTile, fullWidth && styles.aboutTileFullWidth]}>
+        <View style={[styles.aboutTileIconWrap, { backgroundColor: `${iconColor}18` }]}>
           <Ionicons name={iconName} size={moderateScale(16)} color={iconColor} />
         </View>
-        <Text style={[styles.infoLabel, { color: theme.textSecondary }]} numberOfLines={1}>
-          {label}
-        </Text>
-        <Text style={[styles.infoValue, { color: theme.text }]} numberOfLines={2} ellipsizeMode="tail">
-          {value}
-        </Text>
-      </View>
+        <View style={styles.aboutTileTextWrap}>
+          <Text style={[styles.aboutTileLabel, { color: theme.textSecondary }]} numberOfLines={1}>
+            {label}
+          </Text>
+          <Text style={[styles.aboutTileValue, { color: theme.text }]} numberOfLines={fullWidth ? 2 : 3}>
+            {value}
+          </Text>
+        </View>
+      </GlassContainer>
     );
   };
 
-  const renderAboutSection = () => (
-    <View style={styles.sectionContainer}>
-      <Text style={[styles.sectionHeader, { color: theme.text }]}>{t('profile.about')}</Text>
-      <GlassContainer borderRadius={borderRadius.lg} style={styles.infoCard}>
-        {renderInfoRow({
-          iconName: 'mail-outline',
-          iconColor: theme.primary,
-          label: t('profile.email'),
-          value: userProfile.email,
-        })}
-        
-        {userProfile.university && (
-          <>
-            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]} />
-            {renderInfoRow({
-              iconName: 'school-outline',
-              iconColor: theme.success,
-              label: t('profile.university'),
-              value: userProfile.university,
-            })}
-          </>
-        )}
-        
-        {userProfile.college && (
-          <>
-            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]} />
-            {renderInfoRow({
-              iconName: 'library-outline',
-              iconColor: theme.warning,
-              label: t('profile.college'),
-              value: userProfile.college,
-            })}
-          </>
-        )}
-        
-        {userProfile.department && (
-          <>
-            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]} />
-            {renderInfoRow({
-              iconName: 'briefcase-outline',
-              iconColor: theme.primary,
-              label: t('profile.department'),
-              value: userProfile.department,
-            })}
-          </>
-        )}
-        
-        {userProfile.stage && (
-          <>
-            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]} />
-            {renderInfoRow({
-              iconName: 'stats-chart-outline',
-              iconColor: theme.secondary,
-              label: t('profile.stage'),
-              value: userProfile.stage,
-            })}
-          </>
-        )}
-      </GlassContainer>
+  const renderAboutSection = () => {
+    const aboutTiles = [
+      {
+        key: 'email',
+        iconName: 'mail-outline',
+        iconColor: theme.primary,
+        label: t('profile.email'),
+        value: userProfile.email,
+        fullWidth: true,
+      },
+      {
+        key: 'university',
+        iconName: 'school-outline',
+        iconColor: theme.success,
+        label: t('profile.university'),
+        value: userProfile.university,
+      },
+      {
+        key: 'college',
+        iconName: 'library-outline',
+        iconColor: theme.warning,
+        label: t('profile.college'),
+        value: userProfile.college,
+      },
+      {
+        key: 'department',
+        iconName: 'briefcase-outline',
+        iconColor: theme.primary,
+        label: t('profile.department'),
+        value: userProfile.department,
+      },
+      {
+        key: 'stage',
+        iconName: 'stats-chart-outline',
+        iconColor: theme.secondary,
+        label: t('profile.stage'),
+        value: userProfile.stage,
+      },
+    ].filter((item) => !!item.value);
 
-      {/* Social Links - respect visibility settings */}
-      {userData?.socialLinks && 
-       Object.values(userData.socialLinks).some(v => v) && 
-       (userData.socialLinksVisibility === 'everyone' || 
-        (userData.socialLinksVisibility === 'friends' && isFollowing)) && (
-        <GlassContainer borderRadius={borderRadius.lg} style={[styles.infoCard, { marginTop: spacing.md }]}>
-          <Text style={[styles.infoLabel, { fontSize: fontSize(10), color: theme.textSecondary, marginBottom: spacing.sm }]}>
-            {t('settings.socialLinks')}
+    return (
+      <View style={styles.sectionContainer}>
+        <Text style={[styles.sectionHeader, { color: theme.text }]}>{t('profile.about')}</Text>
+
+        <GlassContainer borderRadius={borderRadius.xl} style={styles.aboutHeroCard}>
+          <View style={styles.aboutHeroTopRow}>
+            <View style={[styles.aboutHeroBadge, { backgroundColor: `${theme.primary}16` }]}>
+              <Ionicons name="sparkles-outline" size={moderateScale(18)} color={theme.primary} />
+            </View>
+            <Text style={[styles.aboutHeroLabel, { color: theme.textSecondary }]}>
+              {t('profile.about')}
+            </Text>
+          </View>
+
+          <Text style={[styles.aboutHeroBio, { color: theme.text }]}>
+            {userProfile.bio}
           </Text>
-          <View style={styles.socialLinksContainer}>
-            {[
-              { key: 'instagram', icon: 'logo-instagram', color: '#E4405F', prefix: 'https://instagram.com/' },
-              { key: 'twitter', icon: 'logo-twitter', color: '#1DA1F2', prefix: 'https://twitter.com/' },
-              { key: 'linkedin', icon: 'logo-linkedin', color: '#0A66C2', prefix: '' },
-              { key: 'github', icon: 'logo-github', color: isDarkMode ? '#FFFFFF' : '#333333', prefix: '' },
-              { key: 'website', icon: 'globe-outline', color: theme.primary, prefix: '' },
-            ].map(({ key, icon, color, prefix }) => {
-              const value = userData.socialLinks?.[key];
-              if (!value) return null;
-              return (
-                <TouchableOpacity
-                  key={key}
-                  style={[styles.socialLinkButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }]}
-                  onPress={() => {
-                    let url = value;
-                    if (!url.startsWith('http') && prefix) {
-                      url = prefix + url.replace('@', '');
-                    } else if (!url.startsWith('http') && key === 'website') {
-                      url = 'https://' + url;
-                    }
-                    Linking.openURL(url).catch(() => {});
-                  }}>
-                  <Ionicons name={icon} size={moderateScale(22)} color={color} />
-                </TouchableOpacity>
-              );
-            })}
+
+          <View style={styles.aboutHeroMetaRow}>
+            {userProfile.department ? (
+              <View style={[styles.aboutMetaChip, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)' }]}>
+                <Ionicons name="briefcase-outline" size={moderateScale(13)} color={theme.primary} />
+                <Text style={[styles.aboutMetaChipText, { color: theme.textSecondary }]} numberOfLines={1}>
+                  {userProfile.department}
+                </Text>
+              </View>
+            ) : null}
+            {userProfile.stage ? (
+              <View style={[styles.aboutMetaChip, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)' }]}>
+                <Ionicons name="trending-up-outline" size={moderateScale(13)} color={theme.secondary} />
+                <Text style={[styles.aboutMetaChipText, { color: theme.textSecondary }]} numberOfLines={1}>
+                  {userProfile.stage}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </GlassContainer>
-      )}
-    </View>
-  );
+
+        <View style={styles.aboutGrid}>
+          {aboutTiles.map(renderAboutTile)}
+        </View>
+
+        {/* Social Links - respect visibility settings */}
+        {userData?.socialLinks && 
+         Object.values(userData.socialLinks).some(v => v) && 
+         (userData.socialLinksVisibility === 'everyone' || 
+          (userData.socialLinksVisibility === 'friends' && isFollowing)) && (
+          <GlassContainer borderRadius={borderRadius.lg} style={[styles.infoCard, { marginTop: spacing.md }]}>
+            <Text style={[styles.socialLinksHeader, { color: theme.textSecondary }]}>
+              {t('settings.socialLinks')}
+            </Text>
+            <View style={styles.socialLinksContainer}>
+              {[
+                { key: 'instagram', icon: 'logo-instagram', color: '#E4405F', prefix: 'https://instagram.com/' },
+                { key: 'twitter', icon: 'logo-twitter', color: '#1DA1F2', prefix: 'https://twitter.com/' },
+                { key: 'linkedin', icon: 'logo-linkedin', color: '#0A66C2', prefix: '' },
+                { key: 'github', icon: 'logo-github', color: isDarkMode ? '#FFFFFF' : '#333333', prefix: '' },
+                { key: 'website', icon: 'globe-outline', color: theme.primary, prefix: '' },
+              ].map(({ key, icon, color, prefix }) => {
+                const value = userData.socialLinks?.[key];
+                if (!value) return null;
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    style={[styles.socialLinkButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }]}
+                    onPress={() => {
+                      let url = value;
+                      if (!url.startsWith('http') && prefix) {
+                        url = prefix + url.replace('@', '');
+                      } else if (!url.startsWith('http') && key === 'website') {
+                        url = 'https://' + url;
+                      }
+                      Linking.openURL(url).catch(() => {});
+                    }}>
+                    <Ionicons name={icon} size={moderateScale(22)} color={color} />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </GlassContainer>
+        )}
+      </View>
+    );
+  };
 
   const renderPostsSection = () => {
     return (
@@ -1056,10 +1084,97 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     marginTop: spacing.xs,
   }, 
+  aboutHeroCard: {
+    padding: spacing.md,
+    overflow: 'hidden',
+  },
+  aboutHeroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  aboutHeroBadge: {
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: borderRadius.round,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aboutHeroLabel: {
+    fontSize: fontSize(11),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  aboutHeroBio: {
+    fontSize: fontSize(14),
+    lineHeight: fontSize(21),
+    fontWeight: '500',
+  },
+  aboutHeroMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  aboutMetaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.pill || 999,
+    maxWidth: '100%',
+  },
+  aboutMetaChipText: {
+    fontSize: fontSize(12),
+    fontWeight: '600',
+    flexShrink: 1,
+  },
   infoCard: { 
     padding: spacing.md,
     overflow: 'hidden',
   }, 
+  aboutGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  aboutTile: {
+    width: '48%',
+    minHeight: moderateScale(102),
+    padding: spacing.md,
+    overflow: 'hidden',
+  },
+  aboutTileFullWidth: {
+    width: '100%',
+    minHeight: moderateScale(84),
+  },
+  aboutTileIconWrap: {
+    width: moderateScale(34),
+    height: moderateScale(34),
+    borderRadius: borderRadius.round,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  aboutTileTextWrap: {
+    flex: 1,
+  },
+  aboutTileLabel: {
+    fontSize: fontSize(10),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.45,
+    marginBottom: spacing.xs,
+  },
+  aboutTileValue: {
+    fontSize: fontSize(14),
+    fontWeight: '600',
+    lineHeight: fontSize(19),
+  },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -1179,6 +1294,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  socialLinksHeader: {
+    fontSize: fontSize(10),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.45,
+    marginBottom: spacing.sm,
   },
   socialLinkButton: {
     width: moderateScale(44),

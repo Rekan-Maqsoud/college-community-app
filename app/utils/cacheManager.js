@@ -9,6 +9,7 @@ const CACHE_DURATIONS = {
   posts: 1000 * 60 * 30, // 30 minutes for posts
   chats: 1000 * 60 * 20, // 20 minutes for chats list
   messages: 1000 * 60 * 5, // 5 minutes for messages
+  chatSettings: 1000 * 60 * 10, // 10 minutes for per-chat user settings
   replies: 1000 * 60 * 20, // 20 minutes for replies
   notifications: 1000 * 60 * 10, // 10 minutes for notifications
   unreadCount: 1000 * 60 * 2, // 2 minutes for unread counters
@@ -193,6 +194,32 @@ export const chatsCacheManager = {
       await cacheManager.removeByPrefix('chats_');
     }
   }
+};
+
+export const chatSettingsCacheManager = {
+  generateCacheKey(userId, chatId) {
+    return `chat_settings_${userId}_${chatId}`;
+  },
+
+  async cacheChatSettings(userId, chatId, settings) {
+    if (!userId || !chatId || !settings) return;
+    await cacheManager.set(this.generateCacheKey(userId, chatId), settings, CACHE_DURATIONS.chatSettings);
+  },
+
+  async getCachedChatSettings(userId, chatId) {
+    if (!userId || !chatId) return null;
+    return await cacheManager.getWithMeta(this.generateCacheKey(userId, chatId));
+  },
+
+  async invalidateChatSettings(userId, chatId) {
+    if (!userId || !chatId) return;
+    await cacheManager.remove(this.generateCacheKey(userId, chatId));
+  },
+
+  async invalidateAllForUser(userId) {
+    if (!userId) return;
+    await cacheManager.removeByPrefix(`chat_settings_${userId}_`);
+  },
 };
 
 export const unreadCountCacheManager = {

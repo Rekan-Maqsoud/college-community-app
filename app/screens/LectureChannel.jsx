@@ -1,1 +1,1 @@
-export { default } from './lectureChannel';
+export { default } from './lectureChannel/LectureChannelScreen';

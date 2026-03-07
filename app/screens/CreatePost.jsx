@@ -287,11 +287,14 @@ const CreatePost = ({ navigation, route }) => {
         showAlert(t('post.uploadingImages'), t('post.pleaseWait'), 'info');
 
         for (const image of images) {
-          try {
-            const result = await uploadImage(image.uri);
-            uploadedImages.push(result.url);
+          const result = await uploadImage(image.uri);
+          if (!result?.success || !result?.url) {
+            throw new Error(result?.error || t('post.createError'));
+          }
+
+          uploadedImages.push(result.url);
+          if (result.deleteUrl) {
             imageDeleteUrls.push(result.deleteUrl);
-          } catch (error) {
           }
         }
       }
@@ -302,8 +305,8 @@ const CreatePost = ({ navigation, route }) => {
 
       const postData = {
         userId: user.$id,
-        userName: user.fullName,
-        userProfilePicture: user.profilePicture || null,
+        userName: user.fullName || user.name,
+        profilePicture: user.profilePicture || null,
         postType,
         topic: topic.trim(),
         text: text.trim(),
@@ -342,7 +345,7 @@ const CreatePost = ({ navigation, route }) => {
     } catch (error) {
       showAlert(
         t('common.error'),
-        error.message || t('post.createError')
+        error?.message || t('post.createError')
       );
     } finally {
       setLoading(false);

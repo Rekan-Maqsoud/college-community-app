@@ -5,8 +5,6 @@ import {
   StatusBar,
   Platform,
   TouchableOpacity,
-  Modal,
-  Pressable,
   KeyboardAvoidingView,
   ImageBackground,
   TextInput,
@@ -20,17 +18,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AnimatedBackground from '../components/AnimatedBackground';
 import MessageBubble from '../components/MessageBubble';
 import MessageInput from '../components/MessageInput';
-import { MessageListSkeleton } from '../components/SkeletonLoader';
 import CustomAlert from '../components/CustomAlert';
 import UnifiedEmptyState from '../components/UnifiedEmptyState';
-import useCustomAlert from '../hooks/useCustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 import { 
-  wp, 
   fontSize, 
-  spacing, 
   moderateScale,
 } from '../utils/responsive';
-import { borderRadius } from '../theme/designTokens';
 import { MuteModal, PinnedMessagesModal, ChatOptionsModal } from './chatRoom/ChatRoomModals';
 import { chatRoomStyles as styles } from './chatRoom/styles';
 import { useChatRoom } from './chatRoom/useChatRoom';
@@ -40,6 +34,165 @@ import PostViewModal from '../components/PostViewModal';
 import { isUserOnline, getLastSeenText } from '../utils/onlineStatus';
 import { getUserById } from '../../database/users';
 import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
+
+const HEADER_ACTION_HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+const SEARCH_ACTION_HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 };
+const ONLINE_INDICATOR_COLOR = '#34C759';
+const REPRESENTATIVE_ONLY_COLOR = '#F59E0B';
+const BLOCKED_COLOR = '#EF4444';
+const CHAT_ONLY_BLOCKED_COLOR = '#F59E0B';
+
+const HEADER_BACKGROUND_BY_GRADIENT = {
+  gradient_purple: '#667eea',
+  gradient_blue: '#1a1a2e',
+  gradient_green: '#134e5e',
+  gradient_sunset: '#ff7e5f',
+  gradient_ocean: '#2193b0',
+  gradient_midnight: '#232526',
+  gradient_aurora: '#00c6fb',
+  gradient_rose: '#f4c4f3',
+};
+
+const CHAT_BACKGROUND_BY_GRADIENT = {
+  gradient_purple: ['#667eea', '#764ba2'],
+  gradient_blue: ['#1a1a2e', '#16213e'],
+  gradient_green: ['#134e5e', '#71b280'],
+  gradient_sunset: ['#ff7e5f', '#feb47b'],
+  gradient_ocean: ['#2193b0', '#6dd5ed'],
+  gradient_midnight: ['#232526', '#414345'],
+  gradient_aurora: ['#00c6fb', '#005bea'],
+  gradient_rose: ['#f4c4f3', '#fc67fa'],
+};
+
+const LIGHT_CHAT_BACKGROUND = ['#f0f4ff', '#d8e7ff', '#c0deff'];
+const DARK_CHAT_BACKGROUND = ['#1a1a2e', '#16213e', '#0f3460'];
+const LIGHT_HEADER_BACKGROUND = '#f0f4ff';
+const DARK_HEADER_BACKGROUND = '#1a1a2e';
+
+const ChatMessageItem = React.memo(({
+  message,
+  index,
+  currentUserId,
+  senderData,
+  previousSenderId,
+  nextSenderId,
+  isRepresentative,
+  isBookmarked,
+  canPin,
+  chatType,
+  otherUserPhoto,
+  otherUserName,
+  participantCount,
+  isLastSeenMessage,
+  groupMembers,
+  searchQuery,
+  isCurrentSearchResult,
+  isHighlighted,
+  showAlert,
+  selectionMode,
+  isSelected,
+  reactionDefaults,
+  onCopyMessage,
+  onDeleteMessage,
+  onReplyMessage,
+  onForwardMessage,
+  onPinMessage,
+  onUnpinMessage,
+  onBookmarkMessage,
+  onUnbookmarkMessage,
+  onAvatarPress,
+  onRetryMessage,
+  onPostPress,
+  onToggleSelect,
+  onToggleReaction,
+  onPollVote,
+  onEditReactions,
+  triggerHaptic,
+}) => {
+  const isCurrentUser = message.senderId === currentUserId;
+  const senderName = senderData?.name || message.senderName || 'Unknown';
+  const senderPhoto = senderData?.profilePicture || message.senderPhoto;
+  const showSenderName = !isCurrentUser && (index === 0 || previousSenderId !== message.senderId);
+  const showAvatar = !isCurrentUser && (nextSenderId !== message.senderId);
+
+  const handleCopy = useCallback(() => {
+    onCopyMessage(message);
+  }, [message, onCopyMessage]);
+
+  const handleDelete = useCallback(() => {
+    triggerHaptic('warning');
+    onDeleteMessage(message);
+  }, [message, onDeleteMessage, triggerHaptic]);
+
+  const handleReply = useCallback(() => {
+    onReplyMessage(message);
+  }, [message, onReplyMessage]);
+
+  const handleForward = useCallback(() => {
+    onForwardMessage(message);
+  }, [message, onForwardMessage]);
+
+  const handlePin = useCallback(() => {
+    onPinMessage(message);
+  }, [message, onPinMessage]);
+
+  const handleUnpin = useCallback(() => {
+    onUnpinMessage(message);
+  }, [message, onUnpinMessage]);
+
+  const handleBookmark = useCallback(() => {
+    triggerHaptic('light');
+    onBookmarkMessage(message);
+  }, [message, onBookmarkMessage, triggerHaptic]);
+
+  const handleUnbookmark = useCallback(() => {
+    onUnbookmarkMessage(message);
+  }, [message, onUnbookmarkMessage]);
+
+  return (
+    <MessageBubble
+      message={message}
+      isCurrentUser={isCurrentUser}
+      senderName={showSenderName ? senderName : null}
+      senderPhoto={senderPhoto}
+      showAvatar={showAvatar}
+      isRepresentative={isRepresentative}
+      onCopy={handleCopy}
+      onDelete={isCurrentUser ? handleDelete : null}
+      onReply={handleReply}
+      onForward={handleForward}
+      onPin={canPin ? handlePin : null}
+      onUnpin={canPin && message.isPinned ? handleUnpin : null}
+      onBookmark={handleBookmark}
+      onUnbookmark={isBookmarked ? handleUnbookmark : null}
+      isBookmarked={isBookmarked}
+      onAvatarPress={onAvatarPress}
+      onRetry={message._status === 'failed' ? onRetryMessage : null}
+      chatType={chatType}
+      otherUserPhoto={otherUserPhoto}
+      otherUserName={otherUserName}
+      participantCount={participantCount}
+      isLastSeenMessage={isLastSeenMessage}
+      groupMembers={groupMembers}
+      onNavigateToProfile={onAvatarPress}
+      searchQuery={searchQuery}
+      isCurrentSearchResult={isCurrentSearchResult}
+      isHighlighted={isHighlighted}
+      onPostPress={onPostPress}
+      showAlert={showAlert}
+      selectionMode={selectionMode}
+      isSelected={isSelected}
+      onToggleSelect={onToggleSelect}
+      currentUserId={currentUserId}
+      reactionDefaults={reactionDefaults}
+      onToggleReaction={onToggleReaction}
+      onPollVote={onPollVote}
+      onEditReactions={onEditReactions}
+    />
+  );
+});
+
+ChatMessageItem.displayName = 'ChatMessageItem';
 
 const ChatRoom = ({ route, navigation }) => {
   const { chat } = route.params;
@@ -64,7 +217,6 @@ const ChatRoom = ({ route, navigation }) => {
     canMentionEveryone,
     showChatOptionsModal,
     flatListRef,
-    chat: chatData,
     groupMembers,
     userFriends,
     selectionMode,
@@ -75,6 +227,7 @@ const ChatRoom = ({ route, navigation }) => {
     setShowPinnedModal,
     setShowChatOptionsModal,
     reactionDefaults,
+    chatViewportState,
     getChatDisplayName,
     handleChatHeaderPress,
     handleViewPinnedMessages,
@@ -103,6 +256,7 @@ const ChatRoom = ({ route, navigation }) => {
     handleBatchCopy,
     handleBatchDeleteForMe,
     handleManualRefresh,
+    saveChatViewport,
     isBlockedByOtherUser,
     isChatBlockedByOtherUser,
   } = useChatRoom({ chat, user, t, navigation, showAlert, refreshUser });
@@ -143,6 +297,10 @@ const ChatRoom = ({ route, navigation }) => {
   // Highlighted message state (used by pinned message scroll-to)
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const highlightTimerRef = useRef(null);
+  const scrollOffsetRef = useRef(0);
+  const visibleAnchorRef = useRef({ messageId: '', index: -1 });
+  const hasAppliedInitialViewportRef = useRef(false);
+  const lastPersistedViewportKeyRef = useRef('');
 
   // Post view modal state (for shared posts)
   const [postModalVisible, setPostModalVisible] = useState(false);
@@ -194,7 +352,7 @@ const ChatRoom = ({ route, navigation }) => {
     };
     fetchLastSeen();
     return () => { active = false; };
-  }, [chat.type, chat.otherUser?.$id, showActivityStatus]);
+  }, [chat.type, otherUserId, showActivityStatus]);
 
   const formattedChatTitle = useMemo(() => {
     const raw = getChatDisplayName() || '';
@@ -239,7 +397,7 @@ const ChatRoom = ({ route, navigation }) => {
         }, 1500);
       }, 350);
     }
-  }, [memoizedMessages, setShowPinnedModal]);
+  }, [flatListRef, memoizedMessages, setShowPinnedModal]);
 
   // Compute search results when query changes
   useEffect(() => {
@@ -268,7 +426,7 @@ const ChatRoom = ({ route, navigation }) => {
         });
       }
     }
-  }, [currentSearchIndex, searchResults]);
+  }, [currentSearchIndex, flatListRef, searchResults]);
 
   const handleSearchPrev = useCallback(() => {
     if (searchResults.length > 0) {
@@ -299,109 +457,276 @@ const ChatRoom = ({ route, navigation }) => {
     ? searchResults[currentSearchIndex]?.$id 
     : null;
 
-  useEffect(() => {
-    // Get header background color to match chat background
-    const getHeaderBgColor = () => {
-      const bgSetting = chatSettings?.backgroundImage;
-      if (bgSetting?.startsWith('gradient_')) {
-        const gradientMap = {
-          'gradient_purple': '#667eea',
-          'gradient_blue': '#1a1a2e',
-          'gradient_green': '#134e5e',
-          'gradient_sunset': '#ff7e5f',
-          'gradient_ocean': '#2193b0',
-          'gradient_midnight': '#232526',
-          'gradient_aurora': '#00c6fb',
-          'gradient_rose': '#f4c4f3',
-        };
-        return gradientMap[bgSetting] || (isDarkMode ? '#1a1a2e' : '#f0f4ff');
-      }
-      return isDarkMode ? '#1a1a2e' : '#f0f4ff';
-    };
+  const headerBackgroundColor = useMemo(() => {
+    const bgSetting = chatSettings?.backgroundImage;
+    if (bgSetting?.startsWith('gradient_')) {
+      return HEADER_BACKGROUND_BY_GRADIENT[bgSetting] || (isDarkMode ? DARK_HEADER_BACKGROUND : LIGHT_HEADER_BACKGROUND);
+    }
 
+    return isDarkMode ? DARK_HEADER_BACKGROUND : LIGHT_HEADER_BACKGROUND;
+  }, [chatSettings?.backgroundImage, isDarkMode]);
+
+  const backgroundColors = useMemo(() => {
+    const bgSetting = chatSettings?.backgroundImage;
+    if (bgSetting?.startsWith('gradient_')) {
+      return CHAT_BACKGROUND_BY_GRADIENT[bgSetting] || (isDarkMode ? DARK_CHAT_BACKGROUND : LIGHT_CHAT_BACKGROUND);
+    }
+
+    return isDarkMode ? DARK_CHAT_BACKGROUND : LIGHT_CHAT_BACKGROUND;
+  }, [chatSettings?.backgroundImage, isDarkMode]);
+
+  const headerTitleTextStyle = useMemo(() => ([
+    styles.headerTitle,
+    {
+      color: theme.text,
+      fontSize: fontSize(16),
+    },
+  ]), [theme.text]);
+
+  const headerSubtitleTextStyle = useMemo(() => ([
+    styles.headerSubtitle,
+    {
+      color: theme.textSecondary,
+      fontSize: fontSize(11),
+    },
+  ]), [theme.textSecondary]);
+
+  const headerOnlineTextStyle = useMemo(() => ([
+    styles.headerSubtitle,
+    {
+      color: otherUserOnline ? ONLINE_INDICATOR_COLOR : theme.textSecondary,
+      fontSize: fontSize(11),
+    },
+  ]), [otherUserOnline, theme.textSecondary]);
+
+  const searchBarStyle = useMemo(() => ([
+    styles.searchBar,
+    { backgroundColor: isDarkMode ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)' },
+  ]), [isDarkMode]);
+
+  const searchInputContainerStyle = useMemo(() => ([
+    styles.searchInputContainer,
+    { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' },
+  ]), [isDarkMode]);
+
+  const searchInputStyle = useMemo(() => ([
+    styles.searchInput,
+    {
+      color: theme.text,
+      fontSize: fontSize(14),
+    },
+  ]), [theme.text]);
+
+  const searchCountTextStyle = useMemo(() => ([
+    styles.searchCount,
+    {
+      color: theme.text,
+      fontSize: fontSize(12),
+    },
+  ]), [theme.text]);
+
+  const searchEmptyTextStyle = useMemo(() => ([
+    styles.searchCount,
+    {
+      color: theme.textSecondary,
+      fontSize: fontSize(12),
+    },
+  ]), [theme.textSecondary]);
+
+  const searchCloseTextStyle = useMemo(() => ([
+    styles.searchCloseText,
+    {
+      color: theme.primary,
+      fontSize: fontSize(14),
+    },
+  ]), [theme.primary]);
+
+  const representativeWarningBannerStyle = useMemo(() => ([
+    styles.warningBanner,
+    { backgroundColor: isDarkMode ? 'rgba(251, 191, 36, 0.2)' : 'rgba(251, 191, 36, 0.15)' },
+  ]), [isDarkMode]);
+
+  const fullBlockedBannerStyle = useMemo(() => ([
+    styles.warningBanner,
+    { backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.1)' },
+  ]), [isDarkMode]);
+
+  const chatOnlyBlockedBannerStyle = useMemo(() => ([
+    styles.warningBanner,
+    { backgroundColor: isDarkMode ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)' },
+  ]), [isDarkMode]);
+
+  const selectionToolbarStyle = useMemo(() => ([
+    styles.selectionToolbar,
+    { backgroundColor: isDarkMode ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)' },
+  ]), [isDarkMode]);
+
+  const selectedMessagesTextStyle = useMemo(() => ([
+    styles.selectionToolbarText,
+    {
+      color: theme.text,
+      fontSize: fontSize(13),
+    },
+  ]), [theme.text]);
+
+  const copySelectionTextStyle = useMemo(() => ([
+    styles.selectionToolbarText,
+    {
+      color: selectedMessageIds.length > 0 ? theme.primary : theme.textSecondary,
+      fontSize: fontSize(12),
+    },
+  ]), [selectedMessageIds.length, theme.primary, theme.textSecondary]);
+
+  const deleteSelectionTextStyle = useMemo(() => ([
+    styles.selectionToolbarText,
+    {
+      color: selectedMessageIds.length > 0 ? BLOCKED_COLOR : theme.textSecondary,
+      fontSize: fontSize(12),
+    },
+  ]), [selectedMessageIds.length, theme.textSecondary]);
+
+  const maintainVisibleContentPosition = useMemo(() => {
+    if (chatViewportState?.messageId || firstUnreadMessageIndex >= 0) {
+      return undefined;
+    }
+
+    return {
+      startRenderingFromBottom: true,
+      autoscrollToBottomThreshold: 0.2,
+    };
+  }, [chatViewportState?.messageId, firstUnreadMessageIndex]);
+
+  const handleOpenGroupSettings = useCallback(() => {
+    navigation.navigate('GroupSettings', { chat });
+  }, [chat, navigation]);
+
+  const handleNavigateToProfile = useCallback((userId) => {
+    if (userId) {
+      navigation.navigate('UserProfile', { userId });
+    }
+  }, [navigation]);
+
+  const handleSearchClear = useCallback(() => {
+    setSearchQuery('');
+  }, []);
+
+  const handlePostPress = useCallback((postId) => {
+    setPostModalPostId(postId);
+    setPostModalVisible(true);
+  }, []);
+
+  const handleSendWithHaptic = useCallback(async (...args) => {
+    triggerHaptic('light');
+    return handleSendMessage(...args);
+  }, [handleSendMessage, triggerHaptic]);
+
+  const handleCloseMuteModal = useCallback(() => {
+    setShowMuteModal(false);
+  }, [setShowMuteModal]);
+
+  const handleClosePinnedModal = useCallback(() => {
+    setShowPinnedModal(false);
+  }, [setShowPinnedModal]);
+
+  const handleCloseChatOptionsModal = useCallback(() => {
+    setShowChatOptionsModal(false);
+  }, [setShowChatOptionsModal]);
+
+  const handleOpenMuteModalFromOptions = useCallback(() => {
+    setShowChatOptionsModal(false);
+    setShowMuteModal(true);
+  }, [setShowChatOptionsModal, setShowMuteModal]);
+
+  const handleViewPinnedMessagesFromOptions = useCallback(() => {
+    setShowChatOptionsModal(false);
+    handleViewPinnedMessages();
+  }, [handleViewPinnedMessages, setShowChatOptionsModal]);
+
+  const handleOpenGroupSettingsFromOptions = useCallback(() => {
+    setShowChatOptionsModal(false);
+    handleOpenGroupSettings();
+  }, [handleOpenGroupSettings, setShowChatOptionsModal]);
+
+  const handleClearChatWithHaptic = useCallback(() => {
+    triggerHaptic('warning');
+    handleClearChat();
+  }, [handleClearChat, triggerHaptic]);
+
+  const handleDeleteConversationWithHaptic = useCallback(() => {
+    triggerHaptic('warning');
+    handleDeleteConversation();
+  }, [handleDeleteConversation, triggerHaptic]);
+
+  const handleClosePostModal = useCallback(() => {
+    setPostModalVisible(false);
+    setPostModalPostId(null);
+  }, []);
+
+  useEffect(() => {
     navigation.setOptions({
       headerTintColor: theme.text,
       headerTitle: () => (
-        <TouchableOpacity onPress={handleChatHeaderPress} activeOpacity={0.7}>
+        <TouchableOpacity onPress={handleChatHeaderPress} activeOpacity={0.7} style={styles.headerTitleTouchable}>
           <Text
             numberOfLines={1}
             ellipsizeMode="tail"
-            style={{ 
-            color: theme.text, 
-            fontSize: fontSize(16), 
-            fontWeight: '600',
-            textAlign: 'center',
-            maxWidth: wp(52),
-          }}>
+            style={headerTitleTextStyle}>
             {formattedChatTitle}
           </Text>
           {chat.type === 'private' && showActivityStatus ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <View style={styles.headerSubtitleRow}>
               {otherUserOnline && (
-                <View style={{
-                  width: moderateScale(7),
-                  height: moderateScale(7),
-                  borderRadius: moderateScale(4),
-                  backgroundColor: '#34C759',
-                }} />
+                <View style={[styles.headerOnlineIndicator, { backgroundColor: ONLINE_INDICATOR_COLOR }]} />
               )}
-              <Text style={{ 
-                color: otherUserOnline ? '#34C759' : theme.textSecondary, 
-                fontSize: fontSize(11), 
-                textAlign: 'center',
-              }}>
+              <Text style={headerOnlineTextStyle}>
                 {otherUserOnline
                   ? t('chats.online')
                   : (getLastSeenText(otherUserLastSeen, t) || t('chats.tapForOptions'))}
               </Text>
             </View>
           ) : (
-            <Text style={{ 
-              color: theme.textSecondary, 
-              fontSize: fontSize(11), 
-              textAlign: 'center',
-            }}>
+            <Text style={headerSubtitleTextStyle}>
               {t('chats.tapForOptions')}
             </Text>
           )}
         </TouchableOpacity>
       ),
       headerStyle: {
-        backgroundColor: getHeaderBgColor(),
+        backgroundColor: headerBackgroundColor,
         height: moderateScale(74),
       },
       headerRight: () => (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        <View style={styles.headerActions}>
           <TouchableOpacity
-            style={{ marginRight: spacing.sm }}
+            style={styles.headerActionButton}
             onPress={handleManualRefresh}
             accessibilityRole="button"
             accessibilityLabel={t('common.refresh')}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            hitSlop={HEADER_ACTION_HIT_SLOP}>
             <Ionicons name="refresh-outline" size={moderateScale(22)} color={theme.text} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={{ marginRight: spacing.sm }}
+            style={styles.headerActionButton}
             onPress={openSearch}
             accessibilityRole="button"
             accessibilityLabel={t('chats.searchInChat')}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            hitSlop={HEADER_ACTION_HIT_SLOP}>
             <Ionicons name="search-outline" size={moderateScale(22)} color={theme.text} />
           </TouchableOpacity>
           {chat.type === 'custom_group' && (
             <TouchableOpacity
-              style={{ marginRight: spacing.md }}
-              onPress={() => navigation.navigate('GroupSettings', { chat })}
+              style={styles.headerActionButtonLast}
+              onPress={handleOpenGroupSettings}
               accessibilityRole="button"
               accessibilityLabel={t('chats.groupSettings')}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              hitSlop={HEADER_ACTION_HIT_SLOP}>
               <Ionicons name="settings-outline" size={moderateScale(22)} color={theme.text} />
             </TouchableOpacity>
           )}
         </View>
       ),
     });
-  }, [chat, isDarkMode, theme, muteStatus, chatSettings, openSearch, formattedChatTitle, handleChatHeaderPress, navigation, t, otherUserOnline, otherUserLastSeen, showActivityStatus, handleManualRefresh]);
+  }, [chat.type, formattedChatTitle, handleChatHeaderPress, handleManualRefresh, handleOpenGroupSettings, headerBackgroundColor, headerOnlineTextStyle, headerSubtitleTextStyle, headerTitleTextStyle, navigation, openSearch, otherUserLastSeen, otherUserOnline, showActivityStatus, t, theme.text]);
 
   const memoizedMessages = useMemo(() => {
     let filtered = messages;
@@ -435,109 +760,148 @@ const ChatRoom = ({ route, navigation }) => {
     return null;
   }, [messages, chat.type, chat.otherUser, user.$id]);
 
-  const renderMessage = ({ item, index }) => {
-    const isCurrentUser = item.senderId === user.$id;
+  const firstUnreadMessageIndex = useMemo(() => {
+    if (!user?.$id) {
+      return -1;
+    }
+
+    return memoizedMessages.findIndex((message) => {
+      if (!message?.$id || message.senderId === user.$id) {
+        return false;
+      }
+
+      const readBy = Array.isArray(message.readBy) ? message.readBy : [];
+      return !readBy.includes(user.$id);
+    });
+  }, [memoizedMessages, user?.$id]);
+
+  const initialScrollIndex = useMemo(() => {
+    if (loading || memoizedMessages.length === 0) {
+      return undefined;
+    }
+
+    const savedViewportMessageId = String(chatViewportState?.messageId || '').trim();
+    if (savedViewportMessageId) {
+      const savedIndex = memoizedMessages.findIndex(message => message.$id === savedViewportMessageId);
+      if (savedIndex >= 0) {
+        return savedIndex;
+      }
+    }
+
+    if (firstUnreadMessageIndex >= 0) {
+      return Math.max(firstUnreadMessageIndex - 1, 0);
+    }
+
+    return undefined;
+  }, [chatViewportState?.messageId, firstUnreadMessageIndex, loading, memoizedMessages]);
+
+  const persistViewport = useCallback(() => {
+    const messageId = String(visibleAnchorRef.current?.messageId || '').trim();
+    if (!messageId || memoizedMessages.length === 0) {
+      return;
+    }
+
+    const scrollOffset = Math.max(0, Number(scrollOffsetRef.current || 0));
+    const viewportKey = `${messageId}:${scrollOffset}`;
+    if (viewportKey === lastPersistedViewportKeyRef.current) {
+      return;
+    }
+
+    lastPersistedViewportKeyRef.current = viewportKey;
+    saveChatViewport({
+      messageId,
+      scrollOffset,
+      savedAt: new Date().toISOString(),
+    });
+  }, [memoizedMessages.length, saveChatViewport]);
+
+  const handleListScroll = useCallback((event) => {
+    scrollOffsetRef.current = Number(event?.nativeEvent?.contentOffset?.y || 0);
+  }, []);
+
+  const handleViewableItemsChanged = useRef(({ viewableItems }) => {
+    const orderedViewableItems = (Array.isArray(viewableItems) ? viewableItems : [])
+      .filter(item => item?.isViewable && item?.item?.$id)
+      .sort((first, second) => Number(first?.index ?? 0) - Number(second?.index ?? 0));
+
+    const firstVisible = orderedViewableItems[0];
+    if (!firstVisible?.item?.$id) {
+      return;
+    }
+
+    visibleAnchorRef.current = {
+      messageId: firstVisible.item.$id,
+      index: Number(firstVisible.index ?? -1),
+    };
+  }).current;
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 60,
+    minimumViewTime: 80,
+  }).current;
+
+  const renderMessage = useCallback(({ item, index }) => {
     const senderData = userCache[item.senderId];
-    const senderName = senderData?.name || item.senderName || 'Unknown';
-    const senderPhoto = senderData?.profilePicture || item.senderPhoto;
-    
-    // In chronological order, visual "above" = index - 1 and "below" = index + 1.
-    const showSenderName = !isCurrentUser && (
-      index === 0 || 
-      memoizedMessages[index - 1]?.senderId !== item.senderId
-    );
-    
-    const showAvatar = !isCurrentUser && (
-      index === memoizedMessages.length - 1 ||
-      memoizedMessages[index + 1]?.senderId !== item.senderId
-    );
-
     const isBookmarked = bookmarkedMsgIds.includes(item.$id);
-    
-    // Check if sender is a representative in this chat
     const isRepresentative = chat.representatives?.includes(item.senderId) || false;
-
-    const handleAvatarPress = (senderId) => {
-      if (senderId) {
-        navigation.navigate('UserProfile', { userId: senderId });
-      }
-    };
-
-    const handleNavigateToProfile = (userId) => {
-      if (userId) {
-        navigation.navigate('UserProfile', { userId });
-      }
-    };
-
-    // Get other user info for private chats (for read receipts)
     const otherUserPhoto = chat.type === 'private' ? chat.otherUser?.profilePicture : null;
     const otherUserName = chat.type === 'private' ? (chat.otherUser?.name || chat.otherUser?.fullName) : null;
     const participantCount = chat.participants?.length || 0;
-    
-    // Check if this is the last message seen by the other user (for animated read receipt)
-    const isLastSeenMessage = isCurrentUser && item.$id === lastSeenMessageId;
-    
-    // Check if this message is the current search result
     const isCurrentSearchResult = item.$id === currentSearchMessageId;
-    
-    // Check if this message is highlighted (from pinned message scroll)
     const isHighlighted = item.$id === highlightedMessageId;
+    const previousSenderId = memoizedMessages[index - 1]?.senderId;
+    const nextSenderId = memoizedMessages[index + 1]?.senderId;
+    const isLastSeenMessage = item.senderId === user.$id && item.$id === lastSeenMessageId;
 
     return (
-      <MessageBubble
+      <ChatMessageItem
         message={item}
-        isCurrentUser={isCurrentUser}
-        senderName={showSenderName ? senderName : null}
-        senderPhoto={senderPhoto}
-        showAvatar={showAvatar}
+        index={index}
+        currentUserId={user.$id}
+        senderData={senderData}
+        previousSenderId={previousSenderId}
+        nextSenderId={nextSenderId}
         isRepresentative={isRepresentative}
-        onCopy={() => handleCopyMessage(item)}
-        onDelete={isCurrentUser ? () => {
-          triggerHaptic('warning');
-          handleDeleteMessage(item);
-        } : null}
-        onReply={() => handleReplyMessage(item)}
-        onForward={() => handleForwardMessage(item)}
-        onPin={canPin ? () => handlePinMessage(item) : null}
-        onUnpin={canPin && item.isPinned ? () => handleUnpinMessage(item) : null}
-        onBookmark={() => {
-          triggerHaptic('light');
-          handleBookmarkMessage(item);
-        }}
-        onUnbookmark={isBookmarked ? () => handleUnbookmarkMessage(item) : null}
         isBookmarked={isBookmarked}
-        onAvatarPress={handleAvatarPress}
-        onRetry={item._status === 'failed' ? handleRetryMessage : null}
+        canPin={canPin}
         chatType={chat.type}
         otherUserPhoto={otherUserPhoto}
         otherUserName={otherUserName}
         participantCount={participantCount}
         isLastSeenMessage={isLastSeenMessage}
         groupMembers={groupMembers}
-        onNavigateToProfile={handleNavigateToProfile}
         searchQuery={searchActive ? searchQuery : ''}
         isCurrentSearchResult={isCurrentSearchResult}
         isHighlighted={isHighlighted}
-        onPostPress={(postId) => {
-          setPostModalPostId(postId);
-          setPostModalVisible(true);
-        }}
         showAlert={showAlert}
         selectionMode={selectionMode}
         isSelected={selectedMessageIds.includes(item.$id)}
-        onToggleSelect={toggleMessageSelection}
-        currentUserId={user?.$id}
         reactionDefaults={reactionDefaults}
+        onCopyMessage={handleCopyMessage}
+        onDeleteMessage={handleDeleteMessage}
+        onReplyMessage={handleReplyMessage}
+        onForwardMessage={handleForwardMessage}
+        onPinMessage={handlePinMessage}
+        onUnpinMessage={handleUnpinMessage}
+        onBookmarkMessage={handleBookmarkMessage}
+        onUnbookmarkMessage={handleUnbookmarkMessage}
+        onAvatarPress={handleNavigateToProfile}
+        onRetryMessage={handleRetryMessage}
+        onPostPress={handlePostPress}
+        onToggleSelect={toggleMessageSelection}
         onToggleReaction={handleToggleReaction}
         onPollVote={handleVotePollMessage}
         onEditReactions={handleOpenReactionSettings}
+        triggerHaptic={triggerHaptic}
       />
     );
-  };
+  }, [bookmarkedMsgIds, canPin, chat.otherUser?.fullName, chat.otherUser?.name, chat.otherUser?.profilePicture, chat.participants?.length, chat.representatives, chat.type, currentSearchMessageId, groupMembers, handleBookmarkMessage, handleCopyMessage, handleDeleteMessage, handleForwardMessage, handleNavigateToProfile, handleOpenReactionSettings, handlePinMessage, handlePostPress, handleReplyMessage, handleRetryMessage, handleToggleReaction, handleUnbookmarkMessage, handleUnpinMessage, handleVotePollMessage, highlightedMessageId, lastSeenMessageId, memoizedMessages, reactionDefaults, searchActive, searchQuery, selectedMessageIds, selectionMode, showAlert, toggleMessageSelection, triggerHaptic, user.$id, userCache]);
 
-  const renderEmpty = () => null;
+  const renderEmpty = useCallback(() => null, []);
 
-  const renderEmptyOverlay = () => {
+  const keyExtractor = useCallback((item, index) => item.$id || `message-${index}`, []);
+
+  const renderEmptyOverlay = useCallback(() => {
     if (memoizedMessages.length > 0 || loading) return null;
 
     return (
@@ -550,77 +914,91 @@ const ChatRoom = ({ route, navigation }) => {
         />
       </View>
     );
-  };
-
-  const getBackgroundColors = () => {
-    const bgSetting = chatSettings?.backgroundImage;
-    
-    if (bgSetting?.startsWith('gradient_')) {
-      const gradientMap = {
-        'gradient_purple': ['#667eea', '#764ba2'],
-        'gradient_blue': ['#1a1a2e', '#16213e'],
-        'gradient_green': ['#134e5e', '#71b280'],
-        'gradient_sunset': ['#ff7e5f', '#feb47b'],
-        'gradient_ocean': ['#2193b0', '#6dd5ed'],
-        'gradient_midnight': ['#232526', '#414345'],
-        'gradient_aurora': ['#00c6fb', '#005bea'],
-        'gradient_rose': ['#f4c4f3', '#fc67fa'],
-      };
-      return gradientMap[bgSetting] || (isDarkMode 
-        ? ['#1a1a2e', '#16213e', '#0f3460'] 
-        : ['#f0f4ff', '#d8e7ff', '#c0deff']);
-    }
-    
-    return isDarkMode 
-      ? ['#1a1a2e', '#16213e', '#0f3460'] 
-      : ['#f0f4ff', '#d8e7ff', '#c0deff'];
-  };
+  }, [loading, memoizedMessages.length, t]);
 
   const isCustomImageBackground = chatSettings?.backgroundImage && 
     !chatSettings.backgroundImage.startsWith('gradient_') &&
     !chatSettings.backgroundImage.startsWith('pattern_') &&
     chatSettings.backgroundImage !== null;
 
+  const customBackgroundSource = useMemo(() => {
+    if (!isCustomImageBackground) {
+      return null;
+    }
+
+    return { uri: chatSettings.backgroundImage };
+  }, [chatSettings.backgroundImage, isCustomImageBackground]);
+
   const handleScrollToIndexFailed = useCallback((info) => {
-    // Handle failed scroll - wait and retry
-    setTimeout(() => {
-      if (flatListRef.current && info.index < memoizedMessages.length) {
-        flatListRef.current.scrollToIndex({
-          index: info.index,
-          animated: true,
-          viewPosition: 0.5,
+    if (!flatListRef.current || info.index >= memoizedMessages.length) {
+      return;
+    }
+
+    flatListRef.current.scrollToOffset({
+      offset: Math.max(0, Number(info.averageItemLength || 0) * info.index),
+      animated: false,
+    });
+
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToIndex({
+        index: info.index,
+        animated: false,
+        viewPosition: 0,
+      });
+    });
+  }, [flatListRef, memoizedMessages.length]);
+
+  useEffect(() => {
+    hasAppliedInitialViewportRef.current = false;
+    lastPersistedViewportKeyRef.current = '';
+    visibleAnchorRef.current = { messageId: '', index: -1 };
+    scrollOffsetRef.current = 0;
+  }, [chat.$id]);
+
+  useEffect(() => {
+    if (loading || memoizedMessages.length === 0 || hasAppliedInitialViewportRef.current) {
+      return;
+    }
+
+    hasAppliedInitialViewportRef.current = true;
+
+    const savedViewportMessageId = String(chatViewportState?.messageId || '').trim();
+    const savedScrollOffset = Math.max(0, Number(chatViewportState?.scrollOffset || 0));
+
+    if (savedViewportMessageId && savedScrollOffset > 0 && flatListRef.current) {
+      requestAnimationFrame(() => {
+        flatListRef.current?.scrollToOffset({
+          offset: savedScrollOffset,
+          animated: false,
         });
-      }
-    }, 100);
-  }, [memoizedMessages.length]);
+      });
+    }
+  }, [chatViewportState?.messageId, chatViewportState?.scrollOffset, flatListRef, loading, memoizedMessages.length]);
 
-  if (loading) {
-    return (
-      <View style={[styles.container, { backgroundColor: isDarkMode ? '#1a1a2e' : '#f0f4ff' }]}>
-        <StatusBar 
-          barStyle={isDarkMode ? 'light-content' : 'dark-content'} 
-          backgroundColor="transparent"
-          translucent
-        />
-        <View style={styles.loadingContainer}>
-          <MessageListSkeleton count={8} />
-        </View>
-      </View>
-    );
-  }
+  useEffect(() => {
+    const unsubscribeBlur = navigation.addListener('blur', () => {
+      persistViewport();
+    });
 
-  const renderSearchBar = () => {
+    return unsubscribeBlur;
+  }, [navigation, persistViewport]);
+
+  useEffect(() => {
+    return () => {
+      persistViewport();
+    };
+  }, [persistViewport]);
+
+  const renderSearchBar = useCallback(() => {
     if (!searchActive) return null;
-    
-    const searchBarBg = isDarkMode ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)';
-    
+
     return (
-      <View style={[styles.searchBar, { backgroundColor: searchBarBg }]}>
-        <View style={[styles.searchInputContainer, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+      <View style={searchBarStyle}>
+        <View style={searchInputContainerStyle}>
           <Ionicons name="search" size={moderateScale(18)} color={theme.textSecondary} />
           <TextInput
             ref={searchInputRef}
-            style={[styles.searchInput, { color: theme.text, fontSize: fontSize(14) }]}
+            style={searchInputStyle}
             placeholder={t('chats.searchInChat')}
             placeholderTextColor={theme.textSecondary}
             value={searchQuery}
@@ -628,7 +1006,7 @@ const ChatRoom = ({ route, navigation }) => {
             autoFocus
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <TouchableOpacity onPress={handleSearchClear} hitSlop={SEARCH_ACTION_HIT_SLOP}>
               <Ionicons name="close-circle" size={moderateScale(18)} color={theme.textSecondary} />
             </TouchableOpacity>
           )}
@@ -636,11 +1014,11 @@ const ChatRoom = ({ route, navigation }) => {
         
         <View style={styles.searchNav}>
           {searchResults.length > 0 ? (
-            <Text style={[styles.searchCount, { color: theme.text, fontSize: fontSize(12) }]}>
+            <Text style={searchCountTextStyle}>
               {currentSearchIndex + 1}/{searchResults.length}
             </Text>
           ) : searchQuery.length > 0 ? (
-            <Text style={[styles.searchCount, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
+            <Text style={searchEmptyTextStyle}>
               {t('chats.noResultsFound')}
             </Text>
           ) : null}
@@ -651,7 +1029,7 @@ const ChatRoom = ({ route, navigation }) => {
             style={[styles.searchNavBtn, searchResults.length === 0 && styles.searchNavBtnDisabled]}
             accessibilityRole="button"
             accessibilityLabel={t('common.previous')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            hitSlop={SEARCH_ACTION_HIT_SLOP}>
             <Ionicons name="chevron-up" size={moderateScale(20)} color={searchResults.length > 0 ? theme.text : theme.textSecondary} />
           </TouchableOpacity>
           
@@ -661,21 +1039,21 @@ const ChatRoom = ({ route, navigation }) => {
             style={[styles.searchNavBtn, searchResults.length === 0 && styles.searchNavBtnDisabled]}
             accessibilityRole="button"
             accessibilityLabel={t('common.next')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            hitSlop={SEARCH_ACTION_HIT_SLOP}>
             <Ionicons name="chevron-down" size={moderateScale(20)} color={searchResults.length > 0 ? theme.text : theme.textSecondary} />
           </TouchableOpacity>
           
-          <TouchableOpacity onPress={closeSearch} style={styles.searchCloseBtn} accessibilityRole="button" accessibilityLabel={t('common.close')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={[styles.searchCloseText, { color: theme.primary, fontSize: fontSize(14) }]}>
+          <TouchableOpacity onPress={closeSearch} style={styles.searchCloseBtn} accessibilityRole="button" accessibilityLabel={t('common.close')} hitSlop={SEARCH_ACTION_HIT_SLOP}>
+            <Text style={searchCloseTextStyle}>
               {t('common.close')}
             </Text>
           </TouchableOpacity>
         </View>
       </View>
     );
-  };
+  }, [closeSearch, currentSearchIndex, handleSearchClear, handleSearchNext, handleSearchPrev, searchActive, searchBarStyle, searchCloseTextStyle, searchCountTextStyle, searchEmptyTextStyle, searchInputContainerStyle, searchInputStyle, searchQuery, searchResults.length, t, theme.text, theme.textSecondary]);
 
-  const renderChatContent = () => (
+  const renderChatContent = useCallback(() => (
     <KeyboardAvoidingView 
       style={styles.keyboardAvoidingView}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -684,12 +1062,9 @@ const ChatRoom = ({ route, navigation }) => {
       {renderSearchBar()}
       
       {chat.requiresRepresentative && !canSend && (
-        <View style={[
-          styles.warningBanner,
-          { backgroundColor: isDarkMode ? 'rgba(251, 191, 36, 0.2)' : 'rgba(251, 191, 36, 0.15)' }
-        ]}>
-          <Ionicons name="information-circle" size={moderateScale(18)} color="#F59E0B" />
-          <Text style={[styles.warningText, { fontSize: fontSize(12), color: '#F59E0B' }]}>
+        <View style={representativeWarningBannerStyle}>
+          <Ionicons name="information-circle" size={moderateScale(18)} color={REPRESENTATIVE_ONLY_COLOR} />
+          <Text style={[styles.warningText, { fontSize: fontSize(12), color: REPRESENTATIVE_ONLY_COLOR }]}>
             {t('chats.representativeOnlyChat')}
           </Text>
         </View>
@@ -699,29 +1074,28 @@ const ChatRoom = ({ route, navigation }) => {
         ref={flatListRef}
         data={memoizedMessages}
         renderItem={renderMessage}
-        keyExtractor={(item, index) => item.$id || `message-${index}`}
+        keyExtractor={keyExtractor}
+        initialScrollIndex={initialScrollIndex}
         contentContainerStyle={[styles.messagesList, chatStyle]}
         ListEmptyComponent={renderEmpty}
+        onScroll={handleListScroll}
         onScrollToIndexFailed={handleScrollToIndexFailed}
-        maintainVisibleContentPosition={{
-          startRenderingFromBottom: true,
-          autoscrollToBottomThreshold: 0.2,
-        }}
+        onViewableItemsChanged={handleViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        scrollEventThrottle={16}
+        maintainVisibleContentPosition={maintainVisibleContentPosition}
       />
 
       {renderEmptyOverlay()}
 
       {/* Selection Mode Toolbar */}
       {selectionMode && (
-        <View style={[
-          styles.selectionToolbar,
-          { backgroundColor: isDarkMode ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)' }
-        ]}>
+        <View style={selectionToolbarStyle}>
           <TouchableOpacity
             style={styles.selectionToolbarBtn}
             onPress={toggleSelectionMode}>
             <Ionicons name="close" size={moderateScale(22)} color={theme.text} />
-            <Text style={[styles.selectionToolbarText, { color: theme.text, fontSize: fontSize(13) }]}>
+            <Text style={selectedMessagesTextStyle}>
               {selectedMessageIds.length} {t('chats.selected')}
             </Text>
           </TouchableOpacity>
@@ -731,7 +1105,7 @@ const ChatRoom = ({ route, navigation }) => {
               onPress={handleBatchCopy}
               disabled={selectedMessageIds.length === 0}>
               <Ionicons name="copy-outline" size={moderateScale(20)} color={selectedMessageIds.length > 0 ? theme.primary : theme.textSecondary} />
-              <Text style={[styles.selectionToolbarText, { color: selectedMessageIds.length > 0 ? theme.primary : theme.textSecondary, fontSize: fontSize(12) }]}>
+              <Text style={copySelectionTextStyle}>
                 {t('chats.copy')}
               </Text>
             </TouchableOpacity>
@@ -739,8 +1113,8 @@ const ChatRoom = ({ route, navigation }) => {
               style={styles.selectionToolbarBtn}
               onPress={handleBatchDeleteForMe}
               disabled={selectedMessageIds.length === 0}>
-              <Ionicons name="eye-off-outline" size={moderateScale(20)} color={selectedMessageIds.length > 0 ? '#EF4444' : theme.textSecondary} />
-              <Text style={[styles.selectionToolbarText, { color: selectedMessageIds.length > 0 ? '#EF4444' : theme.textSecondary, fontSize: fontSize(12) }]}>
+              <Ionicons name="eye-off-outline" size={moderateScale(20)} color={selectedMessageIds.length > 0 ? BLOCKED_COLOR : theme.textSecondary} />
+              <Text style={deleteSelectionTextStyle}>
                 {t('chats.deleteForMe')}
               </Text>
             </TouchableOpacity>
@@ -750,12 +1124,9 @@ const ChatRoom = ({ route, navigation }) => {
 
       {/* Blocked user banner */}
       {isFullyBlockedChat && (
-        <View style={[
-          styles.warningBanner,
-          { backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.1)' }
-        ]}>
-          <Ionicons name="ban-outline" size={moderateScale(18)} color="#EF4444" />
-          <Text style={[styles.warningText, { fontSize: fontSize(12), color: '#EF4444' }]}>
+        <View style={fullBlockedBannerStyle}>
+          <Ionicons name="ban-outline" size={moderateScale(18)} color={BLOCKED_COLOR} />
+          <Text style={[styles.warningText, { fontSize: fontSize(12), color: BLOCKED_COLOR }]}>
             {iBlockedThem
               ? t('chats.blockedUserBanner')
               : t('chats.blockedByUserBanner')}
@@ -764,12 +1135,9 @@ const ChatRoom = ({ route, navigation }) => {
       )}
 
       {!isFullyBlockedChat && isChatOnlyBlocked && (
-        <View style={[
-          styles.warningBanner,
-          { backgroundColor: isDarkMode ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)' }
-        ]}>
-          <Ionicons name="chatbubble-ellipses-outline" size={moderateScale(18)} color="#F59E0B" />
-          <Text style={[styles.warningText, { fontSize: fontSize(12), color: '#F59E0B' }]}>
+        <View style={chatOnlyBlockedBannerStyle}>
+          <Ionicons name="chatbubble-ellipses-outline" size={moderateScale(18)} color={CHAT_ONLY_BLOCKED_COLOR} />
+          <Text style={[styles.warningText, { fontSize: fontSize(12), color: CHAT_ONLY_BLOCKED_COLOR }]}>
             {iChatBlockedThem
               ? t('chats.messagesOnlyBlockedBanner')
               : t('chats.messagesOnlyBlockedByUserBanner')}
@@ -779,10 +1147,7 @@ const ChatRoom = ({ route, navigation }) => {
 
       {!selectionMode && !isBlockedChat && (
       <MessageInput 
-        onSend={async (...args) => {
-          triggerHaptic('light');
-          return handleSendMessage(...args);
-        }}
+        onSend={handleSendWithHaptic}
         disabled={!canSend}
         placeholder={
           canSend 
@@ -800,7 +1165,7 @@ const ChatRoom = ({ route, navigation }) => {
       />
       )}
     </KeyboardAvoidingView>
-  );
+  ), [canMentionEveryone, canSend, cancelReply, chat.requiresRepresentative, chat.type, chatOnlyBlockedBannerStyle, chatStyle, copySelectionTextStyle, deleteSelectionTextStyle, excludedMentionUserIds, flatListRef, fullBlockedBannerStyle, groupMembers, handleBatchCopy, handleBatchDeleteForMe, handleListScroll, handleScrollToIndexFailed, handleSendWithHaptic, handleViewableItemsChanged, iBlockedThem, iChatBlockedThem, initialScrollIndex, insets.top, isBlockedChat, isChatOnlyBlocked, isFullyBlockedChat, keyExtractor, maintainVisibleContentPosition, memoizedMessages, renderEmpty, renderEmptyOverlay, renderMessage, renderSearchBar, representativeWarningBannerStyle, replyingTo, selectedMessageIds.length, selectedMessagesTextStyle, selectionMode, selectionToolbarStyle, showAlert, t, theme.primary, theme.text, theme.textSecondary, toggleSelectionMode, userFriends, viewabilityConfig]);
 
   return (
     <View style={styles.container}>
@@ -812,7 +1177,7 @@ const ChatRoom = ({ route, navigation }) => {
       
       {isCustomImageBackground ? (
         <ImageBackground 
-          source={{ uri: chatSettings.backgroundImage }} 
+          source={customBackgroundSource} 
           style={styles.gradient}
           resizeMode="cover">
           <View style={styles.backgroundOverlay}>
@@ -822,7 +1187,7 @@ const ChatRoom = ({ route, navigation }) => {
         </ImageBackground>
       ) : (
         <LinearGradient
-          colors={getBackgroundColors()}
+          colors={backgroundColors}
           style={styles.gradient}>
           <AnimatedBackground particleCount={15} />
           {renderChatContent()}
@@ -831,7 +1196,7 @@ const ChatRoom = ({ route, navigation }) => {
 
       <MuteModal
         visible={showMuteModal}
-        onClose={() => setShowMuteModal(false)}
+        onClose={handleCloseMuteModal}
         muteStatus={muteStatus}
         onMute={handleMuteChat}
         onUnmute={handleUnmuteChat}
@@ -842,7 +1207,7 @@ const ChatRoom = ({ route, navigation }) => {
 
       <PinnedMessagesModal
         visible={showPinnedModal}
-        onClose={() => setShowPinnedModal(false)}
+        onClose={handleClosePinnedModal}
         pinnedMessages={pinnedMessages}
         canPin={canPin}
         onUnpinMessage={handleUnpinMessage}
@@ -854,32 +1219,17 @@ const ChatRoom = ({ route, navigation }) => {
 
       <ChatOptionsModal
         visible={showChatOptionsModal}
-        onClose={() => setShowChatOptionsModal(false)}
+        onClose={handleCloseChatOptionsModal}
         chat={chat}
         chatDisplayName={getChatDisplayName()}
         muteStatus={muteStatus}
         onVisitProfile={handleVisitProfile}
-        onOpenMuteModal={() => {
-          setShowChatOptionsModal(false);
-          setShowMuteModal(true);
-        }}
-        onViewPinnedMessages={() => {
-          setShowChatOptionsModal(false);
-          handleViewPinnedMessages();
-        }}
-        onOpenGroupSettings={() => {
-          setShowChatOptionsModal(false);
-          navigation.navigate('GroupSettings', { chat });
-        }}
+        onOpenMuteModal={handleOpenMuteModalFromOptions}
+        onViewPinnedMessages={handleViewPinnedMessagesFromOptions}
+        onOpenGroupSettings={handleOpenGroupSettingsFromOptions}
         onBlockUser={handleBlockUser}
-        onClearChat={() => {
-          triggerHaptic('warning');
-          handleClearChat();
-        }}
-        onDeleteConversation={() => {
-          triggerHaptic('warning');
-          handleDeleteConversation();
-        }}
+        onClearChat={handleClearChatWithHaptic}
+        onDeleteConversation={handleDeleteConversationWithHaptic}
         showAlert={showAlert}
         theme={theme}
         isDarkMode={isDarkMode}
@@ -897,10 +1247,7 @@ const ChatRoom = ({ route, navigation }) => {
 
       <PostViewModal
         visible={postModalVisible}
-        onClose={() => {
-          setPostModalVisible(false);
-          setPostModalPostId(null);
-        }}
+        onClose={handleClosePostModal}
         postId={postModalPostId}
         navigation={navigation}
       />

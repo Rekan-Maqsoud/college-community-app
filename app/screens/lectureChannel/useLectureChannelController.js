@@ -97,6 +97,18 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
   }, [userProfiles]);
 
   const membership = membershipSummary?.membership || null;
+  const actorIdentityIds = useMemo(() => {
+    return Array.from(new Set(
+      [user?.accountId, user?.userId, user?.$id]
+        .map(value => String(value || '').trim())
+        .filter(Boolean)
+    ));
+  }, [user?.$id, user?.accountId, user?.userId]);
+  const primaryActorId = actorIdentityIds[0] || '';
+  const matchesActorIdentity = useCallback((value) => {
+    const normalizedValue = String(value || '').trim();
+    return !!normalizedValue && actorIdentityIds.includes(normalizedValue);
+  }, [actorIdentityIds]);
 
   const orderedAssets = useMemo(() => {
     const list = Array.isArray(assets) ? [...assets] : [];
@@ -164,25 +176,27 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
   }, [orderedAssets, settingsDraft.assetFolders, settingsDraft.assetFolderMap, t]);
 
   const isManager = useMemo(() => {
-    if (!channel || !user?.$id) {
+    if (!channel || actorIdentityIds.length === 0) {
       return false;
     }
 
     const managerIds = Array.isArray(managers) ? managers : [];
-    return channel.ownerId === user.$id || managerIds.includes(user.$id);
-  }, [channel, managers, user?.$id]);
+    return matchesActorIdentity(channel.ownerId) || managerIds.some(managerId => matchesActorIdentity(managerId));
+  }, [actorIdentityIds.length, channel, managers, matchesActorIdentity]);
 
   const isOwner = useMemo(() => {
-    return String(channel?.ownerId || '').trim() === String(user?.$id || '').trim();
-  }, [channel?.ownerId, user?.$id]);
+    return matchesActorIdentity(channel?.ownerId);
+  }, [channel?.ownerId, matchesActorIdentity]);
 
   const canUpload = useMemo(() => {
-    if (!membership || membership.joinStatus !== 'approved') {
-      return false;
+    if (isManager) {
+      return true;
     }
 
-    return isManager || !!settingsDraft.allowUploadsFromMembers;
+    return !!membership && membership.joinStatus === 'approved' && !!settingsDraft.allowUploadsFromMembers;
   }, [membership, isManager, settingsDraft.allowUploadsFromMembers]);
+
+  const membershipResolved = useMemo(() => membershipSummary !== null, [membershipSummary]);
 
   const stats = useMemo(() => {
     const files = assets.filter(asset => asset.uploadType === LECTURE_UPLOAD_TYPES.FILE).length;
@@ -313,7 +327,7 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
     logLectureChannel('loadData:start', {
       channelId,
       showLoading,
-      userId: user?.$id || '',
+      userId: primaryActorId,
     });
 
     try {
@@ -321,48 +335,70 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
         setLoading(true);
       }
 
-      const [channelDoc, assetsData, summary, managerIds, chats] = await Promise.all([
+      const [channelDoc, summary, managerIds, chats] = await Promise.all([
         getLectureChannelById(channelId),
-        getLectureAssets({ channelId, limit: 100, offset: 0 }),
         getLectureMembershipSummary(channelId),
         getLectureManagers(channelId),
-        user?.$id ? getChats(user.$id) : Promise.resolve([]),
+        primaryActorId ? getChats(primaryActorId) : Promise.resolve([]),
       ]);
 
       setChannel(channelDoc);
-      setAssets(assetsData);
       setMembershipSummary(summary);
       setManagers(managerIds);
       setLinkedChatId(channelDoc?.linkedChatId || '');
       setSettingsDraft(parseChannelSettings(channelDoc?.settingsJson));
 
-      const statsUserIds = assetsData.flatMap((asset) => ([
-        ...parseStatsUserIds(asset?.viewedBy),
-        ...parseStatsUserIds(asset?.openedBy),
-        ...parseStatsUserIds(asset?.downloadedBy),
-      ]));
-      await resolveUserNames(statsUserIds);
+      await resolveUserNames([
+        channelDoc?.ownerId,
+        ...managerIds,
+      ]);
 
-      const groups = (Array.isArray(chats) ? chats : []).filter(chat => canLinkGroupToChannel(chat, user?.$id));
+      const hasApprovedMembership = summary?.membership?.joinStatus === 'approved';
+      const hasManagerAccess = matchesActorIdentity(channelDoc?.ownerId) || managerIds.some(managerId => matchesActorIdentity(managerId));
+      const canAccessAssets = hasApprovedMembership || hasManagerAccess;
+      let loadedAssetsCount = 0;
+
+      if (canAccessAssets) {
+        try {
+          const assetsData = await getLectureAssets({ channelId, limit: 100, offset: 0 });
+          loadedAssetsCount = assetsData.length;
+          setAssets(assetsData);
+
+          const statsUserIds = assetsData.flatMap((asset) => ([
+            ...parseStatsUserIds(asset?.viewedBy),
+            ...parseStatsUserIds(asset?.openedBy),
+            ...parseStatsUserIds(asset?.downloadedBy),
+          ]));
+          await resolveUserNames(statsUserIds);
+        } catch (assetsError) {
+          setAssets([]);
+          logLectureChannelError('loadData:assets_error', assetsError, { channelId });
+        }
+      } else {
+        setAssets([]);
+      }
+
+      const groups = (Array.isArray(chats) ? chats : []).filter(chat => canLinkGroupToChannel(chat, primaryActorId));
       setAllGroups(Array.isArray(chats) ? chats : []);
       setAvailableGroups(groups);
 
-      if (channelDoc?.ownerId === user?.$id || managerIds.includes(user?.$id)) {
-        const requests = await getLectureJoinRequests(channelId);
-        setJoinRequests(requests);
+      if (hasManagerAccess) {
+        try {
+          const requests = await getLectureJoinRequests(channelId);
+          setJoinRequests(requests);
 
-        await resolveUserNames([
-          ...managerIds,
-          channelDoc?.ownerId,
-          ...requests.map(request => request.userId),
-        ]);
+          await resolveUserNames(requests.map(request => request.userId));
+        } catch (requestsError) {
+          setJoinRequests([]);
+          logLectureChannelError('loadData:join_requests_error', requestsError, { channelId });
+        }
       } else {
         setJoinRequests([]);
       }
 
       logLectureChannel('loadData:success', {
         channelId,
-        assetsCount: assetsData.length,
+        assetsCount: loadedAssetsCount,
         managersCount: managerIds.length,
       });
     } catch (error) {
@@ -401,7 +437,7 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [channelId, navigation, resolveUserNames, t, user?.$id]);
+  }, [channelId, matchesActorIdentity, navigation, primaryActorId, resolveUserNames, t]);
 
   React.useEffect(() => {
     loadData();
@@ -712,6 +748,7 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
       isOwner,
       linkableGroups,
       membership,
+      membershipResolved,
       stageSuggestions,
       stats,
     },

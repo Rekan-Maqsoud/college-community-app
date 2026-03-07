@@ -212,9 +212,9 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
           <Ionicons
             name="search-outline"
             size={moderateScale(64)}
-            color={theme.subText}
+            color={theme.textSecondary}
           />
-          <Text style={[styles.emptyText, { color: theme.subText }]}>
+          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
             {t('search.placeholder')}
           </Text>
         </View>
@@ -227,9 +227,9 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
           <Ionicons
             name="search-outline"
             size={moderateScale(48)}
-            color={theme.subText}
+            color={theme.textSecondary}
           />
-          <Text style={[styles.emptyText, { color: theme.subText }]}>
+          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
             {t('search.noResults')}
           </Text>
         </View>
@@ -328,10 +328,10 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
             <Ionicons
               name="search-outline"
               size={moderateScale(20)}
-              color={theme.subText}
+              color={theme.textSecondary}
               style={styles.searchIcon}
             />
-            <Text style={[styles.searchButtonText, { color: theme.subText, fontSize: fontSize(14) }]}>
+            <Text style={[styles.searchButtonText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
               {t('search.placeholder')}
             </Text>
           </GlassContainer>
