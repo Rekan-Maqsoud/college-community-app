@@ -138,7 +138,7 @@ const MessageInput = ({
       friction: 11,
       useNativeDriver: true,
     }).start();
-  }, [showActionSheet]);
+  }, [showActionSheet, actionSheetAnim]);
 
   useEffect(() => {
     isRecordingRef.current = isRecording;
@@ -588,7 +588,7 @@ const MessageInput = ({
     closeActionSheet();
     try {
       // Pre-check permission to handle permanently-denied case
-      const { status, canAskAgain } = await ImagePicker.getMediaLibraryPermissionsAsync();
+      const { status } = await ImagePicker.getMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         const req = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!req.granted) {
@@ -624,7 +624,7 @@ const MessageInput = ({
     closeActionSheet();
     try {
       // Pre-check permission to handle permanently-denied case
-      const { status, canAskAgain } = await ImagePicker.getCameraPermissionsAsync();
+      const { status } = await ImagePicker.getCameraPermissionsAsync();
       if (status !== 'granted') {
         const req = await ImagePicker.requestCameraPermissionsAsync();
         if (!req.granted) {
@@ -655,7 +655,7 @@ const MessageInput = ({
     closeActionSheet();
     setLocationLoading(true);
     try {
-      const { status, canAskAgain } = await Location.getForegroundPermissionsAsync();
+      const { status } = await Location.getForegroundPermissionsAsync();
       if (status !== 'granted') {
         const req = await Location.requestForegroundPermissionsAsync();
         if (req.status !== 'granted') {

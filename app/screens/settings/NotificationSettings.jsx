@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Switch,
-  Platform,
   Modal,
   TextInput,
 } from 'react-native';

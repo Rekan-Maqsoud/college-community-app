@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   StatusBar,
-  Platform,
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,18 +13,14 @@ import { useAppSettings } from '../../context/AppSettingsContext';
 import { GlassContainer } from '../../components/GlassComponents';
 import AnimatedBackground from '../../components/AnimatedBackground';
 import { 
-  wp, 
-  hp, 
   fontSize, 
   spacing, 
   moderateScale,
 } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
-import useLayout from '../../hooks/useLayout';
 
 const NewChat = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
-  const { contentStyle } = useLayout();
 
   const options = [
     {

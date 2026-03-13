@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   StatusBar,
-  Platform,
   TouchableOpacity,
   TextInput, 
   ActivityIndicator,
@@ -45,13 +44,9 @@ const AddMembers = ({ navigation, route }) => {
   const [adding, setAdding] = useState(false);
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
-  const existingParticipants = chat?.participants || [];
+  const existingParticipants = useMemo(() => chat?.participants || [], [chat?.participants]);
 
-  useEffect(() => {
-    loadFriends();
-  }, [currentUser]);
-
-  const loadFriends = async () => {
+  const loadFriends = useCallback(async () => {
     if (!currentUser?.$id) {
       setLoading(false);
       return;
@@ -69,7 +64,11 @@ const AddMembers = ({ navigation, route }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser?.$id, existingParticipants]);
+
+  useEffect(() => {
+    loadFriends();
+  }, [loadFriends]);
 
   const debounceTimeout = React.useRef(null);
 

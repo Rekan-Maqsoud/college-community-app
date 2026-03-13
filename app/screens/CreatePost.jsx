@@ -33,7 +33,7 @@ import { createPost } from '../../database/posts';
 
 const DRAFT_STORAGE_KEY = 'post_draft';
 
-const CreatePost = ({ navigation, route }) => {
+const CreatePost = ({ navigation }) => {
   const { t } = useTranslation();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { user } = useUser();
@@ -216,7 +216,7 @@ const CreatePost = ({ navigation, route }) => {
     });
 
     return unsubscribe;
-  }, [navigation, hasUnsavedContent, loading, t]);
+  }, [navigation, hasUnsavedContent, loading, t, showAlert]);
 
   const validateForm = () => {
     if (!topic.trim()) {
@@ -330,7 +330,7 @@ const CreatePost = ({ navigation, route }) => {
         postData.links = linkArray;
       }
 
-      const createdPost = await createPost(postData);
+      await createPost(postData);
 
       // Clear the draft after successful post
       await clearDraft();

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import safeStorage from '../utils/safeStorage';
 import { getCurrentUser, getCompleteUserData } from '../../database/auth';
 import { restoreBookmarksFromServer } from '../utils/bookmarkService';
@@ -42,11 +42,7 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  useEffect(() => {
-    initializeUser();
-  }, []);
-
-  const initializeUser = async () => {
+  const initializeUser = useCallback(async () => {
     try {
       setIsLoading(true);
       
@@ -117,7 +113,11 @@ export const UserProvider = ({ children }) => {
       setIsLoading(false);
       setSessionChecked(true);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    initializeUser();
+  }, [initializeUser]);
 
   const loadUserData = async () => {
     try {

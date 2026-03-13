@@ -8,6 +8,15 @@
  * - markNotificationAsRead updates isRead field
  */
 
+import {
+  createNotification,
+  getNotifications,
+  getNotificationsCursor,
+  markNotificationsAsReadByContext,
+  markNotificationAsRead,
+  NOTIFICATION_TYPES,
+} from '../database/notifications';
+
 const mockListDocuments = jest.fn().mockResolvedValue({
   documents: [
     { $id: 'n1', userId: 'user-1', type: 'post_like', isRead: false, $createdAt: '2026-02-20T00:00:00Z' },
@@ -101,15 +110,6 @@ jest.mock('../app/utils/cacheManager', () => ({
     invalidateUserNotifications: jest.fn(),
   },
 }));
-
-import {
-  createNotification,
-  getNotifications,
-  getNotificationsCursor,
-  markNotificationsAsReadByContext,
-  markNotificationAsRead,
-  NOTIFICATION_TYPES,
-} from '../database/notifications';
 
 describe('createNotification', () => {
   it('returns null when userId and senderId are the same (self-notification)', async () => {

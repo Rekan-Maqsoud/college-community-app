@@ -30,7 +30,7 @@ import {
   getAllUserChats,
   leaveGroup,
 } from '../../database/chatHelpers';
-import { getUserById } from '../../database/users';
+import { getUserById , blockUser, blockUserChatOnly } from '../../database/users';
 import {
   getUnreadCount,
   decryptChatPreview,
@@ -38,7 +38,7 @@ import {
   removePrivateChatForUser,
   deleteChat,
 } from '../../database/chats';
-import { blockUser, blockUserChatOnly } from '../../database/users';
+
 import {
   getUserChatSettingsMap,
   muteChat,
@@ -71,7 +71,7 @@ const Chats = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { contentStyle } = useLayout();
   const isFocused = useIsFocused();
-  const { needsRep, hasActiveElection, currentElection, isUserRepresentative, dismiss: dismissRepPopup } = useRepDetection(user);
+  const { needsRep, hasActiveElection, isUserRepresentative, dismiss: dismissRepPopup } = useRepDetection(user);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [initializing, setInitializing] = useState(true);
@@ -279,7 +279,7 @@ const Chats = ({ navigation }) => {
           try {
             const otherUser = await getUserById(otherUserId);
             chatToAdd = { ...resolvedPayload, otherUser };
-          } catch (error) {
+          } catch (_error) {
             chatToAdd = resolvedPayload;
           }
         }
@@ -334,7 +334,7 @@ const Chats = ({ navigation }) => {
       await addChatToList();
     }
 
-  }, [user?.$id]);
+  }, [user?.$id, user?.blockedUsers, user?.chatBlockedUsers]);
 
   const syncUnreadCountForChat = useCallback(async (chatId) => {
     if (!chatId || !user?.$id) {
@@ -354,7 +354,7 @@ const Chats = ({ navigation }) => {
           [chatId]: unread,
         };
       });
-    } catch (error) {
+    } catch (_error) {
       // Silent fail - unread count will refresh on next sync
     }
   }, [user?.$id]);
@@ -431,57 +431,7 @@ const Chats = ({ navigation }) => {
     { enabled: !!user?.$id && !!config.messagesCollectionId && isScreenActive }
   );
 
-  useEffect(() => {
-    if (!user?.$id) {
-      initializeSignatureRef.current = null;
-      setLoading(false);
-      setInitializing(false);
-      return;
-    }
-
-    if (initializeSignatureRef.current === userChatLoadSignature) {
-      return;
-    }
-
-    initializeSignatureRef.current = userChatLoadSignature;
-    initializeAndLoadChats();
-  }, [user?.$id, userChatLoadSignature]);
-
-  const initializeAndLoadChats = async () => {
-    if (!user?.$id) {
-      setInitializing(false);
-      setLoading(false);
-      return;
-    }
-
-    const stageValue = stageToValue(user?.stage);
-    const departmentForGroups = isAcademicOtherUser ? null : user?.department;
-    const stageForGroups = isAcademicOtherUser ? null : stageValue;
-
-    const initTrace = telemetry.startTrace('chats_initialize', {
-      userId: user?.$id,
-      hasAcademicOther: isAcademicOtherUser,
-    });
-
-    try {
-      setInitializing(true);
-      const groupsInitPromise = initializeUserGroups(departmentForGroups, stageForGroups, user.$id)
-        .catch(() => null);
-
-      await loadChats({ showLoader: true, preferCache: true, skipAuxiliary: true });
-      setInitializing(false);
-
-      await groupsInitPromise;
-      await loadChats({ showLoader: false, forceNetwork: true });
-      initTrace.finish({ success: true });
-    } catch (error) {
-      initTrace.finish({ success: false, error });
-      setInitializing(false);
-      setLoading(false);
-    }
-  };
-
-  const loadUnreadCounts = async (allChats) => {
+  const loadUnreadCounts = useCallback(async (allChats) => {
     if (!user?.$id || allChats.length === 0) return;
     const unreadTrace = telemetry.startTrace('chats_load_unread_counts', {
       userId: user.$id,
@@ -517,9 +467,9 @@ const Chats = ({ navigation }) => {
     } catch (error) {
       unreadTrace.finish({ success: false, error });
     }
-  };
+  }, [user?.$id]);
 
-  const loadChatStateMaps = async (allChats) => {
+  const loadChatStateMaps = useCallback(async (allChats) => {
     if (!user?.$id || allChats.length === 0) return;
     const clearedTrace = telemetry.startTrace('chats_load_cleared_timestamps', {
       userId: user.$id,
@@ -562,7 +512,7 @@ const Chats = ({ navigation }) => {
     } catch (error) {
       clearedTrace.finish({ success: false, error });
     }
-  };
+  }, [user?.$id]);
 
   const applyChatBuckets = useCallback((chatsPayload) => {
     const normalizedDefaultGroups = Array.isArray(chatsPayload?.defaultGroups) ? chatsPayload.defaultGroups : [];
@@ -593,7 +543,7 @@ const Chats = ({ navigation }) => {
     ];
   }, [user?.$id, user?.blockedUsers, user?.chatBlockedUsers]);
 
-  const loadChats = async (options = {}) => {
+  const loadChats = useCallback(async (options = {}) => {
     const {
       showLoader = true,
       preferCache = false,
@@ -677,7 +627,52 @@ const Chats = ({ navigation }) => {
       setPrivateChats([]);
       setLoading(false);
     }
-  };
+  }, [applyChatBuckets, isAcademicOtherUser, loadChatStateMaps, loadUnreadCounts, user?.$id, user?.department, user?.stage]);
+
+  useEffect(() => {
+    if (!user?.$id) {
+      initializeSignatureRef.current = null;
+      setLoading(false);
+      setInitializing(false);
+      return;
+    }
+
+    if (initializeSignatureRef.current === userChatLoadSignature) {
+      return;
+    }
+
+    initializeSignatureRef.current = userChatLoadSignature;
+
+    const initializeAndLoadChats = async () => {
+      const stageValue = stageToValue(user?.stage);
+      const departmentForGroups = isAcademicOtherUser ? null : user?.department;
+      const stageForGroups = isAcademicOtherUser ? null : stageValue;
+
+      const initTrace = telemetry.startTrace('chats_initialize', {
+        userId: user?.$id,
+        hasAcademicOther: isAcademicOtherUser,
+      });
+
+      try {
+        setInitializing(true);
+        const groupsInitPromise = initializeUserGroups(departmentForGroups, stageForGroups, user.$id)
+          .catch(() => null);
+
+        await loadChats({ showLoader: true, preferCache: true, skipAuxiliary: true });
+        setInitializing(false);
+
+        await groupsInitPromise;
+        await loadChats({ showLoader: false, forceNetwork: true });
+        initTrace.finish({ success: true });
+      } catch (error) {
+        initTrace.finish({ success: false, error });
+        setInitializing(false);
+        setLoading(false);
+      }
+    };
+
+    initializeAndLoadChats();
+  }, [isAcademicOtherUser, loadChats, user?.$id, user?.department, user?.stage, userChatLoadSignature]);
 
   const triggerSmartRefresh = useCallback(async (
     reason,
@@ -703,7 +698,7 @@ const Chats = ({ navigation }) => {
     } finally {
       isSyncInFlightRef.current = false;
     }
-  }, [isScreenActive, user?.$id, user?.department, user?.stage]);
+  }, [isScreenActive, loadChats, user?.$id, user?.department]);
 
   useEffect(() => {
     if (!isScreenActive) {
@@ -1070,8 +1065,6 @@ const Chats = ({ navigation }) => {
     ...customGroups,
     ...privateChats,
   ].filter((chat) => archivedChatMap[chat.$id] && (unreadCounts[chat.$id] || 0) > 0).length;
-
-  const renderArchivedAccess = () => null;
 
   const renderEmpty = () => {
     if (loading || initializing) {

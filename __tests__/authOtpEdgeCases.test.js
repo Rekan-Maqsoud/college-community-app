@@ -8,6 +8,8 @@
  * - Missing pending verification data
  */
 
+import { verifyOTPCode } from '../database/auth';
+
 const mockStore = {};
 
 jest.mock('../app/utils/safeStorage', () => ({
@@ -99,8 +101,6 @@ const PENDING_VERIFICATION_KEY = 'pending_verification';
 const resetStore = () => {
   Object.keys(mockStore).forEach((k) => delete mockStore[k]);
 };
-
-import { verifyOTPCode } from '../database/auth';
 
 describe('Auth OTP edge cases', () => {
   beforeEach(() => {

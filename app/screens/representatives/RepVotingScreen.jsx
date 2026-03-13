@@ -27,7 +27,6 @@ import {
   getActiveElection,
   getLatestElection,
   createElection,
-  finalizeElection,
   getClassRepresentatives,
   getNextSeatNumber,
   requestNextRepresentativeElection,
@@ -36,8 +35,6 @@ import {
   getTiebreakerCandidates,
   ELECTION_STATUS,
   MAX_REPS_PER_CLASS,
-  WINNER_COOLDOWN_MS,
-  TIEBREAKER_DURATION_MS,
 } from '../../../database/repElections';
 import { castVote, getElectionResults } from '../../../database/repVotes';
 
@@ -210,7 +207,7 @@ const RepVotingScreen = ({ navigation, route }) => {
     } finally {
       setVoting(false);
     }
-  }, [election, voting, winnerCountdownMs, results.totalVotes]);
+  }, [election, voting, winnerCountdownMs, results.totalVotes, loadData, showToast, t]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
@@ -277,7 +274,9 @@ const RepVotingScreen = ({ navigation, route }) => {
   const isActive = election?.status === ELECTION_STATUS.ACTIVE;
   const winner = election?.winner || null;
   const currentSeat = election?.seatNumber || routeSeatNumber || nextSeat || 1;
-  const tiebreakerCandidateIds = isInTiebreaker ? getTiebreakerCandidates(election) : [];
+  const tiebreakerCandidateIds = React.useMemo(() => (
+    isInTiebreaker ? getTiebreakerCandidates(election) : []
+  ), [isInTiebreaker, election]);
 
   // During tiebreaker, only show the two tied candidates
   const candidatesWithInfo = isInTiebreaker && tiebreakerCandidateIds.length > 0

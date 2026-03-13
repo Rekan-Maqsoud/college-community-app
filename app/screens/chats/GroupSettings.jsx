@@ -30,7 +30,6 @@ import {
   updateGroupSettings, 
   addGroupAdmin, 
   removeGroupAdmin,
-  addGroupMember,
   removeGroupMember,
   leaveGroup,
   deleteGroup,
@@ -39,8 +38,7 @@ import { CHAT_TYPES, getChat } from '../../../database/chats';
 import { getUserChatSettings, muteChat, unmuteChat } from '../../../database/userChatSettings';
 import { getLectureChannels, getMyLectureChannels, updateLectureChannelSettings } from '../../../database/lectures';
 import { 
-  wp, 
-  hp, 
+  hp,
   fontSize, 
   spacing, 
   moderateScale,
@@ -61,7 +59,6 @@ const GroupSettings = ({ navigation, route }) => {
   const [groupPhoto, setGroupPhoto] = useState(chat?.groupPhoto || null);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   
   const [settings, setSettings] = useState({
@@ -208,7 +205,7 @@ const GroupSettings = ({ navigation, route }) => {
     loadFreshSettings();
     loadUserMuteSettings();
     loadLectureLinkingData();
-  }, [loadLectureLinkingData]);
+  }, [loadLectureLinkingData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSaveLectureLink = async () => {
     if (!isAdmin || !chat?.$id || lectureLinkSaving) return;
@@ -392,26 +389,6 @@ const GroupSettings = ({ navigation, route }) => {
       setMembers([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSaveSettings = async () => {
-    if (!isAdmin) return;
-
-    setSaving(true);
-    try {
-      await updateGroupSettings(chat.$id, {
-        name: groupName.trim(),
-        description: description.trim(),
-        groupPhoto: groupPhoto,
-        settings: JSON.stringify(settings),
-        requiresRepresentative: settings.onlyAdminsCanPost,
-      });
-      showAlert({ type: 'success', title: t('common.success'), message: t('chats.settingsSaved') });
-    } catch (error) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('chats.settingsSaveError') });
-    } finally {
-      setSaving(false);
     }
   };
 

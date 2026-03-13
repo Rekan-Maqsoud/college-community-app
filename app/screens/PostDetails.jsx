@@ -115,14 +115,17 @@ const PostDetails = ({ navigation, route }) => {
       }
     };
     fetchPost();
-  }, [routePostId, initialPost]);
+  }, [initialPost, navigation, routePostId, showAlert, t, user?.$id]);
 
+  // loadReplies/trackView are intentionally invoked from this post-id change effect.
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if (post?.$id) {
       loadReplies();
       trackView();
     }
   }, [post?.$id]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   useEffect(() => {
     if (!user?.$id || !post?.$id) return;

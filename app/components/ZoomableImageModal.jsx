@@ -28,7 +28,7 @@ import { FlashList } from '@shopify/flash-list';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const ZoomableImage = ({ uri, onLongPress, isActive }) => {
+const ZoomableImage = ({ uri, onLongPress, isActive: _isActive }) => {
   const scale = useSharedValue(1);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);

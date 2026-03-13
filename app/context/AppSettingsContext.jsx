@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import safeStorage from '../utils/safeStorage';
 import { getLocales } from 'expo-localization';
 import * as Haptics from 'expo-haptics';
@@ -254,7 +254,7 @@ export const AppSettingsProvider = ({ children }) => {
       };
 
   // Check if current time is within dark mode schedule
-  const isWithinDarkModeSchedule = () => {
+  const isWithinDarkModeSchedule = useCallback(() => {
     if (!darkModeSchedule.enabled) return null;
     
     const now = new Date();
@@ -272,7 +272,7 @@ export const AppSettingsProvider = ({ children }) => {
     }
     // Normal schedule (e.g., 08:00 to 18:00)
     return currentMinutes >= startMinutes && currentMinutes < endMinutes;
-  };
+  }, [darkModeSchedule]);
 
   // Apply dark mode schedule
   useEffect(() => {
@@ -292,7 +292,7 @@ export const AppSettingsProvider = ({ children }) => {
       
       return () => clearInterval(interval);
     }
-  }, [darkModeSchedule, themePreference]);
+  }, [darkModeSchedule, isDarkMode, isWithinDarkModeSchedule, themePreference]);
 
   useEffect(() => {
     const subscription = Appearance.addChangeListener(({ colorScheme }) => {
@@ -304,11 +304,7 @@ export const AppSettingsProvider = ({ children }) => {
     return () => subscription.remove();
   }, [themePreference]);
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const applyLanguagePreference = async (languageCode, options = {}) => {
+  const applyLanguagePreference = useCallback(async (languageCode, options = {}) => {
     const {
       persist = true,
     } = options;
@@ -329,9 +325,9 @@ export const AppSettingsProvider = ({ children }) => {
     });
 
     return resolvedLanguage;
-  };
+  }, []);
 
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     const settingsTrace = telemetry.startTrace('app_settings_load', {
       source: 'provider_init',
     });
@@ -484,7 +480,11 @@ export const AppSettingsProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [applyLanguagePreference]);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const changeLanguage = async (languageCode) => {
     try {

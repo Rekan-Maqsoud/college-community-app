@@ -17,9 +17,9 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
       const startX = Math.random() * width;
       const startY = -50 - Math.random() * 100;
       return {
-        translateX: useRef(new Animated.Value(startX)).current,
-        translateY: useRef(new Animated.Value(startY)).current,
-        opacity: useRef(new Animated.Value(Math.random() * 0.4 + 0.2)).current,
+        translateX: new Animated.Value(startX),
+        translateY: new Animated.Value(startY),
+        opacity: new Animated.Value(Math.random() * 0.4 + 0.2),
       };
     })
   ).current;
@@ -101,7 +101,7 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
         }
       });
     };
-  }, [reduceMotion, motionProfile?.targetFps]);
+  }, [motionProfile?.targetFps, particles, reduceMotion]);
 
   return (
     <View style={styles.container} pointerEvents="none">

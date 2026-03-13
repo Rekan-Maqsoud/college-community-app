@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { useAppSettings } from '../context/AppSettingsContext';
 import AnimatedBackground from '../components/AnimatedBackground';
-import { GlassContainer, GlassInput } from '../components/GlassComponents';
+import { GlassContainer } from '../components/GlassComponents';
 import CustomAlert from '../components/CustomAlert';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { sendPasswordResetOTP, completePasswordReset, resendPasswordResetOTP } from '../../database/auth';
@@ -52,7 +52,7 @@ const ForgotPassword = ({ navigation, route }) => {
   const [recoveryUserId, setRecoveryUserId] = useState(null);
   const [recoverySecret, setRecoverySecret] = useState(null);
   
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, isDarkMode } = useAppSettings();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { formStyle } = useLayout();
 
@@ -132,7 +132,7 @@ const ForgotPassword = ({ navigation, route }) => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [fadeAnim, slideAnim]);
 
   useEffect(() => {
     let interval;

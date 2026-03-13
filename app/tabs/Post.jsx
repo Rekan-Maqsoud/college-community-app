@@ -36,7 +36,7 @@ import {
   getStageOptionsForDepartment,
   MAX_IMAGES_PER_POST,
 } from '../constants/postConstants';
-import { wp, hp, fontSize as fontSizeUtil, spacing, moderateScale } from '../utils/responsive';
+import { fontSize as fontSizeUtil, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
@@ -63,23 +63,17 @@ const normalizeStageValue = (userStage) => {
 const Post = () => {
   const appSettings = useAppSettings();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
-  
-  if (!appSettings) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
-    );
-  }
-  
-  const { theme, isDarkMode, t } = appSettings;
   const { user } = useUser();
   const { contentStyle } = useLayout();
+
+  const theme = appSettings?.theme;
+  const isDarkMode = appSettings?.isDarkMode;
+  const t = appSettings?.t;
 
   const [postType, setPostType] = useState(POST_TYPES.DISCUSSION);
   const [topic, setTopic] = useState('');
   const [text, setText] = useState('');
-  const [department, setDepartment] = useState(user?.department || '');
+  const [department] = useState(user?.department || '');
   const [stage, setStage] = useState(normalizeStageValue(user?.stage));
   const [topicInputHeight, setTopicInputHeight] = useState(48);
   const [textInputHeight, setTextInputHeight] = useState(96);
@@ -117,7 +111,7 @@ const Post = () => {
     if (user?.stage && !stage) {
       setStage(normalizeStageValue(user.stage));
     }
-  }, [user]);
+  }, [user, stage]);
 
   const stageOptions = getStageOptionsForDepartment(department || user?.department || '');
 
@@ -171,14 +165,14 @@ const Post = () => {
             try {
               const compressed = await compressImage(asset.uri, { quality: 0.7 });
               return compressed?.uri || asset.uri;
-            } catch (error) {
+            } catch (_error) {
               return asset.uri;
             }
           })
         );
         setImages([...images, ...compressedImages]);
       }
-    } catch (error) {
+    } catch (_error) {
       showAlert({ type: 'error', title: t('common.error'), message: t('post.imagePickError') });
     }
   };
@@ -356,6 +350,14 @@ const Post = () => {
       setLoading(false);
     }
   };
+
+  if (!appSettings) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>

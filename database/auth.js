@@ -2,7 +2,6 @@ import { account, databases, config } from './config';
 import { ID, Permission, Role, Query, OAuthProvider } from 'appwrite';
 import safeStorage from '../app/utils/safeStorage';
 import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
 import { userCacheManager } from '../app/utils/cacheManager';
 
 // Ensure WebBrowser redirects work properly
@@ -67,11 +66,6 @@ const BLOCKED_EMAIL_DOMAINS = [
     'rambler.ru',
     'ukr.net',
 ];
-
-// Generate a 6-digit verification code
-const generateVerificationCode = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-};
 
 // Check if email is from an educational institution
 export const isEducationalEmail = (email) => {
@@ -591,9 +585,6 @@ export const completeOAuthSignup = async (userId, email, name, additionalData = 
 
 export const cancelPendingVerification = async () => {
     try {
-        // Get pending data to know if we need cleanup
-        const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
-
         try {
             // Delete the current session
             await account.deleteSession({ sessionId: 'current' });

@@ -15,7 +15,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { createRepost, requestPostReview, voteOnPostPoll } from '../../database/posts';
 import { getUserById } from '../../database/users';
-import { moderateScale, fontSize, getResponsiveSize } from '../utils/responsive';
+import { moderateScale, getResponsiveSize } from '../utils/responsive';
 import { POST_COLORS, POST_ICONS } from '../constants/postConstants';
 import {
   parsePollPayload,
@@ -31,7 +31,7 @@ import ImageWithPlaceholder from './ImageWithPlaceholder';
 import SharePostToChat from './SharePostToChat';
 import CustomAlert from './CustomAlert';
 import PostLikesModal from './PostLikesModal';
-import useCustomAlert from '../hooks/useCustomAlert';
+import useCustomAlertHook from '../hooks/useCustomAlert';
 import { 
   postCardStyles as styles, 
   STAGE_COLORS, 
@@ -61,7 +61,7 @@ const PostCard = ({
   const navigation = useNavigation();
   const { t, theme, isDarkMode } = useAppSettings();
   const { user } = useUser();
-  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlertHook();
   const [showMenu, setShowMenu] = useState(false);
   const [imageGalleryVisible, setImageGalleryVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);

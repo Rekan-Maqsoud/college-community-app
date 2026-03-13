@@ -110,7 +110,7 @@ const SignIn = ({ navigation, route }) => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [fadeAnim, slideAnim]);
 
   useEffect(() => {
     const prefillEmail = route?.params?.prefillEmail;

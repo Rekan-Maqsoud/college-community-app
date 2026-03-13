@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -58,19 +58,7 @@ const ManageRepresentatives = ({ navigation }) => {
     return stageMap[stage] || stage;
   };
 
-  useEffect(() => {
-    loadChats();
-  }, []);
-
-  useEffect(() => {
-    if (searchQuery.length >= 2) {
-      handleSearch();
-    } else {
-      setSearchResults([]);
-    }
-  }, [searchQuery]);
-
-  const loadChats = async () => {
+  const loadChats = useCallback(async () => {
     if (!user?.department) {
       setLoading(false);
       return;
@@ -86,9 +74,9 @@ const ManageRepresentatives = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showAlert, t, user?.$id, user?.department, user?.stage]);
 
-  const handleSearch = async () => {
+  const handleSearch = useCallback(async () => {
     try {
       setSearching(true);
       const results = await searchUsers(searchQuery);
@@ -98,7 +86,19 @@ const ManageRepresentatives = ({ navigation }) => {
     } finally {
       setSearching(false);
     }
-  };
+  }, [searchQuery]);
+
+  useEffect(() => {
+    loadChats();
+  }, [loadChats]);
+
+  useEffect(() => {
+    if (searchQuery.length >= 2) {
+      handleSearch();
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery, handleSearch]);
 
   const handleAddRepresentative = async (userId) => {
     if (!selectedChat) return;

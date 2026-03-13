@@ -23,14 +23,14 @@ import {
 
 export const useLectureChannelAssetOperations = ({
   assets,
-  channel,
+  channel: _channel,
   channelId,
   loadData,
   logLectureChannel,
   logLectureChannelError,
   route,
   safeChannelFolderName,
-  t,
+  t: _t,
   user,
 }) => {
   const [activeYoutubeAssetId, setActiveYoutubeAssetId] = useState('');
@@ -632,7 +632,7 @@ export const useLectureChannelAssetOperations = ({
 
     openAsset(target);
     setPendingOpenAssetId('');
-  }, [assets, pendingOpenAssetId]);
+  }, [assets, pendingOpenAssetId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const removeDownloadedFile = async (filePath) => {
     if (!filePath) {

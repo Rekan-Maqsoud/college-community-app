@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar, ActivityIndicator, Platform, Share, Modal, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar, ActivityIndicator, Share, Modal, Linking } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -42,7 +42,6 @@ const UserProfile = ({ route, navigation }) => {
   const [userData, setUserData] = useState(initialUserData || null);
   const [loadingUser, setLoadingUser] = useState(!initialUserData);
   const [userError, setUserError] = useState(null);
-  const [isBlocked, setIsBlocked] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
   const [messageLoading, setMessageLoading] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -138,7 +137,7 @@ const UserProfile = ({ route, navigation }) => {
       try {
         const following = await checkIsFollowing(currentUser.$id, userId);
         setIsFollowing(following);
-      } catch (error) {
+      } catch (_error) {
         // Silently fail
       }
     };
@@ -185,7 +184,7 @@ const UserProfile = ({ route, navigation }) => {
         if (fetchedUser.profileViews) {
           try {
             socialLinksData = JSON.parse(fetchedUser.profileViews);
-          } catch (e) {
+          } catch (_error) {
             socialLinksData = { links: null, visibility: 'everyone' };
           }
         }
@@ -234,7 +233,7 @@ const UserProfile = ({ route, navigation }) => {
     } finally {
       setLoadingPosts(false);
     }
-  }, [userId]);
+  }, [currentUser?.$id, userId]);
 
 
   useEffect(() => {
@@ -294,7 +293,7 @@ const UserProfile = ({ route, navigation }) => {
             currentUser.fullName || currentUser.name,
             currentUser.profilePicture
           );
-        } catch (notifyError) {
+        } catch (_notifyError) {
           // Silent fail for notification
         }
       }
@@ -335,7 +334,7 @@ const UserProfile = ({ route, navigation }) => {
                 title: t('common.success'),
                 message: t('chats.messagesOnlyBlocked'),
               });
-            } catch (error) {
+            } catch (_error) {
               showAlert({ type: 'error', title: t('common.error'), message: t('chats.blockError') });
             } finally {
               setBlockLoading(false);
@@ -349,7 +348,6 @@ const UserProfile = ({ route, navigation }) => {
             setBlockLoading(true);
             try {
               await blockUser(currentUser.$id, userId);
-              setIsBlocked(true);
               setIsFollowing(false);
               // Refresh user context so blockedUsers list is updated for filtering
               await refreshUser();
@@ -359,7 +357,7 @@ const UserProfile = ({ route, navigation }) => {
                 message: t('profile.userBlocked'),
               });
               navigation.goBack();
-            } catch (error) {
+            } catch (_error) {
               showAlert({ type: 'error', title: t('common.error'), message: t('profile.blockError') });
             } finally {
               setBlockLoading(false);
@@ -420,7 +418,7 @@ const UserProfile = ({ route, navigation }) => {
             : post
         )
       );
-    } catch (error) {
+    } catch (_error) {
     }
   };
 
@@ -1214,14 +1212,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   }, 
   emptyText: { fontWeight: '500', textAlign: 'center' },
-  retryButton: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  retryButtonText: {
-    fontWeight: '600',
-    fontSize: moderateScale(14),
-  },
   // QR Modal styles
   qrModalOverlay: {
     flex: 1,

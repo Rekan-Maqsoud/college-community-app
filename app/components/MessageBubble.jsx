@@ -5,7 +5,6 @@ import {
   TouchableOpacity, 
   Modal, 
   Image, 
-  Dimensions,
   Animated,
   PanResponder,
   Pressable,
@@ -34,7 +33,6 @@ import ProfilePicture from './ProfilePicture';
 import ZoomableImageModal from './ZoomableImageModal';
 import { 
   fontSize, 
-  spacing, 
   moderateScale,
   wp,
 } from '../utils/responsive';
@@ -142,15 +140,6 @@ const MessageBubble = ({
     swipeDirectionRef.current = swipeDirection;
   }, [swipeDirection]);
 
-  const snapBack = useCallback(() => {
-    Animated.spring(translateX, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 10,
-    }).start();
-  }, [translateX]);
-
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
@@ -200,7 +189,6 @@ const MessageBubble = ({
   const hasImage = !!imageUrl;
   const hasReply = message.replyToId && (message.replyToContent || message.replyToSender);
   const isPinned = message.isPinned;
-  const mentionsAll = message.mentionsAll;
   const isPostShare = message.type === 'post_share';
   const isLocation = message.type === 'location';
   const isGif = message.type === 'gif';
@@ -230,7 +218,7 @@ const MessageBubble = ({
     } else {
       highlightOpacity.value = 0;
     }
-  }, [isHighlighted]);
+  }, [isHighlighted, highlightOpacity]);
 
   const highlightAnimatedStyle = useAnimatedStyle(() => ({
     backgroundColor: isDarkMode
@@ -841,8 +829,6 @@ const MessageBubble = ({
     const urlPattern = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
     // Pattern for @everyone/@all and @username (username can contain letters, numbers, spaces)
     const everyoneMentionPattern = /(@everyone|@all)/gi;
-    const userMentionPattern = /@([a-zA-Z0-9\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\u0980-\u09FF\s]+?)(?=\s|$|[.,!?;:])/g;
-    
     // Combined pattern for links, @everyone, and @username mentions
     const combinedPattern = new RegExp(`(${urlPattern.source}|${everyoneMentionPattern.source}|@[a-zA-Z0-9\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF\\u0980-\\u09FF\\s]+?)(?=\\s|$|[.,!?;:])`, 'gi');
     

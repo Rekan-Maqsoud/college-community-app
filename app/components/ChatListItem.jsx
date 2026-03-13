@@ -216,15 +216,6 @@ const ChatListItem = ({
     ? 'rgba(255, 255, 255, 0.05)' 
     : 'rgba(255, 255, 255, 0.9)';
 
-  // Determine if we should show a profile picture
-  const shouldShowProfilePicture = 
-    (isPrivateChat && chat.otherUser) || 
-    (chat.type === CHAT_TYPES.CUSTOM_GROUP && chat.groupPhoto);
-  
-  const profilePictureUri = isPrivateChat 
-    ? chat.otherUser?.profilePicture 
-    : chat.groupPhoto;
-
   return (
     <View style={styles.swipeContainer}>
       {!!onArchive && (

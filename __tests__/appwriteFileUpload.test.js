@@ -1,3 +1,6 @@
+import { account, storage } from '../database/config';
+import { uploadFileToAppwrite } from '../services/appwriteFileUpload';
+
 jest.mock('../database/config', () => {
   const mockPrepareRequest = jest.fn(() => ({ options: { headers: { 'content-type': 'multipart/form-data' } } }));
   return {
@@ -16,9 +19,6 @@ jest.mock('../database/config', () => {
     },
   };
 });
-
-import { account, storage } from '../database/config';
-import { uploadFileToAppwrite } from '../services/appwriteFileUpload';
 
 describe('uploadFileToAppwrite', () => {
   beforeEach(() => {

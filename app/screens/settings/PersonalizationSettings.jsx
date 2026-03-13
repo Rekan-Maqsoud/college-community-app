@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Platform,
   Modal,
   TextInput,
 } from 'react-native';
@@ -33,7 +32,6 @@ const PersonalizationSettings = ({ navigation }) => {
     currentLanguage,
     changeLanguage,
     fontScale,
-    previewFontScale,
     updateFontScale,
     reduceMotion,
     updateReduceMotion,

@@ -3,7 +3,6 @@ import {
   View,
   Text, 
   StyleSheet,
-  ActivityIndicator,
   RefreshControl,
   Platform,
 } from 'react-native';
@@ -16,18 +15,17 @@ import PostCard from '../../components/PostCard';
 import CustomAlert from '../../components/CustomAlert';
 import UnifiedEmptyState from '../../components/UnifiedEmptyState';
 import { SavedPostSkeleton } from '../../components/SkeletonLoader';
-import useCustomAlert from '../../hooks/useCustomAlert';
-import { getPost } from '../../../database/posts';
-import { togglePostLike } from '../../../database/posts';
+import useCustomAlertHook from '../../hooks/useCustomAlert';
+import { getPost , togglePostLike } from '../../../database/posts';
+
 import { wp, hp, fontSize, spacing, moderateScale } from '../../utils/responsive';
-import { borderRadius } from '../../theme/designTokens';
 import useLayout from '../../hooks/useLayout';
 import { FlashList } from '@shopify/flash-list';
 
 const SavedPosts = ({ navigation }) => {
   const { t, theme, isDarkMode, triggerHaptic } = useAppSettings();
   const { user } = useUser();
-  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const { alertConfig, hideAlert } = useCustomAlertHook();
   const { contentStyle } = useLayout();
 
   const [posts, setPosts] = useState([]);
@@ -60,7 +58,7 @@ const SavedPosts = ({ navigation }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user?.$id]);
 
   useEffect(() => {
     loadSavedPosts();
@@ -209,28 +207,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: wp(2),
     paddingBottom: hp(4),
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: hp(15),
-    paddingHorizontal: wp(8),
-  },
-  emptyCard: {
-    alignItems: 'center',
-    padding: spacing.xl,
-    width: '100%',
-  },
-  emptyTitle: {
-    fontWeight: '600',
-    marginTop: spacing.md,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    marginTop: spacing.xs,
-    textAlign: 'center',
-    lineHeight: 20,
   },
 });
 

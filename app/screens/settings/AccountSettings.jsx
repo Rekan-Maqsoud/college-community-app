@@ -29,7 +29,7 @@ const AccountSettings = ({ navigation }) => {
   const { t, theme, isDarkMode, resetSettings } = useAppSettings();
   const { user, clearUser } = useUser();
   const { contentStyle } = useLayout();
-  const [isClearingCache, setIsClearingCache] = useState(false);
+  const [, setIsClearingCache] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);

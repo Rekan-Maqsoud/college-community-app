@@ -1,5 +1,5 @@
-import { StyleSheet, Platform } from 'react-native';
-import { moderateScale, fontSize, spacing, wp, hp } from '../../utils/responsive';
+import { StyleSheet } from 'react-native';
+import { moderateScale, fontSize, spacing } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
 
 export const postDetailsStyles = StyleSheet.create({

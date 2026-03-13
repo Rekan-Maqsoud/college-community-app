@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   StyleSheet,
   useWindowDimensions,
-  Pressable,
   Switch,
   Platform,
 } from 'react-native';
@@ -20,7 +19,6 @@ import {
   fontSize,
   spacing,
   moderateScale,
-  wp,
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { FlashList } from '@shopify/flash-list';
@@ -117,7 +115,7 @@ const GiphyPickerModal = ({ visible, onClose, onSelect }) => {
       setOffset(0);
       fetchData(query, activeTab, 0, false);
     }
-  }, [visible, activeTab]);
+  }, [activeTab, fetchData, query, visible]);
 
   // Debounced search
   useEffect(() => {
@@ -130,7 +128,7 @@ const GiphyPickerModal = ({ visible, onClose, onSelect }) => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query]);
+  }, [activeTab, fetchData, query, visible]);
 
   const handleLoadMore = () => {
     if (loadingMore || loading || offset >= totalCount) return;

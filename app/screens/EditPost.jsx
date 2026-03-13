@@ -121,7 +121,7 @@ const EditPost = ({ navigation, route }) => {
       setIsQuizPoll(Boolean(parsedPoll.isQuiz));
       setCorrectPollOptionId(parsedPoll.correctOptionId || '');
     }
-  }, []);
+  }, [department, navigation, post, user?.$id, user?.department, user?.stage]);
 
   const stageOptions = getStageOptionsForDepartment(department);
 

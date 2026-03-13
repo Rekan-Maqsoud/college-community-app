@@ -83,7 +83,6 @@ const Home = ({ navigation, route }) => {
   const [posts, setPosts] = useState([]);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
-  const [userInteractions, setUserInteractions] = useState({});
   const [showFilterSortModal, setShowFilterSortModal] = useState(false);
   const [showReportReasonModal, setShowReportReasonModal] = useState(false);
   const [selectedReportPost, setSelectedReportPost] = useState(null);
@@ -189,21 +188,6 @@ const Home = ({ navigation, route }) => {
     !!scopedDepartment
   );
 
-  useEffect(() => {
-    if (!user?.$id || !scopedDepartment) {
-      return;
-    }
-
-    const shouldReload = lastLoadedFeedSignatureRef.current !== feedLoadSignature || posts.length === 0;
-    if (!shouldReload) {
-      return;
-    }
-
-    lastLoadedFeedSignatureRef.current = feedLoadSignature;
-    hasAppliedViewportRef.current = false;
-    loadPosts(true);
-  }, [feedLoadSignature, posts.length, scopedDepartment, user?.$id]);
-
   // Load unread notification count
   useEffect(() => {
     const loadUnreadCount = async () => {
@@ -211,7 +195,7 @@ const Home = ({ navigation, route }) => {
         try {
           const count = await getUnreadNotificationCount(user.$id);
           setUnreadNotifications(count);
-        } catch (error) {
+        } catch (_error) {
           // Failed to load notification count
         }
       }
@@ -300,24 +284,6 @@ const Home = ({ navigation, route }) => {
 
   // Subscribe to real-time notification updates
   useNotifications(user?.$id, handleNewNotification, null, !!user?.$id);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('tabPress', (e) => {
-      const now = Date.now();
-      const DOUBLE_TAP_DELAY = 300;
-
-      if (now - lastTapTime.current < DOUBLE_TAP_DELAY) {
-        e.preventDefault();
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-        setTimeout(() => {
-          handleRefresh();
-        }, 300);
-      }
-      lastTapTime.current = now;
-    });
-
-    return unsubscribe;
-  }, [navigation]);
 
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -434,7 +400,7 @@ const Home = ({ navigation, route }) => {
     };
   }, [feedLoadSignature, navigation, posts.length]);
 
-  const loadPosts = async (reset = false, options = {}) => {
+  const loadPosts = useCallback(async (reset = false, options = {}) => {
     if (!user || !scopedDepartment) {
       return;
     }
@@ -562,12 +528,45 @@ const Home = ({ navigation, route }) => {
       loadingState(false);
       if (reset) setIsRefreshing(false);
     }
-  };
+  }, [answerStatus, filterType, isAcademicOtherUser, page, scopedDepartment, selectedFeed, selectedStage, showAlert, sortBy, t, user]);
+
+  useEffect(() => {
+    if (!user?.$id || !scopedDepartment) {
+      return;
+    }
+
+    const shouldReload = lastLoadedFeedSignatureRef.current !== feedLoadSignature || posts.length === 0;
+    if (!shouldReload) {
+      return;
+    }
+
+    lastLoadedFeedSignatureRef.current = feedLoadSignature;
+    hasAppliedViewportRef.current = false;
+    loadPosts(true);
+  }, [feedLoadSignature, loadPosts, posts.length, scopedDepartment, user?.$id]);
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
     loadPosts(true, { forceNetwork: true });
-  }, [selectedFeed, selectedStage, sortBy, filterType, answerStatus, user]);
+  }, [loadPosts]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('tabPress', (e) => {
+      const now = Date.now();
+      const DOUBLE_TAP_DELAY = 300;
+
+      if (now - lastTapTime.current < DOUBLE_TAP_DELAY) {
+        e.preventDefault();
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+        setTimeout(() => {
+          handleRefresh();
+        }, 300);
+      }
+      lastTapTime.current = now;
+    });
+
+    return unsubscribe;
+  }, [handleRefresh, navigation]);
 
   const handleScrollToTop = useCallback(() => {
     flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
@@ -657,16 +656,11 @@ const Home = ({ navigation, route }) => {
 
   const viewedPostsRef = useRef(new Set());
 
-  const markPostAsViewed = async (postId) => {
+  const markPostAsViewed = useCallback(async (postId) => {
     if (!user?.$id || !postId || viewedPostsRef.current.has(postId)) return;
     
     viewedPostsRef.current.add(postId);
     
-    setUserInteractions(prev => ({
-      ...prev,
-      [postId]: { ...prev[postId], viewed: true }
-    }));
-
     try {
       await incrementPostViewCount(postId, user.$id);
       setPosts(prevPosts =>
@@ -676,9 +670,9 @@ const Home = ({ navigation, route }) => {
             : post
         )
       );
-    } catch (error) {
+    } catch (_error) {
     }
-  };
+  }, [user?.$id]);
 
   const onViewableItemsChanged = useCallback(({ viewableItems }) => {
     viewableItems.forEach(({ item }) => {
@@ -686,7 +680,7 @@ const Home = ({ navigation, route }) => {
         markPostAsViewed(item.$id);
       }
     });
-  }, [user?.$id]);
+  }, [markPostAsViewed, user?.$id]);
 
   const viewabilityConfig = useRef({
     itemVisiblePercentThreshold: 50,
@@ -727,7 +721,7 @@ const Home = ({ navigation, route }) => {
               postId,
               likedPost.topic || likedPost.text
             );
-          } catch (notifyError) {
+          } catch (_notifyError) {
             // Silent fail for notification
           }
         }

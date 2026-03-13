@@ -24,7 +24,6 @@ export const calculatePostScore = (post, userInteractions = {}) => {
   const isUnseen = !userInteractions[post.$id]?.viewed;
   const isQuestion = post.postType === 'question';
   const isUnanswered = isQuestion && (post.replyCount === 0 || !post.hasAcceptedAnswer);
-  const hasEngagement = (post.likeCount || 0) + (post.replyCount || 0) > 0;
 
   if (isUnseen) {
     score += SCORING_WEIGHTS.UNSEEN;

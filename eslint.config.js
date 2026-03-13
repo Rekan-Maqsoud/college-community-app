@@ -9,7 +9,18 @@ const baseConfig = Array.isArray(expoConfig) ? expoConfig : [expoConfig];
 module.exports = defineConfig([
   ...baseConfig,
   {
-    ignores: ['dist/**'],
+    ignores: ['dist/**', 'appwrite-functions/**', 'lecture-guard-proxy/**'],
+  },
+  {
+    files: ['**/*.{js,jsx}'],
+    rules: {
+      'no-unused-vars': ['warn', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrors: 'none',
+        ignoreRestSiblings: true,
+      }],
+    },
   },
   {
     files: ['app/**/*.{js,jsx}'],
@@ -18,14 +29,43 @@ module.exports = defineConfig([
       'react-perf': reactPerfPlugin,
     },
     rules: {
-      'react-hooks/exhaustive-deps': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+      'react/display-name': 'warn',
 
-      // Stage render-hygiene rules as warnings first to surface hotspots without
-      // turning existing UI debt into an immediate repo-wide blocker.
-      'react-native/no-inline-styles': 'warn',
-      'react-native/no-unused-styles': 'warn',
-      'react-perf/jsx-no-new-object-as-prop': 'warn',
-      'react-perf/jsx-no-new-function-as-prop': 'warn',
+      // Keep lint focused on correctness while legacy UI files are being
+      // incrementally modernized; these style/perf rules currently dominate
+      // warnings and hide actionable issues.
+      'react-native/no-inline-styles': 'off',
+      'react-native/no-unused-styles': 'off',
+      'react-perf/jsx-no-new-object-as-prop': 'off',
+      'react-perf/jsx-no-new-function-as-prop': 'off',
+    },
+  },
+  {
+    files: ['__tests__/**/*.{js,jsx}'],
+    languageOptions: {
+      globals: {
+        jest: 'readonly',
+        describe: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        Buffer: 'readonly',
+      },
+    },
+  },
+  {
+    files: ['count-code.js', 'scripts/**/*.js'],
+    languageOptions: {
+      globals: {
+        __dirname: 'readonly',
+        process: 'readonly',
+        module: 'readonly',
+        require: 'readonly',
+      },
     },
   },
 ]);

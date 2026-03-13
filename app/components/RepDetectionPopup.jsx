@@ -6,7 +6,7 @@ import { wp, hp, normalize, spacing } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 
 const RepDetectionPopup = ({ visible, onVote, onDismiss, hasActiveElection }) => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme } = useAppSettings();
 
   if (!visible) return null;
 
@@ -16,10 +16,6 @@ const RepDetectionPopup = ({ visible, onVote, onDismiss, hasActiveElection }) =>
   const message = hasActiveElection
     ? t('repVoting.voteInstruction').replace('{seat}', '1')
     : t('repVoting.noRepMessage');
-  const buttonLabel = hasActiveElection
-    ? t('repVoting.startVoting')
-    : t('repVoting.startVoting');
-
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
       <View style={styles.backdrop}>

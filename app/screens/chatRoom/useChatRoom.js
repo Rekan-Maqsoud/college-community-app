@@ -12,7 +12,6 @@ import {
   canUserMentionEveryone,
   markChatAsRead,
   markAllMessagesAsRead,
-  clearChatMessages,
   decryptMessageForChat,
   toggleMessageReaction,
   deleteChat,
@@ -54,11 +53,11 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       return { ...frozenChat };
     }
   }, [frozenChat]);
-  const triggerAlert = (title, message, type = 'info', buttons = []) => {
+  const triggerAlert = useCallback((title, message, type = 'info', buttons = []) => {
     if (showAlert) {
       showAlert({ type, title, message, buttons });
     }
-  };
+  }, [showAlert]);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -206,7 +205,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     !!chat.$id && !!user?.$id
   );
 
-  const loadChatSettings = async () => {
+  const loadChatSettings = useCallback(async () => {
     const settingsTrace = telemetry.startTrace('chatroom_load_settings', {
       chatId: chat?.$id,
       userId: user?.$id,
@@ -258,7 +257,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       settingsTrace.finish({ success: false, error });
       // Silently fail
     }
-  };
+  }, [chat?.$id, user?.$id]);
 
   const parseReactions = (value) => {
     if (!value) return {};
@@ -274,7 +273,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     return {};
   };
 
-  const applyReactionUpdate = (message, emoji, userId) => {
+  const applyReactionUpdate = useCallback((message, emoji, userId) => {
     const reactions = parseReactions(message.reactions);
     const current = Array.isArray(reactions[emoji]) ? reactions[emoji] : [];
     const hasReacted = current.includes(userId);
@@ -295,7 +294,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       ...message,
       reactions: JSON.stringify(nextReactions),
     };
-  };
+  }, []);
 
   const handleToggleReaction = useCallback(async (message, emoji) => {
     if (!message?.$id || !emoji || !user?.$id) {
@@ -312,7 +311,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     } catch (error) {
       setMessages(prev => prev.map(m => (m.$id === message.$id ? applyReactionUpdate(m, emoji, user.$id) : m)));
     }
-  }, [chat.$id, user?.$id]);
+  }, [applyReactionUpdate, chat.$id, user?.$id]);
 
   const handleUpdateReactionDefaults = useCallback(async (nextDefaults) => {
     if (!user?.$id || !chat?.$id) {
@@ -341,16 +340,21 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     }
   }, [chat?.$id, user?.$id]);
 
-  const checkPermissions = async () => {
+  const checkPermissions = useCallback(async () => {
+    if (!chat?.$id || !user?.$id) {
+      setCanSend(false);
+      return;
+    }
+
     try {
       const hasPermission = await canUserSendMessage(chat.$id, user.$id);
       setCanSend(hasPermission);
     } catch (error) {
       setCanSend(false);
     }
-  };
+  }, [chat?.$id, user?.$id]);
 
-  const loadMessages = async (options = {}) => {
+  const loadMessages = useCallback(async (options = {}) => {
     const { allowNetwork = true } = options;
     const messagesTrace = telemetry.startTrace('chatroom_load_messages', {
       chatId: chat?.$id,
@@ -493,19 +497,23 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     } finally {
       setLoading(false);
     }
-  };
+  }, [chat, getVisibleMessages, messages.length, t, triggerAlert, user?.$id]);
 
-  const loadMembersAndFriends = async () => {
+  const loadMembersAndFriends = useCallback(async () => {
     const membersTrace = telemetry.startTrace('chatroom_load_members_and_friends', {
       chatId: chat?.$id,
       userId: user?.$id,
       type: chat?.type,
     });
     try {
+      let friendCount = 0;
+
       // Load friends
       if (user?.$id) {
         const friends = await getFriends(user.$id);
-        setUserFriends(friends || []);
+        const normalizedFriends = Array.isArray(friends) ? friends : [];
+        setUserFriends(normalizedFriends);
+        friendCount = normalizedFriends.length;
       }
       
       // Load group members for group chats
@@ -525,7 +533,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       membersTrace.finish({
         success: true,
         meta: {
-          friendsCount: Array.isArray(userFriends) ? userFriends.length : 0,
+          friendsCount: friendCount,
           membersCount: chat?.type !== 'private' ? (chat?.participants?.length || 0) : 0,
         },
       });
@@ -533,9 +541,9 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       membersTrace.finish({ success: false, error });
       // Silent fail
     }
-  };
+  }, [chat?.$id, chat?.participants, chat?.type, user?.$id]);
 
-  const checkIfBlockedByOther = async () => {
+  const checkIfBlockedByOther = useCallback(async () => {
     if (chat.type !== 'private') return;
     const otherUserId = chat.otherUser?.$id || chat.otherUser?.id ||
       chat.participants?.find(id => id !== user?.$id);
@@ -552,7 +560,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     } catch (e) {
       // Silent fail
     }
-  };
+  }, [chat.otherUser?.$id, chat.otherUser?.id, chat.participants, chat.type, user?.$id]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -567,7 +575,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     return () => {
       isMountedRef.current = false;
     };
-  }, [chat.$id, user?.$id]);
+  }, [checkIfBlockedByOther, checkPermissions, loadChatSettings, loadMembersAndFriends, loadMessages]);
 
   useEffect(() => {
     setMessages(prev => getVisibleMessages(prev));
@@ -719,7 +727,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     }
     setSelectionMode(false);
     setSelectedMessageIds([]);
-  }, [messages, selectedMessageIds, t]);
+  }, [messages, selectedMessageIds, t, triggerAlert]);
 
   const handleBatchDeleteForMe = useCallback(async () => {
     if (selectedMessageIds.length === 0) return;
@@ -747,7 +755,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
         },
       ]
     );
-  }, [selectedMessageIds, user.$id, chat.$id, t]);
+  }, [chat.$id, selectedMessageIds, t, triggerAlert, user.$id]);
 
   const handleSendMessage = async (content, imageUrl = null, messageType = null, messageMetadata = null) => {
     if (!canSend) {
@@ -974,7 +982,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       )));
       triggerAlert(t('common.error'), t('chats.pollVoteError'));
     }
-  }, [chat.$id, t, user?.$id]);
+  }, [chat.$id, t, triggerAlert, user?.$id]);
 
   const handleVisitProfile = () => {
     setShowChatOptionsModal(false);

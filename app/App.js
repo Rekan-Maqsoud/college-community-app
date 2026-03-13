@@ -38,7 +38,6 @@ import {
   addNotificationReceivedListener,
   addNotificationResponseListener,
   checkInitialNotification,
-  setBadgeCount,
   dismissPresentedNotificationsByTarget,
 } from '../services/pushNotificationService';
 import { markNotificationsAsReadByContext } from '../database/notifications';
@@ -169,7 +168,7 @@ const AnimatedTabIcon = ({ focused, iconName, color, size }) => {
       friction: 3,
       useNativeDriver: true,
     }).start();
-  }, [focused]);
+  }, [focused, scaleValue]);
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
@@ -191,7 +190,7 @@ const TabNavigator = () => {
     if (user?.$id) {
       loadUserChatSettings(user.$id);
     }
-  }, [user?.$id]);
+  }, [user?.$id, loadUserChatSettings]);
 
   const stageToValue = (stage) => {
     if (!stage) return null;
@@ -588,21 +587,8 @@ const UpdatePrompt = () => {
       }
     });
 
-    let updatesSubscription;
-    if (Updates.addListener) {
-      updatesSubscription = Updates.addListener((event) => {
-        if (event?.type === 'downloadProgress') {
-          const { totalBytes, downloadedBytes } = event;
-          if (totalBytes > 0) {
-            setProgress(downloadedBytes / totalBytes);
-          }
-        }
-      });
-    }
-
     return () => {
       appStateSubscription?.remove();
-      updatesSubscription?.remove?.();
     };
   }, [checkForUpdates]);
 
@@ -894,7 +880,7 @@ const NotificationSetup = ({ navigationRef }) => {
       }
     };
     setupNotificationChannel();
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const setupNotifications = async () => {

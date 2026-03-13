@@ -24,7 +24,7 @@ import SearchableDropdown from '../components/SearchableDropdownNew';
 import AnimatedBackground from '../components/AnimatedBackground';
 import { GlassContainer, GlassInput } from '../components/GlassComponents';
 import { getUniversityKeys, getCollegesForUniversity, getDepartmentsForCollege, getStagesForDepartment } from '../data/universitiesData';
-import { initiateSignup, getCompleteUserData, isEducationalEmail, completeOAuthSignup, getPendingOAuthSignup, clearPendingOAuthSignup } from '../../database/auth';
+import { initiateSignup, isEducationalEmail, completeOAuthSignup, clearPendingOAuthSignup } from '../../database/auth';
 import { createSuggestion } from '../../database/suggestions';
 import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
 import { 
@@ -88,7 +88,7 @@ const SignUp = ({ navigation, route }) => {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
   
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme } = useAppSettings();
   const isCompactPhone = hp(100) < 700;
   const isWidePhone = !isTablet() && wp(100) > 430;
   const isLargeScreen = windowWidth >= 900;
@@ -207,7 +207,7 @@ const SignUp = ({ navigation, route }) => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [fadeAnim, slideAnim]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -778,61 +778,6 @@ const SignUp = ({ navigation, route }) => {
     { key: '5', label: '5' },
     { key: '6', label: '6' },
   ];
-
-  const renderInput = (props) => {
-    const { icon, placeholder, value, onChangeText, field, keyboardType, secureTextEntry, showToggle } = props;
-    const isFocused = focusedField === field;
-
-    return (
-      <GlassInput focused={isFocused} style={{ marginTop: spacing.md }}>
-        <View style={styles.inputWrapper}>
-          <Ionicons 
-            name={icon} 
-            size={moderateScale(20)} 
-            color={isFocused ? theme.primary : theme.textSecondary} 
-            style={styles.inputIcon}
-          />
-          <TextInput
-            style={[styles.input, { 
-              color: theme.text,
-              fontSize: fontSize(16),
-            }]}
-            placeholder={placeholder}
-            placeholderTextColor={theme.input.placeholder}
-            value={value}
-            onChangeText={onChangeText}
-            onFocus={() => setFocusedField(field)}
-            onBlur={() => setFocusedField(null)}
-            keyboardType={keyboardType || 'default'}
-            autoCapitalize={field === 'email' ? 'none' : 'words'}
-            autoCorrect={false}
-            secureTextEntry={secureTextEntry}
-          />
-          {showToggle && (
-            <TouchableOpacity 
-              onPress={showToggle}
-              style={styles.eyeIcon}
-              activeOpacity={0.7}
-            >
-              <Ionicons 
-                name={secureTextEntry ? "eye-outline" : "eye-off-outline"} 
-                size={moderateScale(20)} 
-                color={theme.textSecondary} 
-              />
-            </TouchableOpacity>
-          )}
-          {field === 'confirmPassword' && passwordsMatch && (
-            <Ionicons 
-              name="checkmark-circle" 
-              size={moderateScale(20)} 
-              color={theme.success} 
-              style={styles.checkIcon}
-            />
-          )}
-        </View>
-      </GlassInput>
-    );
-  };
 
   const isTabletDevice = isTablet();
   const stepTitleByIndex = {

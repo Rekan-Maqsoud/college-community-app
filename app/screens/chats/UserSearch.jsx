@@ -21,7 +21,6 @@ import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { searchUsers, getFriends } from '../../../database/users';
 import { createPrivateChat } from '../../../database/chatHelpers';
 import { 
-  wp, 
   hp, 
   fontSize, 
   spacing, 
@@ -42,11 +41,7 @@ const UserSearch = ({ navigation }) => {
   const [searched, setSearched] = useState(false);
   const [startingChat, setStartingChat] = useState(null);
 
-  useEffect(() => {
-    loadFriends();
-  }, [currentUser]);
-
-  const loadFriends = async () => {
+  const loadFriends = useCallback(async () => {
     if (!currentUser?.$id) {
       setLoadingFriends(false);
       return;
@@ -61,7 +56,11 @@ const UserSearch = ({ navigation }) => {
     } finally {
       setLoadingFriends(false);
     }
-  };
+  }, [currentUser?.$id]);
+
+  useEffect(() => {
+    loadFriends();
+  }, [loadFriends]);
 
   const debounceTimeout = React.useRef(null);
 

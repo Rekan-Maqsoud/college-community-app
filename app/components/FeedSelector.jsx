@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { GlassContainer } from './GlassComponents';
 import { wp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { FEED_TYPES } from '../constants/feedCategories';
@@ -42,8 +41,9 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
     },
   ];
 
+  const selectedIndex = feeds.findIndex(feed => feed.type === selectedFeed);
+
   useEffect(() => {
-    const selectedIndex = feeds.findIndex(feed => feed.type === selectedFeed);
     const animation = reduceMotion
       ? Animated.timing(indicatorAnim, {
           toValue: selectedIndex,
@@ -58,17 +58,16 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
         });
 
     animation.start();
-  }, [selectedFeed, reduceMotion]);
+  }, [indicatorAnim, reduceMotion, selectedIndex]);
 
   const handleFeedChange = (feedType) => {
     onFeedChange(feedType);
   };
 
-  const buttonRatios = [0.426, 0.273, 0.301];
+  const buttonRatios = useMemo(() => [0.426, 0.273, 0.301], []);
   const buttonWidths = useMemo(() => (
     buttonRatios.map(ratio => Math.max(0, containerWidth * ratio))
-  ), [containerWidth]);
-  const selectedIndex = feeds.findIndex(feed => feed.type === selectedFeed);
+  ), [buttonRatios, containerWidth]);
   
   const translateX = indicatorAnim.interpolate({
     inputRange: [0, 1, 2],

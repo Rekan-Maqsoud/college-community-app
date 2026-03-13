@@ -6,7 +6,6 @@ import {
   StyleSheet, 
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
   Platform,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
@@ -21,7 +20,7 @@ import CustomAlert from '../components/CustomAlert';
 import UnifiedEmptyState from '../components/UnifiedEmptyState';
 import { NotificationSkeleton } from '../components/SkeletonLoader';
 import { useCustomAlert } from '../hooks/useCustomAlert';
-import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
+import { fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 import safeStorage from '../utils/safeStorage';
@@ -234,11 +233,11 @@ const formatNotificationTime = (dateString, t) => {
 };
 
 const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurnOff, theme, isDarkMode, t, index }) => {
+  const [menuVisible, setMenuVisible] = useState(false);
+
   if (!notification || !notification.$id || !notification.type) {
     return null;
   }
-
-  const [menuVisible, setMenuVisible] = useState(false);
   
   const icon = getNotificationIcon(notification.type);
   const isUnread = !notification.isRead;
@@ -720,7 +719,7 @@ const Notifications = ({ navigation }) => {
       setIsLoading(true);
       loadNotifications(true, { forceNetwork: true });
     }
-  }, [user?.$id]);
+  }, [loadNotifications, user?.$id]);
 
   useEffect(() => {
     if (!isFocused || !user?.$id) {

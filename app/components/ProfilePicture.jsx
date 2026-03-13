@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Image, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 
 const ProfilePicture = ({ 
@@ -13,11 +12,6 @@ const ProfilePicture = ({
   borderWidth = 2.5
 }) => {
   const { theme, isDarkMode } = useAppSettings();
-
-  const getInitials = (fullName) => {
-    if (!fullName) return 'U';
-    return fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
 
   const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=400&background=667eea&color=fff&bold=true`;
 

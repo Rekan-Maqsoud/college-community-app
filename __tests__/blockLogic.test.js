@@ -9,6 +9,9 @@
  * - canUserSendMessage respects block lists
  */
 
+import { blockUser, blockUserChatOnly } from '../database/users';
+import { canUserSendMessage } from '../database/chats';
+
 const _docs = {};
 
 const mockGetDocument = jest.fn().mockImplementation((arg1, collId, docId) => {
@@ -146,9 +149,6 @@ jest.mock('../app/utils/pollUtils', () => ({
   parsePollPayload: jest.fn(),
   applyPollVote: jest.fn(),
 }));
-
-import { blockUser, blockUserChatOnly } from '../database/users';
-import { canUserSendMessage } from '../database/chats';
 
 const resetDocs = () => {
   Object.keys(_docs).forEach((k) => delete _docs[k]);

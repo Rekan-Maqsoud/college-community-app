@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
 import {
   View,
   TextInput,
@@ -8,7 +8,6 @@ import {
   Modal,
   Keyboard,
   ActivityIndicator,
-  Platform,
   StatusBar,
   ScrollView,
 } from 'react-native';
@@ -17,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { GlassContainer } from './GlassComponents';
-import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
+import { fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import UserCard from './UserCard';
 import PostCard from './PostCard';
@@ -81,9 +80,9 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
         clearTimeout(searchTimeout.current);
       }
     };
-  }, [searchQuery]);
+  }, [searchQuery, performSearch]);
 
-  const performSearch = async (query, filter = activeFilter) => {
+  const performSearch = useCallback(async (query, filter = activeFilter) => {
     if (!query || query.trim().length === 0) {
       setIsSearching(false);
       return;
@@ -129,7 +128,7 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
     } finally {
       setIsSearching(false);
     }
-  };
+  }, [activeFilter, currentUser?.department, currentUser?.major, currentUser?.$id]);
 
   const handleFilterChange = (filter) => {
     setActiveFilter(filter);
@@ -467,6 +466,8 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
     </>
   );
 });
+
+SearchBar.displayName = 'SearchBar';
 
 const styles = StyleSheet.create({
   iconOnlyButton: {

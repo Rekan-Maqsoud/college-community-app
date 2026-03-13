@@ -260,7 +260,7 @@ export const getPosts = async (filters = {}, limit = 20, offset = 0, useCache = 
                 return filterPostsByVisibility(cached.value, currentUserId);
             }
         }
-        const errorInfo = handleNetworkError(error);
+        handleNetworkError(error);
         throw error;
     }
 };
@@ -334,7 +334,7 @@ export const getPostsByDepartments = async (departments = [], stage = 'all', lim
                 return filterPostsByVisibility(cached.value, currentUserId);
             }
         }
-        const errorInfo = handleNetworkError(error);
+        handleNetworkError(error);
         throw error;
     }
 };
@@ -403,7 +403,7 @@ export const getAllPublicPosts = async (stage = 'all', limit = 20, offset = 0, u
                 return filterPostsByVisibility(cached.value, currentUserId);
             }
         }
-        const errorInfo = handleNetworkError(error);
+        handleNetworkError(error);
         throw error;
     }
 };
@@ -416,7 +416,7 @@ export const getPostsByUser = async (userId, limit = 20, offset = 0, currentUser
     return getPosts({ userId }, limit, offset, useCache, 'newest', [], currentUserId);
 };
 
-export const searchPosts = async (searchQuery, userDepartment = null, userMajor = null, limit = 20, currentUserId = null) => {
+export const searchPosts = async (searchQuery, _userDepartment = null, _userMajor = null, limit = 20, currentUserId = null) => {
     try {
         if (!searchQuery || searchQuery.trim().length === 0) {
             return [];
@@ -653,7 +653,7 @@ export const createRepost = async (originalPostId, userId, repostData = {}) => {
     }
 };
 
-export const requestPostReview = async (postId, requesterUserId = null) => {
+export const requestPostReview = async (postId, _requesterUserId = null) => {
     try {
         if (!postId || typeof postId !== 'string') {
             throw new Error('Invalid post ID');
@@ -941,7 +941,7 @@ export const incrementPostViewCount = async (postId, userId = null) => {
     }
 };
 
-export const togglePostLike = async (postId, userId) => {
+export const togglePostLike = async (postId, _userId) => {
     try {
         if (!postId || typeof postId !== 'string') {
             throw new Error('Invalid post ID');
@@ -1038,46 +1038,6 @@ export const setQuestionResolvedStatus = async (postId, isResolved) => {
     }
 };
 
-export const createReply = async (postId, replyData) => {
-    try {
-        if (!postId || typeof postId !== 'string') {
-            throw new Error('Invalid post ID');
-        }
-
-        const currentUserId = await getAuthenticatedUserId();
-        const effectiveReplyData = {
-            ...(replyData || {}),
-            userId: currentUserId,
-        };
-
-        enforceRateLimit({
-            action: 'create_reply',
-            userId: currentUserId,
-            maxActions: 8,
-            windowMs: 60 * 1000,
-        });
-        
-        const reply = await databases.createDocument({
-            databaseId: config.databaseId,
-            collectionId: config.repliesCollectionId,
-            documentId: ID.unique(),
-            data: {
-                ...effectiveReplyData,
-                postId
-            },
-            permissions: [
-                Permission.read(Role.users()),
-                Permission.update(Role.users()),
-                Permission.update(Role.user(currentUserId)),
-                Permission.delete(Role.user(currentUserId)),
-            ]
-        });
-        return reply;
-    } catch (error) {
-        throw error;
-    }
-};
-
 export const getReplies = async (postId) => {
     try {
         if (!postId || typeof postId !== 'string') {
@@ -1094,33 +1054,6 @@ export const getReplies = async (postId) => {
             ]
         });
         return replies.documents;
-    } catch (error) {
-        throw error;
-    }
-};
-
-export const deleteReply = async (replyId) => {
-    try {
-        if (!replyId || typeof replyId !== 'string') {
-            throw new Error('Invalid reply ID');
-        }
-
-        const currentUserId = await getAuthenticatedUserId();
-        const reply = await databases.getDocument({
-            databaseId: config.databaseId,
-            collectionId: config.repliesCollectionId,
-            documentId: replyId,
-        });
-
-        if (!reply || reply.userId !== currentUserId) {
-            throw new Error('Not authorized to delete this reply');
-        }
-        
-        await databases.deleteDocument({
-            databaseId: config.databaseId,
-            collectionId: config.repliesCollectionId,
-            documentId: replyId,
-        });
     } catch (error) {
         throw error;
     }

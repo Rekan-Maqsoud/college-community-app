@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   TextInput, 
   ActivityIndicator,
   Modal,
-  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -32,13 +31,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
   const [sending, setSending] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    if (visible) {
-      loadChats();
-    }
-  }, [visible]);
-
-  const loadChats = async () => {
+  const loadChats = useCallback(async () => {
     try {
       setLoading(true);
       const result = await getAllUserChats(user.$id, user.department, user.stage);
@@ -53,7 +46,13 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.$id, user?.department, user?.stage]);
+
+  useEffect(() => {
+    if (visible) {
+      loadChats();
+    }
+  }, [visible, loadChats]);
 
   const handleSendToChat = async (chat) => {
     if (sending) return;

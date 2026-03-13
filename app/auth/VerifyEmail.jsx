@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -73,6 +73,21 @@ const VerifyEmail = ({ route, navigation }) => {
   // Refs for OTP inputs
   const otpInputRefs = useRef([]);
 
+  const handleExpired = useCallback(async () => {
+    await cancelPendingVerification();
+    showAlert({
+      type: 'error',
+      title: t('auth.verificationExpired'),
+      message: t('auth.verificationExpiredMessage'),
+      buttons: [
+        {
+          text: t('common.ok'),
+          onPress: () => navigation.replace('SignUp'),
+        },
+      ],
+    });
+  }, [navigation, showAlert, t]);
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -142,7 +157,7 @@ const VerifyEmail = ({ route, navigation }) => {
       clearInterval(timer);
       pulse.stop();
     };
-  }, [expiresAt]);
+  }, [expiresAt, fadeAnim, handleExpired, pulseAnim, scaleAnim]);
 
   // Check for expired verification on mount
   useEffect(() => {
@@ -153,22 +168,7 @@ const VerifyEmail = ({ route, navigation }) => {
       }
     };
     checkExpiration();
-  }, []);
-
-  const handleExpired = async () => {
-    await cancelPendingVerification();
-    showAlert({
-      type: 'error',
-      title: t('auth.verificationExpired'),
-      message: t('auth.verificationExpiredMessage'),
-      buttons: [
-        {
-          text: t('common.ok'),
-          onPress: () => navigation.replace('SignUp'),
-        },
-      ],
-    });
-  };
+  }, [handleExpired]);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);

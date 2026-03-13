@@ -183,7 +183,7 @@ export const GlassInput = ({
 export const GlassButton = ({ 
   children, 
   style,
-  onPress,
+  onPress: _onPress,
   variant = 'primary',
 }) => {
   const context = useAppSettingsSafe();

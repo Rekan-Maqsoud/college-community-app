@@ -5,15 +5,12 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { 
   fontSize, 
-  spacing, 
   moderateScale,
 } from '../../utils/responsive';
-import { borderRadius } from '../../theme/designTokens';
 import { MUTE_DURATIONS, MUTE_TYPES } from '../../../database/userChatSettings';
 import { chatRoomStyles as styles } from './styles';
 

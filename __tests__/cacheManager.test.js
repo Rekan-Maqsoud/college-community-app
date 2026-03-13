@@ -1,3 +1,6 @@
+import safeStorage from '../app/utils/safeStorage';
+import { cacheManager, postsCacheManager, messagesCacheManager, chatSettingsCacheManager } from '../app/utils/cacheManager';
+
 jest.mock('../app/utils/safeStorage', () => ({
   __esModule: true,
   default: {
@@ -8,9 +11,6 @@ jest.mock('../app/utils/safeStorage', () => ({
     getAllKeys: jest.fn(),
   },
 }));
-
-import safeStorage from '../app/utils/safeStorage';
-import { cacheManager, postsCacheManager, messagesCacheManager, chatSettingsCacheManager } from '../app/utils/cacheManager';
 
 describe('cacheManager', () => {
   beforeEach(() => {

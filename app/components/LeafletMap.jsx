@@ -197,7 +197,7 @@ const LeafletMap = ({
 
     const updateScript = `window.__RN_UPDATE && window.__RN_UPDATE(${serializedMarkers}, ${serializedUserLocation}); true;`;
     webViewRef.current.injectJavaScript(updateScript);
-  }, [serializedMarkers, serializedUserLocation]);
+  }, [serializedMarkers, serializedUserLocation, WebViewComponent]);
 
   const handleMessage = (event) => {
     if (!onMarkerPress) {

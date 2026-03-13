@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { moderateScale, fontSize, spacing, wp, hp, getResponsiveSize } from '../../utils/responsive';
+import { moderateScale, fontSize, spacing, hp, getResponsiveSize } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
 
 export const postCardStyles = StyleSheet.create({

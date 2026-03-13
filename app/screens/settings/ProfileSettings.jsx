@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -47,6 +47,8 @@ const GlassCard = memo(({ children, style, isDarkMode }) => (
   </BlurView>
 ));
 
+GlassCard.displayName = 'GlassCard';
+
 const ProfileSettings = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user, updateUser, updateProfilePicture, refreshUser } = useUser();
@@ -87,7 +89,7 @@ const ProfileSettings = ({ navigation }) => {
 
   const [initialLoadDone, setInitialLoadDone] = useState(false);
 
-  const checkAcademicCooldown = () => {
+  const checkAcademicCooldown = useCallback(() => {
     const academicChangesCount = Number(profileData.academicChangesCount) || 0;
 
     if (academicChangesCount < FREE_ACADEMIC_CHANGES) {
@@ -120,22 +122,22 @@ const ProfileSettings = ({ navigation }) => {
         lastUpdate: lastUpdate.toLocaleDateString(),
       });
     }
-  };
+  }, [profileData.academicChangesCount, profileData.lastAcademicUpdate]);
 
   useEffect(() => {
     if (!initialLoadDone) {
       loadUserProfile();
       setInitialLoadDone(true);
     }
-  }, []);
+  }, [initialLoadDone, loadUserProfile]);
 
   useEffect(() => {
     if (initialLoadDone) {
       checkAcademicCooldown();
     }
-  }, [profileData.lastAcademicUpdate]);
+  }, [profileData.lastAcademicUpdate, initialLoadDone, checkAcademicCooldown]);
 
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     setIsLoading(true);
     try {
       if (user) {
@@ -179,7 +181,7 @@ const ProfileSettings = ({ navigation }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
   const saveProfileChanges = async () => {
     setIsSaving(true);

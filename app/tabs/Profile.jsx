@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar, ActivityIndicator, Platform, RefreshControl, Linking, Share, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar, ActivityIndicator, RefreshControl, Linking, Share, Modal } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -208,7 +208,7 @@ const Profile = ({ navigation, route }) => {
       }
     });
     return unsubscribe;
-  }, [navigation, route?.params?.updatedPostId, route?.params?.updatedReplyCount]);
+  }, [navigation, route?.params?.updatedPost, route?.params?.updatedPostId, route?.params?.updatedReplyCount]);
 
   // Posts are always visible, so load them when user is available
   useEffect(() => {
@@ -363,11 +363,6 @@ const Profile = ({ navigation, route }) => {
       </View>
     );
   }
-
-  const getInitials = (name) => {
-    if (!name) return 'U';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
 
   const getStageKey = (stageValue) => {
     if (!stageValue) return '';

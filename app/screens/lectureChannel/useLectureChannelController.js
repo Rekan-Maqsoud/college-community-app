@@ -533,7 +533,15 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
       channelId,
       assetsCount: assets.length,
     });
-  }, [assets.length, canUpload, loading]);
+  }, [assets.length, canUpload, loading, channelId]);
+
+  const clearManagerSearchTimer = useCallback(() => {
+    const timerId = managerSearchTimerRef.current;
+    if (timerId) {
+      clearTimeout(timerId);
+      managerSearchTimerRef.current = null;
+    }
+  }, []);
 
   useLectureAssetsRealtime(channelId, () => {
     if (channelUnavailableRef.current) {
@@ -595,13 +603,7 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
     { enabled: !!channelId && !!config.usersCollectionId }
   );
 
-  React.useEffect(() => {
-    return () => {
-      if (managerSearchTimerRef.current) {
-        clearTimeout(managerSearchTimerRef.current);
-      }
-    };
-  }, []);
+  React.useEffect(() => clearManagerSearchTimer, [clearManagerSearchTimer]);
 
   const loadComments = useCallback(async (asset) => {
     if (!asset?.$id || !channelId) {

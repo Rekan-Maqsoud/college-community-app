@@ -11,14 +11,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
-import { wp, hp, normalize, moderateScale, spacing } from '../utils/responsive';
+import { wp, normalize, moderateScale, spacing } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 
 const LAST_GREETING_KEY = '@last_greeting_index';
 const LAST_GREETING_DATE_KEY = '@last_greeting_date';
 
 const GreetingBanner = () => {
-  const { t, theme, isDarkMode, reduceMotion, compactMode } = useAppSettings();
+  const { t, isDarkMode, reduceMotion, compactMode } = useAppSettings();
   const { user } = useUser();
   const [greeting, setGreeting] = useState({ text: '', icon: 'sunny-outline' });
   

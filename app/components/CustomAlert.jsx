@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { borderRadius, shadows } from '../theme/designTokens';
-import { wp, fontSize, spacing } from '../utils/responsive';
+import { fontSize, spacing } from '../utils/responsive';
 
 const CustomAlert = ({
   visible,
@@ -74,7 +74,7 @@ const CustomAlert = ({
         }),
       ]).start();
     }
-  }, [visible, type, buttons.length, handleDismiss]);
+  }, [buttons.length, handleDismiss, opacityAnim, scaleAnim, type, visible]);
 
   const getIconConfig = () => {
     switch (type) {

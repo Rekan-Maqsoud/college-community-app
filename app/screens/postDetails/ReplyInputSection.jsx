@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -62,11 +62,7 @@ const ReplyInputSection = ({
     }).start();
   }, [actionSheetAnim, showActionSheet]);
 
-  useEffect(() => {
-    loadFriends();
-  }, [currentUserId]);
-
-  const loadFriends = async () => {
+  const loadFriends = useCallback(async () => {
     if (!currentUserId) return;
     try {
       const userFriends = await getFriends(currentUserId);
@@ -74,7 +70,11 @@ const ReplyInputSection = ({
     } catch (error) {
       setFriends([]);
     }
-  };
+  }, [currentUserId]);
+
+  useEffect(() => {
+    loadFriends();
+  }, [loadFriends]);
 
   const handleTextChange = async (text) => {
     setReplyText(text);

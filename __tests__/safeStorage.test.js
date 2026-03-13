@@ -1,3 +1,5 @@
+import safeStorage from '../app/utils/safeStorage';
+
 const mockStorage = {
   getString: jest.fn(),
   set: jest.fn(),
@@ -8,8 +10,6 @@ const mockStorage = {
 jest.mock('react-native-mmkv', () => ({
   MMKV: jest.fn(() => mockStorage),
 }));
-
-import safeStorage from '../app/utils/safeStorage';
 
 describe('safeStorage', () => {
   beforeEach(() => {

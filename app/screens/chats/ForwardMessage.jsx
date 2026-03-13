@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -38,11 +38,7 @@ const ForwardMessage = ({ navigation, route }) => {
   const [forwarding, setForwarding] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  React.useEffect(() => {
-    loadChats();
-  }, []);
-
-  const loadChats = async () => {
+  const loadChats = useCallback(async () => {
     try {
       const result = await getAllUserChats(user.$id, user.department, user.stage);
       const allChats = [
@@ -56,7 +52,11 @@ const ForwardMessage = ({ navigation, route }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.$id, user?.department, user?.stage]);
+
+  React.useEffect(() => {
+    loadChats();
+  }, [loadChats]);
 
   const handleForward = async (chat) => {
     if (forwarding) return;

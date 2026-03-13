@@ -102,7 +102,7 @@ const PostViewModal = ({
     };
 
     fetchPostData();
-  }, [visible, postId, initialPost?.$id]);
+  }, [visible, postId, initialPost, t, user?.$id, user?.fullName, user?.name, user?.profilePicture]);
 
   // Reset state when modal closes
   useEffect(() => {
@@ -110,7 +110,7 @@ const PostViewModal = ({
       setPost(initialPost || null);
       setError(null);
     }
-  }, [visible]);
+  }, [visible, initialPost]);
 
   const handleLike = useCallback(async () => {
     if (!post?.$id || !user?.$id) return;

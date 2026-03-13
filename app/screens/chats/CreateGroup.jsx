@@ -26,7 +26,6 @@ import { getUsersByDepartment, getFriends, searchUsers } from '../../../database
 import { createCustomGroup } from '../../../database/chatHelpers';
 import { 
   wp, 
-  hp, 
   fontSize, 
   spacing, 
   moderateScale,
@@ -62,11 +61,7 @@ const CreateGroup = ({ navigation }) => {
     onlyAdminsCanPin: false,
   });
 
-  useEffect(() => {
-    loadUsers();
-  }, [currentUser]);
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     if (!currentUser?.$id) {
       setLoading(false);
       return;
@@ -94,7 +89,11 @@ const CreateGroup = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser?.$id, currentUser?.department]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
   const debounceTimeout = React.useRef(null);
 

@@ -16,8 +16,6 @@ const LanguageDropdown = () => {
     { code: 'ku', name: 'Kurdish', nativeName: 'کوردی' },
   ];
 
-  const selectedLang = languages.find((lang) => lang.code === currentLanguage);
-
   const handleSelect = (code) => {
     changeLanguage(code);
     setIsOpen(false);

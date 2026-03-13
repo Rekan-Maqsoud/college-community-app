@@ -7,6 +7,8 @@
  * - sendMessage rejects when sender identity does not match session
  */
 
+import uploadQueue, { UPLOAD_STATUS } from '../services/uploadQueue';
+
 jest.mock('appwrite', () => ({
   Client: jest.fn(() => ({
     setEndpoint: jest.fn().mockReturnThis(),
@@ -125,8 +127,6 @@ jest.mock('../app/utils/pollUtils', () => ({
   parsePollPayload: jest.fn(),
   applyPollVote: jest.fn(),
 }));
-
-import uploadQueue, { UPLOAD_STATUS } from '../services/uploadQueue';
 
 describe('uploadQueue – retry & backoff', () => {
   afterEach(() => {

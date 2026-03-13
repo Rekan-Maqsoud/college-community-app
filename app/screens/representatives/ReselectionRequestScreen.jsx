@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   StyleSheet,
   StatusBar,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -55,7 +54,7 @@ const ReselectionRequestScreen = ({ navigation, route }) => {
     } finally {
       setSubmitting(false);
     }
-  }, [election, submitting, department, stage, navigation]);
+  }, [election, submitting, department, stage, navigation, seatNumber]);
 
   const isDisabled = alreadyVoted || result?.alreadyVoted || submitting;
 

@@ -6,7 +6,7 @@ import ZoomableImageModal from '../../components/ZoomableImageModal';
  * Uses the shared ZoomableImageModal component for consistent 
  * zoom, download, and share functionality across the app.
  */
-const ImageGalleryModal = ({ visible, images, initialIndex, onClose, t }) => {
+const ImageGalleryModal = ({ visible, images, initialIndex, onClose }) => {
   return (
     <ZoomableImageModal
       visible={visible}

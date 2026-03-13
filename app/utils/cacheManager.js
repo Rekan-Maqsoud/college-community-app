@@ -165,7 +165,7 @@ export const postsCacheManager = {
     await cacheManager.removeByPrefix('posts_');
   },
 
-  async invalidateSinglePost(postId) {
+  async invalidateSinglePost(_postId) {
     // Invalidate all posts caches since a post change affects multiple lists
     await cacheManager.removeByPrefix('posts_');
   }

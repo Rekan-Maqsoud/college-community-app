@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { wp, spacing, moderateScale } from '../utils/responsive';
+import { spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 
 export const PostCardSkeleton = () => {
-  const { theme, isDarkMode } = useAppSettings();
+  const { isDarkMode } = useAppSettings();
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -25,7 +25,7 @@ export const PostCardSkeleton = () => {
     );
     pulse.start();
     return () => pulse.stop();
-  }, []);
+  }, [pulseAnim]);
 
   const opacity = pulseAnim.interpolate({
     inputRange: [0, 1],
@@ -110,7 +110,7 @@ export const PostCardSkeleton = () => {
 };
 
 export const ProfileSkeleton = () => {
-  const { theme, isDarkMode } = useAppSettings();
+  const { isDarkMode } = useAppSettings();
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -130,7 +130,7 @@ export const ProfileSkeleton = () => {
     );
     pulse.start();
     return () => pulse.stop();
-  }, []);
+  }, [pulseAnim]);
 
   const opacity = pulseAnim.interpolate({
     inputRange: [0, 1],
