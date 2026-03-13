@@ -1,6 +1,7 @@
-import { createRepost, getPost, reportPost, requestPostReview } from '../database/posts';
+import { createRepost, deletePost, getPost, reportPost, requestPostReview } from '../database/posts';
 import { account, databases } from '../database/config';
-import { notifyPostHiddenByReports } from '../database/notifications';
+import { deleteNotificationsByPostId, notifyPostHiddenByReports } from '../database/notifications';
+import { deleteRepliesByPost } from '../database/replies';
 
 jest.mock('appwrite', () => ({
   ID: {
@@ -48,8 +49,13 @@ jest.mock('../database/config', () => ({
 }));
 
 jest.mock('../database/notifications', () => ({
+  deleteNotificationsByPostId: jest.fn(() => Promise.resolve(true)),
   notifyDepartmentPost: jest.fn(() => Promise.resolve()),
   notifyPostHiddenByReports: jest.fn(() => Promise.resolve()),
+}));
+
+jest.mock('../database/replies', () => ({
+  deleteRepliesByPost: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock('../app/utils/cacheManager', () => ({
@@ -276,5 +282,25 @@ describe('posts moderation and repost flows', () => {
         reviewRequestedBy: 'owner-6',
       }),
     }));
+  });
+
+  it('deletes the post even when reply and notification cleanup cannot be completed', async () => {
+    account.get.mockResolvedValue({ $id: 'owner-7' });
+    databases.getDocument.mockResolvedValue({
+      $id: 'post-7',
+      userId: 'owner-7',
+      imageDeleteUrls: [],
+    });
+    databases.deleteDocument.mockResolvedValue({});
+    deleteRepliesByPost.mockRejectedValueOnce(new Error('Reply delete not permitted'));
+    deleteNotificationsByPostId.mockRejectedValueOnce(new Error('Notification delete not permitted'));
+
+    await expect(deletePost('post-7')).resolves.toEqual({ success: true });
+
+    expect(databases.deleteDocument).toHaveBeenCalledWith({
+      databaseId: 'db',
+      collectionId: 'posts',
+      documentId: 'post-7',
+    });
   });
 });

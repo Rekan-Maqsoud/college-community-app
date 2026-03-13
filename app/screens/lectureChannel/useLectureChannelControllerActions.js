@@ -83,6 +83,14 @@ export const useLectureChannelControllerActions = ({
   logLectureChannelError,
 }) => {
   const onRefresh = () => {
+    logLectureChannel('refresh:triggered', {
+      channelId,
+      isManager,
+      isOwner,
+      canUpload,
+      membershipJoinStatus: membership?.joinStatus || '',
+      membershipRole: membership?.role || '',
+    });
     setRefreshing(true);
     loadData({ showLoading: false });
   };
@@ -100,6 +108,7 @@ export const useLectureChannelControllerActions = ({
 
   const handleToggleNotifications = async () => {
     if (!membership) {
+      logLectureChannel('toggleNotifications:blocked_no_membership', { channelId });
       return;
     }
 
@@ -403,8 +412,30 @@ export const useLectureChannelControllerActions = ({
 
   const handleUpload = async () => {
     if (!canUpload) {
+      logLectureChannel('upload:blocked_permission', {
+        channelId,
+        isManager,
+        isOwner,
+        membershipJoinStatus: membership?.joinStatus || '',
+        membershipRole: membership?.role || '',
+        channelOwnerId: channel?.ownerId || '',
+        managers,
+      });
       return;
     }
+
+    logLectureChannel('upload:attempt', {
+      channelId,
+      isManager,
+      isOwner,
+      membershipJoinStatus: membership?.joinStatus || '',
+      membershipRole: membership?.role || '',
+      newUploadType,
+      hasTitle: !!newUploadTitle.trim(),
+      hasFile: !!selectedFile,
+      hasYoutubeUrl: !!youtubeUrl.trim(),
+      hasExternalUrl: !!externalUrl.trim(),
+    });
 
     if (!newUploadTitle.trim()) {
       setUploadError(t('lectures.uploadTitleRequired'));
@@ -454,6 +485,7 @@ export const useLectureChannelControllerActions = ({
       setYoutubeUrl('');
       setExternalUrl('');
       setSelectedFile(null);
+      setShowUploadComposer(false);
       await loadData({ showLoading: false });
 
       logLectureChannel('upload:success', {

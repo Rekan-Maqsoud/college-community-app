@@ -4,6 +4,7 @@ import {
   Text,
   StatusBar,
   Platform,
+  ActivityIndicator,
   TouchableOpacity,
   KeyboardAvoidingView,
   ImageBackground,
@@ -695,6 +696,9 @@ const ChatRoom = ({ route, navigation }) => {
         backgroundColor: headerBackgroundColor,
         height: moderateScale(74),
       },
+      cardStyle: {
+        backgroundColor: headerBackgroundColor,
+      },
       headerRight: () => (
         <View style={styles.headerActions}>
           <TouchableOpacity
@@ -782,10 +786,7 @@ const ChatRoom = ({ route, navigation }) => {
 
     const savedViewportMessageId = String(chatViewportState?.messageId || '').trim();
     if (savedViewportMessageId) {
-      const savedIndex = memoizedMessages.findIndex(message => message.$id === savedViewportMessageId);
-      if (savedIndex >= 0) {
-        return savedIndex;
-      }
+      return undefined;
     }
 
     if (firstUnreadMessageIndex >= 0) {
@@ -915,6 +916,32 @@ const ChatRoom = ({ route, navigation }) => {
       </View>
     );
   }, [loading, memoizedMessages.length, t]);
+
+  const renderLoadingOverlay = useCallback(() => {
+    if (!loading || memoizedMessages.length > 0) {
+      return null;
+    }
+
+    return (
+      <View style={styles.emptyOverlay} pointerEvents="none">
+        <View
+          style={[
+            styles.emptyCard,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+              borderWidth: 1,
+              gap: moderateScale(12),
+            },
+          ]}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.emptyText, { fontSize: fontSize(16), color: theme.text }]}>
+            {t('common.loading')}
+          </Text>
+        </View>
+      </View>
+    );
+  }, [loading, memoizedMessages.length, t, theme.border, theme.card, theme.primary, theme.text]);
 
   const isCustomImageBackground = chatSettings?.backgroundImage && 
     !chatSettings.backgroundImage.startsWith('gradient_') &&
@@ -1086,6 +1113,7 @@ const ChatRoom = ({ route, navigation }) => {
         maintainVisibleContentPosition={maintainVisibleContentPosition}
       />
 
+      {renderLoadingOverlay()}
       {renderEmptyOverlay()}
 
       {/* Selection Mode Toolbar */}
@@ -1165,7 +1193,7 @@ const ChatRoom = ({ route, navigation }) => {
       />
       )}
     </KeyboardAvoidingView>
-  ), [canMentionEveryone, canSend, cancelReply, chat.requiresRepresentative, chat.type, chatOnlyBlockedBannerStyle, chatStyle, copySelectionTextStyle, deleteSelectionTextStyle, excludedMentionUserIds, flatListRef, fullBlockedBannerStyle, groupMembers, handleBatchCopy, handleBatchDeleteForMe, handleListScroll, handleScrollToIndexFailed, handleSendWithHaptic, handleViewableItemsChanged, iBlockedThem, iChatBlockedThem, initialScrollIndex, insets.top, isBlockedChat, isChatOnlyBlocked, isFullyBlockedChat, keyExtractor, maintainVisibleContentPosition, memoizedMessages, renderEmpty, renderEmptyOverlay, renderMessage, renderSearchBar, representativeWarningBannerStyle, replyingTo, selectedMessageIds.length, selectedMessagesTextStyle, selectionMode, selectionToolbarStyle, showAlert, t, theme.primary, theme.text, theme.textSecondary, toggleSelectionMode, userFriends, viewabilityConfig]);
+  ), [canMentionEveryone, canSend, cancelReply, chat.requiresRepresentative, chat.type, chatOnlyBlockedBannerStyle, chatStyle, copySelectionTextStyle, deleteSelectionTextStyle, excludedMentionUserIds, flatListRef, fullBlockedBannerStyle, groupMembers, handleBatchCopy, handleBatchDeleteForMe, handleListScroll, handleScrollToIndexFailed, handleSendWithHaptic, handleViewableItemsChanged, iBlockedThem, iChatBlockedThem, initialScrollIndex, insets.top, isBlockedChat, isChatOnlyBlocked, isFullyBlockedChat, keyExtractor, maintainVisibleContentPosition, memoizedMessages, renderEmpty, renderEmptyOverlay, renderLoadingOverlay, renderMessage, renderSearchBar, representativeWarningBannerStyle, replyingTo, selectedMessageIds.length, selectedMessagesTextStyle, selectionMode, selectionToolbarStyle, showAlert, t, theme.primary, theme.text, theme.textSecondary, toggleSelectionMode, userFriends, viewabilityConfig]);
 
   return (
     <View style={styles.container}>

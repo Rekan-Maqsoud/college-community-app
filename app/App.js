@@ -72,7 +72,7 @@ import FollowList from './screens/FollowList';
 import ManageRepresentatives from './screens/ManageRepresentatives';
 import { RepVotingScreen, ReselectionRequestScreen } from './screens/representatives';
 import Notifications from './screens/Notifications';
-import LectureChannel from './screens/LectureChannel';
+import LectureChannel from './screens/lectureChannel';
 import { NewChat, UserSearch, CreateGroup, GroupSettings, ForwardMessage, AddMembers } from './screens/chats';
 
 initCrashReporting();

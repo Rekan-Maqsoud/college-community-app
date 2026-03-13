@@ -21,6 +21,8 @@ import AnimatedBackground from '../../components/AnimatedBackground';
 import ProfilePicture from '../../components/ProfilePicture';
 import CustomAlert from '../../components/CustomAlert';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
+import { getActorIdentityIds, getPrimaryActorId, matchesAnyActorIdentity } from '../../utils/actorIdentity';
+import { canManageLectureChannel } from '../../utils/lectureAccess';
 import { getUserById } from '../../../database/users';
 import { pickAndCompressImages } from '../../utils/imageCompression';
 import { uploadToImgbb } from '../../../services/imgbbService';
@@ -78,9 +80,12 @@ const GroupSettings = ({ navigation, route }) => {
   const [lectureLinkLoading, setLectureLinkLoading] = useState(false);
   const [lectureLinkSaving, setLectureLinkSaving] = useState(false);
 
-  const isAdmin = chat?.admins?.includes(currentUser?.$id) || 
-                  chat?.representatives?.includes(currentUser?.$id);
-  const isCreator = chat?.admins?.[0] === currentUser?.$id;
+  const actorIdentityIds = getActorIdentityIds(currentUser);
+  const primaryActorId = getPrimaryActorId(currentUser);
+
+  const isAdmin = matchesAnyActorIdentity(actorIdentityIds, chat?.admins || []) || 
+                  matchesAnyActorIdentity(actorIdentityIds, chat?.representatives || []);
+  const isCreator = matchesAnyActorIdentity(actorIdentityIds, [chat?.admins?.[0]]);
 
   // Refs for debounced auto-save (text fields only)
   const saveTimeoutRef = useRef(null);
@@ -166,31 +171,8 @@ const GroupSettings = ({ navigation, route }) => {
     };
   }, []);
 
-  useEffect(() => {
-    loadMembers();
-    loadFreshSettings();
-    loadUserMuteSettings();
-    loadLectureLinkingData();
-  }, [loadLectureLinkingData]);
-
-  const getNormalizedManagerIds = useCallback((channel) => {
-    if (Array.isArray(channel?.managerIds)) {
-      return channel.managerIds.filter(Boolean);
-    }
-
-    const managerIdsText = String(channel?.managerIds || '').trim();
-    if (!managerIdsText) {
-      return [];
-    }
-
-    return managerIdsText
-      .split(',')
-      .map(item => item.trim())
-      .filter(Boolean);
-  }, []);
-
   const loadLectureLinkingData = useCallback(async () => {
-    if (!chat?.$id || !currentUser?.$id) {
+    if (!chat?.$id || !primaryActorId) {
       setLectureChannels([]);
       setSelectedLectureChannelId('');
       setCurrentLectureChannelId('');
@@ -200,14 +182,11 @@ const GroupSettings = ({ navigation, route }) => {
     setLectureLinkLoading(true);
     try {
       const [myLectureChannels, allLectureChannels] = await Promise.all([
-        getMyLectureChannels(currentUser.$id),
+        getMyLectureChannels(),
         getLectureChannels({ channelType: 'all', limit: 100, offset: 0 }),
       ]);
 
-      const manageableChannels = (myLectureChannels || []).filter(channel => {
-        const managerIds = getNormalizedManagerIds(channel);
-        return channel?.ownerId === currentUser.$id || managerIds.includes(currentUser.$id);
-      });
+      const manageableChannels = (myLectureChannels || []).filter(channel => canManageLectureChannel(channel, actorIdentityIds));
 
       const linkedChannel = (allLectureChannels || []).find(channel => channel?.linkedChatId === chat.$id);
       const linkedChannelId = linkedChannel?.$id || '';
@@ -222,7 +201,14 @@ const GroupSettings = ({ navigation, route }) => {
     } finally {
       setLectureLinkLoading(false);
     }
-  }, [chat?.$id, currentUser?.$id, getNormalizedManagerIds]);
+  }, [actorIdentityIds, chat?.$id, primaryActorId]);
+
+  useEffect(() => {
+    loadMembers();
+    loadFreshSettings();
+    loadUserMuteSettings();
+    loadLectureLinkingData();
+  }, [loadLectureLinkingData]);
 
   const handleSaveLectureLink = async () => {
     if (!isAdmin || !chat?.$id || lectureLinkSaving) return;

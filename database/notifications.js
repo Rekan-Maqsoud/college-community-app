@@ -269,6 +269,15 @@ export const createNotification = async (notificationData) => {
             isRead: false,
         };
 
+        const extraDeleteUserIds = Array.isArray(notificationData.extraDeleteUserIds)
+            ? notificationData.extraDeleteUserIds.filter((userId) => typeof userId === 'string' && userId.trim().length > 0)
+            : [];
+
+        const permissionDeleteUserIds = Array.from(new Set([
+            notificationData.userId,
+            ...extraDeleteUserIds,
+        ]));
+
         if (notificationData.senderName) {
             safeNotificationDoc.senderName = String(notificationData.senderName).substring(0, 255);
         }
@@ -292,7 +301,7 @@ export const createNotification = async (notificationData) => {
                 permissions: [
                     Permission.read(Role.user(notificationData.userId)),
                     Permission.update(Role.user(notificationData.userId)),
-                    Permission.delete(Role.user(notificationData.userId)),
+                    ...permissionDeleteUserIds.map((userId) => Permission.delete(Role.user(userId))),
                 ],
             });
         } catch (permissionError) {
@@ -647,11 +656,13 @@ export const deleteAllNotifications = async (userId) => {
  * @param {string} postId - Post ID
  * @returns {Promise<boolean>} Success status
  */
-export const deleteNotificationsByPostId = async (postId) => {
+export const deleteNotificationsByPostId = async (postId, options = {}) => {
     try {
         if (!postId || typeof postId !== 'string') {
             throw new Error('Invalid post ID');
         }
+
+        const { continueOnDeleteError = false } = options;
 
         if (!config.notificationsCollectionId) {
             return true;
@@ -676,13 +687,19 @@ export const deleteNotificationsByPostId = async (postId) => {
             }
 
             await Promise.all(
-                notifications.documents.map(notification =>
-                    databases.deleteDocument({
-                        databaseId: config.databaseId,
-                        collectionId: config.notificationsCollectionId,
-                        documentId: notification.$id,
-                    })
-                )
+                notifications.documents.map(async (notification) => {
+                    try {
+                        await databases.deleteDocument({
+                            databaseId: config.databaseId,
+                            collectionId: config.notificationsCollectionId,
+                            documentId: notification.$id,
+                        });
+                    } catch (error) {
+                        if (!continueOnDeleteError) {
+                            throw error;
+                        }
+                    }
+                })
             );
 
             if (notifications.documents.length < 100) {

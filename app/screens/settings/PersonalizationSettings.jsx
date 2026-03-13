@@ -13,8 +13,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../../context/AppSettingsContext';
-import CustomAlert from '../../components/CustomAlert';
-import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,8 +50,6 @@ const PersonalizationSettings = ({ navigation }) => {
     darkModeSchedule,
     updateDarkModeSchedule,
   } = useAppSettings();
-
-  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [timePickerType, setTimePickerType] = useState('start'); // 'start' or 'end'
@@ -94,25 +90,6 @@ const PersonalizationSettings = ({ navigation }) => {
     { code: 'ar', name: 'Arabic', nativeName: 'العربية' },
     { code: 'ku', name: 'Kurdish', nativeName: 'کوردی' },
   ];
-
-  const handleLanguageChange = (languageCode) => {
-    if (languageCode === 'ar' && currentLanguage !== 'ar') {
-      showAlert({
-        type: 'info',
-        title: t('settings.language'),
-        message: 'Arabic requires app restart for full RTL support. Please restart the app.',
-        buttons: [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('common.yes'),
-            onPress: () => changeLanguage(languageCode),
-          },
-        ],
-      });
-    } else {
-      changeLanguage(languageCode);
-    }
-  };
 
   const GlassCard = ({ children, style }) => (
     <BlurView
@@ -287,7 +264,7 @@ const PersonalizationSettings = ({ navigation }) => {
               <View key={lang.code}>
                 <TouchableOpacity
                   style={styles.optionItem}
-                  onPress={() => handleLanguageChange(lang.code)}
+                  onPress={() => changeLanguage(lang.code)}
                   activeOpacity={0.7}>
                   <View style={styles.languageInfo}>
                     <Text style={[styles.languageNative, { color: theme.text }]}>
@@ -670,14 +647,6 @@ const PersonalizationSettings = ({ navigation }) => {
           </View>
         </TouchableOpacity>
       </Modal>
-      <CustomAlert
-        visible={alertConfig.visible}
-        type={alertConfig.type}
-        title={alertConfig.title}
-        message={alertConfig.message}
-        buttons={alertConfig.buttons}
-        onDismiss={hideAlert}
-      />
     </View>
   );
 };

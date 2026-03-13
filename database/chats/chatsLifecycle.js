@@ -178,7 +178,7 @@ export const getChats = async (userId, limit = 200) => {
       databaseId: config.databaseId,
       collectionId: config.chatsCollectionId,
       queries: [
-        Query.equal('participants', userId),
+        Query.contains('participants', userId),
         Query.orderDesc('lastMessageAt'),
         Query.limit(boundedLimit),
       ]

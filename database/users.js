@@ -132,11 +132,51 @@ export const getUserById = async (userId, skipCache = false) => {
             }
         }
         
-        const user = await databases.getDocument({
-            databaseId: config.databaseId,
-            collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
-            documentId: userId,
-        });
+        let user;
+
+        try {
+            user = await databases.getDocument({
+                databaseId: config.databaseId,
+                collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
+                documentId: userId,
+            });
+        } catch (directError) {
+            let fallback = null;
+
+            try {
+                const byUserId = await databases.listDocuments({
+                    databaseId: config.databaseId,
+                    collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
+                    queries: [
+                        Query.equal('userId', userId),
+                        Query.limit(1),
+                    ],
+                });
+                fallback = byUserId.documents?.[0] || null;
+            } catch {
+            }
+
+            if (!fallback) {
+                try {
+                    const byLegacyUserId = await databases.listDocuments({
+                        databaseId: config.databaseId,
+                        collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
+                        queries: [
+                            Query.equal('userID', userId),
+                            Query.limit(1),
+                        ],
+                    });
+                    fallback = byLegacyUserId.documents?.[0] || null;
+                } catch {
+                }
+            }
+
+            if (!fallback) {
+                throw directError;
+            }
+
+            user = fallback;
+        }
         
         // Cache the user data for future requests
         await userCacheManager.cacheUserData(userId, user);

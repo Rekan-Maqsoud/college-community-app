@@ -26,6 +26,18 @@ const getMmkvStorage = () => {
 };
 
 const safeStorage = {
+  getItemSync(key) {
+    const storage = getMmkvStorage();
+    if (storage) {
+      try {
+        const value = storage.getString(key);
+        return value ?? (memoryStore.has(key) ? memoryStore.get(key) : null);
+      } catch (error) {
+        return memoryStore.has(key) ? memoryStore.get(key) : null;
+      }
+    }
+    return memoryStore.has(key) ? memoryStore.get(key) : null;
+  },
   async getItem(key) {
     const storage = getMmkvStorage();
     if (storage) {

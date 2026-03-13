@@ -23,17 +23,27 @@ import {
 import { getChats } from '../../../database/chats';
 import { config } from '../../../database/config';
 import { getUserById, searchUsers } from '../../../database/users';
+import { getActorIdentityIds, getPrimaryActorId } from '../../utils/actorIdentity';
 import { userCacheManager } from '../../utils/cacheManager';
+import { canLinkLectureGroup, canManageLectureChannel } from '../../utils/lectureAccess';
 import {
-  canLinkGroupToChannel,
   isNotFoundError,
   parseChannelSettings,
   parseStatsUserIds,
 } from './lectureChannelUtils';
 import { useLectureChannelControllerActions } from './useLectureChannelControllerActions';
 
-const logLectureChannel = () => {};
-const logLectureChannelError = () => {};
+const logLectureChannel = (event, payload = {}) => {
+  console.log('[LectureChannelController]', event, payload);
+};
+
+const logLectureChannelError = (event, error, payload = {}) => {
+  console.error('[LectureChannelController]', event, {
+    ...payload,
+    errorMessage: error?.message || String(error || ''),
+    errorCode: error?.code || error?.status || '',
+  });
+};
 
 export const useLectureChannelController = ({ channelId, navigation }) => {
   const { colors, isDarkMode } = useAppSettings();
@@ -91,6 +101,7 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
   const loadingInFlightRef = React.useRef(false);
   const channelUnavailableRef = React.useRef(false);
   const hasShownUnavailableAlertRef = React.useRef(false);
+  const hasAutoOpenedUploadComposerRef = React.useRef(false);
 
   React.useEffect(() => {
     userProfilesRef.current = userProfiles;
@@ -98,17 +109,20 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
 
   const membership = membershipSummary?.membership || null;
   const actorIdentityIds = useMemo(() => {
-    return Array.from(new Set(
-      [user?.accountId, user?.userId, user?.$id]
-        .map(value => String(value || '').trim())
-        .filter(Boolean)
-    ));
-  }, [user?.$id, user?.accountId, user?.userId]);
-  const primaryActorId = actorIdentityIds[0] || '';
-  const matchesActorIdentity = useCallback((value) => {
-    const normalizedValue = String(value || '').trim();
-    return !!normalizedValue && actorIdentityIds.includes(normalizedValue);
-  }, [actorIdentityIds]);
+    return getActorIdentityIds(user);
+  }, [user]);
+  const primaryActorId = useMemo(() => getPrimaryActorId(user), [user]);
+
+  React.useEffect(() => {
+    logLectureChannel('identity:resolved', {
+      channelId,
+      userId: user?.$id || '',
+      accountId: user?.accountId || '',
+      appUserId: user?.userId || '',
+      actorIdentityIds,
+      primaryActorId,
+    });
+  }, [actorIdentityIds, channelId, primaryActorId, user?.$id, user?.accountId, user?.userId]);
 
   const orderedAssets = useMemo(() => {
     const list = Array.isArray(assets) ? [...assets] : [];
@@ -176,17 +190,24 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
   }, [orderedAssets, settingsDraft.assetFolders, settingsDraft.assetFolderMap, t]);
 
   const isManager = useMemo(() => {
-    if (!channel || actorIdentityIds.length === 0) {
-      return false;
+    const membershipRole = String(membership?.role || '').trim().toLowerCase();
+    if (membershipRole === 'owner' || membershipRole === 'manager' || membershipRole === 'admin') {
+      return true;
     }
 
-    const managerIds = Array.isArray(managers) ? managers : [];
-    return matchesActorIdentity(channel.ownerId) || managerIds.some(managerId => matchesActorIdentity(managerId));
-  }, [actorIdentityIds.length, channel, managers, matchesActorIdentity]);
+    return canManageLectureChannel({
+      ...channel,
+      managerIds: managers,
+    }, actorIdentityIds);
+  }, [actorIdentityIds, channel, managers, membership?.role]);
 
   const isOwner = useMemo(() => {
-    return matchesActorIdentity(channel?.ownerId);
-  }, [channel?.ownerId, matchesActorIdentity]);
+    if (String(membership?.role || '').trim().toLowerCase() === 'owner') {
+      return true;
+    }
+
+    return actorIdentityIds.some(identityId => identityId === String(channel?.ownerId || '').trim());
+  }, [actorIdentityIds, channel?.ownerId, membership?.role]);
 
   const canUpload = useMemo(() => {
     if (isManager) {
@@ -195,6 +216,24 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
 
     return !!membership && membership.joinStatus === 'approved' && !!settingsDraft.allowUploadsFromMembers;
   }, [membership, isManager, settingsDraft.allowUploadsFromMembers]);
+
+  React.useEffect(() => {
+    logLectureChannel('permissions:snapshot', {
+      channelId,
+      channelOwnerId: channel?.ownerId || '',
+      managerIds: managers,
+      membershipId: membership?.$id || '',
+      membershipUserId: membership?.userId || '',
+      membershipJoinStatus: membership?.joinStatus || '',
+      membershipRole: membership?.role || '',
+      allowUploadsFromMembers: !!settingsDraft.allowUploadsFromMembers,
+      isOwner,
+      isManager,
+      canUpload,
+      settingsOpen,
+      showUploadComposer,
+    });
+  }, [canUpload, channel?.ownerId, channelId, isManager, isOwner, managers, membership?.$id, membership?.joinStatus, membership?.role, membership?.userId, settingsDraft.allowUploadsFromMembers, settingsOpen, showUploadComposer]);
 
   const membershipResolved = useMemo(() => membershipSummary !== null, [membershipSummary]);
 
@@ -335,12 +374,36 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
         setLoading(true);
       }
 
-      const [channelDoc, summary, managerIds, chats] = await Promise.all([
+      const [channelDoc, summary, managerIds] = await Promise.all([
         getLectureChannelById(channelId),
         getLectureMembershipSummary(channelId),
         getLectureManagers(channelId),
-        primaryActorId ? getChats(primaryActorId) : Promise.resolve([]),
       ]);
+
+      let chats = [];
+      if (primaryActorId) {
+        try {
+          chats = await getChats(primaryActorId);
+        } catch (chatLookupError) {
+          logLectureChannelError('loadData:chats_error', chatLookupError, {
+            channelId,
+            userId: primaryActorId,
+          });
+          chats = [];
+        }
+      }
+
+      logLectureChannel('loadData:raw_results', {
+        channelId,
+        channelOwnerId: channelDoc?.ownerId || '',
+        channelManagerIds: channelDoc?.managerIds || '',
+        summaryMembershipId: summary?.membership?.$id || '',
+        summaryMembershipUserId: summary?.membership?.userId || '',
+        summaryMembershipJoinStatus: summary?.membership?.joinStatus || '',
+        summaryMembershipRole: summary?.membership?.role || '',
+        managerIds,
+        chatsCount: Array.isArray(chats) ? chats.length : 0,
+      });
 
       setChannel(channelDoc);
       setMembershipSummary(summary);
@@ -354,7 +417,10 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
       ]);
 
       const hasApprovedMembership = summary?.membership?.joinStatus === 'approved';
-      const hasManagerAccess = matchesActorIdentity(channelDoc?.ownerId) || managerIds.some(managerId => matchesActorIdentity(managerId));
+      const hasManagerAccess = canManageLectureChannel({
+        ...channelDoc,
+        managerIds,
+      }, actorIdentityIds);
       const canAccessAssets = hasApprovedMembership || hasManagerAccess;
       let loadedAssetsCount = 0;
 
@@ -378,7 +444,7 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
         setAssets([]);
       }
 
-      const groups = (Array.isArray(chats) ? chats : []).filter(chat => canLinkGroupToChannel(chat, primaryActorId));
+      const groups = (Array.isArray(chats) ? chats : []).filter(chat => canLinkLectureGroup(chat, actorIdentityIds));
       setAllGroups(Array.isArray(chats) ? chats : []);
       setAvailableGroups(groups);
 
@@ -437,11 +503,37 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [channelId, matchesActorIdentity, navigation, primaryActorId, resolveUserNames, t]);
+  }, [actorIdentityIds, channelId, navigation, primaryActorId, resolveUserNames, t]);
 
   React.useEffect(() => {
     loadData();
   }, [loadData]);
+
+  React.useEffect(() => {
+    hasAutoOpenedUploadComposerRef.current = false;
+    setShowUploadComposer(false);
+    logLectureChannel('channel:changed_reset_ui', { channelId });
+  }, [channelId]);
+
+  React.useEffect(() => {
+    if (hasAutoOpenedUploadComposerRef.current || loading || !canUpload || assets.length > 0) {
+      logLectureChannel('upload:auto_open_skipped', {
+        channelId,
+        hasAutoOpened: hasAutoOpenedUploadComposerRef.current,
+        loading,
+        canUpload,
+        assetsCount: assets.length,
+      });
+      return;
+    }
+
+    hasAutoOpenedUploadComposerRef.current = true;
+    setShowUploadComposer(true);
+    logLectureChannel('upload:auto_open', {
+      channelId,
+      assetsCount: assets.length,
+    });
+  }, [assets.length, canUpload, loading]);
 
   useLectureAssetsRealtime(channelId, () => {
     if (channelUnavailableRef.current) {

@@ -40,7 +40,7 @@ import { normalizeRealtimeMessage } from '../../utils/realtimeHelpers';
 import { messagesCacheManager } from '../../utils/cacheManager';
 import telemetry from '../../utils/telemetry';
 
-const INITIAL_CHAT_MESSAGES_LIMIT = 20;
+const INITIAL_CHAT_MESSAGES_LIMIT = 100;
 const MESSAGES_CACHE_LIMIT = 100;
 
 export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, refreshUser }) => {
@@ -82,7 +82,6 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   const [isBlockedByOtherUser, setIsBlockedByOtherUser] = useState(false);
   const [isChatBlockedByOtherUser, setIsChatBlockedByOtherUser] = useState(false);
   const [reactionDefaults, setReactionDefaultsState] = useState(DEFAULT_REACTION_SET);
-  const [chatSettingsLoaded, setChatSettingsLoaded] = useState(false);
   const [chatViewportState, setChatViewportState] = useState(null);
   
   const flatListRef = useRef(null);
@@ -109,6 +108,29 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   const getNormalizedRealtimeMessage = useCallback((payload) => {
     return normalizeRealtimeMessage(payload, chat.$id);
   }, [chat.$id]);
+
+  const getVisibleMessages = useCallback((sourceMessages = []) => {
+    if (!Array.isArray(sourceMessages) || sourceMessages.length === 0) {
+      return [];
+    }
+
+    let visibleMessages = messagesCacheManager.normalizeMessages(sourceMessages, MESSAGES_CACHE_LIMIT);
+
+    if (deletedMessageIds.current.size > 0) {
+      visibleMessages = visibleMessages.filter(message => !deletedMessageIds.current.has(message.$id));
+    }
+
+    if (clearedAt) {
+      const clearedDate = new Date(clearedAt);
+      visibleMessages = visibleMessages.filter(message => new Date(message.$createdAt || message.createdAt) > clearedDate);
+    }
+
+    if (hiddenMessageIds.length > 0) {
+      visibleMessages = visibleMessages.filter(message => !hiddenMessageIds.includes(message.$id));
+    }
+
+    return visibleMessages;
+  }, [clearedAt, hiddenMessageIds]);
 
   const handleRealtimeNewMessage = useCallback(async (payload) => {
     const normalizedPayload = getNormalizedRealtimeMessage(payload);
@@ -152,7 +174,6 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       return [...prev, decryptedPayload];
     });
 
-    // Keep cache in sync with new messages
     messagesCacheManager.addMessageToCache(chat.$id, decryptedPayload, MESSAGES_CACHE_LIMIT).catch(() => {});
 
     if (decryptedPayload.senderId && !userCacheRef.current[decryptedPayload.senderId]) {
@@ -174,8 +195,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     if (isMountedRef.current) {
       setMessages(prev => prev.filter(m => m.$id !== payload.$id));
     }
-    // Invalidate cache so deleted message doesn't reappear on next open
-    messagesCacheManager.invalidateChatMessages(chat.$id).catch(() => {});
+    messagesCacheManager.removeMessageFromCache(chat.$id, payload.$id, MESSAGES_CACHE_LIMIT).catch(() => {});
   }, [chat.$id]);
 
   useChatMessages(
@@ -339,32 +359,17 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     });
 
     try {
-      // Show cached messages instantly while loading from server
       const cached = await messagesCacheManager.getCachedMessages(chat.$id, MESSAGES_CACHE_LIMIT);
-      let cachedMessages = [];
-      if (cached?.value && Array.isArray(cached.value) && cached.value.length > 0) {
-        cachedMessages = cached.value;
-        if (deletedMessageIds.current.size > 0) {
-          cachedMessages = cachedMessages.filter(m => !deletedMessageIds.current.has(m.$id));
-        }
-        if (clearedAt) {
-          const clearedDate = new Date(clearedAt);
-          cachedMessages = cachedMessages.filter(m => new Date(m.$createdAt || m.createdAt) > clearedDate);
-        }
-        if (hiddenMessageIds.length > 0) {
-          cachedMessages = cachedMessages.filter(m => !hiddenMessageIds.includes(m.$id));
-        }
-        cachedMessages = cachedMessages
-          .slice()
-          .sort((a, b) => new Date(a.$createdAt || a.createdAt) - new Date(b.$createdAt || b.createdAt));
-        if (cachedMessages.length > 0) {
-          lastMessageId.current = cachedMessages[cachedMessages.length - 1].$id;
-          setMessages(cachedMessages);
-          setLoading(false);
-        }
+      const rawCachedMessages = Array.isArray(cached?.value) ? cached.value : [];
+      const cachedMessages = getVisibleMessages(rawCachedMessages);
+
+      if (cachedMessages.length > 0) {
+        lastMessageId.current = cachedMessages[cachedMessages.length - 1].$id;
+        setMessages(cachedMessages);
+        setLoading(false);
       }
 
-      if (!cached?.value || cached.value.length === 0) {
+      if (rawCachedMessages.length === 0) {
         if (allowNetwork) {
           setLoading(true);
         } else {
@@ -372,8 +377,8 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
         }
       }
 
-      const cachedLatestMessage = cachedMessages.length > 0
-        ? cachedMessages[cachedMessages.length - 1]
+      const cachedLatestMessage = rawCachedMessages.length > 0
+        ? rawCachedMessages[rawCachedMessages.length - 1]
         : null;
       const cachedLatestAt = cachedLatestMessage?.$createdAt || cachedLatestMessage?.createdAt || null;
       const chatLatestAt = chat?.lastMessageAt || chat?.$updatedAt || null;
@@ -405,28 +410,10 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
 
       // Fetch fresh data from server (RAM-safe initial page)
       const fetchedMessages = await getMessages(chat.$id, user?.$id, INITIAL_CHAT_MESSAGES_LIMIT, 0);
-      let freshMessages = fetchedMessages.reverse(); // chronological (oldest first)
+      const freshMessages = messagesCacheManager.normalizeMessages(fetchedMessages.reverse(), MESSAGES_CACHE_LIMIT);
+      const visibleFreshMessages = getVisibleMessages(freshMessages);
 
-      // Filter out messages deleted via realtime to prevent ghost re-appearance
-      if (deletedMessageIds.current.size > 0) {
-        freshMessages = freshMessages.filter(m => !deletedMessageIds.current.has(m.$id));
-      }
-
-      // Filter by clearedAt if set (non-destructive clear)
-      if (clearedAt) {
-        const clearedDate = new Date(clearedAt);
-        freshMessages = freshMessages.filter(m => {
-          const msgDate = new Date(m.$createdAt || m.createdAt);
-          return msgDate > clearedDate;
-        });
-      }
-
-      // Filter by hidden message IDs
-      if (hiddenMessageIds.length > 0) {
-        freshMessages = freshMessages.filter(m => !hiddenMessageIds.includes(m.$id));
-      }
-
-      lastMessageId.current = freshMessages.length > 0 ? freshMessages[freshMessages.length - 1].$id : null;
+      lastMessageId.current = visibleFreshMessages.length > 0 ? visibleFreshMessages[visibleFreshMessages.length - 1].$id : null;
 
       if (!isMountedRef.current) {
         return;
@@ -435,10 +422,10 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       // Merge silently: only update if there are meaningful changes
       setMessages(prev => {
         const prevIds = prev.map(m => m.$id).join(',');
-        const newIds = freshMessages.map(m => m.$id).join(',');
-        if (prevIds === newIds && prev.length === freshMessages.length) {
+        const newIds = visibleFreshMessages.map(m => m.$id).join(',');
+        if (prevIds === newIds && prev.length === visibleFreshMessages.length) {
           // Check for content updates (like readBy, status)
-          const hasUpdates = freshMessages.some((newMsg, idx) => {
+          const hasUpdates = visibleFreshMessages.some((newMsg, idx) => {
             const oldMsg = prev[idx];
             return oldMsg && (
               (newMsg.readBy?.length || 0) !== (oldMsg.readBy?.length || 0) ||
@@ -451,23 +438,22 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
         // Keep any optimistic messages that haven't appeared on server yet
         const optimistic = prev.filter(m => m._isOptimistic);
         const remaining = optimistic.filter(opt =>
-          !freshMessages.some(m =>
+          !visibleFreshMessages.some(m =>
             m.senderId === opt.senderId &&
             m.content === opt.content &&
             Math.abs(new Date(m.$createdAt) - new Date(opt.$createdAt)) < 30000
           )
         );
-        return [...freshMessages, ...remaining];
+        return messagesCacheManager.normalizeMessages([...visibleFreshMessages, ...remaining], MESSAGES_CACHE_LIMIT);
       });
 
-      // Cache messages in chronological order to match UI ordering.
       messagesCacheManager.cacheMessages(chat.$id, freshMessages, MESSAGES_CACHE_LIMIT).catch(() => {});
       
       if (user?.$id) {
         markChatAsRead(chat.$id, user.$id);
       }
       
-      const uniqueSenderIds = [...new Set(freshMessages.map(m => m.senderId))];
+      const uniqueSenderIds = [...new Set(visibleFreshMessages.map(m => m.senderId))];
       const newUserCache = { ...userCacheRef.current };
       
       for (const senderId of uniqueSenderIds) {
@@ -493,8 +479,8 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       messagesTrace.finish({
         success: true,
         meta: {
-          messageCount: Array.isArray(freshMessages) ? freshMessages.length : 0,
-          cachedVisibleCount: Array.isArray(messages) ? messages.length : 0,
+          messageCount: Array.isArray(visibleFreshMessages) ? visibleFreshMessages.length : 0,
+          cachedVisibleCount: cachedMessages.length,
         },
       });
     } catch (error) {
@@ -570,42 +556,22 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
 
   useEffect(() => {
     isMountedRef.current = true;
-
-    loadMessages({ allowNetwork: false });
-
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, [chat.$id]);
-
-  useEffect(() => {
-    if (!chatSettingsLoaded) {
-      return;
-    }
+    setLoading(true);
 
     loadMessages({ allowNetwork: true });
     checkPermissions();
     checkIfBlockedByOther();
     loadMembersAndFriends();
-  }, [chat.$id, chatSettingsLoaded]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    setChatSettingsLoaded(false);
-    const hydrateChatSettings = async () => {
-      await loadChatSettings();
-      if (isMounted) {
-        setChatSettingsLoaded(true);
-      }
-    };
-
-    hydrateChatSettings();
+    loadChatSettings();
 
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
     };
-  }, [chat.$id, user.$id]);
+  }, [chat.$id, user?.$id]);
+
+  useEffect(() => {
+    setMessages(prev => getVisibleMessages(prev));
+  }, [getVisibleMessages]);
 
   const handleViewPinnedMessages = async () => {
     try {
@@ -704,6 +670,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
             try {
               await deleteMessage(message.$id);
               setMessages(prev => prev.filter(m => m.$id !== message.$id));
+              messagesCacheManager.removeMessageFromCache(chat.$id, message.$id, MESSAGES_CACHE_LIMIT).catch(() => {});
             } catch (error) {
               triggerAlert(t('common.error'), t('chats.deleteMessageError'));
             }
@@ -837,7 +804,8 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     }
 
     // Add optimistic message at the end to keep chronological ordering.
-    setMessages(prev => [...prev, optimisticMessage]);
+    setMessages(prev => messagesCacheManager.normalizeMessages([...prev, optimisticMessage], MESSAGES_CACHE_LIMIT));
+    messagesCacheManager.addMessageToCache(chat.$id, optimisticMessage, MESSAGES_CACHE_LIMIT).catch(() => {});
     setReplyingTo(null);
 
     try {
@@ -918,6 +886,12 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
             : msg
         );
       });
+      messagesCacheManager.removeMessageFromCache(chat.$id, tempId, MESSAGES_CACHE_LIMIT).catch(() => {});
+      messagesCacheManager.addMessageToCache(
+        chat.$id,
+        { ...sentMessage, _status: 'sent', _isOptimistic: false },
+        MESSAGES_CACHE_LIMIT
+      ).catch(() => {});
       
     } catch (error) {
       // Mark message as failed
@@ -926,6 +900,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
           ? { ...msg, _status: 'failed' }
           : msg
       ));
+      messagesCacheManager.addMessageToCache(chat.$id, { ...optimisticMessage, _status: 'failed' }, MESSAGES_CACHE_LIMIT).catch(() => {});
       triggerAlert(t('common.error'), error.message || t('chats.errorSendingMessage'));
     } finally {
       setSending(false);
@@ -936,6 +911,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   const handleRetryMessage = async (failedMessage) => {
     // Remove the failed message
     setMessages(prev => prev.filter(msg => msg.$id !== failedMessage.$id));
+    messagesCacheManager.removeMessageFromCache(chat.$id, failedMessage.$id, MESSAGES_CACHE_LIMIT).catch(() => {});
     
     // Resend
     const retryType = failedMessage.type || null;

@@ -6,7 +6,7 @@ import DownloadManagerModal from './DownloadManagerModal';
 import AssetActionMenuModal from './AssetActionMenuModal';
 import AssetStatsModal from './AssetStatsModal';
 import AdminOrganizerModal from './AdminOrganizerModal';
-import LectureUploadComposerCard from './components/LectureUploadComposerCard';
+import LectureUploadModal from './components/LectureUploadModal';
 import LectureAssetsList from './components/LectureAssetsList';
 import LectureSettingsModal from './components/LectureSettingsModal';
 import LectureCommentsModal from './components/LectureCommentsModal';
@@ -112,11 +112,13 @@ const LectureChannelView = ({
         end={{ x: 1, y: 1 }}>
         <LectureChannelHeader
           activeDownloadsCount={downloadedFiles.length + activeDownloadsList.length}
+          canUpload={canUpload}
           channelName={channel?.name}
           colors={colors}
           insets={insets}
           isManager={isManager}
           onOpenDownloads={() => setDownloadsModalOpen(true)}
+          onOpenUploadComposer={() => setShowUploadComposer(true)}
           onOpenOrganizer={() => setOrganizerOpen(true)}
           onOpenSettings={() => actionState.setSettingsOpen(true)}
           t={t}
@@ -138,29 +140,6 @@ const LectureChannelView = ({
               </Text>
             </TouchableOpacity>
           ) : null}
-
-          <LectureUploadComposerCard
-            canUpload={canUpload}
-            colors={colors}
-            externalUrl={externalUrl}
-            handleUpload={actionState.handleUpload}
-            newUploadDescription={newUploadDescription}
-            newUploadTitle={newUploadTitle}
-            newUploadType={newUploadType}
-            pickFile={pickFile}
-            selectedFile={selectedFile}
-            setExternalUrl={setExternalUrl}
-            setNewUploadDescription={setNewUploadDescription}
-            setNewUploadTitle={setNewUploadTitle}
-            setNewUploadType={setNewUploadType}
-            setShowUploadComposer={setShowUploadComposer}
-            setYoutubeUrl={setYoutubeUrl}
-            showUploadComposer={showUploadComposer}
-            t={t}
-            uploadError={uploadError}
-            uploading={uploading}
-            youtubeUrl={youtubeUrl}
-          />
 
           {!isManager && !!membership && membership.joinStatus === 'approved' && !canUpload && (
             <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}> 
@@ -217,6 +196,29 @@ const LectureChannelView = ({
           showSettingsStats={state.showSettingsStats}
           t={t}
           userProfiles={userProfiles}
+        />
+
+        <LectureUploadModal
+          canUpload={canUpload}
+          colors={colors}
+          externalUrl={externalUrl}
+          handleUpload={actionState.handleUpload}
+          newUploadDescription={newUploadDescription}
+          newUploadTitle={newUploadTitle}
+          newUploadType={newUploadType}
+          onClose={() => setShowUploadComposer(false)}
+          pickFile={pickFile}
+          selectedFile={selectedFile}
+          setExternalUrl={setExternalUrl}
+          setNewUploadDescription={setNewUploadDescription}
+          setNewUploadTitle={setNewUploadTitle}
+          setNewUploadType={setNewUploadType}
+          setYoutubeUrl={setYoutubeUrl}
+          showUploadComposer={showUploadComposer}
+          t={t}
+          uploadError={uploadError}
+          uploading={uploading}
+          youtubeUrl={youtubeUrl}
         />
 
         <DownloadManagerModal

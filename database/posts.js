@@ -876,18 +876,20 @@ export const deletePost = async (postId, imageDeleteUrls = []) => {
         }
 
         const { post } = await assertPostOwner(postId);
-        
+
         const { deleteRepliesByPost } = require('./replies');
         const { deleteNotificationsByPostId } = require('./notifications');
-        
-        await deleteRepliesByPost(postId);
-        await deleteNotificationsByPostId(postId);
-        
+
         await databases.deleteDocument({
             databaseId: config.databaseId,
             collectionId: config.postsCollectionId,
             documentId: postId,
         });
+
+        await Promise.allSettled([
+            deleteRepliesByPost(postId, { continueOnDeleteError: true }),
+            deleteNotificationsByPostId(postId, { continueOnDeleteError: true }),
+        ]);
 
         const postImageDeleteUrls = Array.isArray(post.imageDeleteUrls) ? post.imageDeleteUrls : imageDeleteUrls;
 

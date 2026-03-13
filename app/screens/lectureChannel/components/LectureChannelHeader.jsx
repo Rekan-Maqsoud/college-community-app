@@ -6,15 +6,26 @@ import styles from '../LectureChannelStyles';
 
 const LectureChannelHeader = ({
   activeDownloadsCount,
+  canUpload,
   channelName,
   colors,
   insets,
   isManager,
   onOpenDownloads,
+  onOpenUploadComposer,
   onOpenOrganizer,
   onOpenSettings,
   t,
 }) => {
+  React.useEffect(() => {
+    console.log('[LectureChannelHeader]', 'visibility', {
+      channelName: channelName || '',
+      canUpload,
+      isManager,
+      activeDownloadsCount,
+    });
+  }, [activeDownloadsCount, canUpload, channelName, isManager]);
+
   return (
     <View style={[styles.header, { paddingTop: insets.top + spacing.sm, borderBottomColor: colors.border }]}> 
       <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>{channelName || t('lectures.channel')}</Text>
@@ -30,9 +41,23 @@ const LectureChannelHeader = ({
           )}
         </TouchableOpacity>
 
+        {canUpload && (
+          <TouchableOpacity
+            onPress={() => {
+              console.log('[LectureChannelHeader]', 'press_upload');
+              onOpenUploadComposer();
+            }}
+            style={[styles.headerMenuBtn, { borderColor: colors.border, backgroundColor: colors.card }]}>
+            <Ionicons name="cloud-upload-outline" size={20} color={colors.text} />
+          </TouchableOpacity>
+        )}
+
         {isManager && (
           <TouchableOpacity
-            onPress={onOpenOrganizer}
+            onPress={() => {
+              console.log('[LectureChannelHeader]', 'press_organizer');
+              onOpenOrganizer();
+            }}
             style={[styles.headerMenuBtn, { borderColor: colors.border, backgroundColor: colors.card }]}>
             <Ionicons name="folder-outline" size={20} color={colors.text} />
           </TouchableOpacity>
@@ -40,7 +65,10 @@ const LectureChannelHeader = ({
 
         {isManager && (
           <TouchableOpacity
-            onPress={onOpenSettings}
+            onPress={() => {
+              console.log('[LectureChannelHeader]', 'press_settings');
+              onOpenSettings();
+            }}
             style={[styles.headerMenuBtn, { borderColor: colors.border, backgroundColor: colors.card }]}>
             <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
           </TouchableOpacity>

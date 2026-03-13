@@ -8,7 +8,7 @@ const CACHE_DURATIONS = {
   user: 1000 * 60 * 60, // 1 hour for user data
   posts: 1000 * 60 * 30, // 30 minutes for posts
   chats: 1000 * 60 * 20, // 20 minutes for chats list
-  messages: 1000 * 60 * 5, // 5 minutes for messages
+  messages: 1000 * 60 * 60 * 24 * 7, // 7 days for offline chat history
   chatSettings: 1000 * 60 * 10, // 10 minutes for per-chat user settings
   replies: 1000 * 60 * 20, // 20 minutes for replies
   notifications: 1000 * 60 * 10, // 10 minutes for notifications
@@ -296,10 +296,45 @@ export const messagesCacheManager = {
     return `messages_${chatId}_${limit}`;
   },
 
+  normalizeMessages(messages, limit = 100) {
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return [];
+    }
+
+    const deduped = [];
+    const seenIds = new Set();
+
+    messages.forEach((message) => {
+      if (!message || typeof message !== 'object') {
+        return;
+      }
+
+      const messageId = message.$id;
+      if (messageId && seenIds.has(messageId)) {
+        return;
+      }
+
+      if (messageId) {
+        seenIds.add(messageId);
+      }
+
+      deduped.push(message);
+    });
+
+    deduped.sort((a, b) => new Date(a.$createdAt || a.createdAt || 0) - new Date(b.$createdAt || b.createdAt || 0));
+
+    if (deduped.length <= limit) {
+      return deduped;
+    }
+
+    return deduped.slice(deduped.length - limit);
+  },
+
   async cacheMessages(chatId, messages, limit = 100) {
     if (!chatId || !messages) return;
     const key = this.generateCacheKey(chatId, limit);
-    await cacheManager.set(key, messages, CACHE_DURATIONS.messages);
+    const normalizedMessages = this.normalizeMessages(messages, limit);
+    await cacheManager.set(key, normalizedMessages, CACHE_DURATIONS.messages);
   },
 
   async getCachedMessages(chatId, limit = 100) {
@@ -317,18 +352,33 @@ export const messagesCacheManager = {
     if (!chatId || !message) return;
     const key = this.generateCacheKey(chatId, limit);
     const cached = await cacheManager.getWithMeta(key);
-    if (cached?.value) {
-      const messages = cached.value;
-      if (!messages.some(m => m.$id === message.$id)) {
-        const updatedMessages = [...messages, message]
-          .sort((a, b) => new Date(a.$createdAt || a.createdAt) - new Date(b.$createdAt || b.createdAt));
-        // Keep only the last 'limit' messages in chronological order.
-        if (updatedMessages.length > limit) {
-          updatedMessages.splice(0, updatedMessages.length - limit);
-        }
-        await cacheManager.set(key, updatedMessages, CACHE_DURATIONS.messages);
-      }
+    const messages = Array.isArray(cached?.value) ? cached.value : [];
+    const existingIndex = messages.findIndex(item => item?.$id === message?.$id);
+
+    if (existingIndex >= 0) {
+      messages[existingIndex] = {
+        ...messages[existingIndex],
+        ...message,
+      };
+    } else {
+      messages.push(message);
     }
+
+    const updatedMessages = this.normalizeMessages(messages, limit);
+    await cacheManager.set(key, updatedMessages, CACHE_DURATIONS.messages);
+  },
+
+  async removeMessageFromCache(chatId, messageId, limit = 100) {
+    if (!chatId || !messageId) return;
+    const key = this.generateCacheKey(chatId, limit);
+    const cached = await cacheManager.getWithMeta(key);
+    const messages = Array.isArray(cached?.value) ? cached.value : [];
+    if (messages.length === 0) {
+      return;
+    }
+
+    const updatedMessages = messages.filter(message => message?.$id !== messageId);
+    await cacheManager.set(key, updatedMessages, CACHE_DURATIONS.messages);
   }
 };
 

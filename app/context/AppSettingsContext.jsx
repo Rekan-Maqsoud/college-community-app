@@ -2,8 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import safeStorage from '../utils/safeStorage';
 import { getLocales } from 'expo-localization';
 import * as Haptics from 'expo-haptics';
-import i18n from '../../locales/i18n';
-import { I18nManager, Appearance, View, ActivityIndicator, StyleSheet } from 'react-native';
+import i18n, { SUPPORTED_LANGUAGES, isRTLLanguage } from '../../locales/i18n';
+import { Appearance, View, ActivityIndicator, StyleSheet } from 'react-native';
 import { setGlobalFontScale } from '../utils/responsive';
 import telemetry from '../utils/telemetry';
 
@@ -152,7 +152,7 @@ const normalizeChatSettings = (settings = {}) => {
 };
 
 export const AppSettingsProvider = ({ children }) => {
-  const [currentLanguage, setCurrentLanguage] = useState('en');
+  const [currentLanguage, setCurrentLanguage] = useState(i18n.resolvedLanguage || i18n.language || 'en');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [themePreference, setThemePreference] = useState('system');
   const [isLoading, setIsLoading] = useState(true);
@@ -308,6 +308,29 @@ export const AppSettingsProvider = ({ children }) => {
     loadSettings();
   }, []);
 
+  const applyLanguagePreference = async (languageCode, options = {}) => {
+    const {
+      persist = true,
+    } = options;
+
+    const resolvedLanguage = SUPPORTED_LANGUAGES.includes(languageCode) ? languageCode : 'en';
+
+    setCurrentLanguage(resolvedLanguage);
+    await i18n.changeLanguage(resolvedLanguage);
+
+    if (persist) {
+      await safeStorage.setItem('appLanguage', resolvedLanguage);
+    }
+
+    telemetry.recordEvent('app_language_changed', {
+      language: resolvedLanguage,
+      isRTL: isRTLLanguage(resolvedLanguage),
+      source: persist ? 'user_change' : 'settings_load',
+    });
+
+    return resolvedLanguage;
+  };
+
   const loadSettings = async () => {
     const settingsTrace = telemetry.startTrace('app_settings_load', {
       source: 'provider_init',
@@ -330,26 +353,23 @@ export const AppSettingsProvider = ({ children }) => {
         safeStorage.getItem('dataSaverMode'),
       ]);
 
-      if (savedLanguage) {
-        setCurrentLanguage(savedLanguage);
-        await i18n.changeLanguage(savedLanguage);
-        if (savedLanguage === 'ar') {
-          I18nManager.allowRTL(true);
-          I18nManager.forceRTL(true);
-        }
+      let resolvedLanguage = 'en';
+
+      if (savedLanguage && SUPPORTED_LANGUAGES.includes(savedLanguage)) {
+        resolvedLanguage = savedLanguage;
       } else {
         try {
           const locales = getLocales();
           const deviceLocale = locales && locales[0] ? locales[0].languageCode : 'en';
-          const supportedLanguages = ['en', 'ar', 'ku'];
-          const defaultLang = supportedLanguages.includes(deviceLocale) ? deviceLocale : 'en';
-          setCurrentLanguage(defaultLang);
-          await i18n.changeLanguage(defaultLang);
+          resolvedLanguage = SUPPORTED_LANGUAGES.includes(deviceLocale) ? deviceLocale : 'en';
         } catch (error) {
-          setCurrentLanguage('en');
-          await i18n.changeLanguage('en');
+          resolvedLanguage = 'en';
         }
       }
+
+      await applyLanguagePreference(resolvedLanguage, {
+        persist: false,
+      });
 
       const preference = savedThemePreference || 'system';
       setThemePreference(preference);
@@ -468,18 +488,9 @@ export const AppSettingsProvider = ({ children }) => {
 
   const changeLanguage = async (languageCode) => {
     try {
-      setCurrentLanguage(languageCode);
-      await i18n.changeLanguage(languageCode);
-      await safeStorage.setItem('appLanguage', languageCode);
-
-      // Enable RTL for Arabic
-      if (languageCode === 'ar') {
-        I18nManager.allowRTL(true);
-        I18nManager.forceRTL(true);
-      } else {
-        I18nManager.allowRTL(false);
-        I18nManager.forceRTL(false);
-      }
+      await applyLanguagePreference(languageCode, {
+        persist: true,
+      });
     } catch (error) {
       // Failed to save language preference
     }
@@ -740,8 +751,9 @@ export const AppSettingsProvider = ({ children }) => {
         'accentColor',
         'dataSaverMode',
       ]);
-      setCurrentLanguage('en');
-      await i18n.changeLanguage('en');
+        await applyLanguagePreference('en', {
+          persist: false,
+        });
       setThemePreference('system');
       const systemColorScheme = Appearance.getColorScheme();
       setIsDarkMode(systemColorScheme === 'dark');
@@ -786,7 +798,7 @@ export const AppSettingsProvider = ({ children }) => {
   const value = {
     currentLanguage,
     changeLanguage,
-    isRTL: currentLanguage === 'ar',
+    isRTL: isRTLLanguage(currentLanguage),
     t,
 
     isDarkMode,

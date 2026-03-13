@@ -50,6 +50,23 @@ export const createReply = async (replyData) => {
             userId: currentUserId,
         };
 
+        const post = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.postsCollectionId,
+            documentId: effectiveReplyData.postId,
+        });
+
+        const replyPermissions = [
+            Permission.read(Role.users()),
+            Permission.update(Role.users()),
+            Permission.update(Role.user(currentUserId)),
+            Permission.delete(Role.user(currentUserId)),
+        ];
+
+        if (post?.userId && post.userId !== currentUserId) {
+            replyPermissions.push(Permission.delete(Role.user(post.userId)));
+        }
+
         enforceRateLimit({
             action: 'create_reply',
             userId: currentUserId,
@@ -62,12 +79,7 @@ export const createReply = async (replyData) => {
             collectionId: config.repliesCollectionId,
             documentId: ID.unique(),
             data: effectiveReplyData,
-            permissions: [
-                Permission.read(Role.users()),
-                Permission.update(Role.users()),
-                Permission.update(Role.user(currentUserId)),
-                Permission.delete(Role.user(currentUserId)),
-            ],
+            permissions: replyPermissions,
         });
 
         await incrementPostReplyCount(effectiveReplyData.postId);
@@ -75,11 +87,7 @@ export const createReply = async (replyData) => {
         try {
             const [actor, post] = await Promise.all([
                 getUserById(currentUserId),
-                databases.getDocument({
-                    databaseId: config.databaseId,
-                    collectionId: config.postsCollectionId,
-                    documentId: effectiveReplyData.postId,
-                }),
+                Promise.resolve(post),
             ]);
 
             const actorName = actor?.name || actor?.fullName || 'Someone';
@@ -381,11 +389,13 @@ export const deleteReply = async (replyId, postId, imageDeleteUrls = []) => {
     }
 };
 
-export const deleteRepliesByPost = async (postId) => {
+export const deleteRepliesByPost = async (postId, options = {}) => {
     try {
         if (!postId || typeof postId !== 'string') {
             throw new Error('Invalid post ID');
         }
+
+        const { continueOnDeleteError = false } = options;
         
         let hasMore = true;
         const allImageDeleteUrls = [];
@@ -407,11 +417,18 @@ export const deleteRepliesByPost = async (postId) => {
             }
             
             for (const reply of replies.documents) {
-                await databases.deleteDocument({
-                    databaseId: config.databaseId,
-                    collectionId: config.repliesCollectionId,
-                    documentId: reply.$id,
-                });
+                try {
+                    await databases.deleteDocument({
+                        databaseId: config.databaseId,
+                        collectionId: config.repliesCollectionId,
+                        documentId: reply.$id,
+                    });
+                } catch (error) {
+                    if (!continueOnDeleteError) {
+                        throw error;
+                    }
+                    continue;
+                }
 
                 if (reply.imageDeleteUrls && reply.imageDeleteUrls.length > 0) {
                     allImageDeleteUrls.push(...reply.imageDeleteUrls);

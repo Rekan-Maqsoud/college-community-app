@@ -19,6 +19,8 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { useTranslation } from '../hooks/useTranslation';
 import AnimatedBackground from '../components/AnimatedBackground';
+import { getActorIdentityIds, getPrimaryActorId, matchesAnyActorIdentity } from '../utils/actorIdentity';
+import { canLinkLectureGroup } from '../utils/lectureAccess';
 import { useLectureChannelsRealtime } from '../hooks/useRealtimeSubscription';
 import {
   createLectureChannel,
@@ -32,6 +34,7 @@ import {
   requestJoinLectureChannel,
   setLecturePinnedChannelIds,
 } from '../../database/lectures';
+import { getClassRepresentatives } from '../../database/repElections';
 import { CHAT_TYPES, getChats } from '../../database/chats';
 import { wp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
@@ -77,29 +80,6 @@ const parseLectureSuggestionSettings = (settingsJson) => {
       suggestedStage: '',
     };
   }
-};
-
-const canLinkGroupToLectureChannel = (chat, userId) => {
-  if (!chat?.$id || !userId) {
-    return false;
-  }
-
-  if (chat.type === 'private') {
-    return false;
-  }
-
-  if (chat.type === CHAT_TYPES.DEPARTMENT_GROUP) {
-    return false;
-  }
-
-  const representatives = Array.isArray(chat.representatives) ? chat.representatives : [];
-  const admins = Array.isArray(chat.admins) ? chat.admins : [];
-
-  if (chat.type === CHAT_TYPES.STAGE_GROUP) {
-    return representatives.includes(userId);
-  }
-
-  return admins.includes(userId) || representatives.includes(userId);
 };
 
 const CreateChannelModal = ({
@@ -334,6 +314,7 @@ const Lecture = ({ navigation }) => {
   const [myChannels, setMyChannels] = useState([]);
   const [pendingChannelIds, setPendingChannelIds] = useState([]);
   const [availableGroups, setAvailableGroups] = useState([]);
+  const [isClassRepresentative, setIsClassRepresentative] = useState(false);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
@@ -345,17 +326,16 @@ const Lecture = ({ navigation }) => {
   const myChannelIds = useMemo(() => new Set((myChannels || []).map(channel => channel.$id)), [myChannels]);
   const pendingChannelIdSet = useMemo(() => new Set((pendingChannelIds || []).filter(Boolean)), [pendingChannelIds]);
   const pinnedChannelIdSet = useMemo(() => new Set((pinnedChannelIds || []).filter(Boolean)), [pinnedChannelIds]);
+  const actorIdentityIds = useMemo(() => getActorIdentityIds(user), [user]);
+  const primaryActorId = useMemo(() => getPrimaryActorId(user), [user]);
 
-  const isRepresentative = useMemo(() => {
-    if (!user?.$id || !Array.isArray(availableGroups)) return false;
-    return availableGroups.length > 0;
-  }, [user?.$id, availableGroups]);
+  const canLinkGroups = useMemo(() => availableGroups.length > 0, [availableGroups.length]);
 
   const canCreateOfficial = useMemo(() => {
-    if (!user?.$id) return false;
+    if (!primaryActorId) return false;
     if (user?.role === 'teacher') return true;
-    return isRepresentative;
-  }, [user?.$id, user?.role, isRepresentative]);
+    return isClassRepresentative;
+  }, [isClassRepresentative, primaryActorId, user?.role]);
 
   const suggestedChannels = useMemo(() => {
     if (!Array.isArray(allChannels) || !allChannels.length) {
@@ -414,23 +394,43 @@ const Lecture = ({ navigation }) => {
   };
 
   const loadAvailableGroups = useCallback(async () => {
-    if (!user?.$id) {
+    if (!primaryActorId) {
       setAvailableGroups([]);
       return;
     }
 
     try {
-      const chats = await getChats(user.$id);
-      const filtered = (Array.isArray(chats) ? chats : []).filter(chat => canLinkGroupToLectureChannel(chat, user.$id));
+      const chats = await getChats(primaryActorId);
+      const filtered = (Array.isArray(chats) ? chats : []).filter(chat => canLinkLectureGroup(chat, actorIdentityIds));
       setAvailableGroups(filtered);
     } catch (error) {
-      logLectureTabError('loadAvailableGroups:error', error, { userId: user?.$id || '' });
+      logLectureTabError('loadAvailableGroups:error', error, { userId: primaryActorId });
       setAvailableGroups([]);
     }
-  }, [user?.$id]);
+  }, [actorIdentityIds, primaryActorId]);
+
+  const loadRepresentativeAccess = useCallback(async () => {
+    if (!primaryActorId || !user?.department || !user?.stage) {
+      setIsClassRepresentative(false);
+      return;
+    }
+
+    try {
+      const representatives = await getClassRepresentatives(user.department, user.stage);
+      const representativeIds = (Array.isArray(representatives) ? representatives : []).map(item => item?.userId);
+      setIsClassRepresentative(matchesAnyActorIdentity(actorIdentityIds, representativeIds));
+    } catch (error) {
+      logLectureTabError('loadRepresentativeAccess:error', error, {
+        userId: primaryActorId,
+        department: user?.department || '',
+        stage: user?.stage || '',
+      });
+      setIsClassRepresentative(false);
+    }
+  }, [actorIdentityIds, primaryActorId, user?.department, user?.stage]);
 
   const loadPinnedChannels = useCallback(async () => {
-    if (!user?.$id) {
+    if (!primaryActorId) {
       setPinnedChannelIds([]);
       return;
     }
@@ -440,19 +440,19 @@ const Lecture = ({ navigation }) => {
       const normalized = Array.isArray(pinnedIds) ? pinnedIds.filter(Boolean).map(id => String(id)) : [];
       setPinnedChannelIds(normalized);
       logLectureTab('loadPinnedChannels:success', {
-        userId: user.$id,
+        userId: primaryActorId,
         pinnedCount: normalized.length,
       });
     } catch (error) {
       logLectureTabError('loadPinnedChannels:error', error, {
-        userId: user?.$id || '',
+        userId: primaryActorId,
       });
       setPinnedChannelIds([]);
     }
-  }, [user?.$id]);
+  }, [primaryActorId]);
 
   const persistPinnedChannels = useCallback(async (nextIds = []) => {
-    if (!user?.$id) {
+    if (!primaryActorId) {
       return;
     }
 
@@ -463,17 +463,17 @@ const Lecture = ({ navigation }) => {
     try {
       await setLecturePinnedChannelIds(normalized);
       logLectureTab('persistPinnedChannels:success', {
-        userId: user.$id,
+        userId: primaryActorId,
         pinnedCount: normalized.length,
       });
     } catch (error) {
       setPinnedChannelIds(previous);
       logLectureTabError('persistPinnedChannels:error', error, {
-        userId: user?.$id || '',
+        userId: primaryActorId,
         pinnedCount: normalized.length,
       });
     }
-  }, [pinnedChannelIds, user?.$id]);
+  }, [pinnedChannelIds, primaryActorId]);
 
   const handleTogglePinChannel = useCallback(async (channelId) => {
     if (!channelId) {
@@ -493,7 +493,7 @@ const Lecture = ({ navigation }) => {
       showLoading,
       filter,
       hasSearch: !!search,
-      userId: user?.$id || '',
+      userId: primaryActorId,
     });
 
     try {
@@ -529,14 +529,15 @@ const Lecture = ({ navigation }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filter, search, user?.$id]);
+  }, [filter, primaryActorId, search]);
 
   React.useEffect(() => {
     logLectureTab('effect:initialLoad', {});
     loadChannels();
     loadAvailableGroups();
     loadPinnedChannels();
-  }, [loadChannels, loadAvailableGroups, loadPinnedChannels]);
+    loadRepresentativeAccess();
+  }, [loadAvailableGroups, loadChannels, loadPinnedChannels, loadRepresentativeAccess]);
 
   useLectureChannelsRealtime(() => {
     loadChannels({ showLoading: false });
@@ -547,6 +548,7 @@ const Lecture = ({ navigation }) => {
     await Promise.all([
       loadChannels({ showLoading: false }),
       loadAvailableGroups(),
+      loadRepresentativeAccess(),
     ]);
   };
 
@@ -913,7 +915,7 @@ const Lecture = ({ navigation }) => {
         creating={createLoading}
         groups={availableGroups}
         canCreateOfficial={canCreateOfficial}
-        canLinkGroups={isRepresentative}
+        canLinkGroups={canLinkGroups}
       />
 
       <Modal

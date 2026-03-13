@@ -80,6 +80,41 @@ describe('cacheManager', () => {
     expect(payload.value[1].$id).toBe('m2');
   });
 
+  it('creates a messages cache when none exists yet', async () => {
+    safeStorage.getItem.mockResolvedValueOnce(null);
+
+    await messagesCacheManager.addMessageToCache('chat-2', { $id: 'm1', content: 'hello' }, 100);
+
+    expect(safeStorage.setItem).toHaveBeenCalled();
+    const payload = JSON.parse(safeStorage.setItem.mock.calls[0][1]);
+    expect(payload.value).toEqual([{ $id: 'm1', content: 'hello' }]);
+  });
+
+  it('keeps only the most recent cached messages up to limit', async () => {
+    const existingMessages = Array.from({ length: 100 }, (_, index) => ({
+      $id: `m${index + 1}`,
+      content: `message-${index + 1}`,
+      $createdAt: new Date(2026, 0, 1, 0, 0, index + 1).toISOString(),
+    }));
+
+    safeStorage.getItem.mockResolvedValueOnce(JSON.stringify({
+      value: existingMessages,
+      timestamp: Date.now(),
+      expiryTime: 10000,
+    }));
+
+    await messagesCacheManager.addMessageToCache('chat-3', {
+      $id: 'm101',
+      content: 'latest',
+      $createdAt: new Date(2026, 0, 1, 0, 2, 0).toISOString(),
+    }, 100);
+
+    const payload = JSON.parse(safeStorage.setItem.mock.calls[0][1]);
+    expect(payload.value).toHaveLength(100);
+    expect(payload.value[0].$id).toBe('m2');
+    expect(payload.value[99].$id).toBe('m101');
+  });
+
   it('stores and retrieves cached chat settings with a stable key', async () => {
     const settings = { userId: 'u1', chatId: 'c1', isMuted: true, bookmarkedMsgs: ['m1'] };
 

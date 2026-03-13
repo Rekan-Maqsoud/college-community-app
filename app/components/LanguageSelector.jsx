@@ -2,13 +2,10 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useTranslation } from '../hooks/useTranslation';
-import { useCustomAlert } from '../hooks/useCustomAlert';
-import CustomAlert from './CustomAlert';
 
 const LanguageSelector = () => {
   const { currentLanguage, changeLanguage } = useAppSettings();
   const { t } = useTranslation();
-  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   const languages = [
     { code: 'en', name: 'English', nativeName: 'English' },
@@ -16,31 +13,9 @@ const LanguageSelector = () => {
     { code: 'ku', name: 'Kurdish', nativeName: 'کوردی' },
   ];
 
-  const handleLanguageChange = (languageCode) => {
-    if (languageCode === 'ar') {
-      showAlert({
-        type: 'info',
-        title: t('settings.rtlSupportTitle'),
-        message: t('settings.rtlSupportMessage'),
-        buttons: [
-          {
-            text: t('common.ok'),
-            onPress: () => changeLanguage(languageCode),
-          },
-          {
-            text: t('common.cancel'),
-            style: 'cancel',
-          },
-        ],
-      });
-    } else {
-      changeLanguage(languageCode);
-    }
-  };
-
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Select Language / اختر اللغة / زمان هەڵبژێرە</Text>
+      <Text style={styles.title}>{t('settings.selectLanguage')}</Text>
       <View style={styles.languageContainer}>
         {languages.map((lang) => (
           <TouchableOpacity
@@ -49,7 +24,7 @@ const LanguageSelector = () => {
               styles.languageButton,
               currentLanguage === lang.code && styles.activeLanguageButton,
             ]}
-            onPress={() => handleLanguageChange(lang.code)}>
+            onPress={() => changeLanguage(lang.code)}>
             <Text
               style={[
                 styles.languageText,
@@ -60,14 +35,6 @@ const LanguageSelector = () => {
           </TouchableOpacity>
         ))}
       </View>
-      <CustomAlert
-        visible={alertConfig.visible}
-        type={alertConfig.type}
-        title={alertConfig.title}
-        message={alertConfig.message}
-        buttons={alertConfig.buttons}
-        onDismiss={hideAlert}
-      />
     </View>
   );
 };

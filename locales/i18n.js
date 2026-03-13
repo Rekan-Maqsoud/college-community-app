@@ -1,16 +1,20 @@
 import { getLocales } from 'expo-localization';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import resourcesToBackend from 'i18next-resources-to-backend';
-import en from './en';
+import en from './en.js';
+import ar from './ar.js';
+import ku from './ku.js';
 
-const supportedLanguages = ['en', 'ar', 'ku'];
+export const SUPPORTED_LANGUAGES = ['en', 'ar', 'ku'];
+export const RTL_LANGUAGES = ['ar', 'ku'];
+
+export const isRTLLanguage = (languageCode) => RTL_LANGUAGES.includes(languageCode);
 
 const getDeviceLocale = () => {
   try {
     const locales = getLocales();
     const languageCode = locales && locales[0] ? locales[0].languageCode : 'en';
-    return supportedLanguages.includes(languageCode) ? languageCode : 'en';
+    return SUPPORTED_LANGUAGES.includes(languageCode) ? languageCode : 'en';
   } catch (error) {
     return 'en';
   }
@@ -19,29 +23,19 @@ const getDeviceLocale = () => {
 if (!i18n.isInitialized) {
   i18n
     .use(initReactI18next)
-    .use(
-      resourcesToBackend(async (language) => {
-        if (language === 'ar') {
-          const module = await import('./ar');
-          return module.default;
-        }
-
-        if (language === 'ku') {
-          const module = await import('./ku');
-          return module.default;
-        }
-
-        const module = await import('./en');
-        return module.default;
-      }),
-    )
     .init({
       lng: getDeviceLocale(),
       fallbackLng: 'en',
-      supportedLngs: supportedLanguages,
+      supportedLngs: SUPPORTED_LANGUAGES,
       resources: {
         en: {
           translation: en,
+        },
+        ar: {
+          translation: ar,
+        },
+        ku: {
+          translation: ku,
         },
       },
       ns: ['translation'],
@@ -56,7 +50,6 @@ if (!i18n.isInitialized) {
         useSuspense: false,
       },
       load: 'languageOnly',
-      partialBundledLanguages: true,
     });
 }
 

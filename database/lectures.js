@@ -6,6 +6,7 @@ import { CHAT_TYPES, getChat, sendMessage } from './chats';
 import { createNotification } from './notifications';
 import { sendGeneralPushNotification } from '../services/pushNotificationService';
 import { extractLectureMentionUserIds, sortLectureAssetsPinnedFirst } from '../app/utils/lectureUtils';
+import { getUserById } from './users';
 
 export const LECTURE_CHANNEL_TYPES = {
   OFFICIAL: 'official',
@@ -23,8 +24,17 @@ export const LECTURE_UPLOAD_TYPES = {
   LINK: 'link',
 };
 
-const logLecturesDb = () => {};
-const logLecturesDbError = () => {};
+const logLecturesDb = (event, payload = {}) => {
+  console.log('[LecturesDB]', event, payload);
+};
+
+const logLecturesDbError = (event, error, payload = {}) => {
+  console.error('[LecturesDB]', event, {
+    ...payload,
+    errorMessage: error?.message || String(error || ''),
+    errorCode: error?.code || error?.status || '',
+  });
+};
 
 const isMissingDocumentError = (error) => {
   const code = Number(error?.code || error?.status || 0);
@@ -140,6 +150,64 @@ const toUniqueList = (items = []) => {
 
 const getManagerIds = (channel) => {
   return toUniqueList(parseStringList(channel?.managerIds));
+};
+
+const hasActorIdentity = (actorIdentityIds = [], value = '') => {
+  const normalizedValue = sanitizeText(value);
+  if (!normalizedValue) {
+    return false;
+  }
+
+  return toUniqueList(actorIdentityIds).includes(normalizedValue);
+};
+
+const getCurrentActorContext = async (userId = null) => {
+  if (Array.isArray(userId)) {
+    const identityIds = toUniqueList(userId);
+    return {
+      accountId: identityIds[0] || '',
+      identityIds,
+    };
+  }
+
+  const explicitUserId = sanitizeText(userId);
+  if (explicitUserId) {
+    return {
+      accountId: explicitUserId,
+      identityIds: [explicitUserId],
+    };
+  }
+
+  const currentUser = await account.get();
+  const accountId = sanitizeText(currentUser?.$id);
+  if (!accountId) {
+    throw new Error('Authentication required');
+  }
+
+  let profile = null;
+  try {
+    profile = await getUserById(accountId);
+  } catch {
+    profile = null;
+  }
+
+  logLecturesDb('actorContext:resolved', {
+    accountId,
+    profileId: sanitizeText(profile?.$id),
+    profileUserId: sanitizeText(profile?.userId),
+    profileLegacyUserId: sanitizeText(profile?.userID),
+  });
+
+  return {
+    accountId,
+    identityIds: toUniqueList([
+      accountId,
+      profile?.$id,
+      profile?.userId,
+      profile?.userID,
+      profile?.accountId,
+    ]),
+  };
 };
 
 const serializeManagerIds = (managerIds) => {
@@ -305,17 +373,25 @@ const parseLectureSettings = (settingsJson) => {
   }
 };
 
-const canUserUploadToChannel = (channel, userId) => {
-  if (!channel || !userId) {
+const canUserUploadToChannel = (channel, actorIdentityIds) => {
+  logLecturesDb('permissions:canUserUploadToChannel', {
+    channelId: channel?.$id || '',
+    channelOwnerId: channel?.ownerId || '',
+    managerIds: getManagerIds(channel),
+    actorIdentityIds,
+    allowUploadsFromMembers: !!parseLectureSettings(channel?.settingsJson).allowUploadsFromMembers,
+  });
+
+  if (!channel || !Array.isArray(actorIdentityIds) || !actorIdentityIds.length) {
     return false;
   }
 
-  if (channel.ownerId === userId) {
+  if (hasActorIdentity(actorIdentityIds, channel.ownerId)) {
     return true;
   }
 
   const managerIds = getManagerIds(channel);
-  if (managerIds.includes(userId)) {
+  if (managerIds.some(managerId => hasActorIdentity(actorIdentityIds, managerId))) {
     return true;
   }
 
@@ -323,16 +399,29 @@ const canUserUploadToChannel = (channel, userId) => {
   return !!settings.allowUploadsFromMembers;
 };
 
-const assertChannelManager = (channel, userId) => {
+const assertChannelManager = (channel, actorIdentityIds) => {
   const ownerId = channel?.ownerId || '';
   const managerIds = getManagerIds(channel);
 
-  if (ownerId !== userId && !managerIds.includes(userId)) {
+  logLecturesDb('permissions:assertChannelManager', {
+    channelId: channel?.$id || '',
+    ownerId,
+    managerIds,
+    actorIdentityIds,
+  });
+
+  if (!hasActorIdentity(actorIdentityIds, ownerId) && !managerIds.some(managerId => hasActorIdentity(actorIdentityIds, managerId))) {
     throw new Error('Not authorized');
   }
 };
 
-const assertLinkedChatAllowed = ({ chat, userId }) => {
+const assertChannelOwner = (channel, actorIdentityIds) => {
+  if (!hasActorIdentity(actorIdentityIds, channel?.ownerId)) {
+    throw new Error('Only channel owner can remove managers');
+  }
+};
+
+const assertLinkedChatAllowed = ({ chat, actorIdentityIds }) => {
   if (!chat?.$id) {
     throw new Error('Invalid linked chat');
   }
@@ -349,36 +438,43 @@ const assertLinkedChatAllowed = ({ chat, userId }) => {
   const representatives = Array.isArray(chat.representatives) ? chat.representatives : [];
   const admins = Array.isArray(chat.admins) ? chat.admins : [];
 
-  if (chatType === CHAT_TYPES.STAGE_GROUP && !representatives.includes(userId)) {
+  if (chatType === CHAT_TYPES.STAGE_GROUP && !representatives.some(representativeId => hasActorIdentity(actorIdentityIds, representativeId))) {
     throw new Error('Only stage representatives can link to stage groups');
   }
 
   if (chatType !== CHAT_TYPES.STAGE_GROUP) {
-    const canManage = admins.includes(userId) || representatives.includes(userId);
+    const canManage =
+      admins.some(adminId => hasActorIdentity(actorIdentityIds, adminId)) ||
+      representatives.some(representativeId => hasActorIdentity(actorIdentityIds, representativeId));
     if (!canManage) {
       throw new Error('Only group admins or representatives can link this chat');
     }
   }
 };
 
-const resolveValidatedLinkedChatId = async (linkedChatId, userId) => {
+const resolveValidatedLinkedChatId = async (linkedChatId, actorIdentityIds) => {
   const normalizedLinkedChatId = sanitizeText(linkedChatId);
   if (!normalizedLinkedChatId) {
     return '';
   }
 
   const chat = await getChat(normalizedLinkedChatId, true);
-  assertLinkedChatAllowed({ chat, userId });
+  assertLinkedChatAllowed({ chat, actorIdentityIds });
   return normalizedLinkedChatId;
 };
 
-const isMemberApproved = async (channelId, userId) => {
+const isMemberApproved = async (channelId, actorIdentityIds) => {
+  const normalizedIdentityIds = toUniqueList(actorIdentityIds);
+  if (!normalizedIdentityIds.length) {
+    return false;
+  }
+
   const memberships = await databases.listDocuments({
     databaseId: config.databaseId,
     collectionId: config.lectureMembershipsCollectionId,
     queries: [
       Query.equal('channelId', channelId),
-      Query.equal('userId', userId),
+      Query.equal('userId', normalizedIdentityIds),
       Query.equal('joinStatus', 'approved'),
       Query.limit(1),
     ],
@@ -387,21 +483,28 @@ const isMemberApproved = async (channelId, userId) => {
   return memberships.total > 0;
 };
 
-const ensureChannelAccessForUser = async (channel, userId) => {
-  if (!channel || !userId) {
+const ensureChannelAccessForUser = async (channel, actorIdentityIds) => {
+  logLecturesDb('permissions:ensureChannelAccessForUser', {
+    channelId: channel?.$id || '',
+    channelOwnerId: channel?.ownerId || '',
+    managerIds: getManagerIds(channel),
+    actorIdentityIds,
+  });
+
+  if (!channel || !Array.isArray(actorIdentityIds) || !actorIdentityIds.length) {
     throw new Error('Invalid access check');
   }
 
-  if (channel.ownerId === userId) {
+  if (hasActorIdentity(actorIdentityIds, channel.ownerId)) {
     return true;
   }
 
   const managerIds = getManagerIds(channel);
-  if (managerIds.includes(userId)) {
+  if (managerIds.some(managerId => hasActorIdentity(actorIdentityIds, managerId))) {
     return true;
   }
 
-  const approved = await isMemberApproved(channel.$id, userId);
+  const approved = await isMemberApproved(channel.$id, actorIdentityIds);
   if (!approved) {
     throw new Error('Membership required');
   }
@@ -431,6 +534,40 @@ const mapMembershipStatusToCounts = (channel) => {
     membersCount: Number(channel?.membersCount || 0),
     pendingCount: Number(channel?.pendingCount || 0),
   };
+};
+
+const pickBestMembership = (memberships = []) => {
+  if (!Array.isArray(memberships) || !memberships.length) {
+    return null;
+  }
+
+  const joinStatusRank = {
+    approved: 3,
+    pending: 2,
+    rejected: 1,
+  };
+  const roleRank = {
+    owner: 3,
+    manager: 2,
+    admin: 2,
+    member: 1,
+  };
+
+  return [...memberships].sort((first, second) => {
+    const firstJoinRank = joinStatusRank[String(first?.joinStatus || '').trim().toLowerCase()] || 0;
+    const secondJoinRank = joinStatusRank[String(second?.joinStatus || '').trim().toLowerCase()] || 0;
+    if (firstJoinRank !== secondJoinRank) {
+      return secondJoinRank - firstJoinRank;
+    }
+
+    const firstRoleRank = roleRank[String(first?.role || '').trim().toLowerCase()] || 0;
+    const secondRoleRank = roleRank[String(second?.role || '').trim().toLowerCase()] || 0;
+    if (firstRoleRank !== secondRoleRank) {
+      return secondRoleRank - firstRoleRank;
+    }
+
+    return new Date(second?.$updatedAt || second?.$createdAt || 0).getTime() - new Date(first?.$updatedAt || first?.$createdAt || 0).getTime();
+  })[0] || null;
 };
 
 const syncChannelCounts = async (channelId) => {
@@ -648,7 +785,8 @@ export const getLectureChannels = async ({ search = '', channelType = 'all', lim
 export const getMyLectureChannels = async (userId) => {
   assertLecturesConfigured();
 
-  const currentUserId = userId || await getCurrentUserId();
+  const actorContext = await getCurrentActorContext(userId);
+  const currentUserId = actorContext.accountId || actorContext.identityIds[0] || '';
 
   logLecturesDb('getMyLectureChannels:start', {
     userId: currentUserId,
@@ -659,7 +797,7 @@ export const getMyLectureChannels = async (userId) => {
       databaseId: config.databaseId,
       collectionId: config.lectureMembershipsCollectionId,
       queries: [
-        Query.equal('userId', currentUserId),
+        Query.equal('userId', actorContext.identityIds),
         Query.equal('joinStatus', 'approved'),
         Query.limit(200),
         Query.orderDesc('$updatedAt'),
@@ -704,7 +842,8 @@ export const getMyLectureChannels = async (userId) => {
 export const getMyPendingLectureChannelIds = async (userId) => {
   assertLecturesConfigured();
 
-  const currentUserId = userId || await getCurrentUserId();
+  const actorContext = await getCurrentActorContext(userId);
+  const currentUserId = actorContext.accountId || actorContext.identityIds[0] || '';
 
   logLecturesDb('getMyPendingLectureChannelIds:start', {
     userId: currentUserId,
@@ -715,7 +854,7 @@ export const getMyPendingLectureChannelIds = async (userId) => {
       databaseId: config.databaseId,
       collectionId: config.lectureMembershipsCollectionId,
       queries: [
-        Query.equal('userId', currentUserId),
+        Query.equal('userId', actorContext.identityIds),
         Query.equal('joinStatus', 'pending'),
         Query.limit(200),
         Query.orderDesc('$updatedAt'),
@@ -739,7 +878,8 @@ export const getMyPendingLectureChannelIds = async (userId) => {
 export const getLecturePinnedChannelIds = async (userId) => {
   assertLecturesConfigured();
 
-  const currentUserId = userId || await getCurrentUserId();
+  const actorContext = await getCurrentActorContext(userId);
+  const currentUserId = actorContext.accountId || actorContext.identityIds[0] || '';
 
   logLecturesDb('getLecturePinnedChannelIds:start', {
     userId: currentUserId,
@@ -750,7 +890,7 @@ export const getLecturePinnedChannelIds = async (userId) => {
       databaseId: config.databaseId,
       collectionId: config.lectureMembershipsCollectionId,
       queries: [
-        Query.equal('userId', currentUserId),
+        Query.equal('userId', actorContext.identityIds),
         Query.equal('joinStatus', 'approved'),
         Query.limit(200),
         Query.orderDesc('$updatedAt'),
@@ -779,7 +919,8 @@ export const getLecturePinnedChannelIds = async (userId) => {
 export const setLecturePinnedChannelIds = async (channelIds = [], userId) => {
   assertLecturesConfigured();
 
-  const currentUserId = userId || await getCurrentUserId();
+  const actorContext = await getCurrentActorContext(userId);
+  const currentUserId = actorContext.accountId || actorContext.identityIds[0] || '';
   const pinnedChannelIds = toUniqueList(Array.isArray(channelIds) ? channelIds : []);
   const pinnedChannelsJson = JSON.stringify(pinnedChannelIds);
 
@@ -793,7 +934,7 @@ export const setLecturePinnedChannelIds = async (channelIds = [], userId) => {
       databaseId: config.databaseId,
       collectionId: config.lectureMembershipsCollectionId,
       queries: [
-        Query.equal('userId', currentUserId),
+        Query.equal('userId', actorContext.identityIds),
         Query.equal('joinStatus', 'approved'),
         Query.orderDesc('$updatedAt'),
         Query.limit(200),
@@ -845,7 +986,8 @@ export const requestJoinLectureChannel = async (channelId) => {
     throw new Error('Invalid channel ID');
   }
 
-  const currentUserId = await getCurrentUserId();
+  const actorContext = await getCurrentActorContext();
+  const currentUserId = actorContext.accountId;
   const channel = await getLectureChannelById(channelId);
 
   const existingMembership = await databases.listDocuments({
@@ -853,7 +995,7 @@ export const requestJoinLectureChannel = async (channelId) => {
     collectionId: config.lectureMembershipsCollectionId,
     queries: [
       Query.equal('channelId', channelId),
-      Query.equal('userId', currentUserId),
+      Query.equal('userId', actorContext.identityIds),
       Query.limit(1),
     ],
   });
@@ -936,10 +1078,10 @@ export const updateLectureMembershipStatus = async ({ channelId, membershipId, s
   }
 
   const normalizedStatus = normalizeJoinStatus(status);
-  const currentUserId = await getCurrentUserId();
+  const actorContext = await getCurrentActorContext();
   const channel = await getLectureChannelById(channelId);
 
-  assertChannelManager(channel, currentUserId);
+  assertChannelManager(channel, actorContext.identityIds);
 
   const updatePayload = {
     joinStatus: normalizedStatus,
@@ -992,10 +1134,10 @@ export const getLectureJoinRequests = async (channelId) => {
   });
 
   try {
-    const currentUserId = await getCurrentUserId();
+    const actorContext = await getCurrentActorContext();
     const channel = await getLectureChannelById(channelId);
 
-    assertChannelManager(channel, currentUserId);
+    assertChannelManager(channel, actorContext.identityIds);
 
     const memberships = await databases.listDocuments({
       databaseId: config.databaseId,
@@ -1049,10 +1191,10 @@ export const updateLectureChannelSettings = async (channelId, updates = {}) => {
     return channel;
   }
 
-  const currentUserId = await getCurrentUserId();
+  const actorContext = await getCurrentActorContext();
   const channel = await getLectureChannelById(channelId);
 
-  assertChannelManager(channel, currentUserId);
+  assertChannelManager(channel, actorContext.identityIds);
 
   const payload = {};
 
@@ -1065,7 +1207,7 @@ export const updateLectureChannelSettings = async (channelId, updates = {}) => {
   }
 
   if (updates.linkedChatId !== undefined) {
-    payload.linkedChatId = await resolveValidatedLinkedChatId(updates.linkedChatId, currentUserId);
+    payload.linkedChatId = await resolveValidatedLinkedChatId(updates.linkedChatId, actorContext.identityIds);
   }
 
   if (updates.accessType !== undefined) {
@@ -1140,8 +1282,8 @@ export const addLectureManager = async (channelId, managerUserId) => {
   }
 
   const channel = await getLectureChannelById(channelId);
-  const currentUserId = await getCurrentUserId();
-  assertChannelManager(channel, currentUserId);
+  const actorContext = await getCurrentActorContext();
+  assertChannelManager(channel, actorContext.identityIds);
 
   const managerId = sanitizeText(managerUserId);
   if (!managerId) {
@@ -1185,11 +1327,9 @@ export const removeLectureManager = async (channelId, managerUserId) => {
   });
 
   const channel = await getLectureChannelById(channelId);
-  const currentUserId = await getCurrentUserId();
+  const actorContext = await getCurrentActorContext();
 
-  if (sanitizeText(channel?.ownerId) !== sanitizeText(currentUserId)) {
-    throw new Error('Only channel owner can remove managers');
-  }
+  assertChannelOwner(channel, actorContext.identityIds);
 
   const secureResult = await tryInvokeLectureGuard('remove_manager', {
     channelId,
@@ -1241,7 +1381,8 @@ export const removeLectureManager = async (channelId, managerUserId) => {
 export const setLectureMembershipNotification = async ({ channelId, enabled }) => {
   assertLecturesConfigured();
 
-  const currentUserId = await getCurrentUserId();
+  const actorContext = await getCurrentActorContext();
+  const currentUserId = actorContext.accountId;
 
   logLecturesDb('setLectureMembershipNotification:start', {
     channelId,
@@ -1255,7 +1396,7 @@ export const setLectureMembershipNotification = async ({ channelId, enabled }) =
       collectionId: config.lectureMembershipsCollectionId,
       queries: [
         Query.equal('channelId', channelId),
-        Query.equal('userId', currentUserId),
+        Query.equal('userId', actorContext.identityIds),
         Query.limit(1),
       ],
     });
@@ -1390,12 +1531,13 @@ export const createLectureAsset = async ({
     throw new Error('Invalid channel ID');
   }
 
-  const currentUserId = await getCurrentUserId();
+  const actorContext = await getCurrentActorContext();
+  const currentUserId = actorContext.accountId;
   const channel = await getLectureChannelById(channelId);
 
-  await ensureChannelAccessForUser(channel, currentUserId);
+  await ensureChannelAccessForUser(channel, actorContext.identityIds);
 
-  if (!canUserUploadToChannel(channel, currentUserId)) {
+  if (!canUserUploadToChannel(channel, actorContext.identityIds)) {
     throw new Error('Only admins can upload in this channel');
   }
 
@@ -1542,9 +1684,9 @@ export const getLectureAssets = async ({ channelId, limit = 30, offset = 0 } = {
     throw new Error('Invalid channel ID');
   }
 
-  const currentUserId = await getCurrentUserId();
+  const actorContext = await getCurrentActorContext();
   const channel = await getLectureChannelById(channelId);
-  await ensureChannelAccessForUser(channel, currentUserId);
+  await ensureChannelAccessForUser(channel, actorContext.identityIds);
 
   try {
     const result = await databases.listDocuments({
@@ -1593,7 +1735,8 @@ export const trackLectureAssetInteraction = async ({
     return null;
   }
 
-  const currentUserId = userId || await getCurrentUserId();
+  const actorContext = await getCurrentActorContext(userId);
+  const currentUserId = actorContext.accountId || actorContext.identityIds[0] || '';
 
   logLecturesDb('trackLectureAssetInteraction:start', {
     channelId,
@@ -1604,7 +1747,7 @@ export const trackLectureAssetInteraction = async ({
 
   try {
     const channel = await getLectureChannelById(channelId);
-    await ensureChannelAccessForUser(channel, currentUserId);
+    await ensureChannelAccessForUser(channel, actorContext.identityIds);
 
     const asset = await databases.getDocument({
       databaseId: config.databaseId,
@@ -1731,9 +1874,9 @@ export const updateLectureAssetPinStatus = async ({ channelId, assetId, isPinned
     return asset;
   }
 
-  const currentUserId = await getCurrentUserId();
+  const actorContext = await getCurrentActorContext();
   const channel = await getLectureChannelById(channelId);
-  assertChannelManager(channel, currentUserId);
+  assertChannelManager(channel, actorContext.identityIds);
 
   try {
     const updated = await databases.updateDocument({
@@ -1768,7 +1911,8 @@ export const getLectureChannelShareLink = (channelId) => {
 export const getLectureMembershipSummary = async (channelId, userId) => {
   assertLecturesConfigured();
 
-  const currentUserId = userId || await getCurrentUserId();
+  const actorContext = await getCurrentActorContext(userId);
+  const currentUserId = actorContext.accountId || actorContext.identityIds[0] || '';
 
   logLecturesDb('getLectureMembershipSummary:start', {
     channelId,
@@ -1781,12 +1925,12 @@ export const getLectureMembershipSummary = async (channelId, userId) => {
       collectionId: config.lectureMembershipsCollectionId,
       queries: [
         Query.equal('channelId', channelId),
-        Query.equal('userId', currentUserId),
-        Query.limit(1),
+        Query.equal('userId', actorContext.identityIds),
+        Query.limit(25),
       ],
     });
 
-    const membership = memberships.documents[0] || null;
+    const membership = pickBestMembership(memberships.documents || []);
     const channel = await getLectureChannelById(channelId);
 
     const summary = {
@@ -1917,9 +2061,10 @@ export const createLectureComment = async ({
     throw new Error('Comment is required');
   }
 
-  const currentUserId = await getCurrentUserId();
+  const actorContext = await getCurrentActorContext();
+  const currentUserId = actorContext.accountId;
   const channel = await getLectureChannelById(channelId);
-  await ensureChannelAccessForUser(channel, currentUserId);
+  await ensureChannelAccessForUser(channel, actorContext.identityIds);
 
   const commentDocumentId = ID.unique();
 
@@ -1987,9 +2132,9 @@ export const getLectureComments = async ({ channelId, assetId, limit = 200 } = {
     throw new Error('Invalid comment query');
   }
 
-  const currentUserId = await getCurrentUserId();
+  const actorContext = await getCurrentActorContext();
   const channel = await getLectureChannelById(channelId);
-  await ensureChannelAccessForUser(channel, currentUserId);
+  await ensureChannelAccessForUser(channel, actorContext.identityIds);
 
   let result;
   try {
@@ -2039,14 +2184,15 @@ export const updateLectureComment = async ({ channelId, commentId, text }) => {
     throw new Error('LECTURES_COMMENTS_COLLECTION_ID_MISSING');
   }
 
-  const currentUserId = await getCurrentUserId();
+  const actorContext = await getCurrentActorContext();
+  const currentUserId = actorContext.accountId;
   const comment = await databases.getDocument({
     databaseId: config.databaseId,
     collectionId: config.lectureCommentsCollectionId,
     documentId: commentId,
   });
 
-  if (comment?.userId !== currentUserId) {
+  if (!hasActorIdentity(actorContext.identityIds, comment?.userId)) {
     throw new Error('Not authorized');
   }
 
@@ -2097,7 +2243,7 @@ export const deleteLectureComment = async ({ channelId, commentId }) => {
     throw new Error('LECTURES_COMMENTS_COLLECTION_ID_MISSING');
   }
 
-  const currentUserId = await getCurrentUserId();
+  const actorContext = await getCurrentActorContext();
   const channel = await getLectureChannelById(channelId);
   const comment = await databases.getDocument({
     databaseId: config.databaseId,
@@ -2105,8 +2251,8 @@ export const deleteLectureComment = async ({ channelId, commentId }) => {
     documentId: commentId,
   });
 
-  const isOwner = comment?.userId === currentUserId;
-  const isManager = channel?.ownerId === currentUserId || getManagerIds(channel).includes(currentUserId);
+  const isOwner = hasActorIdentity(actorContext.identityIds, comment?.userId);
+  const isManager = hasActorIdentity(actorContext.identityIds, channel?.ownerId) || getManagerIds(channel).some(managerId => hasActorIdentity(actorContext.identityIds, managerId));
   if (!isOwner && !isManager) {
     throw new Error('Not authorized');
   }
