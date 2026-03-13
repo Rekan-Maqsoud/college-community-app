@@ -577,14 +577,31 @@ export const AppSettingsProvider = ({ children }) => {
   };
 
   // Load chat settings for a specific user
-  const loadUserChatSettings = async (userId) => {
+  const loadUserChatSettings = useCallback(async (userId) => {
     const userSettingsTrace = telemetry.startTrace('app_settings_load_user_chat_settings', {
       userId: userId || 'anonymous',
     });
     try {
-      setCurrentUserId(userId);
+      setCurrentUserId((prev) => (prev === userId ? prev : userId));
+
+      const applySettingsIfChanged = (nextSettings) => {
+        setChatSettings((prev) => {
+          const normalizedNext = normalizeChatSettings(nextSettings);
+          if (
+            prev?.bubbleStyle === normalizedNext.bubbleStyle
+            && Number(prev?.bubbleRadius) === Number(normalizedNext.bubbleRadius)
+            && prev?.bubbleColor === normalizedNext.bubbleColor
+            && prev?.backgroundImage === normalizedNext.backgroundImage
+          ) {
+            return prev;
+          }
+
+          return normalizedNext;
+        });
+      };
+
       if (!userId) {
-        setChatSettings(normalizeChatSettings());
+        applySettingsIfChanged({});
         userSettingsTrace.finish({ success: true, meta: { usedDefaults: true } });
         return;
       }
@@ -592,18 +609,18 @@ export const AppSettingsProvider = ({ children }) => {
       const savedChatSettings = await safeStorage.getItem(`chatSettings_${userId}`);
       if (savedChatSettings) {
         const parsed = JSON.parse(savedChatSettings);
-        setChatSettings(normalizeChatSettings(parsed));
+        applySettingsIfChanged(parsed);
         userSettingsTrace.finish({ success: true, meta: { usedDefaults: false } });
       } else {
         // Reset to defaults for new user
-        setChatSettings(normalizeChatSettings());
+        applySettingsIfChanged({});
         userSettingsTrace.finish({ success: true, meta: { usedDefaults: true } });
       }
     } catch (error) {
       userSettingsTrace.finish({ success: false, error });
       // Failed to load user chat settings
     }
-  };
+  }, []);
 
   const updateFontScale = async (scale) => {
     try {

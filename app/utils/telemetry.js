@@ -48,20 +48,28 @@ const configure = ({ flushFn = null, enabled = true } = {}) => {
  */
 const startTrace = (name, meta = {}) => {
   const start = Date.now();
+  const {
+    slowThresholdMs = SLOW_THRESHOLD_MS,
+    disableSlowFlag = false,
+    ...baseMeta
+  } = meta || {};
 
   return {
     finish: ({ success = true, error = null, meta: extraMeta = {} } = {}) => {
       if (!_enabled) return;
 
       const durationMs = Date.now() - start;
+      const threshold = Number.isFinite(Number(slowThresholdMs))
+        ? Number(slowThresholdMs)
+        : SLOW_THRESHOLD_MS;
       const entry = {
         name,
         durationMs,
         success,
         error: error ? (error.message || String(error)) : null,
-        isSlow: durationMs > SLOW_THRESHOLD_MS,
+        isSlow: !disableSlowFlag && durationMs > threshold,
         ts: new Date().toISOString(),
-        ...meta,
+        ...baseMeta,
         ...extraMeta,
       };
 

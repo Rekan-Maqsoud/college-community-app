@@ -302,7 +302,7 @@ const Post = () => {
         tags: tagsArray,
         links: linksArray,
         canOthersRepost,
-        pollData,
+        ...(pollData ? { pollData } : {}),
       });
 
       // Notify followers about the new post (non-blocking)

@@ -678,7 +678,7 @@ const Chats = ({ navigation }) => {
     reason,
     { minIntervalMs = 12000, force = false } = {}
   ) => {
-    if (!user?.$id || !user?.department || !isScreenActive) {
+    if (!user?.$id || !isScreenActive) {
       return;
     }
 
@@ -698,7 +698,7 @@ const Chats = ({ navigation }) => {
     } finally {
       isSyncInFlightRef.current = false;
     }
-  }, [isScreenActive, loadChats, user?.$id, user?.department]);
+  }, [isScreenActive, loadChats, user?.$id]);
 
   useEffect(() => {
     if (!isScreenActive) {

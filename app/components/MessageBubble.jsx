@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { Permission, Role } from 'appwrite';
 import ReanimatedModule, {
   useSharedValue,
@@ -29,6 +30,7 @@ import ReanimatedModule, {
 } from 'react-native-reanimated';
 import LeafletMap from './LeafletMap';
 import { useAppSettings } from '../context/AppSettingsContext';
+import safeStorage from '../utils/safeStorage';
 import ProfilePicture from './ProfilePicture';
 import ZoomableImageModal from './ZoomableImageModal';
 import { 
@@ -58,6 +60,12 @@ import {
 import { parseMessageReactions } from './messageBubble/reactionUtils';
 
 const ReanimatedView = ReanimatedModule?.View || View;
+const CHAT_DOWNLOADS_DIR = 'chat_downloads';
+const CHAT_DOWNLOADS_ROOT_FOLDER = 'College Community';
+const CHAT_DOWNLOADS_SUB_FOLDER = 'Chat Files';
+const CHAT_DEVICE_DOWNLOADS_URI_KEY = 'chat_device_downloads_uri';
+const CHAT_DEVICE_APP_DOWNLOADS_URI_KEY = 'chat_device_app_downloads_uri';
+const CHAT_DEVICE_FILES_DOWNLOADS_URI_KEY = 'chat_device_files_downloads_uri';
 
 // Enable LayoutAnimation for Android (skip in New Architecture where it's a no-op)
 if (
@@ -317,6 +325,248 @@ const MessageBubble = ({
       return null;
     }
   }, [isFile, message.content, t]);
+
+  const sanitizeDownloadFileName = useCallback((value = '') => {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return `chat_file_${Date.now()}`;
+    }
+
+    const cleaned = raw
+      .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return cleaned || `chat_file_${Date.now()}`;
+  }, []);
+
+  const getAppChatDownloadsDirectory = useCallback(() => {
+    const baseDirectory = FileSystem.documentDirectory || FileSystem.cacheDirectory;
+    if (!baseDirectory) {
+      return '';
+    }
+
+    return `${baseDirectory}${CHAT_DOWNLOADS_DIR}/${CHAT_DOWNLOADS_ROOT_FOLDER}/${CHAT_DOWNLOADS_SUB_FOLDER}/`;
+  }, []);
+
+  const ensureAndroidDownloadsChatFilesDirectoryUri = useCallback(async () => {
+    if (RNPlatform.OS !== 'android') {
+      return '';
+    }
+
+    const saf = FileSystem.StorageAccessFramework;
+    if (!saf?.getUriForDirectoryInRoot || !saf?.makeDirectoryAsync) {
+      return '';
+    }
+
+    const rootDirectoryUri = saf.getUriForDirectoryInRoot('Download');
+    if (!rootDirectoryUri) {
+      return '';
+    }
+
+    let appDirectoryUri = '';
+    try {
+      appDirectoryUri = await saf.makeDirectoryAsync(rootDirectoryUri, CHAT_DOWNLOADS_ROOT_FOLDER);
+      await safeStorage.setItem(CHAT_DEVICE_DOWNLOADS_URI_KEY, rootDirectoryUri);
+      await safeStorage.setItem(CHAT_DEVICE_APP_DOWNLOADS_URI_KEY, appDirectoryUri);
+    } catch {
+      appDirectoryUri = await safeStorage.getItem(CHAT_DEVICE_APP_DOWNLOADS_URI_KEY);
+      if (!appDirectoryUri) {
+        return '';
+      }
+    }
+
+    try {
+      const chatFilesUri = await saf.makeDirectoryAsync(appDirectoryUri, CHAT_DOWNLOADS_SUB_FOLDER);
+      await safeStorage.setItem(CHAT_DEVICE_FILES_DOWNLOADS_URI_KEY, chatFilesUri);
+      return chatFilesUri;
+    } catch {
+      return await safeStorage.getItem(CHAT_DEVICE_FILES_DOWNLOADS_URI_KEY);
+    }
+  }, []);
+
+  const openLocalFile = useCallback(async (fileUri, mimeType = 'application/octet-stream') => {
+    if (!fileUri) {
+      return;
+    }
+
+    if (RNPlatform.OS === 'android') {
+      const openUri = fileUri.startsWith('content://')
+        ? fileUri
+        : await FileSystem.getContentUriAsync(fileUri);
+
+      await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+        data: openUri,
+        flags: 1 | 268435456,
+        type: mimeType,
+      });
+      return;
+    }
+
+    await Linking.openURL(fileUri);
+  }, []);
+
+  const openAndroidDownloadsFolder = useCallback(async () => {
+    if (RNPlatform.OS !== 'android') {
+      return;
+    }
+
+    const folderUri = await safeStorage.getItem(CHAT_DEVICE_FILES_DOWNLOADS_URI_KEY);
+
+    if (folderUri) {
+      try {
+        await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+          data: folderUri,
+          flags: 1 | 268435456,
+        });
+        return;
+      } catch {}
+    }
+
+    await IntentLauncher.startActivityAsync('android.intent.action.VIEW_DOWNLOADS');
+  }, []);
+
+  const exportToAndroidDownloads = useCallback(async ({ localUri, fileName, mimeType }) => {
+    if (RNPlatform.OS !== 'android' || !localUri) {
+      return '';
+    }
+
+    const saf = FileSystem.StorageAccessFramework;
+    if (!saf?.createFileAsync) {
+      return '';
+    }
+
+    let directoryUri = await ensureAndroidDownloadsChatFilesDirectoryUri();
+    if (!directoryUri) {
+      return '';
+    }
+
+    const targetName = `${Date.now()}_${sanitizeDownloadFileName(fileName)}`;
+    let targetUri = '';
+
+    try {
+      targetUri = await saf.createFileAsync(directoryUri, targetName, mimeType || 'application/octet-stream');
+    } catch {
+      await safeStorage.removeItem(CHAT_DEVICE_DOWNLOADS_URI_KEY);
+      await safeStorage.removeItem(CHAT_DEVICE_APP_DOWNLOADS_URI_KEY);
+      await safeStorage.removeItem(CHAT_DEVICE_FILES_DOWNLOADS_URI_KEY);
+      directoryUri = await ensureAndroidDownloadsChatFilesDirectoryUri();
+      if (!directoryUri) {
+        return '';
+      }
+      targetUri = await saf.createFileAsync(directoryUri, targetName, mimeType || 'application/octet-stream');
+    }
+
+    const base64 = await FileSystem.readAsStringAsync(localUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    await FileSystem.writeAsStringAsync(targetUri, base64, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    return targetUri;
+  }, [ensureAndroidDownloadsChatFilesDirectoryUri, sanitizeDownloadFileName]);
+
+  const handleOpenChatFile = useCallback(async () => {
+    if (!fileData?.url || selectionMode) {
+      return;
+    }
+
+    try {
+      const downloadsDir = getAppChatDownloadsDirectory();
+      if (!downloadsDir) {
+        throw new Error('Download directory unavailable');
+      }
+      await FileSystem.makeDirectoryAsync(downloadsDir, { intermediates: true });
+
+      const safeName = sanitizeDownloadFileName(fileData.name || t('chats.file'));
+      const localUri = `${downloadsDir}${Date.now()}_${safeName}`;
+
+      let downloadHeaders = {};
+      try {
+        const preparedUrl = new URL(fileData.url);
+        const { options } = storage.client.prepareRequest('get', preparedUrl, {}, {});
+        downloadHeaders = options?.headers || {};
+      } catch {}
+
+      let downloadResult = null;
+      try {
+        downloadResult = await FileSystem.downloadAsync(fileData.url, localUri, { headers: downloadHeaders });
+      } catch {
+        downloadResult = await FileSystem.downloadAsync(fileData.url, localUri, { headers: {} });
+      }
+
+      if (!downloadResult?.uri) {
+        throw new Error('File download failed');
+      }
+
+      const exportedUri = await exportToAndroidDownloads({
+        localUri: downloadResult.uri,
+        fileName: fileData.name || t('chats.file'),
+        mimeType: fileData.mimeType || 'application/octet-stream',
+      });
+
+      const openUri = RNPlatform.OS === 'android' ? (exportedUri || downloadResult.uri) : downloadResult.uri;
+      await openLocalFile(openUri, fileData.mimeType || 'application/octet-stream');
+
+      const destinationLabel = RNPlatform.OS === 'android'
+        ? (exportedUri ? t('chats.chatFileDestination') : t('chats.file'))
+        : (downloadResult.uri || getAppChatDownloadsDirectory());
+
+      if (showAlert) {
+        showAlert({
+          type: 'success',
+          title: t('common.success'),
+          message: t('chats.fileDownloadedTo').replace('{destination}', destinationLabel),
+          buttons: [
+            {
+              text: t('common.ok'),
+              style: 'cancel',
+            },
+            {
+              text: t('chats.openFolder'),
+              style: 'primary',
+              onPress: async () => {
+                try {
+                  if (RNPlatform.OS === 'android') {
+                    await openAndroidDownloadsFolder();
+                  } else {
+                    await openLocalFile(downloadResult.uri, fileData.mimeType || 'application/octet-stream');
+                  }
+                } catch {
+                  if (showAlert) {
+                    showAlert({
+                      type: 'error',
+                      title: t('common.error'),
+                      message: t('chats.fileOpenError'),
+                    });
+                  }
+                }
+              },
+            },
+          ],
+        });
+      }
+    } catch {
+      if (showAlert) {
+        showAlert({
+          type: 'error',
+          title: t('common.error'),
+          message: t('chats.fileOpenError'),
+        });
+      }
+    }
+  }, [
+    exportToAndroidDownloads,
+    fileData,
+    getAppChatDownloadsDirectory,
+    openLocalFile,
+    openAndroidDownloadsFolder,
+    sanitizeDownloadFileName,
+    selectionMode,
+    showAlert,
+    t,
+  ]);
 
   const lectureBannerData = React.useMemo(() => {
     if (!isLectureAssetBanner) return null;
@@ -1262,21 +1512,7 @@ const MessageBubble = ({
         <TouchableOpacity
           activeOpacity={0.82}
           disabled={selectionMode || !fileData.url}
-          onPress={() => {
-            if (!fileData.url) {
-              return;
-            }
-
-            Linking.openURL(fileData.url).catch(() => {
-              if (showAlert) {
-                showAlert({
-                  type: 'error',
-                  title: t('common.error'),
-                  message: t('chats.fileOpenError'),
-                });
-              }
-            });
-          }}
+          onPress={handleOpenChatFile}
           style={[
             styles.fileCard,
             {

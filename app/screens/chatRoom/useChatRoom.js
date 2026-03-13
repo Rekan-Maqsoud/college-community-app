@@ -88,12 +88,18 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   const userCacheRef = useRef({});
   const deletedMessageIds = useRef(new Set());
   const isMountedRef = useRef(true);
+  const initKeyRef = useRef('');
+  const messagesLengthRef = useRef(0);
 
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    messagesLengthRef.current = messages.length;
+  }, [messages.length]);
 
   const getChatDisplayName = useCallback(() => {
     if (chat.type === 'private') {
@@ -226,12 +232,43 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       const defaults = settings?.reactionDefaults || DEFAULT_REACTION_SET;
       const viewport = settings?.settingsState?.chatViewport || null;
 
-      setMuteStatus(status);
-      setBookmarkedMsgIds(bookmarks);
-      setClearedAtState(chatClearedAt);
-      setHiddenMessageIds(hidden);
-      setReactionDefaultsState(defaults || DEFAULT_REACTION_SET);
-      setChatViewportState(viewport);
+      setMuteStatus(prev => {
+        if (
+          prev?.isMuted === status?.isMuted
+          && prev?.muteType === status?.muteType
+          && prev?.expiresAt === status?.expiresAt
+        ) {
+          return prev;
+        }
+        return status;
+      });
+
+      setBookmarkedMsgIds(prev => {
+        const prevKey = Array.isArray(prev) ? prev.join('|') : '';
+        const nextKey = Array.isArray(bookmarks) ? bookmarks.join('|') : '';
+        return prevKey === nextKey ? prev : bookmarks;
+      });
+
+      setClearedAtState(prev => (prev === chatClearedAt ? prev : chatClearedAt));
+
+      setHiddenMessageIds(prev => {
+        const prevKey = Array.isArray(prev) ? prev.join('|') : '';
+        const nextKey = Array.isArray(hidden) ? hidden.join('|') : '';
+        return prevKey === nextKey ? prev : hidden;
+      });
+
+      setReactionDefaultsState(prev => {
+        const next = defaults || DEFAULT_REACTION_SET;
+        const prevKey = JSON.stringify(prev || DEFAULT_REACTION_SET);
+        const nextKey = JSON.stringify(next);
+        return prevKey === nextKey ? prev : next;
+      });
+
+      setChatViewportState(prev => {
+        const prevKey = JSON.stringify(prev || null);
+        const nextKey = JSON.stringify(viewport || null);
+        return prevKey === nextKey ? prev : viewport;
+      });
       settingsTrace.finish({
         success: true,
         meta: {
@@ -456,25 +493,32 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       if (user?.$id) {
         markChatAsRead(chat.$id, user.$id);
       }
-      
-      const uniqueSenderIds = [...new Set(visibleFreshMessages.map(m => m.senderId))];
-      const newUserCache = { ...userCacheRef.current };
-      
-      for (const senderId of uniqueSenderIds) {
-        if (!newUserCache[senderId]) {
-          try {
-            const userData = await getUserById(senderId);
-            newUserCache[senderId] = userData;
-          } catch (error) {
-            newUserCache[senderId] = { name: 'Unknown User' };
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
+
+      const hydrateUserCache = async () => {
+        const uniqueSenderIds = [...new Set(visibleFreshMessages.map(m => m.senderId))];
+        const newUserCache = { ...userCacheRef.current };
+
+        for (const senderId of uniqueSenderIds) {
+          if (!newUserCache[senderId]) {
+            try {
+              const userData = await getUserById(senderId);
+              newUserCache[senderId] = userData;
+            } catch (error) {
+              newUserCache[senderId] = { name: 'Unknown User' };
+            }
           }
         }
-      }
-      
-      userCacheRef.current = newUserCache;
-      if (isMountedRef.current) {
-        setUserCache(newUserCache);
-      }
+
+        userCacheRef.current = newUserCache;
+        if (isMountedRef.current) {
+          setUserCache(newUserCache);
+        }
+      };
+
+      hydrateUserCache().catch(() => {});
       
       // Mark messages as read when loading
       if (user?.$id) {
@@ -491,13 +535,13 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       messagesTrace.finish({ success: false, error });
       // Only show error on initial load when there are no messages yet
       // Subsequent load failures are silently ignored since realtime will auto-recover
-      if (allowNetwork && messages.length === 0) {
+      if (allowNetwork && messagesLengthRef.current === 0) {
         triggerAlert(t('common.error'), error.message || t('chats.errorLoadingMessages'));
       }
     } finally {
       setLoading(false);
     }
-  }, [chat, getVisibleMessages, messages.length, t, triggerAlert, user?.$id]);
+  }, [chat, getVisibleMessages, t, triggerAlert, user?.$id]);
 
   const loadMembersAndFriends = useCallback(async () => {
     const membersTrace = telemetry.startTrace('chatroom_load_members_and_friends', {
@@ -564,6 +608,20 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
 
   useEffect(() => {
     isMountedRef.current = true;
+    if (!chat?.$id || !user?.$id) {
+      return () => {
+        isMountedRef.current = false;
+      };
+    }
+
+    const nextInitKey = `${chat.$id}:${user.$id}`;
+    if (initKeyRef.current === nextInitKey) {
+      return () => {
+        isMountedRef.current = false;
+      };
+    }
+
+    initKeyRef.current = nextInitKey;
     setLoading(true);
 
     loadMessages({ allowNetwork: true });
@@ -575,7 +633,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     return () => {
       isMountedRef.current = false;
     };
-  }, [checkIfBlockedByOther, checkPermissions, loadChatSettings, loadMembersAndFriends, loadMessages]);
+  }, [chat?.$id, checkIfBlockedByOther, checkPermissions, loadChatSettings, loadMembersAndFriends, loadMessages, user?.$id]);
 
   useEffect(() => {
     setMessages(prev => getVisibleMessages(prev));

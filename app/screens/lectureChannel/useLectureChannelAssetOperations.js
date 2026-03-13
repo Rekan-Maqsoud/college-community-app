@@ -79,20 +79,15 @@ export const useLectureChannelAssetOperations = ({
     }
 
     const saf = FileSystem.StorageAccessFramework;
-    if (!saf?.requestDirectoryPermissionsAsync) {
+    if (!saf?.getUriForDirectoryInRoot) {
       return '';
     }
 
-    const initialDownloadsUri = saf.getUriForDirectoryInRoot
-      ? saf.getUriForDirectoryInRoot('Download')
-      : undefined;
-
-    const permissions = await saf.requestDirectoryPermissionsAsync(initialDownloadsUri);
-    if (!permissions?.granted || !permissions?.directoryUri) {
+    const nextUri = saf.getUriForDirectoryInRoot('Download');
+    if (!nextUri) {
       return '';
     }
 
-    const nextUri = permissions.directoryUri;
     setDeviceDownloadsUri(nextUri);
     await safeStorage.setItem(LECTURE_DEVICE_DOWNLOADS_URI_KEY, nextUri);
     return nextUri;
@@ -117,16 +112,31 @@ export const useLectureChannelAssetOperations = ({
       return '';
     }
 
-    let appDirectoryUri = '';
-    try {
-      appDirectoryUri = await saf.makeDirectoryAsync(rootDirectoryUri, LECTURE_DOWNLOADS_ROOT_FOLDER);
-      await safeStorage.setItem(LECTURE_DEVICE_APP_DOWNLOADS_URI_KEY, appDirectoryUri);
-    } catch (error) {
-      const savedAppDirectoryUri = await safeStorage.getItem(LECTURE_DEVICE_APP_DOWNLOADS_URI_KEY);
-      if (savedAppDirectoryUri) {
-        appDirectoryUri = savedAppDirectoryUri;
-      } else {
-        throw error;
+    const decodedRootUri = (() => {
+      try {
+        return decodeURIComponent(String(rootDirectoryUri || '')).toLowerCase();
+      } catch {
+        return String(rootDirectoryUri || '').toLowerCase();
+      }
+    })();
+
+    const normalizedRootFolder = String(LECTURE_DOWNLOADS_ROOT_FOLDER || '').trim().toLowerCase();
+    const hasRootFolderAlready = Boolean(
+      decodedRootUri && normalizedRootFolder && decodedRootUri.includes(normalizedRootFolder)
+    );
+
+    let appDirectoryUri = rootDirectoryUri;
+    if (!hasRootFolderAlready) {
+      try {
+        appDirectoryUri = await saf.makeDirectoryAsync(rootDirectoryUri, LECTURE_DOWNLOADS_ROOT_FOLDER);
+        await safeStorage.setItem(LECTURE_DEVICE_APP_DOWNLOADS_URI_KEY, appDirectoryUri);
+      } catch (error) {
+        const savedAppDirectoryUri = await safeStorage.getItem(LECTURE_DEVICE_APP_DOWNLOADS_URI_KEY);
+        if (savedAppDirectoryUri) {
+          appDirectoryUri = savedAppDirectoryUri;
+        } else {
+          throw error;
+        }
       }
     }
 

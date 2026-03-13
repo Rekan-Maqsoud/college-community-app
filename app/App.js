@@ -1,5 +1,5 @@
-import React, { Activity, useEffect, useState, useCallback, useRef } from 'react';
-import { NavigationContainer, useIsFocused, useNavigationContainerRef } from '@react-navigation/native';
+import React, { Activity, useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { NavigationContainer, DefaultTheme, DarkTheme, useIsFocused, useNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -141,6 +141,49 @@ const Tab = createBottomTabNavigator();
 const withActivityBoundary = (ScreenComponent, screenName) => {
   const WrappedScreen = (props) => {
     const isFocused = useIsFocused();
+    const renderCountRef = useRef(0);
+    const focusTraceRef = useRef(null);
+
+    renderCountRef.current += 1;
+
+    useEffect(() => {
+      telemetry.recordEvent('screen_render', {
+        screen: screenName,
+        renderCount: renderCountRef.current,
+      });
+
+      if (__DEV__) {
+        console.log(`[render] ${screenName} #${renderCountRef.current}`);
+      }
+    }, [screenName]);
+
+    useEffect(() => {
+      if (isFocused) {
+        telemetry.recordEvent('screen_focus', {
+          screen: screenName,
+          renderCount: renderCountRef.current,
+        });
+        focusTraceRef.current = telemetry.startTrace('screen_focus_duration', {
+          screen: screenName,
+          disableSlowFlag: true,
+        });
+        return;
+      }
+
+      if (focusTraceRef.current) {
+        focusTraceRef.current.finish({ success: true });
+        focusTraceRef.current = null;
+      }
+    }, [isFocused]);
+
+    useEffect(() => {
+      return () => {
+        if (focusTraceRef.current) {
+          focusTraceRef.current.finish({ success: true });
+          focusTraceRef.current = null;
+        }
+      };
+    }, []);
 
     return (
       <Activity mode={isFocused ? 'visible' : 'hidden'}>
@@ -158,6 +201,36 @@ const ChatsWithActivity = withActivityBoundary(Chats, 'Chats');
 const PostWithActivity = withActivityBoundary(Post, 'Post');
 const LectureWithActivity = withActivityBoundary(Lecture, 'Lecture');
 const ProfileWithActivity = withActivityBoundary(Profile, 'Profile');
+const SignInWithActivity = withActivityBoundary(SignIn, 'SignIn');
+const SignUpWithActivity = withActivityBoundary(SignUp, 'SignUp');
+const VerifyEmailWithActivity = withActivityBoundary(VerifyEmail, 'VerifyEmail');
+const ForgotPasswordWithActivity = withActivityBoundary(ForgotPassword, 'ForgotPassword');
+const SettingsWithActivity = withActivityBoundary(Settings, 'Settings');
+const ProfileSettingsWithActivity = withActivityBoundary(ProfileSettings, 'ProfileSettings');
+const PersonalizationSettingsWithActivity = withActivityBoundary(PersonalizationSettings, 'PersonalizationSettings');
+const NotificationSettingsWithActivity = withActivityBoundary(NotificationSettings, 'NotificationSettings');
+const SuggestionSettingsWithActivity = withActivityBoundary(SuggestionSettings, 'SuggestionSettings');
+const AccountSettingsWithActivity = withActivityBoundary(AccountSettings, 'AccountSettings');
+const ChatSettingsWithActivity = withActivityBoundary(ChatSettings, 'ChatSettings');
+const BlockListWithActivity = withActivityBoundary(BlockList, 'BlockList');
+const SavedPostsWithActivity = withActivityBoundary(SavedPosts, 'SavedPosts');
+const ChangePasswordWithActivity = withActivityBoundary(ChangePassword, 'ChangePassword');
+const PostDetailsWithActivity = withActivityBoundary(PostDetails, 'PostDetails');
+const EditPostWithActivity = withActivityBoundary(EditPost, 'EditPost');
+const ChatRoomWithActivity = withActivityBoundary(ChatRoom, 'ChatRoom');
+const NewChatWithActivity = withActivityBoundary(NewChat, 'NewChat');
+const UserSearchWithActivity = withActivityBoundary(UserSearch, 'UserSearch');
+const CreateGroupWithActivity = withActivityBoundary(CreateGroup, 'CreateGroup');
+const GroupSettingsWithActivity = withActivityBoundary(GroupSettings, 'GroupSettings');
+const AddMembersWithActivity = withActivityBoundary(AddMembers, 'AddMembers');
+const ForwardMessageWithActivity = withActivityBoundary(ForwardMessage, 'ForwardMessage');
+const UserProfileWithActivity = withActivityBoundary(UserProfile, 'UserProfile');
+const FollowListWithActivity = withActivityBoundary(FollowList, 'FollowList');
+const ManageRepresentativesWithActivity = withActivityBoundary(ManageRepresentatives, 'ManageRepresentatives');
+const RepVotingScreenWithActivity = withActivityBoundary(RepVotingScreen, 'RepVoting');
+const ReselectionRequestScreenWithActivity = withActivityBoundary(ReselectionRequestScreen, 'ReselectionRequest');
+const NotificationsWithActivity = withActivityBoundary(Notifications, 'Notifications');
+const LectureChannelWithActivity = withActivityBoundary(LectureChannel, 'LectureChannel');
 
 const AnimatedTabIcon = ({ focused, iconName, color, size }) => {
   const scaleValue = React.useRef(new Animated.Value(1)).current;
@@ -303,6 +376,9 @@ const TabNavigator = () => {
           fontSize: 11,
           fontWeight: '600',
         },
+        sceneStyle: {
+          backgroundColor: theme.background,
+        },
         headerShown: false,
       })}
     >
@@ -348,7 +424,10 @@ const TabNavigator = () => {
   );
 };
 
+const TabNavigatorWithActivity = withActivityBoundary(TabNavigator, 'MainTabs');
+
 const MainStack = () => {
+  const { theme, isDarkMode } = useAppSettings();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -401,157 +480,165 @@ const MainStack = () => {
 
   return (
     <Stack.Navigator 
-      screenOptions={{ headerShown: false }}
+      screenOptions={{
+        headerShown: false,
+        cardStyle: { backgroundColor: theme.background },
+        contentStyle: { backgroundColor: theme.background },
+      }}
       initialRouteName={isAuthenticated ? 'MainTabs' : 'SignIn'}
     >
       <Stack.Screen 
         name="SignIn" 
-        component={SignIn}
+        component={SignInWithActivity}
       />
       <Stack.Screen 
         name="SignUp" 
-        component={SignUp}
+        component={SignUpWithActivity}
       />
       <Stack.Screen 
         name="VerifyEmail" 
-        component={VerifyEmail}
+        component={VerifyEmailWithActivity}
       />
       <Stack.Screen 
         name="ForgotPassword" 
-        component={ForgotPassword}
+        component={ForgotPasswordWithActivity}
       />
       <Stack.Screen 
         name="MainTabs" 
-        component={TabNavigator}
+        component={TabNavigatorWithActivity}
       />
       <Stack.Screen 
         name="Settings" 
-        component={Settings}
+        component={SettingsWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="ProfileSettings" 
-        component={ProfileSettings}
+        component={ProfileSettingsWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="PersonalizationSettings" 
-        component={PersonalizationSettings}
+        component={PersonalizationSettingsWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="NotificationSettings" 
-        component={NotificationSettings}
+        component={NotificationSettingsWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen
         name="SuggestionSettings"
-        component={SuggestionSettings}
+        component={SuggestionSettingsWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="AccountSettings" 
-        component={AccountSettings}
+        component={AccountSettingsWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="ChatSettings" 
-        component={ChatSettings}
+        component={ChatSettingsWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="BlockList" 
-        component={BlockList}
+        component={BlockListWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="SavedPosts" 
-        component={SavedPosts}
+        component={SavedPostsWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="ChangePassword" 
-        component={ChangePassword}
+        component={ChangePasswordWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="PostDetails" 
-        component={PostDetails}
+        component={PostDetailsWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="EditPost" 
-        component={EditPost}
+        component={EditPostWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="ChatRoom" 
-        component={ChatRoom}
-        options={{ headerShown: true }}
+        component={ChatRoomWithActivity}
+        options={{
+          headerShown: true,
+          cardStyle: { backgroundColor: theme.background },
+          contentStyle: { backgroundColor: theme.background },
+        }}
       />
       <Stack.Screen 
         name="NewChat" 
-        component={NewChat}
+        component={NewChatWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="UserSearch" 
-        component={UserSearch}
+        component={UserSearchWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="CreateGroup" 
-        component={CreateGroup}
+        component={CreateGroupWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="GroupSettings" 
-        component={GroupSettings}
+        component={GroupSettingsWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="AddMembers" 
-        component={AddMembers}
+        component={AddMembersWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="ForwardMessage" 
-        component={ForwardMessage}
+        component={ForwardMessageWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="UserProfile" 
-        component={UserProfile}
+        component={UserProfileWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="FollowList" 
-        component={FollowList}
+        component={FollowListWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="ManageRepresentatives" 
-        component={ManageRepresentatives}
+        component={ManageRepresentativesWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="RepVoting" 
-        component={RepVotingScreen}
+        component={RepVotingScreenWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="ReselectionRequest" 
-        component={ReselectionRequestScreen}
+        component={ReselectionRequestScreenWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="Notifications" 
-        component={Notifications}
+        component={NotificationsWithActivity}
         options={{ headerShown: false }}
       />
       <Stack.Screen
         name="LectureChannel"
-        component={LectureChannel}
+        component={LectureChannelWithActivity}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>
@@ -1272,6 +1359,50 @@ const GlobalCustomAlert = () => {
   );
 };
 
+const AppNavigationRoot = ({ navigationRef, pendingRouteRef, coldStartTrace }) => {
+  const { theme, isDarkMode } = useAppSettings();
+  const navigationTheme = useMemo(() => {
+    const baseTheme = isDarkMode ? DarkTheme : DefaultTheme;
+    return {
+      ...baseTheme,
+      colors: {
+        ...baseTheme.colors,
+        primary: theme.primary,
+        background: theme.background,
+        card: theme.card || theme.backgroundSecondary || theme.background,
+        text: theme.text,
+        border: theme.border,
+        notification: theme.primary,
+      },
+    };
+  }, [isDarkMode, theme.background, theme.backgroundSecondary, theme.border, theme.card, theme.primary, theme.text]);
+
+  return (
+    <NavigationContainer
+      ref={navigationRef}
+      theme={navigationTheme}
+      onReady={() => {
+        if (coldStartTrace.current) {
+          coldStartTrace.current.finish({ success: true });
+          coldStartTrace.current = null;
+        }
+        if (pendingRouteRef.current && navigationRef.isReady()) {
+          const { name, params } = pendingRouteRef.current;
+          pendingRouteRef.current = null;
+          navigationRef.navigate(name, params);
+        }
+      }}>
+      <RealtimeLifecycleManager />
+      <CrashReportingUserSync />
+      <LastSeenTracker />
+      <NotificationSetup navigationRef={navigationRef} />
+      <DeepLinkHandler navigationRef={navigationRef} pendingRouteRef={pendingRouteRef} />
+      <UpdatePrompt />
+      <MainStack />
+    </NavigationContainer>
+  );
+};
+
 export default function App() {
   const navigationRef = useNavigationContainerRef();
   const pendingRouteRef = useRef(null);
@@ -1285,27 +1416,11 @@ export default function App() {
             <AppSettingsProvider>
               <UserProvider>
                 <GlobalAlertProvider>
-                  <NavigationContainer
-                    ref={navigationRef}
-                    onReady={() => {
-                      if (coldStartTrace.current) {
-                        coldStartTrace.current.finish({ success: true });
-                        coldStartTrace.current = null;
-                      }
-                      if (pendingRouteRef.current && navigationRef.isReady()) {
-                        const { name, params } = pendingRouteRef.current;
-                        pendingRouteRef.current = null;
-                        navigationRef.navigate(name, params);
-                      }
-                    }}>
-                    <RealtimeLifecycleManager />
-                    <CrashReportingUserSync />
-                    <LastSeenTracker />
-                    <NotificationSetup navigationRef={navigationRef} />
-                    <DeepLinkHandler navigationRef={navigationRef} pendingRouteRef={pendingRouteRef} />
-                    <UpdatePrompt />
-                    <MainStack />
-                  </NavigationContainer>
+                  <AppNavigationRoot
+                    navigationRef={navigationRef}
+                    pendingRouteRef={pendingRouteRef}
+                    coldStartTrace={coldStartTrace}
+                  />
                   <GlobalCustomAlert />
                 </GlobalAlertProvider>
               </UserProvider>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,7 @@ const LAST_GREETING_DATE_KEY = '@last_greeting_date';
 const GreetingBanner = () => {
   const { t, isDarkMode, reduceMotion, compactMode } = useAppSettings();
   const { user } = useUser();
-  const [greeting, setGreeting] = useState({ text: '', icon: 'sunny-outline' });
+  const [greeting, setGreeting] = useState({ key: '', icon: 'sunny-outline', appendName: false });
   
   // Animated values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -346,21 +346,33 @@ const GreetingBanner = () => {
     }
 
     const selectedGreeting = greetings[newIndex];
-    let greetingText = t(selectedGreeting.key);
-    
-    // Replace {name} placeholder if present
-    if (firstName && greetingText.includes('{name}')) {
-      greetingText = greetingText.replace('{name}', firstName);
-    } else if (firstName && Math.random() > 0.5) {
-      // Sometimes add name at the end
-      greetingText = `${greetingText}, ${firstName}!`;
-    }
 
     return {
-      text: greetingText,
+      key: selectedGreeting.key,
       icon: getGreetingIcon(period, selectedGreeting.type),
+      appendName: Boolean(firstName && Math.random() > 0.5),
     };
-  }, [t, user?.name, getTimeContext, getGreetingIcon]);
+  }, [user?.name, getTimeContext, getGreetingIcon]);
+
+  const greetingText = useMemo(() => {
+    const key = String(greeting?.key || '').trim();
+    if (!key) {
+      return '';
+    }
+
+    const firstName = user?.name?.split(' ')[0] || '';
+    let text = t(key);
+
+    if (firstName && text.includes('{name}')) {
+      return text.replace('{name}', firstName);
+    }
+
+    if (firstName && greeting?.appendName) {
+      text = `${text}, ${firstName}!`;
+    }
+
+    return text;
+  }, [greeting?.appendName, greeting?.key, t, user?.name]);
 
   // Initialize greeting on mount
   useEffect(() => {
@@ -545,7 +557,7 @@ const GreetingBanner = () => {
             ]}
             numberOfLines={1}
           >
-            {greeting.text}
+            {greetingText}
           </Text>
         </View>
 

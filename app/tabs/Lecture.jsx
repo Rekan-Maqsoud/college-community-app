@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -39,6 +39,7 @@ import { CHAT_TYPES, getChats } from '../../database/chats';
 import { wp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
+import telemetry from '../utils/telemetry';
 
 const CHANNEL_FILTERS = {
   ALL: 'all',
@@ -50,9 +51,6 @@ const LECTURE_WINDOWS = {
   COMMUNITY: 'community',
   OFFICIAL: 'official',
 };
-
-const logLectureTab = () => {};
-const logLectureTabError = () => {};
 
 const parseLectureSuggestionSettings = (settingsJson) => {
   if (!settingsJson) {
@@ -322,6 +320,20 @@ const Lecture = ({ navigation }) => {
   const [channelMenuTarget, setChannelMenuTarget] = useState(null);
   const [pinnedChannelIds, setPinnedChannelIds] = useState([]);
   const [joiningChannelId, setJoiningChannelId] = useState(null);
+  const lastRealtimeReloadAtRef = useRef(0);
+  const realtimeReloadTimeoutRef = useRef(null);
+  const loadChannelsInFlightRef = useRef(false);
+
+  const logLectureTab = useCallback((name, meta = {}) => {
+    telemetry.recordEvent(`lecture_${name}`, meta);
+  }, []);
+
+  const logLectureTabError = useCallback((name, error, meta = {}) => {
+    telemetry.recordEvent(`lecture_${name}`, {
+      ...meta,
+      error: error?.message || String(error || ''),
+    });
+  }, []);
 
   const myChannelIds = useMemo(() => new Set((myChannels || []).map(channel => channel.$id)), [myChannels]);
   const pendingChannelIdSet = useMemo(() => new Set((pendingChannelIds || []).filter(Boolean)), [pendingChannelIds]);
@@ -488,11 +500,23 @@ const Lecture = ({ navigation }) => {
     await persistPinnedChannels(next);
   }, [persistPinnedChannels, pinnedChannelIdSet, pinnedChannelIds]);
 
-  const loadChannels = useCallback(async ({ showLoading = true } = {}) => {
+  const loadChannels = useCallback(async ({ showLoading = true, searchValue = '' } = {}) => {
+    if (loadChannelsInFlightRef.current && !showLoading) {
+      return;
+    }
+
+    loadChannelsInFlightRef.current = true;
+    const loadTrace = telemetry.startTrace('lecture_tab_load_channels', {
+      filter,
+      hasSearch: !!searchValue,
+      showLoading,
+      userId: primaryActorId,
+    });
+
     logLectureTab('loadChannels:start', {
       showLoading,
       filter,
-      hasSearch: !!search,
+      hasSearch: !!searchValue,
       userId: primaryActorId,
     });
 
@@ -503,7 +527,7 @@ const Lecture = ({ navigation }) => {
 
       const [channels, mine, pendingIds] = await Promise.all([
         getLectureChannels({
-          search,
+          search: searchValue,
           channelType: 'all',
           limit: 50,
           offset: 0,
@@ -515,38 +539,83 @@ const Lecture = ({ navigation }) => {
       setAllChannels(channels);
       setMyChannels(mine);
       setPendingChannelIds(pendingIds);
+      loadTrace.finish({
+        success: true,
+        meta: {
+          channelsCount: channels.length,
+          myChannelsCount: mine.length,
+          pendingCount: pendingIds.length,
+        },
+      });
       logLectureTab('loadChannels:success', {
         channelsCount: channels.length,
         myChannelsCount: mine.length,
         pendingCount: pendingIds.length,
       });
     } catch (error) {
+      loadTrace.finish({ success: false, error });
       logLectureTabError('loadChannels:error', error, {
         filter,
-        hasSearch: !!search,
+        hasSearch: !!searchValue,
       });
     } finally {
+      loadChannelsInFlightRef.current = false;
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filter, primaryActorId, search]);
+  }, [filter, logLectureTab, logLectureTabError, primaryActorId]);
 
   React.useEffect(() => {
+    if (!primaryActorId) {
+      setLoading(false);
+      return;
+    }
+
     logLectureTab('effect:initialLoad', {});
-    loadChannels();
+    loadChannels({ showLoading: true, searchValue: '' });
     loadAvailableGroups();
     loadPinnedChannels();
     loadRepresentativeAccess();
-  }, [loadAvailableGroups, loadChannels, loadPinnedChannels, loadRepresentativeAccess]);
+  }, [loadAvailableGroups, loadPinnedChannels, loadRepresentativeAccess, primaryActorId]);
 
-  useLectureChannelsRealtime(() => {
-    loadChannels({ showLoading: false });
-  }, true);
+  const handleLectureRealtimeChange = useCallback(() => {
+    const now = Date.now();
+    const minIntervalMs = 1500;
+    const elapsed = now - lastRealtimeReloadAtRef.current;
+
+    if (elapsed >= minIntervalMs) {
+      lastRealtimeReloadAtRef.current = now;
+      loadChannels({ showLoading: false, searchValue: search });
+      return;
+    }
+
+    if (realtimeReloadTimeoutRef.current) {
+      return;
+    }
+
+    const waitMs = Math.max(0, minIntervalMs - elapsed);
+    realtimeReloadTimeoutRef.current = setTimeout(() => {
+      realtimeReloadTimeoutRef.current = null;
+      lastRealtimeReloadAtRef.current = Date.now();
+      loadChannels({ showLoading: false, searchValue: search });
+    }, waitMs);
+  }, [loadChannels, search]);
+
+  useLectureChannelsRealtime(handleLectureRealtimeChange, true);
+
+  useEffect(() => {
+    return () => {
+      if (realtimeReloadTimeoutRef.current) {
+        clearTimeout(realtimeReloadTimeoutRef.current);
+        realtimeReloadTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const refresh = async () => {
     setRefreshing(true);
     await Promise.all([
-      loadChannels({ showLoading: false }),
+      loadChannels({ showLoading: false, searchValue: search }),
       loadAvailableGroups(),
       loadRepresentativeAccess(),
     ]);
@@ -569,7 +638,7 @@ const Lecture = ({ navigation }) => {
       setCreateLoading(true);
       const channel = await createLectureChannel(payload);
       setCreateOpen(false);
-      await loadChannels({ showLoading: false });
+      await loadChannels({ showLoading: false, searchValue: search });
       navigation.navigate('LectureChannel', {
         channelId: channel.$id,
       });
@@ -591,7 +660,7 @@ const Lecture = ({ navigation }) => {
       const joinStatus = membership?.joinStatus || 'pending';
 
       if (joinStatus === 'approved') {
-        await loadChannels({ showLoading: false });
+        await loadChannels({ showLoading: false, searchValue: search });
         logLectureTab('requestJoin:approved', { channelId });
       } else {
         setPendingChannelIds(prev => [...new Set([...(prev || []), channelId])]);
@@ -779,7 +848,7 @@ const Lecture = ({ navigation }) => {
             <TextInput
               value={search}
               onChangeText={setSearch}
-              onSubmitEditing={() => loadChannels()}
+              onSubmitEditing={() => loadChannels({ showLoading: true, searchValue: search })}
               placeholder={t('lectures.searchPlaceholder')}
               placeholderTextColor={colors.textSecondary}
               style={[styles.searchInput, { color: colors.text }]}
@@ -787,7 +856,7 @@ const Lecture = ({ navigation }) => {
               returnKeyType="search"
             />
             {search.length > 0 && (
-              <TouchableOpacity onPress={() => { setSearch(''); loadChannels(); }}>
+              <TouchableOpacity onPress={() => { setSearch(''); loadChannels({ showLoading: true, searchValue: '' }); }}>
                 <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
               </TouchableOpacity>
             )}

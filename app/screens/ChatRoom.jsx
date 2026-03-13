@@ -793,7 +793,7 @@ const ChatRoom = ({ route, navigation }) => {
       return Math.max(firstUnreadMessageIndex - 1, 0);
     }
 
-    return undefined;
+    return Math.max(memoizedMessages.length - 1, 0);
   }, [chatViewportState?.messageId, firstUnreadMessageIndex, loading, memoizedMessages]);
 
   const persistViewport = useCallback(() => {
@@ -992,15 +992,28 @@ const ChatRoom = ({ route, navigation }) => {
     const savedViewportMessageId = String(chatViewportState?.messageId || '').trim();
     const savedScrollOffset = Math.max(0, Number(chatViewportState?.scrollOffset || 0));
 
-    if (savedViewportMessageId && savedScrollOffset > 0 && flatListRef.current) {
+    if (savedViewportMessageId && flatListRef.current) {
+      const savedIndex = memoizedMessages.findIndex((message) => message?.$id === savedViewportMessageId);
+
       requestAnimationFrame(() => {
-        flatListRef.current?.scrollToOffset({
-          offset: savedScrollOffset,
-          animated: false,
-        });
+        if (savedIndex >= 0) {
+          flatListRef.current?.scrollToIndex({
+            index: savedIndex,
+            animated: false,
+            viewPosition: 0,
+          });
+          return;
+        }
+
+        if (savedScrollOffset > 0) {
+          flatListRef.current?.scrollToOffset({
+            offset: savedScrollOffset,
+            animated: false,
+          });
+        }
       });
     }
-  }, [chatViewportState?.messageId, chatViewportState?.scrollOffset, flatListRef, loading, memoizedMessages.length]);
+  }, [chatViewportState?.messageId, chatViewportState?.scrollOffset, flatListRef, loading, memoizedMessages]);
 
   useEffect(() => {
     const unsubscribeBlur = navigation.addListener('blur', () => {
@@ -1196,7 +1209,7 @@ const ChatRoom = ({ route, navigation }) => {
   ), [canMentionEveryone, canSend, cancelReply, chat.requiresRepresentative, chat.type, chatOnlyBlockedBannerStyle, chatStyle, copySelectionTextStyle, deleteSelectionTextStyle, excludedMentionUserIds, flatListRef, fullBlockedBannerStyle, groupMembers, handleBatchCopy, handleBatchDeleteForMe, handleListScroll, handleScrollToIndexFailed, handleSendWithHaptic, handleViewableItemsChanged, iBlockedThem, iChatBlockedThem, initialScrollIndex, insets.top, isBlockedChat, isChatOnlyBlocked, isFullyBlockedChat, keyExtractor, maintainVisibleContentPosition, memoizedMessages, renderEmpty, renderEmptyOverlay, renderLoadingOverlay, renderMessage, renderSearchBar, representativeWarningBannerStyle, replyingTo, selectedMessageIds.length, selectedMessagesTextStyle, selectionMode, selectionToolbarStyle, showAlert, t, theme.primary, theme.text, theme.textSecondary, toggleSelectionMode, userFriends, viewabilityConfig]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: backgroundColors[0] || headerBackgroundColor }]}>
       <StatusBar 
         barStyle={isDarkMode ? 'light-content' : 'dark-content'} 
         backgroundColor="transparent"

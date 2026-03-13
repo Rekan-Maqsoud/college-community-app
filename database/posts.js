@@ -113,6 +113,10 @@ export const createPost = async (postData) => {
         // Extract notification-only fields before creating document
         const { userName, fullName, profilePicture: posterPhoto, ...documentData } = postData;
 
+        if (documentData.postType !== 'poll' && Object.prototype.hasOwnProperty.call(documentData, 'pollData')) {
+            delete documentData.pollData;
+        }
+
         if (documentData.pollData && typeof documentData.pollData !== 'string') {
             documentData.pollData = JSON.stringify(documentData.pollData);
         }
@@ -127,7 +131,7 @@ export const createPost = async (postData) => {
             windowMs: 60 * 1000,
         });
 
-        const post = await databases.createDocument({
+        const createPayload = {
             databaseId: config.databaseId,
             collectionId: config.postsCollectionId,
             documentId: ID.unique(),
@@ -138,7 +142,21 @@ export const createPost = async (postData) => {
                 Permission.update(Role.user(currentUserId)),
                 Permission.delete(Role.user(currentUserId)),
             ]
-        });
+        };
+
+        let post;
+        try {
+            post = await databases.createDocument(createPayload);
+        } catch (error) {
+            const hasPollData = Object.prototype.hasOwnProperty.call(documentData, 'pollData');
+            if (hasPollData && isSchemaAttributeError(error)) {
+                delete documentData.pollData;
+                createPayload.data = documentData;
+                post = await databases.createDocument(createPayload);
+            } else {
+                throw error;
+            }
+        }
         
         // Invalidate posts cache for the department
         await postsCacheManager.invalidatePostsCache(documentData.department);
