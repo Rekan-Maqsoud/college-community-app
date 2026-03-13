@@ -607,8 +607,8 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   }, [chat.otherUser?.$id, chat.otherUser?.id, chat.participants, chat.type, user?.$id]);
 
   useEffect(() => {
-    isMountedRef.current = true;
     if (!chat?.$id || !user?.$id) {
+      isMountedRef.current = false;
       return () => {
         isMountedRef.current = false;
       };
@@ -621,6 +621,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
       };
     }
 
+    isMountedRef.current = true;
     initKeyRef.current = nextInitKey;
     setLoading(true);
 

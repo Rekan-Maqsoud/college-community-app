@@ -31,7 +31,7 @@ import {
   VALIDATION_RULES,
   MAX_IMAGES_PER_POST,
 } from '../constants/postConstants';
-import { uploadImage } from '../../services/imgbbService';
+import { uploadImage, deleteMultipleImages } from '../../services/imgbbService';
 import { updatePost } from '../../database/posts';
 import { createPollPayload, parsePollPayload } from '../utils/pollUtils';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
@@ -217,6 +217,8 @@ const EditPost = ({ navigation, route }) => {
   const handleUpdatePost = async () => {
     if (!validateForm()) return;
 
+    const newImageDeleteUrls = [];
+
     try {
       setLoading(true);
 
@@ -231,6 +233,7 @@ const EditPost = ({ navigation, route }) => {
             const result = await uploadImage(image.uri);
             uploadedImages.push(result.url);
             imageDeleteUrls.push(result.deleteUrl);
+            newImageDeleteUrls.push(result.deleteUrl);
           } catch (error) {
           }
         }
@@ -293,6 +296,9 @@ const EditPost = ({ navigation, route }) => {
 
       navigation.goBack();
     } catch (error) {
+      if (newImageDeleteUrls.length > 0) {
+        deleteMultipleImages(newImageDeleteUrls).catch(() => {});
+      }
       showAlert(
         t('common.error'),
         error.message || t('post.updateError')

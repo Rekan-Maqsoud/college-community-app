@@ -649,6 +649,10 @@ const SignUp = ({ navigation, route }) => {
           await setUserData(userData);
           signUpTrace.finish({ success: true, meta: { path: 'oauth_complete' } });
           navigation.replace('MainTabs');
+        } else {
+          setIsLoading(false);
+          signUpTrace.finish({ success: false, meta: { path: 'oauth_complete_failed' } });
+          showAlert({ type: 'error', title: t('common.error'), message: t('auth.signUpError') });
         }
       } else {
         const result = await initiateSignup(email, password, fullName, additionalData);
