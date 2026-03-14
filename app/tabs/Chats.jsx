@@ -702,6 +702,10 @@ const Chats = ({ navigation }) => {
 
   useEffect(() => {
     if (!isScreenActive) {
+      // Reset the throttle gate so the next time the screen becomes active the
+      // refresh always runs — while inactive the realtime subscription is off
+      // and any new messages for other chats would be missed.
+      lastNetworkSyncAtRef.current = 0;
       return;
     }
 

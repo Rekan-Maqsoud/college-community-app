@@ -95,6 +95,7 @@ const Home = ({ navigation, route }) => {
   const scrollOffsetRef = useRef(0);
   const hasAppliedViewportRef = useRef(false);
   const lastLoadedFeedSignatureRef = useRef('');
+  const loadGenerationRef = useRef(0);
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerTranslateY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
@@ -413,6 +414,8 @@ const Home = ({ navigation, route }) => {
 
     loadingState(true);
 
+    const generation = ++loadGenerationRef.current;
+
     try {
       let fetchedPosts = [];
       const offset = currentPage * POSTS_PER_PAGE;
@@ -498,8 +501,12 @@ const Home = ({ navigation, route }) => {
       }
 
       // Enrich in background so first paint is faster on slower networks/devices.
+      // Guard with a generation counter so a stale enrichment from a previous load
+      // does not overwrite the results of a newer reset load.
       enrichPostsWithUserData(filteredPosts)
         .then((enrichedPosts) => {
+          if (loadGenerationRef.current !== generation) return;
+
           if (!Array.isArray(enrichedPosts) || enrichedPosts.length === 0) {
             return;
           }

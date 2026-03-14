@@ -169,6 +169,8 @@ const SignIn = ({ navigation, route }) => {
             navigation.replace('MainTabs');
             return;
           }
+          // User data couldn't be loaded — clear the stale session and re-authenticate
+          await signOut();
         } else {
           await signOut();
         }

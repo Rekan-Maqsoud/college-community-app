@@ -28,7 +28,7 @@ import {
   VALIDATION_RULES,
   MAX_IMAGES_PER_POST,
 } from '../constants/postConstants';
-import { uploadImage } from '../../services/imgbbService';
+import { uploadImage, deleteMultipleImages } from '../../services/imgbbService';
 import { createPost } from '../../database/posts';
 
 const DRAFT_STORAGE_KEY = 'post_draft';
@@ -277,11 +277,11 @@ const CreatePost = ({ navigation }) => {
   const handleCreatePost = async () => {
     if (!validateForm()) return;
 
+    let uploadedImages = [];
+    let imageDeleteUrls = [];
+
     try {
       setLoading(true);
-
-      let uploadedImages = [];
-      let imageDeleteUrls = [];
 
       if (images.length > 0) {
         showAlert(t('post.uploadingImages'), t('post.pleaseWait'), 'info');
@@ -343,6 +343,9 @@ const CreatePost = ({ navigation }) => {
 
       navigation.goBack();
     } catch (error) {
+      if (imageDeleteUrls.length > 0) {
+        deleteMultipleImages(imageDeleteUrls).catch(() => {});
+      }
       showAlert(
         t('common.error'),
         error?.message || t('post.createError')

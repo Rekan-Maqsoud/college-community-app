@@ -209,8 +209,9 @@ const PostDetails = ({ navigation, route }) => {
       // Background revalidation: fetch fresh from server if cache was stale
       if (repliesWithUserData.length > 0) {
         getRepliesByPost(post.$id, 50, 0, false).then(async (freshReplies) => {
-          if (!freshReplies || freshReplies.length === repliesWithUserData.length) {
-            const sameIds = freshReplies.every((r, i) => r.$id === fetchedReplies[i]?.$id);
+          if (!freshReplies) return;
+          if (freshReplies.length === repliesWithUserData.length) {
+            const sameIds = freshReplies.every((r, i) => r.$id === repliesWithUserData[i]?.$id);
             if (sameIds) return;
           }
           const freshWithUserData = await Promise.all(
@@ -342,6 +343,8 @@ const PostDetails = ({ navigation, route }) => {
   }, [effectiveReplyId, replyParentMap]);
 
   const handleAddReply = async () => {
+    if (isSubmitting) return;
+
     if (!replyText.trim()) {
       showAlert(t('common.error'), t('post.textRequired'), 'error');
       return;
