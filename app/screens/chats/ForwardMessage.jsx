@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   TextInput, 
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -147,7 +149,11 @@ const ForwardMessage = ({ navigation, route }) => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}> 
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+    > 
       <StatusBar 
         barStyle={isDarkMode ? 'light-content' : 'dark-content'} 
         backgroundColor={theme.background}
@@ -220,6 +226,7 @@ const ForwardMessage = ({ navigation, route }) => {
             renderItem={renderChatItem}
             keyExtractor={(item) => item.$id}
             contentContainerStyle={[styles.listContent, contentStyle]}
+            keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
@@ -240,7 +247,7 @@ const ForwardMessage = ({ navigation, route }) => {
         buttons={alertConfig.buttons}
         onDismiss={hideAlert}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 

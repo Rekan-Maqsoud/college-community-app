@@ -1313,6 +1313,17 @@ const DeepLinkHandler = ({ navigationRef, pendingRouteRef }) => {
           const lectureChannelId = parsedPath;
           navigateSafe('LectureChannel', { channelId: lectureChannelId, assetId: lectureAssetId });
         }
+
+        // Handle post deep link
+        // collegecommunity://post/{postId}
+        if (parsedPath && parsedPath.startsWith('post/')) {
+          const deepLinkedPostId = parsedPath.replace('post/', '');
+          if (deepLinkedPostId) {
+            navigateSafe('PostDetails', { postId: deepLinkedPostId, source: 'shared_post' });
+          }
+        } else if (parsedHost === 'post' && parsedPath) {
+          navigateSafe('PostDetails', { postId: parsedPath, source: 'shared_post' });
+        }
       } catch (error) {
         // Silent fail for deep link parsing errors
       }

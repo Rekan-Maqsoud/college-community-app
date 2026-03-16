@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,9 @@ import {
   TextInput, 
   ActivityIndicator,
   Modal,
+  KeyboardAvoidingView,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -22,10 +25,12 @@ import {
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { FlashList } from '@shopify/flash-list';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user } = useUser();
+  const insets = useSafeAreaInsets();
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(null);
@@ -34,14 +39,38 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
   const loadChats = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await getAllUserChats(user.$id, user.department, user.stage);
+      const departmentForGroups = user?.department || 'General';
+      const stageForGroups = user?.stage || user?.year?.toString() || 'General';
+      const result = await getAllUserChats(user.$id, departmentForGroups, stageForGroups);
+      const normalized = Array.isArray(result)
+        ? { defaultGroups: result, customGroups: [], privateChats: [] }
+        : (result || {});
+
       const allChats = [
-        ...(result.defaultGroups || []),
-        ...(result.customGroups || []),
-        ...(result.privateChats || []),
+        ...(Array.isArray(normalized.defaultGroups) ? normalized.defaultGroups : []),
+        ...(Array.isArray(normalized.customGroups) ? normalized.customGroups : []),
+        ...(Array.isArray(normalized.privateChats) ? normalized.privateChats : []),
       ];
-      setChats(allChats);
+
+      const uniqueChats = allChats.filter((chat, index, arr) => {
+        const chatId = chat?.$id || chat?.id;
+        if (!chatId) {
+          return false;
+        }
+        return arr.findIndex((item) => (item?.$id || item?.id) === chatId) === index;
+      });
+
+      console.log('[SharePostToChat] chats:loaded', {
+        userId: user?.$id || '',
+        total: uniqueChats.length,
+      });
+
+      setChats(uniqueChats);
     } catch (error) {
+      console.error('[SharePostToChat] chats:loadError', {
+        userId: user?.$id || '',
+        errorMessage: error?.message || String(error || ''),
+      });
       setChats([]);
     } finally {
       setLoading(false);
@@ -50,17 +79,69 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
 
   useEffect(() => {
     if (visible) {
+      console.log('[SharePostToChat] modal:visible', {
+        visible,
+        postId: post?.$id || '',
+        userId: user?.$id || '',
+        keyboardOffset: Platform.OS === 'ios' ? 12 : insets.bottom + 20,
+        insetsBottom: insets.bottom,
+      });
       loadChats();
     }
-  }, [visible, loadChats]);
+  }, [visible, loadChats, insets.bottom, post?.$id, user?.$id]);
+
+  useEffect(() => {
+    if (!visible) {
+      return undefined;
+    }
+
+    const showSub = Keyboard.addListener('keyboardDidShow', (event) => {
+      console.log('[SharePostToChat] keyboard:show', {
+        height: event?.endCoordinates?.height || 0,
+        duration: event?.duration || 0,
+        keyboardOffset: Platform.OS === 'ios' ? 12 : insets.bottom + 20,
+      });
+    });
+
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      console.log('[SharePostToChat] keyboard:hide', {
+        keyboardOffset: Platform.OS === 'ios' ? 12 : insets.bottom + 20,
+      });
+    });
+
+    return () => {
+      showSub?.remove?.();
+      hideSub?.remove?.();
+    };
+  }, [insets.bottom, visible]);
+
+  const postLinks = useMemo(() => {
+    const postId = post?.$id ? String(post.$id).trim() : '';
+    const app = postId ? `https://collegecommunity.app/post/${postId}` : '';
+    return {
+      postId,
+      app,
+      canonical: app,
+    };
+  }, [post?.$id]);
 
   const handleSendToChat = async (chat) => {
     if (sending) return;
-    setSending(chat.$id);
+    const chatId = chat?.$id || chat?.id;
+    if (!chatId) {
+      console.warn('[SharePostToChat] send:missingChatId', {
+        rawChat: chat || null,
+      });
+      return;
+    }
+
+    setSending(chatId);
 
     try {
       const metadata = {
-        postId: post.$id,
+        postId: postLinks.postId,
+        deepLink: postLinks.canonical,
+        deeplink: postLinks.canonical,
         title: post.topic || '',
         thumbnailUrl: (post.images && post.images.length > 0) ? post.images[0] : '',
         summaryText: post.text ? post.text.substring(0, 150) : '',
@@ -69,14 +150,34 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
       const messageData = {
         content: JSON.stringify(metadata),
         senderId: user.$id,
-        senderName: user.fullName || user.name,
+        senderName: user.fullName || user.name || t('common.user'),
         type: 'post_share',
         metadata,
       };
 
-      await sendMessage(chat.$id, messageData);
+      console.log('[SharePostToChat] send:start', {
+        chatId,
+        postId: metadata.postId,
+        deepLink: metadata.deepLink,
+        deeplink: metadata.deeplink,
+        titleLength: String(metadata.title || '').length,
+        summaryLength: String(metadata.summaryText || '').length,
+      });
+
+      await sendMessage(chatId, messageData);
+      console.log('[SharePostToChat] send:success', {
+        chatId,
+        postId: metadata.postId,
+      });
       onClose();
     } catch (error) {
+      console.error('[SharePostToChat] send:error', {
+        chatId,
+        postId: postLinks.postId,
+        errorMessage: error?.message || String(error || ''),
+        errorCode: error?.code || error?.status || '',
+        errorType: error?.type || '',
+      });
       if (showAlert) {
         showAlert({
           type: 'error',
@@ -90,15 +191,28 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
 
   const getChatName = (chat) => {
     if (chat.type === 'private' && chat.otherUser) {
-      return chat.otherUser.name || chat.otherUser.fullName || chat.name;
+      return chat.otherUser.name || chat.otherUser.fullName || chat.name || t('chats.unknownUser');
     }
-    return chat.name;
+    return chat.name || t('chats.unknownUser');
   };
 
   const filteredChats = chats.filter((chat) => {
-    if (!searchQuery) return true;
-    const name = getChatName(chat).toLowerCase();
-    return name.includes(searchQuery.toLowerCase());
+    const normalizedQuery = String(searchQuery || '').trim().toLowerCase();
+    if (!normalizedQuery) {
+      return true;
+    }
+
+    const searchable = [
+      getChatName(chat),
+      chat?.description || '',
+      chat?.department || '',
+      chat?.stage || '',
+      chat?.type || '',
+    ]
+      .map((value) => String(value || '').toLowerCase())
+      .join(' ');
+
+    return searchable.includes(normalizedQuery);
   });
 
   const renderChatItem = ({ item }) => {
@@ -115,7 +229,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
           },
         ]}
         onPress={() => handleSendToChat(item)}
-        disabled={sending === item.$id}>
+        disabled={sending === (item?.$id || item?.id)}>
         <ProfilePicture
           uri={isPrivate ? item.otherUser?.profilePicture : item.groupPhoto}
           name={chatName}
@@ -131,7 +245,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
             {isPrivate ? t('chats.privateChat') : t('chats.groupChat')}
           </Text>
         </View>
-        {sending === item.$id ? (
+        {sending === (item?.$id || item?.id) ? (
           <ActivityIndicator size="small" color={theme.primary} />
         ) : (
           <Ionicons name="send" size={moderateScale(20)} color={theme.primary} />
@@ -147,11 +261,16 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
       animationType="slide"
       onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View
-          style={[
-            styles.container,
-            { backgroundColor: isDarkMode ? '#1a1a2e' : '#FFFFFF' },
-          ]}>
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoiding}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : insets.bottom + 20}
+        >
+          <View
+            style={[
+              styles.container,
+              { backgroundColor: isDarkMode ? '#1a1a2e' : '#FFFFFF' },
+            ]}>
           {/* Header */}
           <View style={styles.header}>
             <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(18) }]}>
@@ -207,22 +326,27 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
               <ActivityIndicator size="large" color={theme.primary} />
             </View>
           ) : (
-            <FlashList
-              data={filteredChats}
-              renderItem={renderChatItem}
-              keyExtractor={(item) => item.$id}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Text style={[styles.emptyText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
-                    {t('chats.noChatsFound')}
-                  </Text>
-                </View>
-              }
-            />
+            <View style={{ flex: 1, minHeight: 400, width: '100%' }}>
+              <FlashList
+                data={filteredChats}
+                renderItem={renderChatItem}
+                keyExtractor={(item, index) => String(item?.$id || item?.id || `chat-${index}`)}
+                contentContainerStyle={styles.listContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                estimatedItemSize={76}
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <Text style={[styles.emptyText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
+                      {t('chats.noChatsFound')}
+                    </Text>
+                  </View>
+                }
+              />
+            </View>
           )}
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -242,6 +366,11 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     paddingBottom: spacing.xl,
+  },
+  keyboardAvoiding: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   header: {
     flexDirection: 'row',
@@ -301,7 +430,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingBottom: hp(18),
   },
   chatItem: {
     flexDirection: 'row',

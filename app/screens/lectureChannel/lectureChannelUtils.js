@@ -4,7 +4,7 @@ import { extractYouTubeVideoId } from '../../utils/lectureUtils';
 export const buildYouTubeVideoId = (url = '') => extractYouTubeVideoId(url);
 export const YOUTUBE_EMBED_ORIGIN = 'https://collegecommunity.app';
 export const LECTURE_DOWNLOADS_DIR = 'lecture_downloads';
-export const LECTURE_DOWNLOADS_ROOT_FOLDER = 'College Community';
+export const LECTURE_DOWNLOADS_ROOT_FOLDER = 'CollegeCommunity';
 export const LECTURE_DEVICE_DOWNLOADS_URI_KEY = 'lecture_device_downloads_uri';
 export const LECTURE_DEVICE_APP_DOWNLOADS_URI_KEY = 'lecture_device_app_downloads_uri';
 

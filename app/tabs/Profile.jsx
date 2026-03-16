@@ -59,10 +59,6 @@ const Profile = ({ navigation, route }) => {
     });
   };
 
-  const handleShareProfile = async () => {
-    await handleShareQr();
-  };
-
   const handleShareQr = async () => {
     const qrUrl = getQrImageUrl();
 
@@ -666,27 +662,15 @@ const Profile = ({ navigation, route }) => {
         >
           <View style={styles.profileHeader}>
             <View style={styles.headerRightActions}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
                   styles.headerActionButton,
                   {
                     backgroundColor: cardBackground,
                     borderRadius: borderRadius.round,
                   }
-                ]} 
-                onPress={handleShareProfile} 
-                activeOpacity={0.7}>
-                <Ionicons name="share-outline" size={moderateScale(22)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[
-                  styles.headerActionButton,
-                  {
-                    backgroundColor: cardBackground,
-                    borderRadius: borderRadius.round,
-                  }
-                ]} 
-                onPress={() => setShowQRModal(true)} 
+                ]}
+                onPress={() => setShowQRModal(true)}
                 activeOpacity={0.7}>
                 <Ionicons name="qr-code-outline" size={moderateScale(22)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
               </TouchableOpacity>

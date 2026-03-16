@@ -151,6 +151,17 @@ const PostDetails = ({ navigation, route }) => {
     return unsubscribe;
   }, [navigation, post?.$id, user?.$id]);
 
+  useEffect(() => {
+    console.log('[PostDetails] route:params', {
+      postIdFromRoute: routePostId || '',
+      initialPostId: initialPost?.$id || '',
+      routeReplyId: routeReplyId || '',
+      targetReplyId: targetReplyId || '',
+      effectiveReplyId: effectiveReplyId || '',
+      source: source || '',
+    });
+  }, [effectiveReplyId, initialPost?.$id, routePostId, routeReplyId, source, targetReplyId]);
+
   const trackView = async () => {
     if (!post?.$id || !user?.$id || post.userId === user.$id) return;
     try {
@@ -364,6 +375,16 @@ const PostDetails = ({ navigation, route }) => {
     setIsSubmitting(true);
     triggerHaptic('light');
 
+    console.log('[PostDetails] addReply:start', {
+      postId: post?.$id || '',
+      editingReplyId: editingReply?.$id || '',
+      replyingToId: replyingTo?.$id || '',
+      textLength: replyText.trim().length,
+      imageCount: Array.isArray(replyImages) ? replyImages.length : 0,
+      linkCount: Array.isArray(finalLinks) ? finalLinks.length : 0,
+      userId: user?.$id || '',
+    });
+
     try {
       let uploadedImageUrls = [];
       let uploadedImageDeleteUrls = [];
@@ -414,8 +435,22 @@ const PostDetails = ({ navigation, route }) => {
 
       await loadReplies();
       resetForm();
+      console.log('[PostDetails] addReply:success', {
+        postId: post?.$id || '',
+        editingReplyId: editingReply?.$id || '',
+      });
     } catch (error) {
-      showAlert(t('common.error'), t('post.replyError'), 'error');
+      console.error('[PostDetails] addReply:error', {
+        postId: post?.$id || '',
+        editingReplyId: editingReply?.$id || '',
+        replyingToId: replyingTo?.$id || '',
+        errorMessage: error?.message || String(error || ''),
+        errorCode: error?.code || error?.status || '',
+        errorType: error?.type || '',
+        response: error?.response || null,
+      });
+      const serverMessage = typeof error?.message === 'string' ? error.message.trim() : '';
+      showAlert(t('common.error'), serverMessage || t('post.replyError'), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -853,33 +888,35 @@ const PostDetails = ({ navigation, route }) => {
           </View>
         </ScrollView>
 
-        <ReplyInputSection
-          editingReply={editingReply}
-          replyingTo={replyingTo}
-          replyText={replyText}
-          setReplyText={setReplyText}
-          replyImages={replyImages}
-          replyLinks={replyLinks}
-          linkInput={linkInput}
-          showLinksSection={showLinksSection}
-          isSubmitting={isSubmitting}
-          theme={theme}
-          isDarkMode={isDarkMode}
-          t={t}
-          onResetForm={resetForm}
-          onCancelReply={handleCancelReply}
-          onRemoveImage={handleRemoveImage}
-          onRemoveLink={handleRemoveLink}
-          onLinkInputChange={handleLinkInputChange}
-          onAddLink={handleAddLink}
-          onPickImages={handlePickImages}
-          onPickFromGallery={handleGalleryPick}
-          onTakePhoto={handleTakePhoto}
-          onToggleLinksSection={() => setShowLinksSection(!showLinksSection)}
-          onSubmit={handleAddReply}
-          currentUserId={user?.$id}
-          inputRef={replyInputRef}
-        />
+        {!isViewOnlyMode && (
+          <ReplyInputSection
+            editingReply={editingReply}
+            replyingTo={replyingTo}
+            replyText={replyText}
+            setReplyText={setReplyText}
+            replyImages={replyImages}
+            replyLinks={replyLinks}
+            linkInput={linkInput}
+            showLinksSection={showLinksSection}
+            isSubmitting={isSubmitting}
+            theme={theme}
+            isDarkMode={isDarkMode}
+            t={t}
+            onResetForm={resetForm}
+            onCancelReply={handleCancelReply}
+            onRemoveImage={handleRemoveImage}
+            onRemoveLink={handleRemoveLink}
+            onLinkInputChange={handleLinkInputChange}
+            onAddLink={handleAddLink}
+            onPickImages={handlePickImages}
+            onPickFromGallery={handleGalleryPick}
+            onTakePhoto={handleTakePhoto}
+            onToggleLinksSection={() => setShowLinksSection(!showLinksSection)}
+            onSubmit={handleAddReply}
+            currentUserId={user?.$id}
+            inputRef={replyInputRef}
+          />
+        )}
       </KeyboardAvoidingView>
 
       <ImageGalleryModal

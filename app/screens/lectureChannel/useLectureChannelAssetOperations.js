@@ -33,20 +33,12 @@ export const useLectureChannelAssetOperations = ({
   t: _t,
   user,
 }) => {
-  const [activeYoutubeAssetId, setActiveYoutubeAssetId] = useState('');
-  const [youtubePlaybackByAssetId, setYoutubePlaybackByAssetId] = useState({});
   const [downloadsModalOpen, setDownloadsModalOpen] = useState(false);
   const [downloadedFiles, setDownloadedFiles] = useState([]);
   const [activeDownloads, setActiveDownloads] = useState({});
   const [deviceDownloadsUri, setDeviceDownloadsUri] = useState('');
   const [deviceChannelDownloadsUri, setDeviceChannelDownloadsUri] = useState('');
   const [pendingOpenAssetId, setPendingOpenAssetId] = useState(route?.params?.assetId || '');
-
-  const youtubePlaybackRef = React.useRef({});
-
-  React.useEffect(() => {
-    youtubePlaybackRef.current = youtubePlaybackByAssetId;
-  }, [youtubePlaybackByAssetId]);
 
   const activeDownloadsList = useMemo(() => Object.values(activeDownloads || {}), [activeDownloads]);
   const deviceChannelDownloadsUriKey = useMemo(() => getLectureDeviceChannelDownloadsUriKey(channelId), [channelId]);
@@ -417,128 +409,6 @@ export const useLectureChannelAssetOperations = ({
     }
   };
 
-  const resolveYoutubePlayback = useCallback(async (asset) => {
-    const assetId = String(asset?.$id || '').trim();
-    const youtubeUrl = String(asset?.youtubeUrl || '').trim();
-
-    if (!assetId || !youtubeUrl) {
-      return {
-        resolved: true,
-        loading: false,
-        embeddable: false,
-        videoId: '',
-        thumbnailUrl: '',
-        watchUrl: youtubeUrl,
-      };
-    }
-
-    const cached = youtubePlaybackRef.current[assetId];
-    if (cached?.resolved || cached?.loading) {
-      return cached;
-    }
-
-    const videoId = buildYouTubeVideoId(youtubeUrl);
-    const fallbackWatchUrl = getYouTubeWatchUrl(videoId) || youtubeUrl;
-    const fallbackThumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : '';
-
-    if (!videoId) {
-      const invalidState = {
-        resolved: true,
-        loading: false,
-        embeddable: false,
-        videoId: '',
-        thumbnailUrl: '',
-        watchUrl: fallbackWatchUrl,
-      };
-
-      setYoutubePlaybackByAssetId(prev => ({
-        ...prev,
-        [assetId]: invalidState,
-      }));
-
-      return invalidState;
-    }
-
-    setYoutubePlaybackByAssetId(prev => ({
-      ...prev,
-      [assetId]: {
-        ...(prev[assetId] || {}),
-        resolved: false,
-        loading: true,
-        embeddable: false,
-        videoId,
-        thumbnailUrl: fallbackThumbnailUrl,
-        watchUrl: fallbackWatchUrl,
-      },
-    }));
-
-    try {
-      const apiKey = String(config.youtubeApiKey || process.env.EXPO_PUBLIC_YOUTUBE_API_KEY || '').trim();
-      if (!apiKey) {
-        const missingKeyState = {
-          resolved: true,
-          loading: false,
-          embeddable: false,
-          videoId,
-          thumbnailUrl: fallbackThumbnailUrl,
-          watchUrl: fallbackWatchUrl,
-        };
-
-        setYoutubePlaybackByAssetId(prev => ({
-          ...prev,
-          [assetId]: missingKeyState,
-        }));
-
-        return missingKeyState;
-      }
-
-      const response = await fetch(
-        `https://www.googleapis.com/youtube/v3/videos?part=status,snippet&id=${encodeURIComponent(videoId)}&key=${encodeURIComponent(apiKey)}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`YOUTUBE_STATUS_HTTP_${response.status}`);
-      }
-
-      const payload = await response.json();
-      const video = Array.isArray(payload?.items) ? payload.items[0] : null;
-      const embeddable = !!video?.status?.embeddable;
-      const thumbnailUrl = getYouTubeThumbnailUrl(video?.snippet, videoId);
-
-      const resolvedState = {
-        resolved: true,
-        loading: false,
-        embeddable,
-        videoId,
-        thumbnailUrl,
-        watchUrl: fallbackWatchUrl,
-      };
-
-      setYoutubePlaybackByAssetId(prev => ({
-        ...prev,
-        [assetId]: resolvedState,
-      }));
-
-      return resolvedState;
-    } catch {
-      const fallbackState = {
-        resolved: true,
-        loading: false,
-        embeddable: false,
-        videoId,
-        thumbnailUrl: fallbackThumbnailUrl,
-        watchUrl: fallbackWatchUrl,
-      };
-
-      setYoutubePlaybackByAssetId(prev => ({
-        ...prev,
-        [assetId]: fallbackState,
-      }));
-
-      return fallbackState;
-    }
-  }, []);
-
   const openAsset = async (asset) => {
     if (!asset) {
       return;
@@ -565,30 +435,24 @@ export const useLectureChannelAssetOperations = ({
     }
 
     if (asset.uploadType === LECTURE_UPLOAD_TYPES.YOUTUBE && asset.youtubeUrl) {
-      const playback = await resolveYoutubePlayback(asset);
-      const videoId = playback?.videoId || '';
-      if (videoId) {
-        await markAssetInteraction(asset, 'view');
-        await markAssetInteraction(asset, 'open');
+      const videoId = buildYouTubeVideoId(asset.youtubeUrl);
+      const urlToOpen = asset.youtubeUrl;
+      
+      await markAssetInteraction(asset, 'view');
+      await markAssetInteraction(asset, 'open');
 
-        logLectureChannel('openAsset:youtube', {
+      logLectureChannel('openAsset:youtube', {
+        channelId,
+        assetId: asset.$id,
+        videoId,
+      });
+
+      try {
+        await Linking.openURL(urlToOpen);
+      } catch (error) {
+        logLectureChannelError('openAsset:youtube:error', error, {
           channelId,
           assetId: asset.$id,
-          videoId,
-          embeddable: !!playback?.embeddable,
-        });
-
-        if (!playback?.embeddable) {
-          setActiveYoutubeAssetId('');
-          return;
-        }
-
-        setActiveYoutubeAssetId(prev => (prev === asset.$id ? '' : asset.$id));
-      } else {
-        logLectureChannel('openAsset:youtubeInvalidId', {
-          channelId,
-          assetId: asset.$id,
-          youtubeUrl: asset.youtubeUrl,
         });
       }
       return;
@@ -659,7 +523,6 @@ export const useLectureChannelAssetOperations = ({
 
   return {
     activeDownloadsList,
-    activeYoutubeAssetId,
     deviceChannelDownloadsUri,
     downloadedFiles,
     downloadsModalOpen,
@@ -668,10 +531,7 @@ export const useLectureChannelAssetOperations = ({
     openAsset,
     openLocalFile,
     removeDownloadedFile,
-    resolveYoutubePlayback,
-    setActiveYoutubeAssetId,
     setDeviceChannelDownloadsUri,
     setDownloadsModalOpen,
-    youtubePlaybackByAssetId,
   };
 };

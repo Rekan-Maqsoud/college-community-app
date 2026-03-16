@@ -56,6 +56,9 @@ const DownloadManagerModal = ({
             <FlashList
               data={downloadedFiles}
               keyExtractor={(item) => item.id}
+              estimatedItemSize={78}
+              style={styles.savedList}
+              contentContainerStyle={downloadedFiles.length === 0 ? styles.savedListEmpty : undefined}
               renderItem={({ item }) => (
                 <View style={[styles.rowCard, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}> 
                   <View style={styles.rowTop}>
@@ -127,6 +130,14 @@ const styles = StyleSheet.create({
   section: {
     marginTop: spacing.xs,
     marginBottom: spacing.sm,
+  },
+  savedList: {
+    minHeight: moderateScale(180),
+    maxHeight: moderateScale(320),
+  },
+  savedListEmpty: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   sectionTitle: {
     fontSize: fontSize(13),

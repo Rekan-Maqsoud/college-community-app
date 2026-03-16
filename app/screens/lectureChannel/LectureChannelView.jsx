@@ -48,16 +48,13 @@ const LectureChannelView = ({
 
   const {
     activeDownloadsList,
-    activeYoutubeAssetId,
     downloadedFiles,
     downloadsModalOpen,
     handleDownloadAsset,
     openAsset,
     openLocalFile,
     removeDownloadedFile,
-    resolveYoutubePlayback,
     setDownloadsModalOpen,
-    youtubePlaybackByAssetId,
   } = assetOps;
 
   const {
@@ -148,7 +145,6 @@ const LectureChannelView = ({
           )}
 
           <LectureAssetsList
-            activeYoutubeAssetId={activeYoutubeAssetId}
             assetListData={assetListData}
             canViewAssetInfo={actionState.canViewAssetInfo}
             colors={colors}
@@ -157,11 +153,9 @@ const LectureChannelView = ({
             openAsset={openAsset}
             openAssetMenu={openAssetMenu}
             openComments={openComments}
-            resolveYoutubePlayback={resolveYoutubePlayback}
             setAssetStatsOpen={setAssetStatsOpen}
             setAssetStatsTarget={setAssetStatsTarget}
             t={t}
-            youtubePlaybackByAssetId={youtubePlaybackByAssetId}
           />
         </ScrollView>
 

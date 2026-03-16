@@ -34,15 +34,9 @@ import {
 import { useLectureChannelControllerActions } from './useLectureChannelControllerActions';
 
 const logLectureChannel = (event, payload = {}) => {
-  console.log('[LectureChannelController]', event, payload);
 };
 
 const logLectureChannelError = (event, error, payload = {}) => {
-  console.error('[LectureChannelController]', event, {
-    ...payload,
-    errorMessage: error?.message || String(error || ''),
-    errorCode: error?.code || error?.status || '',
-  });
 };
 
 export const useLectureChannelController = ({ channelId, navigation }) => {

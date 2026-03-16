@@ -36,6 +36,13 @@ const getChangedIds = (before = [], after = []) => {
 
 export const createReply = async (replyData) => {
     try {
+        console.log('[RepliesDB] createReply:start', {
+            hasReplyData: !!replyData,
+            postId: replyData?.postId || '',
+            hasText: typeof replyData?.text === 'string' && replyData.text.trim().length > 0,
+            parentReplyId: replyData?.parentReplyId || '',
+        });
+
         if (!replyData || typeof replyData !== 'object') {
             throw new Error('Invalid reply data');
         }
@@ -50,22 +57,75 @@ export const createReply = async (replyData) => {
             userId: currentUserId,
         };
 
+        const normalizedText = typeof effectiveReplyData.text === 'string'
+            ? effectiveReplyData.text.trim()
+            : '';
+        if (!normalizedText) {
+            throw new Error('Reply text is required');
+        }
+
+        if (normalizedText.length > 500) {
+            throw new Error('Reply text is too long');
+        }
+
+        const sanitizeStringArray = (value) => {
+            if (!Array.isArray(value)) {
+                return [];
+            }
+
+            return value
+                .map((item) => String(item || '').trim())
+                .filter(Boolean);
+        };
+
+        const payload = {
+            postId: effectiveReplyData.postId,
+            userId: currentUserId,
+            text: normalizedText,
+            isAccepted: Boolean(effectiveReplyData.isAccepted),
+            images: sanitizeStringArray(effectiveReplyData.images),
+            imageDeleteUrls: sanitizeStringArray(effectiveReplyData.imageDeleteUrls),
+            links: sanitizeStringArray(effectiveReplyData.links),
+            upvotedBy: sanitizeStringArray(effectiveReplyData.upvotedBy),
+            downvotedBy: sanitizeStringArray(effectiveReplyData.downvotedBy),
+            upCount: Number.isFinite(Number(effectiveReplyData.upCount)) ? Number(effectiveReplyData.upCount) : 0,
+            downCount: Number.isFinite(Number(effectiveReplyData.downCount)) ? Number(effectiveReplyData.downCount) : 0,
+            likeCount: Number.isFinite(Number(effectiveReplyData.likeCount)) ? Number(effectiveReplyData.likeCount) : 0,
+            isEdited: Boolean(effectiveReplyData.isEdited),
+        };
+
+        const parentReplyId = typeof effectiveReplyData.parentReplyId === 'string'
+            ? effectiveReplyData.parentReplyId.trim()
+            : '';
+        if (parentReplyId) {
+            payload.parentReplyId = parentReplyId;
+        }
+
         const post = await databases.getDocument({
             databaseId: config.databaseId,
             collectionId: config.postsCollectionId,
-            documentId: effectiveReplyData.postId,
+            documentId: payload.postId,
+        });
+
+        console.log('[RepliesDB] createReply:postFetched', {
+            postId: payload.postId,
+            postOwnerId: post?.userId || '',
+            currentUserId,
         });
 
         const replyPermissions = [
             Permission.read(Role.users()),
             Permission.update(Role.users()),
-            Permission.update(Role.user(currentUserId)),
             Permission.delete(Role.user(currentUserId)),
         ];
 
-        if (post?.userId && post.userId !== currentUserId) {
-            replyPermissions.push(Permission.delete(Role.user(post.userId)));
-        }
+        const uniqueReplyPermissions = Array.from(new Set(replyPermissions));
+
+        console.log('[RepliesDB] createReply:permissions', {
+            postId: payload.postId,
+            currentUserId,
+            permissions: uniqueReplyPermissions,
+        });
 
         enforceRateLimit({
             action: 'create_reply',
@@ -78,11 +138,17 @@ export const createReply = async (replyData) => {
             databaseId: config.databaseId,
             collectionId: config.repliesCollectionId,
             documentId: ID.unique(),
-            data: effectiveReplyData,
-            permissions: replyPermissions,
+            data: payload,
+            permissions: uniqueReplyPermissions,
         });
 
-        await incrementPostReplyCount(effectiveReplyData.postId);
+        console.log('[RepliesDB] createReply:success', {
+            postId: payload.postId,
+            replyId: reply?.$id || '',
+            parentReplyId: payload.parentReplyId || '',
+        });
+
+        await incrementPostReplyCount(payload.postId);
 
         try {
             const [actor, post] = await Promise.all([
@@ -92,13 +158,13 @@ export const createReply = async (replyData) => {
 
             const actorName = actor?.name || actor?.fullName || 'Someone';
             const actorPhoto = actor?.profilePicture || null;
-            const replyTextPreview = (effectiveReplyData.text || '').trim();
+            const replyTextPreview = (payload.text || '').trim();
 
-            if (effectiveReplyData.parentReplyId) {
+            if (payload.parentReplyId) {
                 const parentReply = await databases.getDocument({
                     databaseId: config.databaseId,
                     collectionId: config.repliesCollectionId,
-                    documentId: effectiveReplyData.parentReplyId,
+                    documentId: payload.parentReplyId,
                 });
 
                 if (parentReply?.userId && parentReply.userId !== currentUserId) {
@@ -107,7 +173,7 @@ export const createReply = async (replyData) => {
                         currentUserId,
                         actorName,
                         actorPhoto,
-                        effectiveReplyData.postId,
+                        payload.postId,
                         replyTextPreview,
                         parentReply.$id,
                         reply?.$id
@@ -121,7 +187,7 @@ export const createReply = async (replyData) => {
                     currentUserId,
                     actorName,
                     actorPhoto,
-                    effectiveReplyData.postId,
+                    payload.postId,
                     replyTextPreview,
                     reply?.$id
                 ).catch(() => {
@@ -133,10 +199,18 @@ export const createReply = async (replyData) => {
         }
         
         // Invalidate replies cache for this post
-        await repliesCacheManager.invalidateReplies(effectiveReplyData.postId);
+        await repliesCacheManager.invalidateReplies(payload.postId);
 
         return reply;
     } catch (error) {
+        console.error('[RepliesDB] createReply:error', {
+            postId: replyData?.postId || '',
+            parentReplyId: replyData?.parentReplyId || '',
+            errorMessage: error?.message || String(error || ''),
+            errorCode: error?.code || error?.status || '',
+            errorType: error?.type || '',
+            response: error?.response || null,
+        });
         throw error;
     }
 };

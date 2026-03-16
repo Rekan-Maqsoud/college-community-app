@@ -18,12 +18,6 @@ const LectureChannelHeader = ({
   t,
 }) => {
   React.useEffect(() => {
-    console.log('[LectureChannelHeader]', 'visibility', {
-      channelName: channelName || '',
-      canUpload,
-      isManager,
-      activeDownloadsCount,
-    });
   }, [activeDownloadsCount, canUpload, channelName, isManager]);
 
   return (
@@ -44,7 +38,6 @@ const LectureChannelHeader = ({
         {canUpload && (
           <TouchableOpacity
             onPress={() => {
-              console.log('[LectureChannelHeader]', 'press_upload');
               onOpenUploadComposer();
             }}
             style={[styles.headerMenuBtn, { borderColor: colors.border, backgroundColor: colors.card }]}>
@@ -55,7 +48,6 @@ const LectureChannelHeader = ({
         {isManager && (
           <TouchableOpacity
             onPress={() => {
-              console.log('[LectureChannelHeader]', 'press_organizer');
               onOpenOrganizer();
             }}
             style={[styles.headerMenuBtn, { borderColor: colors.border, backgroundColor: colors.card }]}>
@@ -66,7 +58,6 @@ const LectureChannelHeader = ({
         {isManager && (
           <TouchableOpacity
             onPress={() => {
-              console.log('[LectureChannelHeader]', 'press_settings');
               onOpenSettings();
             }}
             style={[styles.headerMenuBtn, { borderColor: colors.border, backgroundColor: colors.card }]}>

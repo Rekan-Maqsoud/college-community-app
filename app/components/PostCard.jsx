@@ -5,7 +5,6 @@ import {
   Image,
   TouchableOpacity,
   Share,
-  Linking,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { isPostBookmarked, togglePostBookmark } from '../utils/bookmarkService';
@@ -31,6 +30,7 @@ import ImageWithPlaceholder from './ImageWithPlaceholder';
 import SharePostToChat from './SharePostToChat';
 import CustomAlert from './CustomAlert';
 import PostLikesModal from './PostLikesModal';
+import PostViewModal from './PostViewModal';
 import useCustomAlertHook from '../hooks/useCustomAlert';
 import { 
   postCardStyles as styles, 
@@ -63,6 +63,7 @@ const PostCard = ({
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlertHook();
   const [showMenu, setShowMenu] = useState(false);
+  const [viewOriginalModalVisible, setViewOriginalModalVisible] = useState(false);
   const [imageGalleryVisible, setImageGalleryVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [liked, setLiked] = useState(isLiked);
@@ -254,11 +255,32 @@ const PostCard = ({
 
   const handleShare = async () => {
     try {
-      await Share.share({
-        message: `${post.topic}\n\n${post.text || ''}`,
-        title: post.topic,
+      const postId = post?.$id ? String(post.$id).trim() : '';
+      const deepLink = postId ? `https://collegecommunity.app/post/${postId}` : '';
+      const shareBody = [post.topic, post.text, deepLink]
+        .map((part) => (typeof part === 'string' ? part.trim() : ''))
+        .filter(Boolean)
+        .join('\n\n');
+
+      console.log('[PostCard] share:start', {
+        postId,
+        deepLink,
+        topicLength: String(post?.topic || '').trim().length,
+        textLength: String(post?.text || '').trim().length,
       });
+
+      await Share.share({
+        message: shareBody,
+        title: post.topic,
+        url: deepLink || undefined,
+      });
+      console.log('[PostCard] share:success', { postId, deepLink });
     } catch (error) {
+      console.error('[PostCard] share:error', {
+        postId: post?.$id || '',
+        errorMessage: error?.message || String(error || ''),
+        errorCode: error?.code || '',
+      });
       // Share cancelled
     }
   };
@@ -307,9 +329,12 @@ const PostCard = ({
   const handleVisitOriginal = () => {
     if (!post?.originalPostId) return;
 
-    navigation.navigate('PostDetails', {
-      postId: post.originalPostId,
+    console.log('[PostCard] visitOriginal:modal', {
+      currentPostId: post?.$id || '',
+      originalPostId: post?.originalPostId || '',
     });
+
+    setViewOriginalModalVisible(true);
   };
 
   const handleRequestReview = async () => {
@@ -881,6 +906,13 @@ const PostCard = ({
         visible={showLikesModal}
         onClose={() => setShowLikesModal(false)}
         likedByIds={likedByIds}
+      />
+
+      <PostViewModal
+        visible={viewOriginalModalVisible}
+        onClose={() => setViewOriginalModalVisible(false)}
+        postId={post.originalPostId}
+        navigation={navigation}
       />
 
       <CustomAlert

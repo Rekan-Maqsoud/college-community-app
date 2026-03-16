@@ -629,6 +629,16 @@ export const createRepost = async (originalPostId, userId, repostData = {}) => {
             ? repostData.text.trim().slice(0, 5000)
             : (rootOriginal.text || '');
 
+        const selectArrayField = (overrideValue, fallbackValue) => {
+            if (Array.isArray(overrideValue)) {
+                return overrideValue;
+            }
+            if (Array.isArray(fallbackValue)) {
+                return fallbackValue;
+            }
+            return [];
+        };
+
         const post = await createPost({
             userId: effectiveUserId,
             userName: repostData.userName || null,
@@ -638,10 +648,11 @@ export const createRepost = async (originalPostId, userId, repostData = {}) => {
             department: repostData.department || rootOriginal.department || 'public',
             stage: repostData.stage || rootOriginal.stage || 'all',
             postType: repostData.postType || rootOriginal.postType || 'discussion',
-            images: Array.isArray(repostData.images) ? repostData.images : [],
-            imageDeleteUrls: Array.isArray(repostData.imageDeleteUrls) ? repostData.imageDeleteUrls : [],
-            tags: Array.isArray(repostData.tags) ? repostData.tags : [],
-            links: Array.isArray(repostData.links) ? repostData.links : [],
+            semester: repostData.semester || rootOriginal.semester || '',
+            images: selectArrayField(repostData.images, rootOriginal.images),
+            imageDeleteUrls: selectArrayField(repostData.imageDeleteUrls, rootOriginal.imageDeleteUrls),
+            tags: selectArrayField(repostData.tags, rootOriginal.tags),
+            links: selectArrayField(repostData.links, rootOriginal.links),
             isRepost: true,
             originalPostId: rootOriginal.$id,
             originalPostOwnerId: rootOriginal.userId,

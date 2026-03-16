@@ -1,7 +1,6 @@
 import React from 'react';
 import { Image, Linking, Text, TouchableOpacity, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { moderateScale } from '../../../utils/responsive';
 import { LECTURE_UPLOAD_TYPES } from '../../../../database/lectures';
@@ -9,12 +8,10 @@ import {
   buildYouTubeVideoId,
   formatBytesAsMb,
   getYouTubeWatchUrl,
-  YOUTUBE_EMBED_ORIGIN,
 } from '../lectureChannelUtils';
 import styles from '../LectureChannelStyles';
 
 const LectureAssetsList = ({
-  activeYoutubeAssetId,
   assetListData,
   canViewAssetInfo,
   colors,
@@ -22,12 +19,10 @@ const LectureAssetsList = ({
   openAsset,
   openAssetMenu,
   openComments,
-  resolveYoutubePlayback,
   setAssetStatsOpen,
   setAssetStatsTarget,
   loading,
   t,
-  youtubePlaybackByAssetId,
 }) => {
   const renderAsset = ({ item }) => {
     if (item?.type === 'folder') {
@@ -57,13 +52,10 @@ const LectureAssetsList = ({
         : colors.primary;
     const previewBg = `${accentColor}1A`;
     const youtubeVideoId = asset.uploadType === LECTURE_UPLOAD_TYPES.YOUTUBE
-      ? (youtubePlaybackByAssetId[asset.$id]?.videoId || buildYouTubeVideoId(asset.youtubeUrl || ''))
+      ? buildYouTubeVideoId(asset.youtubeUrl || '')
       : '';
-    const youtubePlayback = youtubePlaybackByAssetId[asset.$id] || {};
-    const youtubeThumbUrl = youtubePlayback.thumbnailUrl || (youtubeVideoId ? `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg` : '');
-    const youtubeWatchUrl = youtubePlayback.watchUrl || getYouTubeWatchUrl(youtubeVideoId);
-    const isYoutubeBlocked = !!youtubePlayback.resolved && youtubePlayback.embeddable === false;
-    const isYoutubePlaying = activeYoutubeAssetId === asset.$id && !!youtubeVideoId && youtubePlayback.embeddable === true;
+    const youtubeThumbUrl = youtubeVideoId ? `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg` : '';
+    const youtubeWatchUrl = getYouTubeWatchUrl(youtubeVideoId);
 
     const fileExtension = String(asset?.fileName || asset?.title || '')
       .split('.')
@@ -75,26 +67,19 @@ const LectureAssetsList = ({
 
     if (asset.uploadType === LECTURE_UPLOAD_TYPES.YOUTUBE) {
       const onOpenYoutube = () => {
-        if (!youtubeWatchUrl) {
+        const urlToOpen = youtubeWatchUrl || asset.youtubeUrl;
+        if (!urlToOpen) {
           return;
         }
-        Linking.openURL(youtubeWatchUrl).catch(() => {});
+        Linking.openURL(urlToOpen).catch(() => {});
       };
 
       previewContent = (
         <View style={[styles.previewContainer, styles.youtubePreviewContainer, { borderColor: accentColor, backgroundColor: previewBg }]}> 
           {!!youtubeThumbUrl && (
-            isYoutubeBlocked ? (
-              <TouchableOpacity activeOpacity={0.84} onPress={onOpenYoutube}>
-                <Image source={{ uri: youtubeThumbUrl }} style={styles.youtubeThumb} resizeMode="cover" />
-                <View style={[styles.youtubeBlockedBadge, { backgroundColor: colors.card }]}> 
-                  <Ionicons name="alert-circle-outline" size={12} color={accentColor} />
-                  <Text style={[styles.youtubeBlockedText, { color: accentColor }]}>{t('lectures.youtubePlaybackRestricted')}</Text>
-                </View>
-              </TouchableOpacity>
-            ) : (
+            <TouchableOpacity activeOpacity={0.84} onPress={onOpenYoutube}>
               <Image source={{ uri: youtubeThumbUrl }} style={styles.youtubeThumb} resizeMode="cover" />
-            )
+            </TouchableOpacity>
           )}
 
           <View style={styles.previewOverlayRow}>
@@ -105,65 +90,18 @@ const LectureAssetsList = ({
 
             <TouchableOpacity
               style={[styles.previewPlayButton, { borderColor: accentColor, backgroundColor: colors.card }]}
-              onPress={async () => {
-                if (youtubePlayback.loading) {
-                  return;
-                }
-
-                if (!youtubePlayback.resolved && !youtubePlayback.loading) {
-                  await resolveYoutubePlayback(asset);
-                }
-
-                if (isYoutubeBlocked) {
-                  onOpenYoutube();
-                  return;
-                }
-
-                openAsset(asset);
-              }}>
+              onPress={onOpenYoutube}
+            >
               <Ionicons
-                name={
-                  youtubePlayback.loading
-                    ? 'time-outline'
-                    : isYoutubeBlocked
-                      ? 'open-outline'
-                      : isYoutubePlaying
-                        ? 'pause'
-                        : 'play'
-                }
+                name={'open-outline'}
                 size={14}
                 color={accentColor}
               />
               <Text style={[styles.previewPlayText, { color: accentColor }]}> 
-                {youtubePlayback.loading
-                  ? t('common.loading')
-                  : isYoutubeBlocked
-                    ? t('lectures.openInYoutube')
-                    : isYoutubePlaying
-                      ? t('lectures.pauseVideo')
-                      : t('lectures.playVideo')}
+                {t('lectures.openInYoutube')}
               </Text>
             </TouchableOpacity>
           </View>
-
-          {isYoutubePlaying && (
-            <View style={[styles.youtubePlayerWrap, { borderColor: colors.border, backgroundColor: colors.background }]}> 
-              <TouchableOpacity style={[styles.youtubeExternalBtn, { borderColor: colors.border }]} onPress={onOpenYoutube}>
-                <Ionicons name="open-outline" size={14} color={colors.primary} />
-                <Text style={[styles.youtubeExternalText, { color: colors.primary }]}>{t('lectures.openInYoutube')}</Text>
-              </TouchableOpacity>
-              <View style={[styles.youtubeInlineThumb, { overflow: 'hidden' }]}>
-                <WebView
-                  source={{ uri: `https://www.youtube-nocookie.com/embed/${youtubeVideoId}?autoplay=1&modestbranding=1&rel=0&playsinline=1&origin=${encodeURIComponent(YOUTUBE_EMBED_ORIGIN)}` }}
-                  style={{ flex: 1 }}
-                  allowsFullscreenVideo
-                  javaScriptEnabled
-                  mediaPlaybackRequiresUserAction={false}
-                  domStorageEnabled
-                />
-              </View>
-            </View>
-          )}
         </View>
       );
     } else if (asset.uploadType === LECTURE_UPLOAD_TYPES.FILE) {

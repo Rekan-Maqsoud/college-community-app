@@ -76,10 +76,6 @@ const UserProfile = ({ route, navigation }) => {
     });
   };
 
-  const handleShareProfile = async () => {
-    await handleShareQr();
-  };
-
   const handleShareQr = async () => {
     const qrUrl = getQrImageUrl();
 
@@ -720,13 +716,8 @@ const UserProfile = ({ route, navigation }) => {
               </GlassContainer>
             </TouchableOpacity>
             
-            {/* Header Right Actions - Share & QR */}
+            {/* Header Right Actions - QR */}
             <View style={styles.headerRightActions}>
-              <TouchableOpacity style={styles.headerActionButton} onPress={handleShareProfile} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t('profile.shareProfile')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <GlassContainer borderRadius={borderRadius.round} style={styles.backButtonInner}>
-                  <Ionicons name="share-outline" size={moderateScale(22)} color={isDarkMode ? "#FFFFFF" : "#1C1C1E"} />
-                </GlassContainer>
-              </TouchableOpacity>
               <TouchableOpacity style={styles.headerActionButton} onPress={() => setShowQRModal(true)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t('profile.scanToConnect')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <GlassContainer borderRadius={borderRadius.round} style={styles.backButtonInner}>
                   <Ionicons name="qr-code-outline" size={moderateScale(22)} color={isDarkMode ? "#FFFFFF" : "#1C1C1E"} />
