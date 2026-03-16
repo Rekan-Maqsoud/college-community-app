@@ -31,6 +31,7 @@ import {
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import telemetry from '../utils/telemetry';
 
 const ForgotPassword = ({ navigation, route }) => {
@@ -55,6 +56,7 @@ const ForgotPassword = ({ navigation, route }) => {
   const { t, isDarkMode } = useAppSettings();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { formStyle } = useLayout();
+  const insets = useSafeAreaInsets();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -673,7 +675,11 @@ const ForgotPassword = ({ navigation, route }) => {
           style={styles.keyboardView}
         >
           <ScrollView 
-            contentContainerStyle={[styles.scrollContent, formStyle]}
+            contentContainerStyle={[
+              styles.scrollContent, 
+              formStyle,
+              { paddingTop: Math.max(insets.top, hp(2)) }
+            ]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >

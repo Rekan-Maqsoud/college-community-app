@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar,
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { FlashList } from '@shopify/flash-list';
 import { useUser } from '../context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -637,7 +638,13 @@ const UserProfile = ({ route, navigation }) => {
                       } else if (!url.startsWith('http') && key === 'website') {
                         url = 'https://' + url;
                       }
-                      Linking.openURL(url).catch(() => {});
+                      Linking.openURL(url).catch(() => {
+                        showAlert({
+                          type: 'error',
+                          title: t('common.error'),
+                          message: t('common.couldNotOpenLink'),
+                        });
+                      });
                     }}>
                     <Ionicons name={icon} size={moderateScale(22)} color={color} />
                   </TouchableOpacity>
@@ -703,166 +710,264 @@ const UserProfile = ({ route, navigation }) => {
     );
   };
 
+  const renderListHeader = () => (
+    <>
+      <View style={styles.profileHeader}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
+          <GlassContainer borderRadius={borderRadius.round} style={styles.backButtonInner}>
+            <Ionicons name="arrow-back" size={moderateScale(24)} color={isDarkMode ? "#FFFFFF" : "#1C1C1E"} />
+          </GlassContainer>
+        </TouchableOpacity>
+        
+        {/* Header Right Actions - QR */}
+        <View style={styles.headerRightActions}>
+          <TouchableOpacity style={styles.headerActionButton} onPress={() => setShowQRModal(true)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t('profile.scanToConnect')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <GlassContainer borderRadius={borderRadius.round} style={styles.backButtonInner}>
+              <Ionicons name="qr-code-outline" size={moderateScale(22)} color={isDarkMode ? "#FFFFFF" : "#1C1C1E"} />
+            </GlassContainer>
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.avatarContainer}>
+          <LinearGradient colors={theme.gradient} style={styles.avatarBorder} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <View style={[styles.avatarInner, { backgroundColor: theme.background }]}>
+              <Image 
+                source={{ uri: userProfile.avatar, cache: 'reload' }} 
+                style={styles.avatar}
+              />
+            </View>
+          </LinearGradient>
+        </View>
+        
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Text style={[styles.name, { fontSize: fontSize(22), color: isDarkMode ? '#FFFFFF' : '#1C1C1E' }]}>{userProfile.name}</Text>
+          {isThisUserRep && <RepBadge size="medium" colors={theme} label={t('repVoting.repLabel')} />}
+        </View>
+        {userProfile.gender ? (
+          <Text style={[styles.genderText, { fontSize: fontSize(12), color: isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(28, 28, 30, 0.6)' }]}>
+            {t(`settings.${userProfile.gender}`)}
+          </Text>
+        ) : null}
+        {userProfile.bio && <Text style={[styles.bio, { fontSize: fontSize(13), color: 'rgba(255,255,255,0.8)' }]} numberOfLines={2}>{userProfile.bio}</Text>}
+        
+        {/* Action Buttons Row - Compact layout */}
+        {currentUser?.$id && userId && currentUser.$id !== userId && (
+          <View style={styles.actionButtonsRow}>
+            {/* Follow Button */}
+            <TouchableOpacity 
+              onPress={handleFollowToggle} 
+              activeOpacity={0.8}
+              disabled={followLoading}
+              style={styles.actionButton}
+            >
+              <LinearGradient
+                colors={isFollowing ? ['#64748b', '#475569'] : theme.gradient}
+                style={styles.actionButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {followLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons 
+                      name={isFollowing ? 'person-remove-outline' : 'person-add-outline'} 
+                      size={moderateScale(16)} 
+                      color="#FFFFFF" 
+                    />
+                    <Text style={[styles.actionButtonText, { fontSize: fontSize(12) }]}>
+                      {isFollowing ? t('profile.unfollow') : t('profile.follow')}
+                    </Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Message Button */}
+            <TouchableOpacity 
+              onPress={handleDirectMessage} 
+              activeOpacity={0.8}
+              disabled={messageLoading}
+              style={styles.actionButton}
+            >
+              <LinearGradient
+                colors={['#10B981', '#059669']}
+                style={styles.actionButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {messageLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="chatbubble-outline" size={moderateScale(16)} color="#FFFFFF" />
+                    <Text style={[styles.actionButtonText, { fontSize: fontSize(12) }]}>
+                      {t('profile.message')}
+                    </Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Block Button */}
+            <TouchableOpacity 
+              onPress={handleBlockUser} 
+              activeOpacity={0.8}
+              disabled={blockLoading}
+              style={styles.actionButtonSmall}
+            >
+              <View style={[styles.blockButtonCompact, { backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.1)' }]}>
+                {blockLoading ? (
+                  <ActivityIndicator size="small" color="#EF4444" />
+                ) : (
+                  <Ionicons name="ban-outline" size={moderateScale(18)} color="#EF4444" />
+                )}
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
+        
+        <View style={[styles.statsContainer, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.7)' : 'rgba(255, 255, 255, 0.7)' }]}>
+          <TouchableOpacity style={styles.statItem} activeOpacity={0.7}>
+            <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.posts}</Text>
+            <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.posts')}</Text>
+          </TouchableOpacity>
+          <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
+          <TouchableOpacity 
+            style={styles.statItem} 
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('FollowList', { 
+              userId, 
+              initialTab: 'followers',
+              userName: displayName
+            })}
+          >
+            <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.followers}</Text>
+            <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.followers')}</Text>
+          </TouchableOpacity>
+          <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
+          <TouchableOpacity 
+            style={styles.statItem} 
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('FollowList', { 
+              userId, 
+              initialTab: 'following',
+              userName: displayName
+            })}
+          >
+            <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.following}</Text>
+            <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.following')}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      
+      <View style={styles.contentSection}>
+        {renderAboutSection()}
+        <View style={styles.sectionContainer}>
+          <Text style={[styles.sectionHeader, { color: theme.text }]}>{t('profile.userPosts')}</Text>
+        </View>
+      </View>
+    </>
+  );
+
+  const renderEmptyComponent = () => {
+    if (loadingPosts) {
+      return (
+        <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
+          <View 
+            style={[
+              styles.emptyCard,
+              {
+                backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.85)',
+                borderRadius: borderRadius.lg,
+                borderWidth: isDarkMode ? 0 : 1,
+                borderColor: 'rgba(0, 0, 0, 0.04)',
+              }
+            ]}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
+              {t('common.loading')}
+            </Text>
+          </View>
+        </View>
+      );
+    }
+    if (postsError) {
+      return (
+        <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
+          <View 
+            style={[
+              styles.emptyCard,
+              {
+                backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.85)',
+                borderRadius: borderRadius.lg,
+                borderWidth: isDarkMode ? 0 : 1,
+                borderColor: 'rgba(0, 0, 0, 0.04)',
+              }
+            ]}>
+            <Ionicons name="alert-circle-outline" size={moderateScale(40)} color={theme.error} />
+            <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
+              {t('common.error')}
+            </Text>
+            <TouchableOpacity onPress={loadUserPosts} style={styles.retryButton}>
+              <Text style={[styles.retryButtonText, { color: theme.primary }]}>{t('common.retry')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+    return (
+      <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
+        <View 
+          style={[
+            styles.emptyCard,
+            {
+              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.85)',
+              borderRadius: borderRadius.lg,
+              borderWidth: isDarkMode ? 0 : 1,
+              borderColor: 'rgba(0, 0, 0, 0.04)',
+            }
+          ]}>
+          <Ionicons name="document-text-outline" size={moderateScale(40)} color={theme.textSecondary} />
+          <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
+            {t('profile.noPostsUser')}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       <AnimatedBackground particleCount={35} />
       <LinearGradient colors={isDarkMode ? ['#1a1a2e', '#16213e', '#0f3460'] : ['#e3f2fd', '#bbdefb', '#90caf9']} style={styles.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + spacing.sm }, contentStyle]} showsVerticalScrollIndicator={false}>
-          <View style={styles.profileHeader}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
-              <GlassContainer borderRadius={borderRadius.round} style={styles.backButtonInner}>
-                <Ionicons name="arrow-back" size={moderateScale(24)} color={isDarkMode ? "#FFFFFF" : "#1C1C1E"} />
-              </GlassContainer>
-            </TouchableOpacity>
-            
-            {/* Header Right Actions - QR */}
-            <View style={styles.headerRightActions}>
-              <TouchableOpacity style={styles.headerActionButton} onPress={() => setShowQRModal(true)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t('profile.scanToConnect')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <GlassContainer borderRadius={borderRadius.round} style={styles.backButtonInner}>
-                  <Ionicons name="qr-code-outline" size={moderateScale(22)} color={isDarkMode ? "#FFFFFF" : "#1C1C1E"} />
-                </GlassContainer>
-              </TouchableOpacity>
+        <FlashList
+          data={userPosts || []}
+          ListHeaderComponent={renderListHeader}
+          ListEmptyComponent={renderEmptyComponent}
+          renderItem={({ item: post, index }) => (
+            <View style={styles.contentSection}>
+              <PostCard
+                post={{
+                  ...post,
+                  userName: userData?.fullName || userData?.name,
+                  userProfilePicture: userData?.profilePicture,
+                }}
+                onReply={() => navigation.navigate('PostDetails', { post })}
+                onLike={() => handleLike(post.$id)}
+                onUserPress={() => {}}
+                isOwner={currentUser?.$id === userId}
+                isLiked={post.likedBy?.includes(currentUser?.$id)}
+                showImages={true}
+              />
             </View>
-            
-            <View style={styles.avatarContainer}>
-              <LinearGradient colors={theme.gradient} style={styles.avatarBorder} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                <View style={[styles.avatarInner, { backgroundColor: theme.background }]}>
-                  <Image 
-                    source={{ uri: userProfile.avatar, cache: 'reload' }} 
-                    style={styles.avatar}
-                  />
-                </View>
-              </LinearGradient>
-            </View>
-            
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              <Text style={[styles.name, { fontSize: fontSize(22), color: isDarkMode ? '#FFFFFF' : '#1C1C1E' }]}>{userProfile.name}</Text>
-              {isThisUserRep && <RepBadge size="medium" colors={theme} label={t('repVoting.repLabel')} />}
-            </View>
-            {userProfile.gender ? (
-              <Text style={[styles.genderText, { fontSize: fontSize(12), color: isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(28, 28, 30, 0.6)' }]}>
-                {t(`settings.${userProfile.gender}`)}
-              </Text>
-            ) : null}
-            {userProfile.bio && <Text style={[styles.bio, { fontSize: fontSize(13), color: 'rgba(255,255,255,0.8)' }]} numberOfLines={2}>{userProfile.bio}</Text>}
-            
-            {/* Action Buttons Row - Compact layout */}
-            {currentUser?.$id && userId && currentUser.$id !== userId && (
-              <View style={styles.actionButtonsRow}>
-                {/* Follow Button */}
-                <TouchableOpacity 
-                  onPress={handleFollowToggle} 
-                  activeOpacity={0.8}
-                  disabled={followLoading}
-                  style={styles.actionButton}
-                >
-                  <LinearGradient
-                    colors={isFollowing ? ['#64748b', '#475569'] : theme.gradient}
-                    style={styles.actionButtonGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  >
-                    {followLoading ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <>
-                        <Ionicons 
-                          name={isFollowing ? 'person-remove-outline' : 'person-add-outline'} 
-                          size={moderateScale(16)} 
-                          color="#FFFFFF" 
-                        />
-                        <Text style={[styles.actionButtonText, { fontSize: fontSize(12) }]}>
-                          {isFollowing ? t('profile.unfollow') : t('profile.follow')}
-                        </Text>
-                      </>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                {/* Message Button */}
-                <TouchableOpacity 
-                  onPress={handleDirectMessage} 
-                  activeOpacity={0.8}
-                  disabled={messageLoading}
-                  style={styles.actionButton}
-                >
-                  <LinearGradient
-                    colors={['#10B981', '#059669']}
-                    style={styles.actionButtonGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  >
-                    {messageLoading ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <>
-                        <Ionicons name="chatbubble-outline" size={moderateScale(16)} color="#FFFFFF" />
-                        <Text style={[styles.actionButtonText, { fontSize: fontSize(12) }]}>
-                          {t('profile.message')}
-                        </Text>
-                      </>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                {/* Block Button */}
-                <TouchableOpacity 
-                  onPress={handleBlockUser} 
-                  activeOpacity={0.8}
-                  disabled={blockLoading}
-                  style={styles.actionButtonSmall}
-                >
-                  <View style={[styles.blockButtonCompact, { backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.1)' }]}>
-                    {blockLoading ? (
-                      <ActivityIndicator size="small" color="#EF4444" />
-                    ) : (
-                      <Ionicons name="ban-outline" size={moderateScale(18)} color="#EF4444" />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              </View>
-            )}
-            
-            <View style={[styles.statsContainer, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.7)' : 'rgba(255, 255, 255, 0.7)' }]}>
-              <TouchableOpacity style={styles.statItem} activeOpacity={0.7}>
-                <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.posts}</Text>
-                <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.posts')}</Text>
-              </TouchableOpacity>
-              <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-              <TouchableOpacity 
-                style={styles.statItem} 
-                activeOpacity={0.7}
-                onPress={() => navigation.navigate('FollowList', { 
-                  userId, 
-                  initialTab: 'followers',
-                  userName: displayName
-                })}
-              >
-                <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.followers}</Text>
-                <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.followers')}</Text>
-              </TouchableOpacity>
-              <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-              <TouchableOpacity 
-                style={styles.statItem} 
-                activeOpacity={0.7}
-                onPress={() => navigation.navigate('FollowList', { 
-                  userId, 
-                  initialTab: 'following',
-                  userName: displayName
-                })}
-              >
-                <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.following}</Text>
-                <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.following')}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          
-          <View style={styles.contentSection}>
-            {renderAboutSection()}
-            {renderPostsSection()}
-          </View>
-        </ScrollView>
+          )}
+          keyExtractor={(item, index) => item.$id || index.toString()}
+          estimatedItemSize={250}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + spacing.sm, paddingBottom: spacing.xl }, contentStyle]}
+          showsVerticalScrollIndicator={false}
+        />
       </LinearGradient>
 
       <View style={styles.hiddenShareCardContainer} pointerEvents="none">

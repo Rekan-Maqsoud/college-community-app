@@ -1397,7 +1397,7 @@ const MessageBubble = ({
             resizeMode="cover"
           />
           <View style={styles.gifBadge}>
-            <Text style={styles.gifBadgeText}>GIF</Text>
+            <Text style={styles.gifBadgeText}>{t('GIF')}</Text>
           </View>
         </View>
       )}

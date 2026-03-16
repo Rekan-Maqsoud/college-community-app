@@ -4,6 +4,7 @@ import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { FlashList } from '@shopify/flash-list';
 import { useUser } from '../context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -548,7 +549,13 @@ const Profile = ({ navigation, route }) => {
                     } else if (!url.startsWith('http') && key === 'website') {
                       url = 'https://' + url;
                     }
-                    Linking.openURL(url).catch(() => {});
+                    Linking.openURL(url).catch(() => {
+                      showAlert({
+                        type: 'error',
+                        title: t('common.error'),
+                        message: t('common.couldNotOpenLink'),
+                      });
+                    });
                   }}>
                   <Ionicons name={icon} size={moderateScale(22)} color={color} />
                 </TouchableOpacity>
@@ -560,11 +567,97 @@ const Profile = ({ navigation, route }) => {
     </View>
   );
 
-  const renderPostsSection = () => {
-    return (
-      <View style={styles.sectionContainer}>
-        <Text style={[styles.sectionHeader, { color: theme.text }]}>{t('profile.myPosts')}</Text>
-        {loadingPosts ? (
+  const renderListHeader = () => (
+    <>
+      <View style={styles.profileHeader}>
+        <View style={styles.headerRightActions}>
+          <TouchableOpacity
+            style={[
+              styles.headerActionButton,
+              {
+                backgroundColor: cardBackground,
+                borderRadius: borderRadius.round,
+              }
+            ]}
+            onPress={() => setShowQRModal(true)}
+            activeOpacity={0.7}>
+            <Ionicons name="qr-code-outline" size={moderateScale(22)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[
+              styles.headerActionButton,
+              {
+                backgroundColor: cardBackground,
+                borderRadius: borderRadius.round,
+              }
+            ]} 
+            onPress={() => navigation.navigate('Settings')} 
+            activeOpacity={0.7}>
+            <Ionicons name="settings-outline" size={moderateScale(22)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.avatarContainer}>
+          <LinearGradient colors={theme.gradient} style={styles.avatarBorder} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <View style={[styles.avatarInner, { backgroundColor: theme.background }]}>
+              <Image 
+                source={{ uri: userProfile.avatar, cache: 'reload' }} 
+                style={styles.avatar}
+                key={`${userProfile.avatar}-${imageKey}`}
+              />
+            </View>
+          </LinearGradient>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Text style={[styles.name, { fontSize: fontSize(22), color: isDarkMode ? '#FFFFFF' : '#1C1C1E' }]}>{userProfile.name}</Text>
+          {isMeRep && <RepBadge size="medium" colors={theme} label={t('repVoting.repLabel')} />}
+        </View>
+        {userProfile.bio && <Text style={[styles.bio, { fontSize: fontSize(13), color: isDarkMode ? 'rgba(255,255,255,0.8)' : 'rgba(28, 28, 30, 0.8)' }]} numberOfLines={2}>{userProfile.bio}</Text>}
+        <View style={[styles.statsContainer, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.7)' : 'rgba(255, 255, 255, 0.9)' }]}>
+          <TouchableOpacity style={styles.statItem} activeOpacity={0.7}>
+            <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.posts}</Text>
+            <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.posts')}</Text>
+          </TouchableOpacity>
+          <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
+          <TouchableOpacity 
+            style={styles.statItem} 
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('FollowList', { 
+              userId: user?.$id, 
+              initialTab: 'followers',
+              userName: user?.name 
+            })}
+          >
+            <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.followers}</Text>
+            <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.followers')}</Text>
+          </TouchableOpacity>
+          <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
+          <TouchableOpacity 
+            style={styles.statItem} 
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('FollowList', { 
+              userId: user?.$id, 
+              initialTab: 'following',
+              userName: user?.name 
+            })}
+          >
+            <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.following}</Text>
+            <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.following')}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      <View style={styles.contentSection}>
+        {renderAboutSection()}
+        <View style={styles.sectionContainer}>
+          <Text style={[styles.sectionHeader, { color: theme.text }]}>{t('profile.myPosts')}</Text>
+        </View>
+      </View>
+    </>
+  );
+
+  const renderEmptyComponent = () => {
+    if (loadingPosts) {
+      return (
+        <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
           <View 
             style={[
               styles.emptyCard,
@@ -580,7 +673,12 @@ const Profile = ({ navigation, route }) => {
               {t('common.loading')}
             </Text>
           </View>
-        ) : postsError ? (
+        </View>
+      );
+    }
+    if (postsError) {
+      return (
+        <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
           <View 
             style={[
               styles.emptyCard,
@@ -599,27 +697,42 @@ const Profile = ({ navigation, route }) => {
               <Text style={[styles.retryButtonText, { color: theme.primary }]}>{t('common.retry')}</Text>
             </TouchableOpacity>
           </View>
-        ) : !userPosts || userPosts.length === 0 ? (
-          <View 
-            style={[
-              styles.emptyCard,
-              {
-                backgroundColor: cardBackground,
-                borderRadius: borderRadius.lg,
-                borderWidth: isDarkMode ? 0 : 1,
-                borderColor: 'rgba(0, 0, 0, 0.04)',
-              }
-            ]}>
-            <Ionicons name="document-text-outline" size={moderateScale(40)} color={theme.textSecondary} />
-            <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
-              {t('profile.noPosts')}
-            </Text>
-          </View>
-        ) : (
-          <View>
-            {userPosts.map((post, index) => (
+        </View>
+      );
+    }
+    return (
+      <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
+        <View 
+          style={[
+            styles.emptyCard,
+            {
+              backgroundColor: cardBackground,
+              borderRadius: borderRadius.lg,
+              borderWidth: isDarkMode ? 0 : 1,
+              borderColor: 'rgba(0, 0, 0, 0.04)',
+            }
+          ]}>
+          <Ionicons name="document-text-outline" size={moderateScale(40)} color={theme.textSecondary} />
+          <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
+            {t('profile.noPosts')}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+      <AnimatedBackground particleCount={35} />
+      <LinearGradient colors={isDarkMode ? ['#1a1a2e', '#16213e', '#0f3460'] : ['#e3f2fd', '#bbdefb', '#90caf9']} style={styles.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        <FlashList
+          data={userPosts || []}
+          ListHeaderComponent={renderListHeader}
+          ListEmptyComponent={renderEmptyComponent}
+          renderItem={({ item: post, index }) => (
+            <View style={styles.contentSection}>
               <PostCard
-                key={post.$id || index}
                 post={{
                   ...post,
                   userName: user.fullName,
@@ -635,21 +748,11 @@ const Profile = ({ navigation, route }) => {
                 isLiked={post.likedBy?.includes(user.$id)}
                 showImages={true}
               />
-            ))}
-          </View>
-        )}
-      </View>
-    );
-  };
-
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AnimatedBackground particleCount={35} />
-      <LinearGradient colors={isDarkMode ? ['#1a1a2e', '#16213e', '#0f3460'] : ['#e3f2fd', '#bbdefb', '#90caf9']} style={styles.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <ScrollView 
-          style={styles.scrollView} 
-          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + spacing.sm }, contentStyle]} 
+            </View>
+          )}
+          keyExtractor={(item, index) => item.$id || index.toString()}
+          estimatedItemSize={250}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + spacing.sm, paddingBottom: spacing.xl }, contentStyle]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -659,88 +762,7 @@ const Profile = ({ navigation, route }) => {
               colors={[theme.primary]}
             />
           }
-        >
-          <View style={styles.profileHeader}>
-            <View style={styles.headerRightActions}>
-              <TouchableOpacity
-                style={[
-                  styles.headerActionButton,
-                  {
-                    backgroundColor: cardBackground,
-                    borderRadius: borderRadius.round,
-                  }
-                ]}
-                onPress={() => setShowQRModal(true)}
-                activeOpacity={0.7}>
-                <Ionicons name="qr-code-outline" size={moderateScale(22)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[
-                  styles.headerActionButton,
-                  {
-                    backgroundColor: cardBackground,
-                    borderRadius: borderRadius.round,
-                  }
-                ]} 
-                onPress={() => navigation.navigate('Settings')} 
-                activeOpacity={0.7}>
-                <Ionicons name="settings-outline" size={moderateScale(22)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.avatarContainer}>
-              <LinearGradient colors={theme.gradient} style={styles.avatarBorder} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                <View style={[styles.avatarInner, { backgroundColor: theme.background }]}>
-                  <Image 
-                    source={{ uri: userProfile.avatar, cache: 'reload' }} 
-                    style={styles.avatar}
-                    key={`${userProfile.avatar}-${imageKey}`}
-                  />
-                </View>
-              </LinearGradient>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              <Text style={[styles.name, { fontSize: fontSize(22), color: isDarkMode ? '#FFFFFF' : '#1C1C1E' }]}>{userProfile.name}</Text>
-              {isMeRep && <RepBadge size="medium" colors={theme} label={t('repVoting.repLabel')} />}
-            </View>
-            {userProfile.bio && <Text style={[styles.bio, { fontSize: fontSize(13), color: isDarkMode ? 'rgba(255,255,255,0.8)' : 'rgba(28, 28, 30, 0.8)' }]} numberOfLines={2}>{userProfile.bio}</Text>}
-            <View style={[styles.statsContainer, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.7)' : 'rgba(255, 255, 255, 0.9)' }]}>
-              <TouchableOpacity style={styles.statItem} activeOpacity={0.7}>
-                <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.posts}</Text>
-                <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.posts')}</Text>
-              </TouchableOpacity>
-              <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-              <TouchableOpacity 
-                style={styles.statItem} 
-                activeOpacity={0.7}
-                onPress={() => navigation.navigate('FollowList', { 
-                  userId: user?.$id, 
-                  initialTab: 'followers',
-                  userName: user?.name 
-                })}
-              >
-                <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.followers}</Text>
-                <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.followers')}</Text>
-              </TouchableOpacity>
-              <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-              <TouchableOpacity 
-                style={styles.statItem} 
-                activeOpacity={0.7}
-                onPress={() => navigation.navigate('FollowList', { 
-                  userId: user?.$id, 
-                  initialTab: 'following',
-                  userName: user?.name 
-                })}
-              >
-                <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.following}</Text>
-                <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.following')}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          <View style={styles.contentSection}>
-            {renderAboutSection()}
-            {renderPostsSection()}
-          </View>
-        </ScrollView>
+        />
       </LinearGradient>
       <View style={styles.hiddenShareCardContainer} pointerEvents="none">
         <View ref={qrShareCardRef} collapsable={false} style={styles.shareCardCaptureRoot}>

@@ -79,6 +79,7 @@ const PostCard = ({
   const [showPollVoters, setShowPollVoters] = useState(false);
   const [pollVoterNames, setPollVoterNames] = useState({});
   const likeLongPressRef = useRef(false);
+  const actionLockRef = useRef({ bookmarking: false, sharing: false });
 
   const [likeCount, setLikeCount] = useState(post.likeCount || 0);
 
@@ -196,11 +197,15 @@ const PostCard = ({
   }, [post.$id]);
 
   const handleBookmark = async () => {
+    if (actionLockRef.current.bookmarking) return;
+    actionLockRef.current.bookmarking = true;
     try {
       const newState = await togglePostBookmark(post.$id, user?.$id);
       setIsBookmarked(newState);
     } catch (error) {
       // Ignore bookmark errors
+    } finally {
+      actionLockRef.current.bookmarking = false;
     }
   };
 
@@ -254,6 +259,8 @@ const PostCard = ({
   }, [post.likedBy, liked, user?.$id]);
 
   const handleShare = async () => {
+    if (actionLockRef.current.sharing) return;
+    actionLockRef.current.sharing = true;
     try {
       const postId = post?.$id ? String(post.$id).trim() : '';
       const deepLink = postId ? `https://collegecommunity.app/post/${postId}` : '';
@@ -282,6 +289,8 @@ const PostCard = ({
         errorCode: error?.code || '',
       });
       // Share cancelled
+    } finally {
+      actionLockRef.current.sharing = false;
     }
   };
 

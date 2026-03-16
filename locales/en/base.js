@@ -977,6 +977,7 @@ export default {
     "more": "More options",
     "previous": "Previous",
     "next": "Next",
+    "couldNotOpenLink": "Could not open link",
     "updates": {
       "title": "Update available",
       "availableBody": "A new update is ready to download.",

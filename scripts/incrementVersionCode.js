@@ -1,12 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const appJsonPath = path.join(__dirname, '../app.json');
+const appJsonPath = path.join(__dirname, '../app.base.json');
 
 function incrementVersionCode() {
   const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
   if (!appJson.expo) {
-    throw new Error('expo key not found in app.json');
+    throw new Error('expo key not found in app.base.json');
   }
   if (!appJson.expo.android) {
     appJson.expo.android = {};

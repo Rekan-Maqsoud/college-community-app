@@ -924,31 +924,6 @@ const Home = ({ navigation, route }) => {
       );
     }
 
-    if (posts.length === 0) {
-      return (
-        <UnifiedEmptyState
-          iconName={
-            selectedFeed === FEED_TYPES.DEPARTMENT
-              ? 'people-outline'
-              : selectedFeed === FEED_TYPES.MAJOR
-                ? 'school-outline'
-                : 'globe-outline'
-          }
-          title={t('feed.noPosts')}
-          description={
-            selectedFeed === FEED_TYPES.DEPARTMENT
-              ? t('home.departmentFeedEmpty')
-              : selectedFeed === FEED_TYPES.MAJOR
-                ? t('home.majorFeedEmpty')
-                : t('home.publicFeedEmpty')
-          }
-          actionLabel={t('common.retry')}
-          actionIconName="refresh-outline"
-          onAction={handleRefresh}
-        />
-      );
-    }
-
     // Defensive: filter blocked users at render time too (catches stale state)
     const blockedSet = new Set(user?.blockedUsers || []);
     const visiblePosts = blockedSet.size > 0
@@ -960,6 +935,7 @@ const Home = ({ navigation, route }) => {
         ref={flatListRef}
         data={visiblePosts}
         keyExtractor={(item) => item.$id}
+        estimatedItemSize={250}
         renderItem={({ item, index }) => (
           <ReanimatedAnimated.View
             entering={reduceMotion ? undefined : FadeInDown.delay(index * motionProfile.listItemEnterDelayMs).duration(motionProfile.listItemEnterDurationMs).springify()}
@@ -1010,6 +986,28 @@ const Home = ({ navigation, route }) => {
         maxToRenderPerBatch={reduceMotion ? 8 : 10}
         initialNumToRender={compactMode ? 10 : 8}
         removeClippedSubviews={Platform.OS === 'android'}
+        ListEmptyComponent={
+          <UnifiedEmptyState
+            iconName={
+              selectedFeed === FEED_TYPES.DEPARTMENT
+                ? 'people-outline'
+                : selectedFeed === FEED_TYPES.MAJOR
+                  ? 'school-outline'
+                  : 'globe-outline'
+            }
+            title={t('feed.noPosts')}
+            description={
+              selectedFeed === FEED_TYPES.DEPARTMENT
+                ? t('home.departmentFeedEmpty')
+                : selectedFeed === FEED_TYPES.MAJOR
+                  ? t('home.majorFeedEmpty')
+                  : t('home.publicFeedEmpty')
+            }
+            actionLabel={t('common.retry')}
+            actionIconName="refresh-outline"
+            onAction={handleRefresh}
+          />
+        }
       />
     );
   };

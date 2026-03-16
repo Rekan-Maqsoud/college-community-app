@@ -721,7 +721,7 @@ const UpdatePrompt = () => {
   }
 
   return (
-    <Modal visible={isVisible} transparent animationType="fade">
+    <Modal visible={isVisible} transparent animationType="fade" onRequestClose={() => setIsVisible(false)}>
       <View style={[updateStyles.overlay, { backgroundColor: theme.overlay }]}>
         <View
           style={[

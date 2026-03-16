@@ -103,6 +103,7 @@ export const useLectureChannelControllerActions = ({
       logLectureChannel('join:success', { channelId });
     } catch (error) {
       logLectureChannelError('join:error', error, { channelId });
+      Alert.alert(t('common.error') || 'Error', t('common.somethingWentWrong') || 'Something went wrong. Please try again.');
     }
   };
 
@@ -485,6 +486,7 @@ export const useLectureChannelControllerActions = ({
       setYoutubeUrl('');
       setExternalUrl('');
       setSelectedFile(null);
+      Alert.alert(t('common.success') || 'Success', t('lectures.uploadSuccess') || 'Upload successful');
       setShowUploadComposer(false);
       await loadData({ showLoading: false });
 
@@ -565,19 +567,37 @@ export const useLectureChannelControllerActions = ({
 
     try {
       setPostingComment(true);
+
+      const optimisticCommentId = `optimistic-${Date.now()}`;
+      const optimisticComment = {
+        $id: optimisticCommentId,
+        channelId,
+        assetId: commentsModalAsset.$id,
+        userId: user?.$id,
+        text: newComment.trim(),
+        $createdAt: new Date().toISOString(),
+        isActive: true,
+        isOptimistic: true,
+      };
+
+      setAssetComments(prev => [...prev, optimisticComment]);
+      setNewComment('');
+
       await createLectureComment({
         channelId,
         assetId: commentsModalAsset.$id,
-        text: newComment,
+        text: optimisticComment.text,
       });
-      setNewComment('');
-      await loadComments(commentsModalAsset);
+      // Removing await loadComments(commentsModalAsset) since it will update through realtime
       logLectureChannel('submitComment:success', {
         channelId,
         assetId: commentsModalAsset.$id,
       });
     } catch (error) {
       logLectureChannelError('submitComment:error', error, { channelId, assetId: commentsModalAsset?.$id || '' });
+      Alert.alert(t('common.error') || 'Error', t('common.somethingWentWrong') || 'Failed to post comment.');
+      // remove the optimistic comment on failure
+      setAssetComments(prev => prev.filter(c => c.$id !== optimisticCommentId));
     } finally {
       setPostingComment(false);
     }

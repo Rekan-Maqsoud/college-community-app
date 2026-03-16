@@ -1,7 +1,8 @@
 import React from 'react';
-import { Image, Linking, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, Text, TouchableOpacity, View, RefreshControl, Alert } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
+import { SavedPostSkeleton } from '../../../components/SkeletonLoader';
 import { moderateScale } from '../../../utils/responsive';
 import { LECTURE_UPLOAD_TYPES } from '../../../../database/lectures';
 import {
@@ -23,6 +24,13 @@ const LectureAssetsList = ({
   setAssetStatsTarget,
   loading,
   t,
+  refreshing,
+  onRefresh,
+  showJoinButton,
+  membership,
+  actionState,
+  isManager,
+  canUpload,
 }) => {
   const renderAsset = ({ item }) => {
     if (item?.type === 'folder') {
@@ -71,7 +79,9 @@ const LectureAssetsList = ({
         if (!urlToOpen) {
           return;
         }
-        Linking.openURL(urlToOpen).catch(() => {});
+        Linking.openURL(urlToOpen).catch(() => {
+          Alert.alert(t('common.error') || 'Error', t('common.unableToOpenLink') || 'Unable to open link');
+        });
       };
 
       previewContent = (
@@ -199,21 +209,50 @@ const LectureAssetsList = ({
     );
   };
 
-  return (
+  const renderHeader = () => (
     <>
+      {showJoinButton ? (
+        <TouchableOpacity
+          style={[
+            styles.joinBtn,
+            { backgroundColor: membership?.joinStatus === 'pending' ? colors.card : colors.primary },
+          ]}
+          onPress={actionState.handleJoin}
+          disabled={membership?.joinStatus === 'pending'}>
+          <Text style={[styles.joinBtnText, membership?.joinStatus === 'pending' && { color: colors.textSecondary }]}>
+            {membership?.joinStatus === 'pending' ? t('lectures.joinPending') : t('lectures.join')}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {!isManager && !!membership && membership.joinStatus === 'approved' && !canUpload && (
+        <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}> 
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>{t('lectures.onlyAdminsCanUpload')}</Text>
+        </View>
+      )}
+
       <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('lectures.uploads')}</Text>
-      <FlashList
-        data={assetListData}
-        keyExtractor={(item) => item.id}
-        renderItem={renderAsset}
-        scrollEnabled={false}
-        ListEmptyComponent={!loading ? (
+    </>
+  );
+
+  return (
+    <FlashList
+      data={loading ? [] : assetListData}
+      keyExtractor={(item) => item.id}
+      renderItem={renderAsset}
+      estimatedItemSize={150}
+      ListHeaderComponent={renderHeader}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      ListEmptyComponent={
+        loading ? (
+          <SavedPostSkeleton count={3} />
+        ) : (
           <View style={styles.emptyWrap}>
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('lectures.noUploads')}</Text>
           </View>
-        ) : null}
-      />
-    </>
+        )
+      }
+    />
   );
 };
 

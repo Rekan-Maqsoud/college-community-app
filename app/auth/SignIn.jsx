@@ -34,6 +34,7 @@ import {
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 import telemetry from '../utils/telemetry';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const getAcademicChangesCountFromProfileViews = (profileViews) => {
   if (!profileViews) return 0;
@@ -62,6 +63,7 @@ const SignIn = ({ navigation, route }) => {
   const { setUserData } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { formStyle } = useLayout();
+  const insets = useSafeAreaInsets();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -340,7 +342,11 @@ const SignIn = ({ navigation, route }) => {
           style={styles.keyboardAvoidingView}>
           
           <ScrollView
-            contentContainerStyle={[styles.scrollContent, formStyle]}
+            contentContainerStyle={[
+              styles.scrollContent, 
+              formStyle,
+              { paddingTop: Math.max(insets.top, hp(2)) }
+            ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
           
@@ -453,6 +459,7 @@ const SignIn = ({ navigation, route }) => {
                     onPress={() => setShowPassword(!showPassword)}
                     style={styles.eyeIcon}
                     activeOpacity={0.7}
+                    hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                   >
                     <Ionicons 
                       name={showPassword ? "eye-off-outline" : "eye-outline"} 
@@ -466,7 +473,8 @@ const SignIn = ({ navigation, route }) => {
               <TouchableOpacity 
                 style={styles.forgotPasswordButton}
                 activeOpacity={0.7}
-                onPress={() => navigation.navigate('ForgotPassword')}>
+                onPress={() => navigation.navigate('ForgotPassword')}
+                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
                 <Text style={[styles.forgotPasswordText, { 
                   color: theme.primary,
                   fontSize: fontSize(13),
@@ -479,9 +487,9 @@ const SignIn = ({ navigation, route }) => {
                 style={styles.signInButton}
                 onPress={handleSignIn}
                 activeOpacity={0.8}
-                disabled={isLoading || !email.trim() || !password.trim()}>
+                disabled={isLoading || isGoogleLoading || !email.trim() || !password.trim()}>
                 <LinearGradient
-                  colors={isLoading || !email.trim() || !password.trim() ? ['#999', '#777'] : ['#667eea', '#764ba2']}
+                  colors={isLoading || isGoogleLoading || !email.trim() || !password.trim() ? ['#999', '#777'] : ['#667eea', '#764ba2']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.buttonGradient}>
@@ -515,7 +523,7 @@ const SignIn = ({ navigation, route }) => {
                 style={styles.googleButton}
                 onPress={handleGoogleSignIn}
                 activeOpacity={0.8}
-                disabled={isGoogleLoading}>
+                disabled={isGoogleLoading || isLoading}>
                 <View style={[styles.googleButtonContent, { backgroundColor: theme.card }]}>
                   {isGoogleLoading ? (
                     <ActivityIndicator color={theme.text} size="small" />

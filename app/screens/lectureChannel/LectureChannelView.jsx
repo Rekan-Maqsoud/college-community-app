@@ -121,29 +121,7 @@ const LectureChannelView = ({
           t={t}
         />
 
-        <ScrollView
-          contentContainerStyle={[styles.content, contentStyle]}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}>
-          {showJoinButton ? (
-            <TouchableOpacity
-              style={[
-                styles.joinBtn,
-                { backgroundColor: membership?.joinStatus === 'pending' ? colors.card : colors.primary },
-              ]}
-              onPress={actionState.handleJoin}
-              disabled={membership?.joinStatus === 'pending'}>
-              <Text style={[styles.joinBtnText, membership?.joinStatus === 'pending' && { color: colors.textSecondary }]}>
-                {membership?.joinStatus === 'pending' ? t('lectures.joinPending') : t('lectures.join')}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-
-          {!isManager && !!membership && membership.joinStatus === 'approved' && !canUpload && (
-            <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}> 
-              <Text style={[styles.infoText, { color: colors.textSecondary }]}>{t('lectures.onlyAdminsCanUpload')}</Text>
-            </View>
-          )}
-
+        <View style={[styles.content, contentStyle, { flex: 1, paddingBottom: 0 }]}>
           <LectureAssetsList
             assetListData={assetListData}
             canViewAssetInfo={actionState.canViewAssetInfo}
@@ -156,8 +134,15 @@ const LectureChannelView = ({
             setAssetStatsOpen={setAssetStatsOpen}
             setAssetStatsTarget={setAssetStatsTarget}
             t={t}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            showJoinButton={showJoinButton}
+            membership={membership}
+            actionState={actionState}
+            isManager={isManager}
+            canUpload={canUpload}
           />
-        </ScrollView>
+        </View>
 
         <LectureSettingsModal
           actions={actionState}

@@ -977,6 +977,7 @@ export default {
     "more": "خيارات إضافية",
     "previous": "السابق",
     "next": "التالي",
+    "couldNotOpenLink": "تعذر فتح الرابط",
     "updates": {
       "title": "تحديث متاح",
       "availableBody": "يوجد تحديث جديد جاهز للتنزيل.",

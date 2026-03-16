@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, TextInput,  StyleSheet } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, TextInput,  StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, fontSize, wp, moderateScale } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
@@ -123,7 +123,10 @@ const AdminOrganizerModal = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}> 
+      <KeyboardAvoidingView 
+        style={[styles.backdrop, { backgroundColor: colors.overlay }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      > 
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}> 
           <View style={styles.headerRow}>
             <Text style={[styles.title, { color: colors.text }]}>{t('lectures.organizeAssets')}</Text>
@@ -201,7 +204,7 @@ const AdminOrganizerModal = ({
             <Text style={styles.saveBtnText}>{t('lectures.saveOrganization')}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

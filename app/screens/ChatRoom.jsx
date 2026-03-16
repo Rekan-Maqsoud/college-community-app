@@ -1113,6 +1113,7 @@ const ChatRoom = ({ route, navigation }) => {
       <FlashList
         ref={flatListRef}
         data={memoizedMessages}
+        estimatedItemSize={70}
         renderItem={renderMessage}
         keyExtractor={keyExtractor}
         initialScrollIndex={initialScrollIndex}

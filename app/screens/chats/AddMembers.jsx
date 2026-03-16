@@ -4,6 +4,8 @@ import {
   Text,
   StyleSheet,
   StatusBar,
+  Platform,
+  KeyboardAvoidingView,
   TouchableOpacity,
   TextInput, 
   ActivityIndicator,
@@ -228,21 +230,25 @@ const AddMembers = ({ navigation, route }) => {
         <AnimatedBackground particleCount={15} />
         
         <SafeAreaView style={styles.safeArea}>
-          <View style={styles.header}>
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}>
-              <Ionicons 
-                name="arrow-back" 
-                size={moderateScale(24)} 
-                color={theme.text} 
-              />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(20) }]}>
-              {t('chats.addMembers')}
-            </Text>
-            <View style={styles.placeholder} />
-          </View>
+          <KeyboardAvoidingView
+            style={styles.keyboardAvoiding}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
+            <View style={styles.header}>
+              <TouchableOpacity 
+                style={styles.backButton}
+                onPress={() => navigation.goBack()}>
+                <Ionicons 
+                  name="arrow-back" 
+                  size={moderateScale(24)} 
+                  color={theme.text} 
+                />
+              </TouchableOpacity>
+              <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(20) }]}>
+                {t('chats.addMembers')}
+              </Text>
+              <View style={styles.placeholder} />
+            </View>
 
           {/* Search Bar */}
           <View style={[
@@ -305,23 +311,24 @@ const AddMembers = ({ navigation, route }) => {
           )}
 
           {/* Add Button */}
-          {selectedUsers.length > 0 && (
-            <TouchableOpacity
-              style={[styles.addButton, { backgroundColor: theme.primary }]}
-              onPress={handleAddMembers}
-              disabled={adding}>
-              {adding ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="person-add" size={moderateScale(20)} color="#FFFFFF" />
-                  <Text style={styles.addButtonText}>
-                    {t('chats.addMembers')} ({selectedUsers.length})
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
+            {selectedUsers.length > 0 && (
+              <TouchableOpacity
+                style={[styles.addButton, { backgroundColor: theme.primary }]}
+                onPress={handleAddMembers}
+                disabled={adding}>
+                {adding ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="person-add" size={moderateScale(20)} color="#FFFFFF" />
+                    <Text style={styles.addButtonText}>
+                      {t('chats.addMembers')} ({selectedUsers.length})
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </LinearGradient>
       <CustomAlert
@@ -344,6 +351,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   safeArea: {
+    flex: 1,
+  },
+  keyboardAvoiding: {
     flex: 1,
   },
   header: {

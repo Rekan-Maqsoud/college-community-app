@@ -248,6 +248,19 @@ const ManageRepresentatives = ({ navigation }) => {
     </GlassContainer>
   );
 
+  const renderChatsEmptyState = () => (
+    <View style={styles.emptyChatsContainer}>
+      <Ionicons
+        name="chatbubbles-outline"
+        size={moderateScale(40)}
+        color={theme.textSecondary}
+      />
+      <Text style={[styles.emptyText, { fontSize: fontSize(13), color: theme.textSecondary }]}> 
+        {t('chats.noGroupsYet')}
+      </Text>
+    </View>
+  );
+
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: isDarkMode ? '#1a1a2e' : '#f0f4ff' }]}>
@@ -295,9 +308,11 @@ const ManageRepresentatives = ({ navigation }) => {
               data={chats}
               renderItem={renderChatItem}
               keyExtractor={(item) => item.$id}
+              estimatedItemSize={moderateScale(220)}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.chatsList}
+              ListEmptyComponent={renderChatsEmptyState}
             />
           </View>
 
@@ -312,6 +327,7 @@ const ManageRepresentatives = ({ navigation }) => {
                     data={selectedChat.representatives}
                     renderItem={renderRepresentative}
                     keyExtractor={(item) => item}
+                    estimatedItemSize={moderateScale(72)}
                     style={styles.representativesList}
                   />
                 ) : (
@@ -342,6 +358,7 @@ const ManageRepresentatives = ({ navigation }) => {
                     data={searchResults}
                     renderItem={renderSearchResult}
                     keyExtractor={(item) => item.$id}
+                    estimatedItemSize={moderateScale(72)}
                     style={styles.searchResults}
                   />
                 )}
@@ -394,6 +411,12 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: wp(5),
+  },
+  emptyChatsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.lg,
+    minWidth: moderateScale(220),
   },
   section: {
     marginBottom: spacing.lg,

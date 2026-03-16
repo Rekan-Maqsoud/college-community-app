@@ -430,11 +430,35 @@ const PostDetails = ({ navigation, route }) => {
           downvotedBy: [],
         };
 
-        await createReply(replyData);
+        const mockNewReplyId = `optimistic-${Date.now()}`;
+        const optimisticReply = {
+          ...replyData,
+          $id: mockNewReplyId,
+          $createdAt: new Date().toISOString(),
+          $updatedAt: new Date().toISOString(),
+          userData: {
+            fullName: user.fullName || user.name || t('common.user'),
+            profilePicture: user.profilePicture || null,
+          },
+          currentUserId: user?.$id,
+          isOptimistic: true,
+        };
+
+        setReplies(prev => [...prev, optimisticReply]);
+        setCurrentReplyCount(prev => prev + 1);
+        resetForm();
+
+        const createdReply = await createReply(replyData);
+        
+        setReplies(prev =>
+          prev.map(r => r.$id === mockNewReplyId ? {
+            ...createdReply,
+            userData: optimisticReply.userData,
+            currentUserId: user?.$id
+          } : r)
+        );
       }
 
-      await loadReplies();
-      resetForm();
       console.log('[PostDetails] addReply:success', {
         postId: post?.$id || '',
         editingReplyId: editingReply?.$id || '',

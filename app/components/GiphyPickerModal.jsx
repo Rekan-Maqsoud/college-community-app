@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
   Switch,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -227,8 +228,12 @@ const GiphyPickerModal = ({ visible, onClose, onSelect }) => {
       transparent={false}
       onRequestClose={onClose}
     >
-      <View style={[styles.container, { backgroundColor: bg, paddingTop: insets.top }]}>
-        {/* Header */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <View style={[styles.container, { backgroundColor: bg, paddingTop: insets.top }]}>
+          {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={onClose}
@@ -390,6 +395,7 @@ const GiphyPickerModal = ({ visible, onClose, onSelect }) => {
           </Text>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

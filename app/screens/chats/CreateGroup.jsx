@@ -5,6 +5,7 @@ import {
   StyleSheet,
   StatusBar,
   Platform,
+  KeyboardAvoidingView,
   TouchableOpacity,
   TextInput, 
   ActivityIndicator,
@@ -282,27 +283,31 @@ const CreateGroup = ({ navigation }) => {
         <AnimatedBackground particleCount={15} />
         
         <SafeAreaView style={styles.safeArea}>
-          <View style={styles.header}>
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}>
-              <Ionicons 
-                name="arrow-back" 
-                size={moderateScale(24)} 
-                color={theme.text} 
-              />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(20) }]}>
-              {t('chats.createGroup')}
-            </Text>
-            <View style={styles.placeholder} />
-          </View>
+          <KeyboardAvoidingView
+            style={styles.keyboardAvoiding}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
+            <View style={styles.header}>
+              <TouchableOpacity 
+                style={styles.backButton}
+                onPress={() => navigation.goBack()}>
+                <Ionicons 
+                  name="arrow-back" 
+                  size={moderateScale(24)} 
+                  color={theme.text} 
+                />
+              </TouchableOpacity>
+              <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(20) }]}>
+                {t('chats.createGroup')}
+              </Text>
+              <View style={styles.placeholder} />
+            </View>
 
-          <ScrollView 
-            style={styles.scrollView}
-            contentContainerStyle={contentStyle}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled">
+            <ScrollView 
+              style={styles.scrollView}
+              contentContainerStyle={contentStyle}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled">
             
             {/* Group Photo Section */}
             <View style={styles.formSection}>
@@ -585,31 +590,32 @@ const CreateGroup = ({ navigation }) => {
                 </>
               )}
             </View>
-          </ScrollView>
+            </ScrollView>
 
-          <View style={styles.footer}>
-            <TouchableOpacity
-              style={[
-                styles.createButton,
-                { 
-                  backgroundColor: theme.primary,
-                  opacity: (!groupName.trim() || selectedUsers.length === 0 || creating) ? 0.5 : 1,
-                }
-              ]}
-              onPress={handleCreateGroup}
-              disabled={!groupName.trim() || selectedUsers.length === 0 || creating}>
-              {creating ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="add" size={moderateScale(22)} color="#FFFFFF" />
-                  <Text style={[styles.createButtonText, { fontSize: fontSize(16) }]}>
-                    {t('chats.createGroupButton')}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
+            <View style={styles.footer}>
+              <TouchableOpacity
+                style={[
+                  styles.createButton,
+                  { 
+                    backgroundColor: theme.primary,
+                    opacity: (!groupName.trim() || selectedUsers.length === 0 || creating) ? 0.5 : 1,
+                  }
+                ]}
+                onPress={handleCreateGroup}
+                disabled={!groupName.trim() || selectedUsers.length === 0 || creating}>
+                {creating ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="add" size={moderateScale(22)} color="#FFFFFF" />
+                    <Text style={[styles.createButtonText, { fontSize: fontSize(16) }]}>
+                      {t('chats.createGroupButton')}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </LinearGradient>
       <CustomAlert
@@ -632,6 +638,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   safeArea: {
+    flex: 1,
+  },
+  keyboardAvoiding: {
     flex: 1,
   },
   header: {

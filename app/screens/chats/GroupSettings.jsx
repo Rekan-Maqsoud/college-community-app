@@ -5,6 +5,7 @@ import {
   StyleSheet,
   StatusBar,
   Platform,
+  KeyboardAvoidingView,
   TouchableOpacity,
   TextInput, 
   ActivityIndicator,
@@ -635,22 +636,27 @@ const GroupSettings = ({ navigation, route }) => {
         <AnimatedBackground particleCount={15} />
         
         <SafeAreaView style={styles.safeArea}>
-          <View style={styles.header}>
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.text} />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(20) }]}>
-              {t('chats.groupSettings')}
-            </Text>
-            <View style={styles.placeholder} />
-          </View>
+          <KeyboardAvoidingView
+            style={styles.keyboardAvoiding}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
+            <View style={styles.header}>
+              <TouchableOpacity 
+                style={styles.backButton}
+                onPress={() => navigation.goBack()}>
+                <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.text} />
+              </TouchableOpacity>
+              <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(20) }]}>
+                {t('chats.groupSettings')}
+              </Text>
+              <View style={styles.placeholder} />
+            </View>
 
-          <ScrollView 
-            style={styles.scrollView}
-            contentContainerStyle={contentStyle}
-            showsVerticalScrollIndicator={false}>
+            <ScrollView 
+              style={styles.scrollView}
+              contentContainerStyle={contentStyle}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled">
             
             {/* Group Info Section */}
             <View style={styles.section}>
@@ -1017,7 +1023,8 @@ const GroupSettings = ({ navigation, route }) => {
             </View>
 
             <View style={styles.bottomPadding} />
-          </ScrollView>
+            </ScrollView>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </LinearGradient>
       <CustomAlert
@@ -1040,6 +1047,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   safeArea: {
+    flex: 1,
+  },
+  keyboardAvoiding: {
     flex: 1,
   },
   header: {

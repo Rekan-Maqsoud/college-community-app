@@ -300,6 +300,7 @@ const UserSearch = ({ navigation }) => {
               data={displayData}
               renderItem={renderUserItem}
               keyExtractor={(item) => item.$id}
+              estimatedItemSize={moderateScale(80)}
               contentContainerStyle={styles.listContent}
               ListEmptyComponent={renderEmpty}
               ListHeaderComponent={showFriendsLabel ? (

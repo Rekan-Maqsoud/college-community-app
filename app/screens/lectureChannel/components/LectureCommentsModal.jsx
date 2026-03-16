@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Modal, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
 import styles from '../LectureChannelStyles';
@@ -21,7 +21,10 @@ const LectureCommentsModal = ({
 }) => {
   return (
     <Modal visible={!!commentsModalAsset} animationType="slide" onRequestClose={closeComments}>
-      <View style={[styles.commentsModalWrap, { backgroundColor: colors.background }]}> 
+      <KeyboardAvoidingView 
+        style={[styles.commentsModalWrap, { backgroundColor: colors.background }]} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      > 
         <View style={[styles.commentsHeader, { borderBottomColor: colors.border }]}> 
           <Text style={[styles.commentsTitle, { color: colors.text }]} numberOfLines={1}>
             {commentsModalAsset?.title || t('lectures.discussion')}
@@ -76,7 +79,7 @@ const LectureCommentsModal = ({
             <Text style={styles.sendCommentText}>{postingComment ? t('lectures.posting') : t('lectures.post')}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

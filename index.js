@@ -1,7 +1,27 @@
 import { registerRootComponent } from 'expo';
 import React, { useState, useEffect } from 'react';
+import { Text, TextInput } from 'react-native';
 import { setGlobalFontScale } from './app/utils/responsive';
 import safeStorage from './app/utils/safeStorage';
+
+// Constrain system font scaling
+if (Text.defaultProps) {
+  Text.defaultProps.allowFontScaling = false;
+  Text.defaultProps.maxFontSizeMultiplier = 1.2;
+} else {
+  Text.defaultProps = {};
+  Text.defaultProps.allowFontScaling = false;
+  Text.defaultProps.maxFontSizeMultiplier = 1.2;
+}
+
+if (TextInput.defaultProps) {
+  TextInput.defaultProps.allowFontScaling = false;
+  TextInput.defaultProps.maxFontSizeMultiplier = 1.2;
+} else {
+  TextInput.defaultProps = {};
+  TextInput.defaultProps.allowFontScaling = false;
+  TextInput.defaultProps.maxFontSizeMultiplier = 1.2;
+}
 
 // A wrapper component to load font scale before rendering the main App
 const RootWrapper = () => {

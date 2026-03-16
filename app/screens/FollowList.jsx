@@ -21,12 +21,14 @@ import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 import { FlashList } from '@shopify/flash-list';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const FollowList = ({ route, navigation }) => {
   const { userId, initialTab = 'followers', userName } = route.params || {};
   const { t, theme, isDarkMode } = useAppSettings();
   const { user: currentUser } = useUser();
   const { contentStyle } = useLayout();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState(initialTab);
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
@@ -197,7 +199,7 @@ const FollowList = ({ route, navigation }) => {
         end={{ x: 1, y: 1 }}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: (insets.top || hp(2)) + spacing.xs }]}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
@@ -297,7 +299,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? hp(6) : hp(4),
     paddingHorizontal: wp(5),
     paddingBottom: spacing.md,
   },

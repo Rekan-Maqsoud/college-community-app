@@ -37,6 +37,7 @@ import {
 } from '../utils/responsive';
 import { borderRadius, shadows } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import telemetry from '../utils/telemetry';
 
 const getAcademicChangesCountFromProfileViews = (profileViews) => {
@@ -61,6 +62,7 @@ const SignUp = ({ navigation, route }) => {
   const { setUserData } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { formStyle } = useLayout();
+  const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const [fullName, setFullName] = useState(preservedData?.fullName || oauthName);
   const [email, setEmail] = useState(preservedData?.email || oauthEmail);
@@ -812,7 +814,11 @@ const SignUp = ({ navigation, route }) => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
         <ScrollView 
           style={styles.scrollView}
-          contentContainerStyle={[styles.scrollContent, formStyle]}
+          contentContainerStyle={[
+            styles.scrollContent, 
+            formStyle,
+            { paddingTop: Math.max(insets.top, hp(2)) }
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
           
@@ -1008,6 +1014,7 @@ const SignUp = ({ navigation, route }) => {
                             onPress={() => setShowPassword(!showPassword)}
                             style={styles.eyeIcon}
                             activeOpacity={0.7}
+                            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                           >
                             <Ionicons
                               name={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -1075,6 +1082,7 @@ const SignUp = ({ navigation, route }) => {
                             onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                             style={styles.eyeIcon}
                             activeOpacity={0.7}
+                            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                           >
                             <Ionicons
                               name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}

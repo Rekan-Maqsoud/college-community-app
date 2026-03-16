@@ -977,6 +977,7 @@ export default {
     "more": "هەڵبژاردەی زیاتر",
     "previous": "پێشوو",
     "next": "داهاتوو",
+    "couldNotOpenLink": "نەتوانرا بەستەرەکە بکرێتەوە",
     "updates": {
       "title": "نوێکردنەوە بەردەستە",
       "availableBody": "نوێکردنەوەیەکی نوێ ئامادەی بارکردنە.",

@@ -39,6 +39,7 @@ import {
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const getAcademicChangesCountFromProfileViews = (profileViews) => {
   if (!profileViews) return 0;
@@ -65,6 +66,7 @@ const VerifyEmail = ({ route, navigation }) => {
   const { setUserData } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { formStyle } = useLayout();
+  const insets = useSafeAreaInsets();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
@@ -383,7 +385,11 @@ const VerifyEmail = ({ route, navigation }) => {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}>
           <ScrollView
-            contentContainerStyle={[styles.scrollContent, formStyle]}
+            contentContainerStyle={[
+              styles.scrollContent, 
+              formStyle,
+              { paddingTop: Math.max(insets.top, hp(2)) }
+            ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
             

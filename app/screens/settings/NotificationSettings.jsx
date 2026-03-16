@@ -397,7 +397,7 @@ const NotificationSettings = ({ navigation }) => {
               ]}
               value={tempTime}
               onChangeText={setTempTime}
-              placeholder="HH:MM"
+              placeholder={t('settings.timePlaceholder') || 'HH:MM'}
               placeholderTextColor={theme.textSecondary}
               keyboardType="numbers-and-punctuation"
               maxLength={5}
