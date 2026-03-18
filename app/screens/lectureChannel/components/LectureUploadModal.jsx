@@ -34,10 +34,10 @@ const LectureUploadModal = ({
     <Modal visible={showUploadComposer} transparent animationType="slide" onRequestClose={onClose}>
       <View style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}> 
         <KeyboardAvoidingView
-          style={styles.modalCard}
+          style={styles.modalKeyboardWrap}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+          <View style={[styles.modalCard, styles.uploadComposerCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
             <View style={styles.modalHeaderRow}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>{t('lectures.addUpload')}</Text>
               <TouchableOpacity
@@ -47,7 +47,10 @@ const LectureUploadModal = ({
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.uploadComposerScrollContent}>
               <TextInput
                 value={newUploadTitle}
                 onChangeText={setNewUploadTitle}

@@ -11,6 +11,7 @@ export const GlassContainer = ({
   borderRadius = 16,
   borderWidth = 1,
   gradientOpacity = 0.15,
+  disableBackgroundOverlay = false,
 }) => {
   const context = useAppSettingsSafe();
   const theme = context?.theme || {};
@@ -40,7 +41,6 @@ export const GlassContainer = ({
       <BlurView
         intensity={glassIntensity}
         tint={glassTint}
-        experimentalBlurMethod="dimezisBlurView"
         pointerEvents="none"
         style={[
           StyleSheet.absoluteFill,
@@ -51,22 +51,23 @@ export const GlassContainer = ({
         ]}
       />
       
-      {/* Background color overlay */}
-      <View
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          {
-            backgroundColor: glassBackground,
-            borderRadius,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: isDarkMode ? 0.3 : 0.1,
-            shadowRadius: isDarkMode ? 12 : 8,
-            elevation: isAndroid ? (isDarkMode ? 5 : 2) : 0,
-          }
-        ]}
-      />
+      {!disableBackgroundOverlay && (
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              backgroundColor: glassBackground,
+              borderRadius,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: isDarkMode ? 0.3 : 0.1,
+              shadowRadius: isDarkMode ? 12 : 8,
+              elevation: isAndroid ? (isDarkMode ? 5 : 2) : 0,
+            }
+          ]}
+        />
+      )}
 
       {/* Shine/Reflection using Linear Gradient */}
       <LinearGradient
@@ -147,7 +148,6 @@ export const GlassInput = ({
       <BlurView
         intensity={30}
         tint={glassTint}
-        experimentalBlurMethod="dimezisBlurView"
         pointerEvents="none"
         style={[
           StyleSheet.absoluteFill,
@@ -220,7 +220,6 @@ export const GlassButton = ({
         <BlurView
           intensity={40}
           tint={glassTint}
-          experimentalBlurMethod="dimezisBlurView"
           pointerEvents="none"
           style={[StyleSheet.absoluteFill, styles.buttonBlur]}
         />

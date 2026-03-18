@@ -372,6 +372,7 @@ const ForgotPassword = ({ navigation, route }) => {
       <GlassContainer 
         style={styles.formContainer}
         intensity={isDarkMode ? 25 : 40}
+        disableBackgroundOverlay
       >
         <View style={styles.inputGroup}>
           <View style={styles.inputWrapper}>
@@ -462,6 +463,7 @@ const ForgotPassword = ({ navigation, route }) => {
       <GlassContainer 
         style={styles.formContainer}
         intensity={isDarkMode ? 25 : 40}
+        disableBackgroundOverlay
       >
         <View style={styles.instructionsBox}>
           <Ionicons name="information-circle-outline" size={24} color="#BB86FC" />
@@ -528,6 +530,7 @@ const ForgotPassword = ({ navigation, route }) => {
       <GlassContainer 
         style={styles.formContainer}
         intensity={isDarkMode ? 25 : 40}
+        disableBackgroundOverlay
       >
         <View style={styles.inputGroup}>
           <View style={styles.inputWrapper}>
@@ -787,7 +790,6 @@ const styles = StyleSheet.create({
   formContainer: {
     borderRadius: borderRadius.xl,
     padding: spacing.lg,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   inputGroup: {
     marginBottom: spacing.lg,

@@ -18,7 +18,7 @@ This file is the enforcement layer for AI edits. If a rule here conflicts with o
 8. Never introduce new `expo-av` usage. Use `expo-video` and `expo-audio` patterns.
 9. Never add legacy JavaScript crypto polyfills for E2EE flows. Use native-backed crypto modules.
 10. Never ship unbounded list/document queries. Use explicit limits and pagination strategy.
-
+11. never make native android and ios folders 
 ## Required Coding Standards
 
 1. Keep changes minimal, local, and reversible.

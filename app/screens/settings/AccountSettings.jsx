@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,7 @@ const AccountSettings = ({ navigation }) => {
   const [deletePassword, setDeletePassword] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const deleteInFlightRef = useRef(false);
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   const handleClearCache = () => {
@@ -113,21 +114,43 @@ const AccountSettings = ({ navigation }) => {
   };
 
   const confirmDeleteAccount = async () => {
+    if (deleteInFlightRef.current || isDeleting) {
+      return;
+    }
+
+    if (!deletePassword) {
+      setDeleteError(t('settings.passwordRequiredForDelete'));
+      return;
+    }
+
+    deleteInFlightRef.current = true;
     setIsDeleting(true);
     setDeleteError('');
     try {
-      await deleteAccount(deletePassword.trim());
+      await deleteAccount(deletePassword);
       await clearUser();
       setShowDeleteModal(false);
       navigation.replace('SignIn');
     } catch (error) {
-      setIsDeleting(false);
-      const errorMessage = error?.message?.includes('Invalid credentials')
-        || error?.message?.includes('Invalid email')
-        || error?.code === 401
+      console.warn('[delete-account][ui] failed', {
+        code: error?.code ?? null,
+        type: error?.type ?? null,
+        message: error?.message ?? 'Unknown error',
+        responseCode: error?.response?.code ?? null,
+        responseType: error?.response?.type ?? null,
+        responseMessage: error?.response?.message ?? null,
+      });
+      const errorMessage = error?.message === 'DELETE_ACCOUNT_INVALID_PASSWORD'
+        || error?.code === 'DELETE_ACCOUNT_INVALID_PASSWORD'
         ? t('settings.incorrectPassword')
+        : error?.message === 'DELETE_ACCOUNT_REAUTH_RATE_LIMITED'
+          || error?.code === 'DELETE_ACCOUNT_REAUTH_RATE_LIMITED'
+          ? t('settings.deleteAccountRateLimited')
         : t('settings.deleteAccountError');
       setDeleteError(errorMessage);
+    } finally {
+      deleteInFlightRef.current = false;
+      setIsDeleting(false);
     }
   };
 

@@ -300,8 +300,14 @@ const ChatRoom = ({ route, navigation }) => {
   const highlightTimerRef = useRef(null);
   const scrollOffsetRef = useRef(0);
   const visibleAnchorRef = useRef({ messageId: '', index: -1 });
+  const lastVisibleIndexRef = useRef(-1);
   const hasAppliedInitialViewportRef = useRef(false);
+  const initialScrollSettledRef = useRef(false);
   const lastPersistedViewportKeyRef = useRef('');
+  const previousLastMessageIdRef = useRef('');
+  const previousMessagesLengthRef = useRef(0);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [pendingNewMessageCount, setPendingNewMessageCount] = useState(0);
 
   // Post view modal state (for shared posts)
   const [postModalVisible, setPostModalVisible] = useState(false);
@@ -779,6 +785,21 @@ const ChatRoom = ({ route, navigation }) => {
     });
   }, [memoizedMessages, user?.$id]);
 
+  const unreadIncomingCount = useMemo(() => {
+    if (!user?.$id) {
+      return 0;
+    }
+
+    return memoizedMessages.reduce((count, message) => {
+      if (!message?.$id || message.senderId === user.$id) {
+        return count;
+      }
+
+      const readBy = Array.isArray(message.readBy) ? message.readBy : [];
+      return readBy.includes(user.$id) ? count : count + 1;
+    }, 0);
+  }, [memoizedMessages, user?.$id]);
+
   const initialScrollIndex = useMemo(() => {
     if (loading || memoizedMessages.length === 0) {
       return undefined;
@@ -830,6 +851,21 @@ const ChatRoom = ({ route, navigation }) => {
       return;
     }
 
+    const lastVisible = orderedViewableItems[orderedViewableItems.length - 1];
+    const lastVisibleIndex = Number(lastVisible?.index ?? -1);
+    lastVisibleIndexRef.current = lastVisibleIndex;
+
+    const nearBottomThreshold = 2;
+    const totalItems = memoizedMessages.length;
+    const nextIsNearBottom = totalItems <= 0
+      ? true
+      : lastVisibleIndex >= Math.max(0, totalItems - 1 - nearBottomThreshold);
+
+    setIsNearBottom((prev) => (prev === nextIsNearBottom ? prev : nextIsNearBottom));
+    if (nextIsNearBottom) {
+      setPendingNewMessageCount((prev) => (prev === 0 ? prev : 0));
+    }
+
     visibleAnchorRef.current = {
       messageId: firstVisible.item.$id,
       index: Number(firstVisible.index ?? -1),
@@ -855,48 +891,57 @@ const ChatRoom = ({ route, navigation }) => {
     const isLastSeenMessage = item.senderId === user.$id && item.$id === lastSeenMessageId;
 
     return (
-      <ChatMessageItem
-        message={item}
-        index={index}
-        currentUserId={user.$id}
-        senderData={senderData}
-        previousSenderId={previousSenderId}
-        nextSenderId={nextSenderId}
-        isRepresentative={isRepresentative}
-        isBookmarked={isBookmarked}
-        canPin={canPin}
-        chatType={chat.type}
-        otherUserPhoto={otherUserPhoto}
-        otherUserName={otherUserName}
-        participantCount={participantCount}
-        isLastSeenMessage={isLastSeenMessage}
-        groupMembers={groupMembers}
-        searchQuery={searchActive ? searchQuery : ''}
-        isCurrentSearchResult={isCurrentSearchResult}
-        isHighlighted={isHighlighted}
-        showAlert={showAlert}
-        selectionMode={selectionMode}
-        isSelected={selectedMessageIds.includes(item.$id)}
-        reactionDefaults={reactionDefaults}
-        onCopyMessage={handleCopyMessage}
-        onDeleteMessage={handleDeleteMessage}
-        onReplyMessage={handleReplyMessage}
-        onForwardMessage={handleForwardMessage}
-        onPinMessage={handlePinMessage}
-        onUnpinMessage={handleUnpinMessage}
-        onBookmarkMessage={handleBookmarkMessage}
-        onUnbookmarkMessage={handleUnbookmarkMessage}
-        onAvatarPress={handleNavigateToProfile}
-        onRetryMessage={handleRetryMessage}
-        onPostPress={handlePostPress}
-        onToggleSelect={toggleMessageSelection}
-        onToggleReaction={handleToggleReaction}
-        onPollVote={handleVotePollMessage}
-        onEditReactions={handleOpenReactionSettings}
-        triggerHaptic={triggerHaptic}
-      />
+      <>
+        {index === firstUnreadMessageIndex && unreadIncomingCount > 0 && (
+          <View style={[styles.unreadSeparator, { borderColor: theme.border }]}>
+            <Text style={[styles.unreadSeparatorText, { color: theme.primary }]}> 
+              {t('chats.newMessagesCount', { count: unreadIncomingCount })}
+            </Text>
+          </View>
+        )}
+        <ChatMessageItem
+          message={item}
+          index={index}
+          currentUserId={user.$id}
+          senderData={senderData}
+          previousSenderId={previousSenderId}
+          nextSenderId={nextSenderId}
+          isRepresentative={isRepresentative}
+          isBookmarked={isBookmarked}
+          canPin={canPin}
+          chatType={chat.type}
+          otherUserPhoto={otherUserPhoto}
+          otherUserName={otherUserName}
+          participantCount={participantCount}
+          isLastSeenMessage={isLastSeenMessage}
+          groupMembers={groupMembers}
+          searchQuery={searchActive ? searchQuery : ''}
+          isCurrentSearchResult={isCurrentSearchResult}
+          isHighlighted={isHighlighted}
+          showAlert={showAlert}
+          selectionMode={selectionMode}
+          isSelected={selectedMessageIds.includes(item.$id)}
+          reactionDefaults={reactionDefaults}
+          onCopyMessage={handleCopyMessage}
+          onDeleteMessage={handleDeleteMessage}
+          onReplyMessage={handleReplyMessage}
+          onForwardMessage={handleForwardMessage}
+          onPinMessage={handlePinMessage}
+          onUnpinMessage={handleUnpinMessage}
+          onBookmarkMessage={handleBookmarkMessage}
+          onUnbookmarkMessage={handleUnbookmarkMessage}
+          onAvatarPress={handleNavigateToProfile}
+          onRetryMessage={handleRetryMessage}
+          onPostPress={handlePostPress}
+          onToggleSelect={toggleMessageSelection}
+          onToggleReaction={handleToggleReaction}
+          onPollVote={handleVotePollMessage}
+          onEditReactions={handleOpenReactionSettings}
+          triggerHaptic={triggerHaptic}
+        />
+      </>
     );
-  }, [bookmarkedMsgIds, canPin, chat.otherUser?.fullName, chat.otherUser?.name, chat.otherUser?.profilePicture, chat.participants?.length, chat.representatives, chat.type, currentSearchMessageId, groupMembers, handleBookmarkMessage, handleCopyMessage, handleDeleteMessage, handleForwardMessage, handleNavigateToProfile, handleOpenReactionSettings, handlePinMessage, handlePostPress, handleReplyMessage, handleRetryMessage, handleToggleReaction, handleUnbookmarkMessage, handleUnpinMessage, handleVotePollMessage, highlightedMessageId, lastSeenMessageId, memoizedMessages, reactionDefaults, searchActive, searchQuery, selectedMessageIds, selectionMode, showAlert, toggleMessageSelection, triggerHaptic, user.$id, userCache]);
+  }, [bookmarkedMsgIds, canPin, chat.otherUser?.fullName, chat.otherUser?.name, chat.otherUser?.profilePicture, chat.participants?.length, chat.representatives, chat.type, currentSearchMessageId, firstUnreadMessageIndex, groupMembers, handleBookmarkMessage, handleCopyMessage, handleDeleteMessage, handleForwardMessage, handleNavigateToProfile, handleOpenReactionSettings, handlePinMessage, handlePostPress, handleReplyMessage, handleRetryMessage, handleToggleReaction, handleUnbookmarkMessage, handleUnpinMessage, handleVotePollMessage, highlightedMessageId, lastSeenMessageId, memoizedMessages, reactionDefaults, searchActive, searchQuery, selectedMessageIds, selectionMode, showAlert, t, theme.border, theme.primary, toggleMessageSelection, triggerHaptic, unreadIncomingCount, user.$id, userCache]);
 
   const renderEmpty = useCallback(() => null, []);
 
@@ -977,9 +1022,15 @@ const ChatRoom = ({ route, navigation }) => {
 
   useEffect(() => {
     hasAppliedInitialViewportRef.current = false;
+    initialScrollSettledRef.current = false;
     lastPersistedViewportKeyRef.current = '';
     visibleAnchorRef.current = { messageId: '', index: -1 };
+    lastVisibleIndexRef.current = -1;
     scrollOffsetRef.current = 0;
+    previousLastMessageIdRef.current = '';
+    previousMessagesLengthRef.current = 0;
+    setIsNearBottom(true);
+    setPendingNewMessageCount(0);
   }, [chat.$id]);
 
   useEffect(() => {
@@ -1011,9 +1062,68 @@ const ChatRoom = ({ route, navigation }) => {
             animated: false,
           });
         }
+
+        initialScrollSettledRef.current = true;
       });
+      return;
     }
-  }, [chatViewportState?.messageId, chatViewportState?.scrollOffset, flatListRef, loading, memoizedMessages]);
+
+    requestAnimationFrame(() => {
+      if (firstUnreadMessageIndex < 0) {
+        flatListRef.current?.scrollToEnd({ animated: false });
+      }
+      initialScrollSettledRef.current = true;
+    });
+  }, [chatViewportState?.messageId, chatViewportState?.scrollOffset, firstUnreadMessageIndex, flatListRef, loading, memoizedMessages]);
+
+  const scrollToLatest = useCallback((animated = true) => {
+    if (!flatListRef.current || memoizedMessages.length === 0) {
+      return;
+    }
+
+    flatListRef.current.scrollToEnd({ animated });
+    setPendingNewMessageCount(0);
+    setIsNearBottom(true);
+  }, [flatListRef, memoizedMessages.length]);
+
+  useEffect(() => {
+    if (loading || memoizedMessages.length === 0 || !initialScrollSettledRef.current) {
+      return;
+    }
+
+    const latestMessage = memoizedMessages[memoizedMessages.length - 1];
+    const latestMessageId = String(latestMessage?.$id || '');
+    const previousLatestMessageId = String(previousLastMessageIdRef.current || '');
+
+    if (!latestMessageId) {
+      return;
+    }
+
+    if (!previousLatestMessageId) {
+      previousLastMessageIdRef.current = latestMessageId;
+      previousMessagesLengthRef.current = memoizedMessages.length;
+      return;
+    }
+
+    if (latestMessageId === previousLatestMessageId) {
+      previousMessagesLengthRef.current = memoizedMessages.length;
+      return;
+    }
+
+    const latestFromCurrentUser = latestMessage.senderId === user.$id;
+    const appended = memoizedMessages.length >= previousMessagesLengthRef.current;
+
+    if (appended && (isNearBottom || latestFromCurrentUser)) {
+      requestAnimationFrame(() => {
+        scrollToLatest(latestFromCurrentUser);
+      });
+    } else if (appended && !latestFromCurrentUser) {
+      setPendingNewMessageCount((prev) => prev + 1);
+    }
+
+    previousLastMessageIdRef.current = latestMessageId;
+    previousMessagesLengthRef.current = memoizedMessages.length;
+  }, [isNearBottom, loading, memoizedMessages, scrollToLatest, user.$id]);
 
   useEffect(() => {
     const unsubscribeBlur = navigation.addListener('blur', () => {
@@ -1127,6 +1237,24 @@ const ChatRoom = ({ route, navigation }) => {
         maintainVisibleContentPosition={maintainVisibleContentPosition}
       />
 
+      {!selectionMode && memoizedMessages.length > 0 && (!isNearBottom || pendingNewMessageCount > 0) && (
+        <TouchableOpacity
+          style={[styles.jumpToLatestButton, { backgroundColor: theme.primary }]}
+          onPress={() => scrollToLatest(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t('chats.jumpToLatest')}
+          activeOpacity={0.9}>
+          <Ionicons name="arrow-down" size={moderateScale(16)} color="#fff" />
+          {pendingNewMessageCount > 0 && (
+            <View style={[styles.jumpToLatestBadge, { backgroundColor: theme.card }]}> 
+              <Text style={[styles.jumpToLatestBadgeText, { color: theme.primary }]}> 
+                {pendingNewMessageCount}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      )}
+
       {renderLoadingOverlay()}
       {renderEmptyOverlay()}
 
@@ -1207,7 +1335,7 @@ const ChatRoom = ({ route, navigation }) => {
       />
       )}
     </KeyboardAvoidingView>
-  ), [canMentionEveryone, canSend, cancelReply, chat.requiresRepresentative, chat.type, chatOnlyBlockedBannerStyle, chatStyle, copySelectionTextStyle, deleteSelectionTextStyle, excludedMentionUserIds, flatListRef, fullBlockedBannerStyle, groupMembers, handleBatchCopy, handleBatchDeleteForMe, handleListScroll, handleScrollToIndexFailed, handleSendWithHaptic, handleViewableItemsChanged, iBlockedThem, iChatBlockedThem, initialScrollIndex, insets.top, isBlockedChat, isChatOnlyBlocked, isFullyBlockedChat, keyExtractor, maintainVisibleContentPosition, memoizedMessages, renderEmpty, renderEmptyOverlay, renderLoadingOverlay, renderMessage, renderSearchBar, representativeWarningBannerStyle, replyingTo, selectedMessageIds.length, selectedMessagesTextStyle, selectionMode, selectionToolbarStyle, showAlert, t, theme.primary, theme.text, theme.textSecondary, toggleSelectionMode, userFriends, viewabilityConfig]);
+  ), [canMentionEveryone, canSend, cancelReply, chat.requiresRepresentative, chat.type, chatOnlyBlockedBannerStyle, chatStyle, copySelectionTextStyle, deleteSelectionTextStyle, excludedMentionUserIds, flatListRef, fullBlockedBannerStyle, groupMembers, handleBatchCopy, handleBatchDeleteForMe, handleListScroll, handleScrollToIndexFailed, handleSendWithHaptic, handleViewableItemsChanged, iBlockedThem, iChatBlockedThem, initialScrollIndex, insets.top, isBlockedChat, isChatOnlyBlocked, isFullyBlockedChat, isNearBottom, keyExtractor, maintainVisibleContentPosition, memoizedMessages, pendingNewMessageCount, renderEmpty, renderEmptyOverlay, renderLoadingOverlay, renderMessage, renderSearchBar, representativeWarningBannerStyle, replyingTo, scrollToLatest, selectedMessageIds.length, selectedMessagesTextStyle, selectionMode, selectionToolbarStyle, showAlert, t, theme.card, theme.primary, theme.text, theme.textSecondary, toggleSelectionMode, userFriends, viewabilityConfig]);
 
   return (
     <View style={[styles.container, { backgroundColor: backgroundColors[0] || headerBackgroundColor }]}>

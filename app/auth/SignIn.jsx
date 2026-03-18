@@ -384,6 +384,7 @@ const SignIn = ({ navigation, route }) => {
               style={styles.formContainer}
               intensity={isTablet() ? 30 : 25}
               borderRadius={borderRadius.xl}
+              disableBackgroundOverlay
             >
               <GlassInput focused={emailFocused}>
                 <View style={styles.inputWrapper}>

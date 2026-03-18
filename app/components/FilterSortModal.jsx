@@ -294,10 +294,10 @@ const styles = StyleSheet.create({
   },
   optionsList: {
     paddingHorizontal: spacing.lg,
-    flexShrink: 1,
+    flex: 1,
   },
   optionsListContent: {
-    paddingBottom: hp(5),
+    paddingBottom: spacing.xl,
   },
   sectionTitle: {
     fontWeight: '600',

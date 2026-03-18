@@ -11,6 +11,7 @@ import LectureAssetsList from './components/LectureAssetsList';
 import LectureSettingsModal from './components/LectureSettingsModal';
 import LectureCommentsModal from './components/LectureCommentsModal';
 import LectureChannelHeader from './components/LectureChannelHeader';
+import CustomAlert from '../../components/CustomAlert';
 import styles from './LectureChannelStyles';
 
 const LectureChannelView = ({
@@ -75,6 +76,7 @@ const LectureChannelView = ({
     assetStatsOpen,
     assetStatsTarget,
     assets,
+    alertConfig,
     channel,
     colors,
     commentsModalAsset,
@@ -290,6 +292,15 @@ const LectureChannelView = ({
           submitComment={submitComment}
           t={t}
           user={user}
+        />
+
+        <CustomAlert
+          visible={alertConfig?.visible}
+          type={alertConfig?.type}
+          title={alertConfig?.title}
+          message={alertConfig?.message}
+          buttons={alertConfig?.buttons}
+          onDismiss={actionState.hideAlert}
         />
       </LinearGradient>
     </View>

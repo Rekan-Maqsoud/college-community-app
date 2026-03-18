@@ -229,6 +229,8 @@ export default {
     "tapForOptions": "Tap for options",
     "visitProfile": "Visit Profile",
     "searchInChat": "Search in Chat",
+    "jumpToLatest": "Jump to latest",
+    "newMessagesCount": "{count} new messages",
     "noResultsFound": "No results found",
     "clearChat": "Clear Chat",
     "clearChatConfirm": "Are you sure you want to clear all messages in this chat? This action cannot be undone.",

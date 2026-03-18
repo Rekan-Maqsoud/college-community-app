@@ -32,6 +32,7 @@ import {
   parseStatsUserIds,
 } from './lectureChannelUtils';
 import { useLectureChannelControllerActions } from './useLectureChannelControllerActions';
+import { useCustomAlert } from '../../hooks/useCustomAlert';
 
 const logLectureChannel = (event, payload = {}) => {
 };
@@ -43,6 +44,7 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
   const { colors, isDarkMode } = useAppSettings();
   const { user } = useUser();
   const { t } = useTranslation();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -775,6 +777,7 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
     setUploading,
     setShowUploadComposer,
     setYoutubeUrl,
+    showAlert,
     t,
     user,
     youtubeUrl,
@@ -826,6 +829,7 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
       setShowUploadComposer,
       setYoutubeUrl,
       setExternalUrl,
+      hideAlert,
       submitComment: controllerActions.submitComment,
     },
     computed: {
@@ -883,6 +887,7 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
       showSettingsStats,
       showUploadComposer,
       t,
+      alertConfig,
       uploadError,
       uploading,
       user,

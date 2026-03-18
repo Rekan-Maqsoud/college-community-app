@@ -132,6 +132,7 @@ if (__DEV__ && !global.__APPWRITE_SERVER_ERROR_FILTER__) {
 LogBox.ignoreLogs([
   'Require cycle:',
   'Non-serializable values were found in the navigation state',
+  'InteractionManager has been deprecated',
   'InteractionManager is deprecated',
 ]);
 

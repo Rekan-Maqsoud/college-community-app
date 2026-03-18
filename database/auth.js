@@ -978,6 +978,39 @@ export const resendEmailVerification = async () => {
     }
 };
 
+const formatDeleteAccountError = (error) => ({
+    code: error?.code ?? null,
+    type: error?.type ?? null,
+    message: error?.message ?? 'Unknown error',
+    responseCode: error?.response?.code ?? null,
+    responseType: error?.response?.type ?? null,
+    responseMessage: error?.response?.message ?? null,
+});
+
+const DELETE_ACCOUNT_REAUTH_CACHE_TTL_MS = 10 * 60 * 1000;
+const DELETE_ACCOUNT_REAUTH_RATE_LIMIT_COOLDOWN_MS = 60 * 1000;
+const DELETE_ACCOUNT_INVALID_PASSWORD_COOLDOWN_MS = 4 * 1000;
+const deleteAccountReauthStateByUser = new Map();
+
+const createDeleteAccountError = (code, extra = {}) => {
+    const error = new Error(code);
+    error.code = code;
+    Object.assign(error, extra);
+    return error;
+};
+
+const isRateLimitError = (error) => {
+    const code = Number(error?.code ?? error?.response?.code ?? 0);
+    const type = String(error?.type ?? error?.response?.type ?? '').toLowerCase();
+    const message = `${String(error?.message ?? '')} ${String(error?.response?.message ?? '')}`.toLowerCase();
+
+    return code === 429 || type.includes('rate_limit') || message.includes('rate limit');
+};
+
+export const __resetDeleteAccountReauthStateForTests = () => {
+    deleteAccountReauthStateByUser.clear();
+};
+
 export const deleteAccount = async (password) => {
     try {
         const currentUser = await getCurrentUser();
@@ -988,62 +1021,148 @@ export const deleteAccount = async (password) => {
         const userId = currentUser.$id;
 
         // Re-authenticate to confirm identity
-        const trimmedPassword = typeof password === 'string' ? password.trim() : '';
-        if (trimmedPassword) {
+        const providedPassword = typeof password === 'string' ? password : '';
+        console.log('[delete-account] start', {
+            userId,
+            email: currentUser.email,
+            hasPassword: Boolean(providedPassword),
+        });
+
+        if (providedPassword) {
+            const now = Date.now();
+            const reauthState = deleteAccountReauthStateByUser.get(userId) || {
+                lastSuccessAt: 0,
+                cooldownUntil: 0,
+            };
+
+            if (reauthState.cooldownUntil && now < reauthState.cooldownUntil) {
+                throw createDeleteAccountError('DELETE_ACCOUNT_REAUTH_RATE_LIMITED', {
+                    retryAfterMs: reauthState.cooldownUntil - now,
+                });
+            }
+
+            const hasRecentReauth = reauthState.lastSuccessAt
+                && (now - reauthState.lastSuccessAt) < DELETE_ACCOUNT_REAUTH_CACHE_TTL_MS;
+
+            if (!hasRecentReauth) {
             try {
+                console.log('[delete-account] re-authentication start', { userId });
                 await account.createEmailPasswordSession({
                     email: currentUser.email,
-                    password: trimmedPassword,
+                    password: providedPassword,
+                });
+                console.log('[delete-account] re-authentication success', { userId });
+                deleteAccountReauthStateByUser.set(userId, {
+                    lastSuccessAt: Date.now(),
+                    cooldownUntil: 0,
                 });
             } catch (reauthError) {
                 const reauthMessage = reauthError?.message || '';
+                const reauthMessageLower = reauthMessage.toLowerCase();
                 const invalidCredentials = reauthError?.code === 401
-                    || reauthMessage.includes('Invalid credentials')
-                    || reauthMessage.includes('Invalid email')
-                    || reauthMessage.includes('Invalid password');
+                    || reauthMessageLower.includes('invalid credentials')
+                    || reauthMessageLower.includes('invalid email')
+                    || reauthMessageLower.includes('invalid password');
 
-                if (invalidCredentials) {
-                    throw reauthError;
+                const reauthWasRateLimited = isRateLimitError(reauthError);
+
+                if (invalidCredentials || reauthWasRateLimited) {
+                    console.warn('[delete-account] re-authentication failed (expected)', {
+                        userId,
+                        error: formatDeleteAccountError(reauthError),
+                    });
+                } else {
+                    console.error('[delete-account] re-authentication failed', {
+                        userId,
+                        error: formatDeleteAccountError(reauthError),
+                    });
                 }
 
-                const passwordAuthUnavailable = reauthMessage.includes('password')
-                    || reauthMessage.includes('provider')
-                    || reauthMessage.includes('OAuth')
-                    || reauthMessage.includes('sessions limit');
+                if (invalidCredentials) {
+                    deleteAccountReauthStateByUser.set(userId, {
+                        lastSuccessAt: 0,
+                        cooldownUntil: Date.now() + DELETE_ACCOUNT_INVALID_PASSWORD_COOLDOWN_MS,
+                    });
+                    throw createDeleteAccountError('DELETE_ACCOUNT_INVALID_PASSWORD');
+                }
+
+                if (reauthWasRateLimited) {
+                    const cooldownUntil = Date.now() + DELETE_ACCOUNT_REAUTH_RATE_LIMIT_COOLDOWN_MS;
+                    deleteAccountReauthStateByUser.set(userId, {
+                        lastSuccessAt: 0,
+                        cooldownUntil,
+                    });
+
+                    throw createDeleteAccountError('DELETE_ACCOUNT_REAUTH_RATE_LIMITED', {
+                        retryAfterMs: cooldownUntil - Date.now(),
+                    });
+                }
+
+                const passwordAuthUnavailable = reauthMessageLower.includes('password')
+                    || reauthMessageLower.includes('provider')
+                    || reauthMessageLower.includes('oauth')
+                    || reauthMessageLower.includes('sessions limit');
 
                 if (!passwordAuthUnavailable) {
                     throw reauthError;
                 }
+
+                console.warn('[delete-account] password re-auth unavailable; continuing best-effort flow', {
+                    userId,
+                    error: formatDeleteAccountError(reauthError),
+                });
+            }
+            } else {
+                console.log('[delete-account] re-authentication skipped: recently confirmed', {
+                    userId,
+                });
             }
         }
 
         // 1. Delete all user's posts (cascades to replies & notifications via deletePost)
+        console.log('[delete-account] step 1 start: delete posts', { userId });
         await _deleteAllUserPosts(userId);
+        console.log('[delete-account] step 1 complete: delete posts', { userId });
 
         // 2. Delete all user's replies on other posts
+        console.log('[delete-account] step 2 start: delete replies', { userId });
         await _deleteAllUserReplies(userId);
+        console.log('[delete-account] step 2 complete: delete replies', { userId });
 
         // 3. Delete all notifications for/from this user
+        console.log('[delete-account] step 3 start: delete notifications', { userId });
         await _deleteAllUserNotifications(userId);
+        console.log('[delete-account] step 3 complete: delete notifications', { userId });
 
         // 4. Delete all push tokens
+        console.log('[delete-account] step 4 start: delete push tokens', { userId });
         await _deleteAllUserPushTokens(userId);
+        console.log('[delete-account] step 4 complete: delete push tokens', { userId });
 
         // 5. Delete all user chat settings
+        console.log('[delete-account] step 5 start: delete chat settings', { userId });
         await _deleteAllUserChatSettings(userId);
+        console.log('[delete-account] step 5 complete: delete chat settings', { userId });
 
         // 6. Anonymize messages sent by this user (set senderName to "Deleted Account")
+        console.log('[delete-account] step 6 start: anonymize messages', { userId });
         await _anonymizeUserMessages(userId);
+        console.log('[delete-account] step 6 complete: anonymize messages', { userId });
 
         // 7. Remove user from chat participants
+        console.log('[delete-account] step 7 start: remove from chats', { userId });
         await _removeUserFromChats(userId);
+        console.log('[delete-account] step 7 complete: remove from chats', { userId });
 
         // 8. Remove user from followers/following lists of other users
+        console.log('[delete-account] step 8 start: remove from follow lists', { userId });
         await _removeUserFromFollowLists(userId);
+        console.log('[delete-account] step 8 complete: remove from follow lists', { userId });
 
         // 9. Anonymize the user document instead of deleting it
         // This ensures any remaining references resolve to "Deleted Account"
         try {
+            console.log('[delete-account] step 9 start: anonymize user document', { userId });
             await databases.updateDocument({
                 databaseId: config.databaseId,
                 collectionId: config.usersCollectionId,
@@ -1067,31 +1186,60 @@ export const deleteAccount = async (password) => {
                     postsCount: 0,
                 },
             });
+            console.log('[delete-account] step 9 complete: anonymize user document', { userId });
         } catch (err) {
+            console.warn('[delete-account] step 9 update failed; attempting delete fallback', {
+                userId,
+                error: formatDeleteAccountError(err),
+            });
             // If update fails, try to delete the document entirely
             await databases.deleteDocument({
                 databaseId: config.databaseId,
                 collectionId: config.usersCollectionId,
                 documentId: userId,
             });
+            console.log('[delete-account] step 9 fallback complete: delete user document', { userId });
         }
 
         // 10. Disable the Appwrite auth identity
         try {
+            console.log('[delete-account] step 10 start: disable auth identity', { userId });
             await account.updateStatus();
+            console.log('[delete-account] step 10 complete: disable auth identity', { userId });
         } catch (err) {
+            console.warn('[delete-account] step 10 failed: disable auth identity', {
+                userId,
+                error: formatDeleteAccountError(err),
+            });
             // Continue even if status update fails
         }
 
         // 11. Clear sessions from this device
         try {
+            console.log('[delete-account] step 11 start: delete current session', { userId });
             await account.deleteSession({ sessionId: 'current' });
+            console.log('[delete-account] step 11 complete: delete current session', { userId });
         } catch (err) {
+            console.warn('[delete-account] step 11 failed: delete current session', {
+                userId,
+                error: formatDeleteAccountError(err),
+            });
             // Continue even if session cleanup fails
         }
 
+        console.log('[delete-account] completed successfully', { userId });
         return { success: true };
     } catch (error) {
+        const errorCode = error?.code || error?.message;
+        if (errorCode === 'DELETE_ACCOUNT_INVALID_PASSWORD' || errorCode === 'DELETE_ACCOUNT_REAUTH_RATE_LIMITED') {
+            console.warn('[delete-account] expected failure', {
+                error: formatDeleteAccountError(error),
+            });
+        } else {
+            console.error('[delete-account] fatal error', {
+                error: formatDeleteAccountError(error),
+            });
+        }
         throw error;
     }
 };

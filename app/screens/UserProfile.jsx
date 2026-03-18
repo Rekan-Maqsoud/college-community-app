@@ -7,7 +7,6 @@ import { FlashList } from '@shopify/flash-list';
 import { useUser } from '../context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { GlassContainer } from '../components/GlassComponents';
 import AnimatedBackground from '../components/AnimatedBackground';
 import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
@@ -189,6 +188,7 @@ const UserProfile = ({ route, navigation }) => {
         // Map the database fields to expected format
         const mappedUser = {
           $id: fetchedUser.$id,
+          $createdAt: fetchedUser.$createdAt,
           fullName: fetchedUser.name || fetchedUser.fullName,
           email: fetchedUser.email,
           bio: fetchedUser.bio || '',
@@ -501,120 +501,124 @@ const UserProfile = ({ route, navigation }) => {
     }
   };
 
-  const renderAboutTile = ({ key, iconName, iconColor, label, value, fullWidth = false }) => {
+  const renderInfoRow = ({ iconName, iconColor, label, value }) => {
     if (!value) {
       return null;
     }
 
     return (
-      <GlassContainer
-        key={key}
-        borderRadius={borderRadius.lg}
-        style={[styles.aboutTile, fullWidth && styles.aboutTileFullWidth]}>
-        <View style={[styles.aboutTileIconWrap, { backgroundColor: `${iconColor}18` }]}>
+      <View style={styles.infoRow}>
+        <View style={styles.infoIconWrap}>
           <Ionicons name={iconName} size={moderateScale(16)} color={iconColor} />
         </View>
-        <View style={styles.aboutTileTextWrap}>
-          <Text style={[styles.aboutTileLabel, { color: theme.textSecondary }]} numberOfLines={1}>
-            {label}
-          </Text>
-          <Text style={[styles.aboutTileValue, { color: theme.text }]} numberOfLines={fullWidth ? 2 : 3}>
-            {value}
-          </Text>
-        </View>
-      </GlassContainer>
+        <Text style={[styles.infoLabel, { color: theme.textSecondary }]} numberOfLines={1}>
+          {label}
+        </Text>
+        <Text style={[styles.infoValue, { color: theme.text }]} numberOfLines={2} ellipsizeMode="tail">
+          {value}
+        </Text>
+      </View>
     );
   };
 
-  const renderAboutSection = () => {
-    const aboutTiles = [
-      {
-        key: 'email',
-        iconName: 'mail-outline',
-        iconColor: theme.primary,
-        label: t('profile.email'),
-        value: userProfile.email,
-        fullWidth: true,
-      },
-      {
-        key: 'university',
-        iconName: 'school-outline',
-        iconColor: theme.success,
-        label: t('profile.university'),
-        value: userProfile.university,
-      },
-      {
-        key: 'college',
-        iconName: 'library-outline',
-        iconColor: theme.warning,
-        label: t('profile.college'),
-        value: userProfile.college,
-      },
-      {
-        key: 'department',
-        iconName: 'briefcase-outline',
-        iconColor: theme.primary,
-        label: t('profile.department'),
-        value: userProfile.department,
-      },
-      {
-        key: 'stage',
-        iconName: 'stats-chart-outline',
-        iconColor: theme.secondary,
-        label: t('profile.stage'),
-        value: userProfile.stage,
-      },
-    ].filter((item) => !!item.value);
+  const renderAboutSection = () => (
+    <View style={styles.sectionContainer}>
+      <Text style={[styles.sectionHeader, { color: theme.text }]}>{t('profile.about')}</Text>
+      <View
+        style={[
+          styles.infoCard,
+          {
+            backgroundColor: cardBackground,
+            borderRadius: borderRadius.lg,
+            borderWidth: isDarkMode ? 0 : 1,
+            borderColor: 'rgba(0, 0, 0, 0.04)',
+          },
+        ]}>
+        {renderInfoRow({
+          iconName: 'mail-outline',
+          iconColor: theme.primary,
+          label: t('profile.email'),
+          value: userProfile.email,
+        })}
 
-    return (
-      <View style={styles.sectionContainer}>
-        <Text style={[styles.sectionHeader, { color: theme.text }]}>{t('profile.about')}</Text>
+        {userProfile.university && (
+          <>
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]} />
+            {renderInfoRow({
+              iconName: 'school-outline',
+              iconColor: theme.success,
+              label: t('profile.university'),
+              value: userProfile.university,
+            })}
+          </>
+        )}
 
-        <GlassContainer borderRadius={borderRadius.xl} style={styles.aboutHeroCard}>
-          <View style={styles.aboutHeroTopRow}>
-            <View style={[styles.aboutHeroBadge, { backgroundColor: `${theme.primary}16` }]}>
-              <Ionicons name="sparkles-outline" size={moderateScale(18)} color={theme.primary} />
-            </View>
-            <Text style={[styles.aboutHeroLabel, { color: theme.textSecondary }]}>
-              {t('profile.about')}
-            </Text>
-          </View>
+        {userProfile.college && (
+          <>
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]} />
+            {renderInfoRow({
+              iconName: 'library-outline',
+              iconColor: theme.warning,
+              label: t('profile.college'),
+              value: userProfile.college,
+            })}
+          </>
+        )}
 
-          <Text style={[styles.aboutHeroBio, { color: theme.text }]}>
-            {userProfile.bio}
-          </Text>
+        {userProfile.department && (
+          <>
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]} />
+            {renderInfoRow({
+              iconName: 'briefcase-outline',
+              iconColor: theme.primary,
+              label: t('profile.department'),
+              value: userProfile.department,
+            })}
+          </>
+        )}
 
-          <View style={styles.aboutHeroMetaRow}>
-            {userProfile.department ? (
-              <View style={[styles.aboutMetaChip, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)' }]}>
-                <Ionicons name="briefcase-outline" size={moderateScale(13)} color={theme.primary} />
-                <Text style={[styles.aboutMetaChipText, { color: theme.textSecondary }]} numberOfLines={1}>
-                  {userProfile.department}
-                </Text>
-              </View>
-            ) : null}
-            {userProfile.stage ? (
-              <View style={[styles.aboutMetaChip, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)' }]}>
-                <Ionicons name="trending-up-outline" size={moderateScale(13)} color={theme.secondary} />
-                <Text style={[styles.aboutMetaChipText, { color: theme.textSecondary }]} numberOfLines={1}>
-                  {userProfile.stage}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-        </GlassContainer>
+        {userProfile.stage && (
+          <>
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]} />
+            {renderInfoRow({
+              iconName: 'stats-chart-outline',
+              iconColor: theme.secondary,
+              label: t('profile.stage'),
+              value: userProfile.stage,
+            })}
+          </>
+        )}
 
-        <View style={styles.aboutGrid}>
-          {aboutTiles.map(renderAboutTile)}
-        </View>
+        {userData?.$createdAt && (
+          <>
+            <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]} />
+            {renderInfoRow({
+              iconName: 'calendar-outline',
+              iconColor: theme.textSecondary,
+              label: t('profile.joinedDate'),
+              value: new Date(userData.$createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }),
+            })}
+          </>
+        )}
+      </View>
 
-        {/* Social Links - respect visibility settings */}
-        {userData?.socialLinks && 
-         Object.values(userData.socialLinks).some(v => v) && 
-         (userData.socialLinksVisibility === 'everyone' || 
+      {/* Social Links - respect visibility settings */}
+      {userData?.socialLinks &&
+        Object.values(userData.socialLinks).some((v) => v) &&
+        (userData.socialLinksVisibility === 'everyone' ||
           (userData.socialLinksVisibility === 'friends' && isFollowing)) && (
-          <GlassContainer borderRadius={borderRadius.lg} style={[styles.infoCard, { marginTop: spacing.md }]}>
-            <Text style={[styles.socialLinksHeader, { color: theme.textSecondary }]}>
+          <View
+            style={[
+              styles.infoCard,
+              {
+                backgroundColor: cardBackground,
+                borderRadius: borderRadius.lg,
+                borderWidth: isDarkMode ? 0 : 1,
+                borderColor: 'rgba(0, 0, 0, 0.04)',
+                marginTop: spacing.md,
+              },
+            ]}>
+            <Text style={[styles.infoLabel, { fontSize: fontSize(10), color: theme.textSecondary, marginBottom: spacing.sm }]}> 
               {t('settings.socialLinks')}
             </Text>
             <View style={styles.socialLinksContainer}>
@@ -651,11 +655,10 @@ const UserProfile = ({ route, navigation }) => {
                 );
               })}
             </View>
-          </GlassContainer>
+          </View>
         )}
-      </View>
-    );
-  };
+    </View>
+  );
 
   const renderPostsSection = () => {
     return (
@@ -714,17 +717,31 @@ const UserProfile = ({ route, navigation }) => {
     <>
       <View style={styles.profileHeader}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
-          <GlassContainer borderRadius={borderRadius.round} style={styles.backButtonInner}>
+          <View
+            style={[
+              styles.backButtonInner,
+              {
+                backgroundColor: cardBackground,
+                borderRadius: borderRadius.round,
+              },
+            ]}>
             <Ionicons name="arrow-back" size={moderateScale(24)} color={isDarkMode ? "#FFFFFF" : "#1C1C1E"} />
-          </GlassContainer>
+          </View>
         </TouchableOpacity>
         
         {/* Header Right Actions - QR */}
         <View style={styles.headerRightActions}>
           <TouchableOpacity style={styles.headerActionButton} onPress={() => setShowQRModal(true)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t('profile.scanToConnect')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <GlassContainer borderRadius={borderRadius.round} style={styles.backButtonInner}>
+            <View
+              style={[
+                styles.backButtonInner,
+                {
+                  backgroundColor: cardBackground,
+                  borderRadius: borderRadius.round,
+                },
+              ]}>
               <Ionicons name="qr-code-outline" size={moderateScale(22)} color={isDarkMode ? "#FFFFFF" : "#1C1C1E"} />
-            </GlassContainer>
+            </View>
           </TouchableOpacity>
         </View>
         
@@ -748,7 +765,7 @@ const UserProfile = ({ route, navigation }) => {
             {t(`settings.${userProfile.gender}`)}
           </Text>
         ) : null}
-        {userProfile.bio && <Text style={[styles.bio, { fontSize: fontSize(13), color: 'rgba(255,255,255,0.8)' }]} numberOfLines={2}>{userProfile.bio}</Text>}
+        {userProfile.bio && <Text style={[styles.bio, { fontSize: fontSize(13), color: isDarkMode ? 'rgba(255,255,255,0.8)' : 'rgba(28, 28, 30, 0.8)' }]} numberOfLines={2}>{userProfile.bio}</Text>}
         
         {/* Action Buttons Row - Compact layout */}
         {currentUser?.$id && userId && currentUser.$id !== userId && (
@@ -827,7 +844,7 @@ const UserProfile = ({ route, navigation }) => {
           </View>
         )}
         
-        <View style={[styles.statsContainer, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.7)' : 'rgba(255, 255, 255, 0.7)' }]}>
+        <View style={[styles.statsContainer, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.7)' : 'rgba(255, 255, 255, 0.9)' }]}>
           <TouchableOpacity style={styles.statItem} activeOpacity={0.7}>
             <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.posts}</Text>
             <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.posts')}</Text>

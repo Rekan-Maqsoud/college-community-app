@@ -173,6 +173,7 @@ const ChangePassword = ({ navigation }) => {
               style={styles.formContainer}
               intensity={25}
               borderRadius={borderRadius.xl}
+              disableBackgroundOverlay
             >
               <GlassInput focused={currentPasswordFocused}>
                 <View style={styles.inputWrapper}>

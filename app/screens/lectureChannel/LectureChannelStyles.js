@@ -456,11 +456,21 @@ export default StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: wp(5),
   },
+  modalKeyboardWrap: {
+    width: '100%',
+  },
   modalCard: {
     borderWidth: 1,
     borderRadius: borderRadius.xl,
     padding: spacing.md,
     maxHeight: '86%',
+  },
+  uploadComposerCard: {
+    maxHeight: '94%',
+    minHeight: '72%',
+  },
+  uploadComposerScrollContent: {
+    paddingBottom: spacing.lg,
   },
   modalHeaderRow: {
     flexDirection: 'row',

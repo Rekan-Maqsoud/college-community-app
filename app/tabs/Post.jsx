@@ -114,6 +114,11 @@ const Post = () => {
   }, [user, stage]);
 
   const stageOptions = getStageOptionsForDepartment(department || user?.department || '');
+  const dropdownSelectorStyle = {
+    backgroundColor: theme.input.background,
+    borderColor: theme.input.border,
+    borderRadius: borderRadius.sm,
+  };
 
   useEffect(() => {
     if (stage && !stageOptions.some((option) => option.value === stage)) {
@@ -407,6 +412,8 @@ const Post = () => {
                   placeholder={t('post.postType')}
                   icon={POST_ICONS[postType] || 'list-outline'}
                   disabled={loading}
+                  useGlass={false}
+                  selectorStyle={dropdownSelectorStyle}
                 />
               </View>
 
@@ -422,6 +429,8 @@ const Post = () => {
                   icon="stats-chart-outline"
                   disabled={loading}
                   compact
+                  useGlass={false}
+                  selectorStyle={dropdownSelectorStyle}
                 />
               </View>
 

@@ -852,6 +852,7 @@ const SignUp = ({ navigation, route }) => {
               ]}
               intensity={isTablet() ? 30 : 25}
               borderRadius={borderRadius.xl}
+              disableBackgroundOverlay
             >
               <View style={styles.stepIndicatorRow}>
                 {[1, 2, 3].map((step) => (

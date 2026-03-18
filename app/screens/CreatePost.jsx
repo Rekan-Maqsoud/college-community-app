@@ -396,6 +396,7 @@ const CreatePost = ({ navigation }) => {
               onSelect={setPostType}
               placeholder={t('post.postType')}
               icon="list-outline"
+              useGlass={false}
               disabled={loading}
             />
           </View>
@@ -448,6 +449,7 @@ const CreatePost = ({ navigation }) => {
               value={department}
               onSelect={setDepartment}
               placeholder={t('post.selectDepartment')}
+              useGlass={false}
               disabled={loading}
             />
           </View>

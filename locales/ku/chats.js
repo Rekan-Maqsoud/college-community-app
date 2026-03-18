@@ -227,6 +227,8 @@ export default {
     "tapForOptions": "پەنجە بنێ بۆ هەڵبژاردنەکان",
     "visitProfile": "سەردانی پرۆفایل",
     "searchInChat": "گەڕان لە چاتدا",
+    "jumpToLatest": "بازدان بۆ دوا نامەکان",
+    "newMessagesCount": "{count} نامەی نوێ",
     "noResultsFound": "هیچ ئەنجامێک نەدۆزرایەوە",
     "clearChat": "سڕینەوەی چات",
     "clearChatConfirm": "ئایا دڵنیایت لە سڕینەوەی هەموو نامەکان لەم چاتەدا؟ ئەم کردارە گەڕانەوەی نییە.",

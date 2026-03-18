@@ -156,6 +156,7 @@ export default {
     "deleteAccountConfirm": "هذا الإجراء دائم ولا يمكن التراجع عنه. سيتم حذف جميع بياناتك.",
     "deleteAccountAction": "حذف الحساب",
     "deleteAccountError": "فشل حذف الحساب. حاول مرة أخرى.",
+    "deleteAccountRateLimited": "محاولات كثيرة جداً. يرجى الانتظار دقيقة ثم المحاولة مرة أخرى.",
     "enterPasswordToDelete": "أدخل كلمة المرور للتأكيد",
     "passwordRequiredForDelete": "كلمة المرور مطلوبة لحذف حسابك.",
     "incorrectPassword": "كلمة المرور غير صحيحة. حاول مرة أخرى.",

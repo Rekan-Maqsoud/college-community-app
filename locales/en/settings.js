@@ -156,6 +156,7 @@ export default {
     "deleteAccountConfirm": "This action is permanent and cannot be undone. All your data will be deleted.",
     "deleteAccountAction": "Delete Account",
     "deleteAccountError": "Failed to delete account. Please try again.",
+    "deleteAccountRateLimited": "Too many attempts. Please wait a minute and try again.",
     "enterPasswordToDelete": "Enter your password to confirm",
     "passwordRequiredForDelete": "Password is required to delete your account.",
     "incorrectPassword": "Incorrect password. Please try again.",

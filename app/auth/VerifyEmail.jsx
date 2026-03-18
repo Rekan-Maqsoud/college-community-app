@@ -442,6 +442,7 @@ const VerifyEmail = ({ route, navigation }) => {
                 style={styles.formContainer}
                 intensity={isTablet() ? 30 : 25}
                 borderRadius={borderRadius.xl}
+                disableBackgroundOverlay
               >
                 {/* OTP Input Section */}
                 <View style={styles.otpSection}>

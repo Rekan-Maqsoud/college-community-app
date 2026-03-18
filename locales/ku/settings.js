@@ -156,6 +156,7 @@ export default {
     "deleteAccountConfirm": "ئەم کارە هەمیشەییە و ناتوانرێت پاشگەزبکرێتەوە. هەموو داتاکانت دەسڕدرێنەوە.",
     "deleteAccountAction": "سڕینەوەی ئەکاونت",
     "deleteAccountError": "سڕینەوەی ئەکاونت سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە.",
+    "deleteAccountRateLimited": "هەوڵی زۆر درا. تکایە یەک خولەک چاوەڕێ بکە و دووبارە هەوڵ بدەوە.",
     "enterPasswordToDelete": "وشەی نهێنی بنووسە بۆ دووپاتکردنەوە",
     "passwordRequiredForDelete": "وشەی نهێنی پێویستە بۆ سڕینەوەی ئەکاونتەکەت.",
     "incorrectPassword": "وشەی نهێنی هەڵەیە. دووبارە هەوڵ بدەرەوە.",

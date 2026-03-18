@@ -25,6 +25,8 @@ const SearchableDropdownNew = ({
   disabled = false,
   style,
   compact = false,
+  useGlass = true,
+  selectorStyle,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -70,6 +72,35 @@ const SearchableDropdownNew = ({
     closeModal();
   };
 
+  const selectorNode = (
+    <View style={[styles.selector, compact && styles.selectorCompact, !useGlass && styles.selectorPlain, selectorStyle]}>
+      <Ionicons
+        name={icon || 'list-outline'}
+        size={compact ? moderateScale(16) : moderateScale(20)}
+        color={disabled ? theme.textSecondary : (selectedItem ? theme.primary : theme.textSecondary)}
+        style={styles.icon}
+      />
+      <Text
+        style={[
+          styles.selectedText,
+          {
+            color: selectedItem ? theme.text : theme.input.placeholder,
+            fontSize: compact ? fontSize(12) : fontSize(14),
+            opacity: disabled ? 0.5 : 1,
+          }
+        ]}
+        numberOfLines={1}
+      >
+        {selectedItem ? selectedItem.label : placeholder}
+      </Text>
+      <Ionicons
+        name={isOpen ? 'chevron-up' : 'chevron-down'}
+        size={compact ? moderateScale(16) : moderateScale(20)}
+        color={theme.textSecondary}
+      />
+    </View>
+  );
+
   return (
     <View style={style}>
       <TouchableOpacity
@@ -77,34 +108,7 @@ const SearchableDropdownNew = ({
         activeOpacity={0.7}
         disabled={disabled}
       >
-        <GlassInput focused={isOpen}>
-          <View style={[styles.selector, compact && styles.selectorCompact]}>
-            <Ionicons 
-              name={icon || 'list-outline'} 
-              size={compact ? moderateScale(16) : moderateScale(20)} 
-              color={disabled ? theme.textSecondary : (selectedItem ? theme.primary : theme.textSecondary)} 
-              style={styles.icon}
-            />
-            <Text
-              style={[
-                styles.selectedText,
-                {
-                  color: selectedItem ? theme.text : theme.input.placeholder,
-                  fontSize: compact ? fontSize(12) : fontSize(14),
-                  opacity: disabled ? 0.5 : 1,
-                }
-              ]}
-              numberOfLines={1}
-            >
-              {selectedItem ? selectedItem.label : placeholder}
-            </Text>
-            <Ionicons 
-              name={isOpen ? "chevron-up" : "chevron-down"} 
-              size={compact ? moderateScale(16) : moderateScale(20)} 
-              color={theme.textSecondary} 
-            />
-          </View>
-        </GlassInput>
+        {useGlass ? <GlassInput focused={isOpen}>{selectorNode}</GlassInput> : selectorNode}
       </TouchableOpacity>
 
       <Modal
@@ -216,6 +220,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: Platform.OS === 'ios' ? spacing.sm : spacing.xs,
     minHeight: moderateScale(40),
+  },
+  selectorPlain: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
   },
   icon: {
     marginRight: spacing.sm,

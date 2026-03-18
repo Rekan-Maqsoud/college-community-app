@@ -74,6 +74,7 @@ export const useLectureChannelControllerActions = ({
   setUploadError,
   setUploading,
   setYoutubeUrl,
+  showAlert,
   t,
   user,
   youtubeUrl,
@@ -486,7 +487,15 @@ export const useLectureChannelControllerActions = ({
       setYoutubeUrl('');
       setExternalUrl('');
       setSelectedFile(null);
-      Alert.alert(t('common.success') || 'Success', t('lectures.uploadSuccess') || 'Upload successful');
+      if (typeof showAlert === 'function') {
+        showAlert({
+          type: 'success',
+          title: t('common.success'),
+          message: t('lectures.uploadSuccess'),
+        });
+      } else {
+        Alert.alert(t('common.success'), t('lectures.uploadSuccess'));
+      }
       setShowUploadComposer(false);
       await loadData({ showLoading: false });
 
