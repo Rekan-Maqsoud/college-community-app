@@ -4,7 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as Sharing from 'expo-sharing';
 import safeStorage from '../../utils/safeStorage';
-import { config } from '../../../database/config';
+import { config, storage } from '../../../database/config';
 import { LECTURE_UPLOAD_TYPES, trackLectureAssetInteraction } from '../../../database/lectures';
 import {
   buildYouTubeVideoId,
@@ -300,6 +300,35 @@ export const useLectureChannelAssetOperations = ({
     return targetUri;
   }, [deviceChannelDownloadsUriKey, ensureDeviceChannelDownloadsUri]);
 
+  const getLectureAssetDownloadRequest = useCallback((asset) => {
+    const directUrl = String(asset?.fileUrl || '').trim();
+    const hasFileReference = !!(asset?.fileId && config.lectureStorageId && storage?.getFileDownload);
+
+    const resolvedUrl = hasFileReference
+      ? (storage.getFileDownload({
+          bucketId: config.lectureStorageId,
+          fileId: asset.fileId,
+        })?.toString() || directUrl)
+      : directUrl;
+
+    let headers = {};
+    try {
+      if (resolvedUrl) {
+        const preparedUrl = new URL(resolvedUrl);
+        const { options } = storage.client.prepareRequest('get', preparedUrl, {}, {});
+        headers = options?.headers || {};
+      }
+    } catch {
+      headers = {};
+    }
+
+    return {
+      url: resolvedUrl,
+      fallbackUrl: directUrl,
+      headers,
+    };
+  }, []);
+
   const downloadLectureAssetFile = async (asset, { trackOpen = false } = {}) => {
     if (!asset || asset.uploadType !== LECTURE_UPLOAD_TYPES.FILE || !asset.fileUrl) {
       return;
@@ -339,32 +368,48 @@ export const useLectureChannelAssetOperations = ({
         },
       }));
 
-      const downloadResumable = FileSystem.createDownloadResumable(
-        asset.fileUrl,
-        localUri,
-        {
-          headers: {
-            Accept: '*/*',
+      const onProgress = (progressEvent) => {
+        const written = Number(progressEvent?.totalBytesWritten || 0);
+        const total = Number(progressEvent?.totalBytesExpectedToWrite || 0);
+        const progress = toProgressPercent(written, total);
+        setActiveDownloads(prev => ({
+          ...prev,
+          [asset.$id]: {
+            assetId: asset.$id,
+            fileName: finalName,
+            progress,
+            written,
+            total,
           },
-        },
-        (progressEvent) => {
-          const written = Number(progressEvent?.totalBytesWritten || 0);
-          const total = Number(progressEvent?.totalBytesExpectedToWrite || 0);
-          const progress = toProgressPercent(written, total);
-          setActiveDownloads(prev => ({
-            ...prev,
-            [asset.$id]: {
-              assetId: asset.$id,
-              fileName: finalName,
-              progress,
-              written,
-              total,
-            },
-          }));
-        }
-      );
+        }));
+      };
 
-      const result = await downloadResumable.downloadAsync();
+      const downloadRequest = getLectureAssetDownloadRequest(asset);
+
+      const runDownload = async (targetUrl, headers = {}) => {
+        const requestHeaders = {
+          Accept: '*/*',
+          ...(headers || {}),
+        };
+
+        const resumable = FileSystem.createDownloadResumable(
+          targetUrl,
+          localUri,
+          { headers: requestHeaders },
+          onProgress
+        );
+
+        return resumable.downloadAsync();
+      };
+
+      let result = null;
+      try {
+        result = await runDownload(downloadRequest.url, downloadRequest.headers);
+      } catch {
+        const fallbackUrl = downloadRequest.fallbackUrl || downloadRequest.url;
+        result = await runDownload(fallbackUrl, {});
+      }
+
       if (!result?.uri || result.status !== 200) {
         throw new Error('Download failed');
       }
@@ -421,9 +466,7 @@ export const useLectureChannelAssetOperations = ({
       });
 
       try {
-        await markAssetInteraction(asset, 'view');
-        await markAssetInteraction(asset, 'open');
-        await Linking.openURL(asset.fileUrl);
+        await downloadLectureAssetFile(asset, { trackOpen: true });
       } catch (error) {
         logLectureChannelError('openAsset:fileOpenRemote:error', error, {
           channelId,

@@ -27,7 +27,7 @@ import { useUserProfile } from '../hooks/useRealtimeSubscription';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const UserProfile = ({ route, navigation }) => {
-  const { userId, userData: initialUserData } = route.params;
+  const { userId, userData: initialUserData } = route?.params || {};
   const { t, theme, isDarkMode, triggerHaptic } = useAppSettings();
   const { user: currentUser, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
@@ -501,6 +501,10 @@ const UserProfile = ({ route, navigation }) => {
     }
   };
 
+  const cardBackground = isDarkMode
+    ? 'rgba(255, 255, 255, 0.08)'
+    : 'rgba(255, 255, 255, 0.85)';
+
   const renderInfoRow = ({ iconName, iconColor, label, value }) => {
     if (!value) {
       return null;
@@ -659,59 +663,6 @@ const UserProfile = ({ route, navigation }) => {
         )}
     </View>
   );
-
-  const renderPostsSection = () => {
-    return (
-      <View style={styles.sectionContainer}>
-        <Text style={[styles.sectionHeader, { color: theme.text }]}>{t('profile.posts')}</Text>
-        {loadingPosts ? (
-          <View>
-            <PostCardSkeleton />
-            <PostCardSkeleton />
-          </View>
-        ) : postsError ? (
-          <GlassContainer borderRadius={borderRadius.lg} style={styles.emptyCard}>
-            <Ionicons name="alert-circle-outline" size={moderateScale(40)} color={theme.error} />
-            <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
-              {t('common.error')}
-            </Text>
-            <TouchableOpacity onPress={loadUserPosts} style={styles.retryButton}>
-              <Text style={[styles.retryButtonText, { color: theme.primary }]}>{t('common.retry')}</Text>
-            </TouchableOpacity>
-          </GlassContainer>
-        ) : !userPosts || userPosts.length === 0 ? (
-          <UnifiedEmptyState
-            iconName="document-text-outline"
-            title={t('profile.noPosts')}
-            description={t('home.publicFeedEmpty')}
-            actionLabel={t('common.retry')}
-            actionIconName="refresh-outline"
-            onAction={loadUserPosts}
-            compact
-          />
-        ) : (
-          <View>
-            {userPosts.map((post, index) => (
-              <PostCard
-                key={post.$id || index}
-                post={{
-                  ...post,
-                  userName: displayName,
-                  userProfilePicture: userData.profilePicture,
-                }}
-                onReply={() => navigation.navigate('PostDetails', { post })}
-                onLike={() => handleLike(post.$id)}
-                onUserPress={() => {}}
-                isOwner={false}
-                isLiked={post.likedBy?.includes(currentUser?.$id)}
-                showImages={true}
-              />
-            ))}
-          </View>
-        )}
-      </View>
-    );
-  };
 
   const renderListHeader = () => (
     <>

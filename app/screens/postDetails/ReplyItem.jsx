@@ -21,6 +21,7 @@ const ReplyItem = ({
   onUpvote, 
   onDownvote, 
   onReply,
+  onUserPress,
   onImagePress,
   isOwner, 
   isPostOwner, 
@@ -66,7 +67,12 @@ const ReplyItem = ({
       )}
 
       <View style={styles.replyHeader}>
-        <View style={styles.replyUserInfo}>
+        <TouchableOpacity
+          style={styles.replyUserInfo}
+          onPress={() => onUserPress && onUserPress(reply)}
+          activeOpacity={0.8}
+          disabled={!onUserPress}
+        >
           {reply.userData?.profilePicture ? (
             <Image source={{ uri: reply.userData.profilePicture }} style={styles.replyAvatar} />
           ) : (
@@ -85,7 +91,7 @@ const ReplyItem = ({
               {reply.isEdited && ` • ${t('post.edited')}`}
             </Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {(isOwner || isPostOwner) && (
           <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.replyMenuButton}>

@@ -498,6 +498,14 @@ const PostDetails = ({ navigation, route }) => {
     }, 250);
   };
 
+  const handleReplyUserPress = useCallback((reply) => {
+    if (!reply?.userId) {
+      return;
+    }
+
+    navigation.navigate('UserProfile', { userId: reply.userId });
+  }, [navigation]);
+
   const handleCancelReply = () => {
     setReplyingTo(null);
   };
@@ -768,6 +776,7 @@ const PostDetails = ({ navigation, route }) => {
           onDownvote={handleDownvote}
           onImagePress={openImageGallery}
           onReply={handleStartReply}
+          onUserPress={handleReplyUserPress}
           t={t}
           theme={theme}
           isDarkMode={isDarkMode}

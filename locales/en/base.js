@@ -944,6 +944,7 @@ export default {
   },
   "common": {
     "save": "Save",
+    "send": "Send",
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",
@@ -981,15 +982,32 @@ export default {
     "updates": {
       "title": "Update available",
       "availableBody": "A new update is ready to download.",
+      "detected": "New update available. Downloading in the background.",
       "downloading": "Downloading update...",
       "ready": "Update is ready to install.",
+      "downloaded": "Update downloaded. Restart the app to install.",
       "installing": "Installing update...",
       "later": "Later",
       "download": "Download",
       "install": "Install",
+      "restartApp": "Restart app",
       "retry": "Try Again",
       "progress": "Downloading... {{percent}}%",
       "error": "Update failed. Please try again."
+    },
+    "crashBoundary": {
+      "title": "Something went wrong",
+      "subtitle": "The app hit an unexpected runtime error.",
+      "recoverableHint": "This looks recoverable. You can continue using the app or restart for a clean recovery.",
+      "fatalHint": "A restart is recommended to fully recover from this state.",
+      "detailsTitle": "Technical details",
+      "genericDetails": "Unexpected runtime error.",
+      "restartButton": "Restart app",
+      "restartingButton": "Restarting app...",
+      "dismissButton": "Continue app",
+      "dismissTryButton": "Try continue",
+      "restartFailed": "Restart failed. Please close and open the app again.",
+      "buildLabel": "Build"
     }
   },
   "error": {

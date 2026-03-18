@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   TextInput,
@@ -21,7 +21,6 @@ import {
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
   useAudioRecorder,
-  useAudioRecorderState,
   RecordingPresets,
 } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -119,16 +118,64 @@ const MessageInput = ({
   const isRecordingLockedRef = useRef(false);
   const isRecordingPausedRef = useRef(false);
   const recordingAccumulatedMsRef = useRef(0);
+  const isMountedRef = useRef(true);
+  const isRecorderReleasedRef = useRef(false);
   const disabledRef = useRef(disabled);
   const uploadingRef = useRef(uploading);
   const isPanGestureActiveRef = useRef(false);
   const inputRef = useRef(null);
   const actionSheetAnim = useRef(new Animated.Value(0)).current;
-  const audioRecorder = useAudioRecorder({
+  const recorderConfig = useMemo(() => ({
     ...RecordingPresets.HIGH_QUALITY,
     isMeteringEnabled: true,
-  });
-  const recorderState = useAudioRecorderState(audioRecorder, 120);
+  }), []);
+
+  const audioRecorder = useAudioRecorder(recorderConfig);
+
+  const isRecorderReleasedError = (error) => {
+    const message = String(error?.message || error || '').toLowerCase();
+    return (
+      message.includes('already released')
+      || message.includes('shared object')
+      || message.includes('audiorecorder')
+      || message.includes('cannot be cast to type expo.modules.audio.audiorecorder')
+      || message.includes('received class java.lang.integer')
+    );
+  };
+
+  const runRecorderOperation = async (operation, { allowReleased = false } = {}) => {
+    if (!audioRecorder || isRecorderReleasedRef.current || !isMountedRef.current) {
+      return null;
+    }
+
+    try {
+      return await operation();
+    } catch (error) {
+      if (isRecorderReleasedError(error)) {
+        isRecorderReleasedRef.current = true;
+        if (allowReleased) {
+          return null;
+        }
+      }
+      throw error;
+    }
+  };
+
+  const getRecorderStatusSafely = () => {
+    if (!audioRecorder || isRecorderReleasedRef.current || !isMountedRef.current) {
+      return null;
+    }
+
+    try {
+      return audioRecorder.getStatus();
+    } catch (error) {
+      if (isRecorderReleasedError(error)) {
+        isRecorderReleasedRef.current = true;
+        return null;
+      }
+      throw error;
+    }
+  };
 
   // Animate action sheet
   useEffect(() => {
@@ -166,12 +213,13 @@ const MessageInput = ({
 
   useEffect(() => {
     return () => {
+      isMountedRef.current = false;
+      isRecorderReleasedRef.current = true;
       if (recordingDurationIntervalRef.current) {
         clearInterval(recordingDurationIntervalRef.current);
       }
-      audioRecorder.stop().catch(() => {});
     };
-  }, [audioRecorder]);
+  }, []);
 
   const clearRecordingTicker = () => {
     if (recordingDurationIntervalRef.current) {
@@ -183,11 +231,32 @@ const MessageInput = ({
   const startRecordingTicker = () => {
     clearRecordingTicker();
     recordingDurationIntervalRef.current = setInterval(() => {
-      if (!isRecordingRef.current || !recordingStartedAtRef.current) {
+      if (!isMountedRef.current || !isRecordingRef.current || !recordingStartedAtRef.current) {
         return;
       }
+
       const elapsed = recordingAccumulatedMsRef.current + (Date.now() - recordingStartedAtRef.current);
-      setRecordingDurationMs((prev) => Math.max(prev, elapsed));
+
+      const status = getRecorderStatusSafely();
+      const recorderDuration = Number(status?.durationMillis || 0);
+      const nextDuration = Math.max(elapsed, recorderDuration);
+      setRecordingDurationMs((prev) => Math.max(prev, nextDuration));
+
+      if (isRecordingPausedRef.current) {
+        return;
+      }
+
+      const metering = Number(status?.metering);
+      if (Number.isFinite(metering)) {
+        const clampedDb = Math.max(-80, Math.min(0, metering));
+        const amplitude = Math.pow(10, clampedDb / 20);
+        appendWaveSample(Math.max(0.08, Math.min(1, Math.pow(amplitude, 0.55))));
+        return;
+      }
+
+      const previous = recordingWaveformHistoryRef.current[recordingWaveformHistoryRef.current.length - 1] || 0.12;
+      const jitter = Math.random() * 0.08;
+      appendWaveSample(Math.max(0.08, Math.min(0.65, previous * 0.9 + jitter)));
     }, 250);
   };
 
@@ -208,13 +277,17 @@ const MessageInput = ({
 
   const resetRecordingState = () => {
     clearRecordingTicker();
-    setIsRecording(false);
-    setIsRecordingLocked(false);
-    setIsRecordingPaused(false);
-    setRecordingDurationMs(0);
-    setRecordingWaveform(Array(VOICE_WAVE_BARS).fill(0.15));
-    setRecordingSlideOffsetX(0);
-    setIsLockTargetActive(false);
+
+    if (isMountedRef.current) {
+      setIsRecording(false);
+      setIsRecordingLocked(false);
+      setIsRecordingPaused(false);
+      setRecordingDurationMs(0);
+      setRecordingWaveform(Array(VOICE_WAVE_BARS).fill(0.15));
+      setRecordingSlideOffsetX(0);
+      setIsLockTargetActive(false);
+    }
+
     recordingDeltaYRef.current = 0;
     recordingDeltaXRef.current = 0;
     recordingGestureCancelledRef.current = false;
@@ -256,36 +329,18 @@ const MessageInput = ({
     setIsLockTargetActive(false);
   };
 
-  useEffect(() => {
-    if (!isRecording || isRecordingPaused) {
-      return;
-    }
-
-    const recorderDuration = Number(recorderState?.durationMillis || 0);
-    if (recorderDuration > 0) {
-      setRecordingDurationMs((prev) => Math.max(prev, recorderDuration));
-    }
-
-    const metering = Number(recorderState?.metering);
-    if (Number.isFinite(metering)) {
-      const clampedDb = Math.max(-80, Math.min(0, metering));
-      const amplitude = Math.pow(10, clampedDb / 20);
-      const level = Math.max(0.08, Math.min(1, Math.pow(amplitude, 0.55)));
-      appendWaveSample(level);
-    } else {
-      const previous = recordingWaveformHistoryRef.current[recordingWaveformHistoryRef.current.length - 1] || 0.12;
-      appendWaveSample(Math.max(0.08, previous * 0.985));
-    }
-  }, [isRecording, isRecordingPaused, recorderState?.durationMillis, recorderState?.metering]);
-
   const togglePauseVoiceRecording = async () => {
-    if (!isRecordingRef.current || !isRecordingLockedRef.current) {
+    if (!isRecordingRef.current || !isRecordingLockedRef.current || isRecorderReleasedRef.current) {
       return;
     }
 
     try {
       if (isRecordingPausedRef.current) {
-        await audioRecorder.record();
+        const resumed = await runRecorderOperation(() => audioRecorder.record(), { allowReleased: true });
+        if (resumed === null || isRecorderReleasedRef.current || !isMountedRef.current) {
+          resetRecordingState();
+          return;
+        }
         recordingStartedAtRef.current = Date.now();
         setIsRecordingPaused(false);
         startRecordingTicker();
@@ -297,7 +352,11 @@ const MessageInput = ({
         return;
       }
 
-      await audioRecorder.pause();
+      const paused = await runRecorderOperation(() => audioRecorder.pause(), { allowReleased: true });
+      if (paused === null || isRecorderReleasedRef.current || !isMountedRef.current) {
+        resetRecordingState();
+        return;
+      }
 
       if (recordingStartedAtRef.current) {
         recordingAccumulatedMsRef.current += Date.now() - recordingStartedAtRef.current;
@@ -312,12 +371,23 @@ const MessageInput = ({
   };
 
   const startVoiceRecording = async () => {
-    if (disabled || uploading || isRecordingRef.current || message.trim() || selectedImage || selectedFile) {
+    if (
+      disabled
+      || uploading
+      || isRecordingRef.current
+      || isRecorderReleasedRef.current
+      || message.trim()
+      || selectedImage
+      || selectedFile
+    ) {
       return;
     }
 
     try {
       const permission = await requestRecordingPermissionsAsync();
+      if (!isMountedRef.current || isRecorderReleasedRef.current) {
+        return;
+      }
       const hasPermission = Boolean(permission?.granted || permission?.status === 'granted');
       if (!hasPermission) {
         if (!permission?.canAskAgain) {
@@ -335,12 +405,12 @@ const MessageInput = ({
           shouldRouteThroughEarpiece: false,
         });
 
-        await audioRecorder.stop().catch(() => {});
+        await runRecorderOperation(() => audioRecorder.stop(), { allowReleased: true });
 
         try {
-          await audioRecorder.prepareToRecordAsync();
+          await runRecorderOperation(() => audioRecorder.prepareToRecordAsync());
         } catch (prepareError) {
-          await audioRecorder.stop().catch(() => {});
+          await runRecorderOperation(() => audioRecorder.stop(), { allowReleased: true });
           await setAudioModeAsync({
             allowsRecording: false,
             playsInSilentMode: true,
@@ -351,12 +421,20 @@ const MessageInput = ({
             playsInSilentMode: true,
             shouldRouteThroughEarpiece: false,
           });
-          await audioRecorder.prepareToRecordAsync();
+          await runRecorderOperation(() => audioRecorder.prepareToRecordAsync());
         }
       };
 
       await configureRecorder();
-      await audioRecorder.record();
+      if (!isMountedRef.current || isRecorderReleasedRef.current) {
+        return;
+      }
+
+      const started = await runRecorderOperation(() => audioRecorder.record(), { allowReleased: true });
+      if (started === null || !isMountedRef.current || isRecorderReleasedRef.current) {
+        resetRecordingState();
+        return;
+      }
 
       recordingStartedAtRef.current = Date.now();
       recordingAccumulatedMsRef.current = 0;
@@ -378,30 +456,33 @@ const MessageInput = ({
         playsInSilentMode: true,
         shouldRouteThroughEarpiece: false,
       }).catch(() => {});
-      triggerAlert(t('common.error'), t('chats.voiceRecordingFailed'));
+
+      if (isMountedRef.current && !isRecorderReleasedRef.current) {
+        triggerAlert(t('common.error'), t('chats.voiceRecordingFailed'));
+      }
     }
   };
 
   const stopVoiceRecording = async ({ shouldSend }) => {
-    if (!audioRecorder) {
+    if (!audioRecorder || isRecorderReleasedRef.current) {
       resetRecordingState();
       return;
     }
 
     try {
       clearRecordingTicker();
-      const statusBeforeStop = audioRecorder.getStatus();
+      const statusBeforeStop = getRecorderStatusSafely();
       if (statusBeforeStop?.isRecording) {
-        await audioRecorder.stop();
+        await runRecorderOperation(() => audioRecorder.stop(), { allowReleased: true });
       }
-      const finalStatus = audioRecorder.getStatus();
+      const finalStatus = getRecorderStatusSafely();
 
       const durationMillis = Math.max(
         Number(finalStatus?.durationMillis || 0),
         Number(recordingDurationMs || 0),
         recordingAccumulatedMsRef.current + (recordingStartedAtRef.current ? (Date.now() - recordingStartedAtRef.current) : 0)
       );
-      const recordingUri = audioRecorder.uri || finalStatus?.url || null;
+      const recordingUri = audioRecorder?.uri || finalStatus?.url || null;
       const waveformForPayload = serializeVoiceWaveform(
         recordingWaveformHistoryRef.current,
         VOICE_WAVE_PAYLOAD_BARS
@@ -447,7 +528,9 @@ const MessageInput = ({
     } catch (error) {
       triggerAlert(t('common.error'), t('chats.voiceSendError'));
     } finally {
-      setUploading(false);
+      if (isMountedRef.current) {
+        setUploading(false);
+      }
       setAudioModeAsync({
         allowsRecording: false,
         playsInSilentMode: true,

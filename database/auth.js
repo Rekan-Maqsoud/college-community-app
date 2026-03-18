@@ -1174,7 +1174,6 @@ export const deleteAccount = async (password) => {
                     profilePicture: null,
                     coverPhoto: null,
                     isActive: false,
-                    pronouns: null,
                     university: null,
                     major: null,
                     department: null,
@@ -1193,12 +1192,21 @@ export const deleteAccount = async (password) => {
                 error: formatDeleteAccountError(err),
             });
             // If update fails, try to delete the document entirely
-            await databases.deleteDocument({
-                databaseId: config.databaseId,
-                collectionId: config.usersCollectionId,
-                documentId: userId,
-            });
-            console.log('[delete-account] step 9 fallback complete: delete user document', { userId });
+            try {
+                await databases.deleteDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.usersCollectionId,
+                    documentId: userId,
+                });
+                console.log('[delete-account] step 9 fallback complete: delete user document', { userId });
+            } catch (fallbackErr) {
+                console.error('[delete-account] step 9 failed: unable to anonymize or delete user document', {
+                    userId,
+                    updateError: formatDeleteAccountError(err),
+                    fallbackError: formatDeleteAccountError(fallbackErr),
+                });
+                throw createDeleteAccountError('DELETE_ACCOUNT_USER_RECORD_CLEANUP_FAILED');
+            }
         }
 
         // 10. Disable the Appwrite auth identity

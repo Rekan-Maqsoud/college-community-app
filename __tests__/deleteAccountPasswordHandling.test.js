@@ -152,4 +152,31 @@ describe('deleteAccount password handling', () => {
 
     expect(mockCreateEmailPasswordSession).toHaveBeenCalledTimes(1);
   });
+
+  it('does not send unknown attributes while anonymizing the user record', async () => {
+    await deleteAccount('correct-password');
+
+    const userUpdateCall = mockUpdateDocument.mock.calls.find(
+      ([request]) => request?.collectionId === 'users' && request?.documentId === 'user-1',
+    );
+
+    expect(userUpdateCall).toBeTruthy();
+    expect(userUpdateCall[0].data).not.toHaveProperty('pronouns');
+  });
+
+  it('throws explicit cleanup error when user document update and delete fallback both fail', async () => {
+    mockUpdateDocument.mockRejectedValueOnce({
+      code: 400,
+      message: 'Unknown attribute: pronouns',
+    });
+    mockDeleteDocument.mockRejectedValueOnce({
+      code: 401,
+      message: 'Missing delete permission',
+    });
+
+    await expect(deleteAccount('correct-password')).rejects.toMatchObject({
+      message: 'DELETE_ACCOUNT_USER_RECORD_CLEANUP_FAILED',
+      code: 'DELETE_ACCOUNT_USER_RECORD_CLEANUP_FAILED',
+    });
+  });
 });

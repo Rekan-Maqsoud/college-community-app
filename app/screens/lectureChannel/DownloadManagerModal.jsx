@@ -10,6 +10,24 @@ const formatBytesAsMb = (bytes = 0) => {
   return value.toFixed(value >= 10 ? 0 : 1);
 };
 
+const formatSavedDate = (timestamp = 0) => {
+  const date = new Date(Number(timestamp || 0) * 1000 || Number(timestamp || 0));
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date);
+  } catch {
+    return date.toLocaleString();
+  }
+};
+
 const DownloadManagerModal = ({
   visible,
   onClose,
@@ -61,17 +79,36 @@ const DownloadManagerModal = ({
               contentContainerStyle={downloadedFiles.length === 0 ? styles.savedListEmpty : undefined}
               renderItem={({ item }) => (
                 <View style={[styles.rowCard, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}> 
-                  <View style={styles.rowTop}>
-                    <Text style={[styles.fileName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
-                    <Text style={[styles.metaText, { color: colors.textSecondary }]}>{formatBytesAsMb(item.size)} MB</Text>
+                  <View style={styles.savedRowTop}>
+                    <View style={[styles.fileIconWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                      <Ionicons name="document-outline" size={16} color={colors.primary} />
+                    </View>
+
+                    <View style={styles.savedInfoWrap}>
+                      <Text style={[styles.fileName, { color: colors.text }]} numberOfLines={2}>{item.name}</Text>
+
+                      <View style={styles.savedMetaRow}>
+                        <View style={[styles.metaPill, { borderColor: colors.border }]}> 
+                          <Ionicons name="download-outline" size={12} color={colors.textSecondary} />
+                          <Text style={[styles.metaText, { color: colors.textSecondary }]}>{formatBytesAsMb(item.size)} MB</Text>
+                        </View>
+
+                        {!!item.modifiedAt && (
+                          <View style={[styles.metaPill, { borderColor: colors.border }]}> 
+                            <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+                            <Text style={[styles.metaText, { color: colors.textSecondary }]}>{formatSavedDate(item.modifiedAt)}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
                   </View>
 
                   <View style={styles.actionsRow}>
-                    <TouchableOpacity style={[styles.actionBtn, { borderColor: colors.border }]} onPress={() => onOpenFile(item.path, item.mimeType)}>
+                    <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={() => onOpenFile(item.path, item.mimeType)}>
                       <Ionicons name="open-outline" size={14} color={colors.text} />
                       <Text style={[styles.actionText, { color: colors.text }]}>{t('lectures.openFile')}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.actionBtn, { borderColor: colors.border }]} onPress={() => onDeleteFile(item.path)}>
+                    <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDanger, { borderColor: colors.border }]} onPress={() => onDeleteFile(item.path)}>
                       <Ionicons name="trash-outline" size={14} color={colors.danger} />
                       <Text style={[styles.actionText, { color: colors.danger }]}>{t('common.delete')}</Text>
                     </TouchableOpacity>
@@ -162,10 +199,44 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontSize(12),
     fontWeight: '700',
+    lineHeight: fontSize(15),
   },
   percentText: {
     fontSize: fontSize(11),
     fontWeight: '700',
+  },
+  savedRowTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  fileIconWrap: {
+    width: moderateScale(28),
+    height: moderateScale(28),
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  savedInfoWrap: {
+    flex: 1,
+  },
+  savedMetaRow: {
+    marginTop: spacing.xs / 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  metaPill: {
+    borderWidth: 1,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs / 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs / 2,
   },
   metaText: {
     fontSize: fontSize(10),
@@ -182,17 +253,25 @@ const styles = StyleSheet.create({
   },
   actionsRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     gap: spacing.xs,
   },
   actionBtn: {
     borderWidth: 1,
     borderRadius: borderRadius.sm,
+    flex: 1,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
     gap: spacing.xs / 2,
+  },
+  actionBtnPrimary: {
+    minHeight: moderateScale(32),
+  },
+  actionBtnDanger: {
+    minHeight: moderateScale(32),
   },
   actionText: {
     fontSize: fontSize(11),

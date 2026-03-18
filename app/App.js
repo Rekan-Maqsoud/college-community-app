@@ -3,7 +3,7 @@ import { NavigationContainer, DefaultTheme, DarkTheme, useIsFocused, useNavigati
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, ActivityIndicator, View, Animated, Image, StyleSheet, AppState, Modal, TouchableOpacity, Text, LogBox } from 'react-native';
+import { Platform, ActivityIndicator, View, Animated, Image, StyleSheet, AppState, TouchableOpacity, Text, LogBox } from 'react-native';
 import * as ExpoNotifications from 'expo-notifications';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -648,23 +648,112 @@ const MainStack = () => {
 
 const UpdatePrompt = () => {
   const { t, theme, isDarkMode } = useAppSettings();
+  const insets = useSafeAreaInsets();
+  const TOAST_DEFAULT_HIDE_MS = 2200;
+  const TOAST_ERROR_HIDE_MS = 5200;
   const [isVisible, setIsVisible] = useState(false);
-  const [status, setStatus] = useState('idle');
-  const [progress, setProgress] = useState(null);
+  const [toastKind, setToastKind] = useState('idle');
+  const [isReadyToInstall, setIsReadyToInstall] = useState(false);
+  const [isInstalling, setIsInstalling] = useState(false);
+  const hideTimerRef = useRef(null);
+  const isDownloadingRef = useRef(false);
+  const hasReadyUpdateRef = useRef(false);
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTranslateY = useRef(new Animated.Value(-16)).current;
+
+  const animateToastIn = useCallback(() => {
+    toastOpacity.setValue(0);
+    toastTranslateY.setValue(-16);
+
+    Animated.parallel([
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.spring(toastTranslateY, {
+        toValue: 0,
+        damping: 18,
+        stiffness: 220,
+        mass: 1,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [toastOpacity, toastTranslateY]);
+
+  const hideToast = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 160,
+        useNativeDriver: true,
+      }),
+      Animated.timing(toastTranslateY, {
+        toValue: -10,
+        duration: 160,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) {
+        setIsVisible(false);
+      }
+    });
+  }, [toastOpacity, toastTranslateY]);
+
+  const clearHideTimer = useCallback(() => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  }, []);
+
+  const showToast = useCallback((kind, autoHideMs = TOAST_DEFAULT_HIDE_MS) => {
+    clearHideTimer();
+    setToastKind(kind);
+    setIsVisible(true);
+    animateToastIn();
+
+    if (autoHideMs > 0) {
+      hideTimerRef.current = setTimeout(() => {
+        hideToast();
+      }, autoHideMs);
+    }
+  }, [clearHideTimer, animateToastIn, hideToast, TOAST_DEFAULT_HIDE_MS]);
+
+  const fetchAndPrepareUpdate = useCallback(async () => {
+    if (isDownloadingRef.current || hasReadyUpdateRef.current) {
+      return;
+    }
+
+    isDownloadingRef.current = true;
+    showToast('available');
+
+    try {
+      await Updates.fetchUpdateAsync();
+      hasReadyUpdateRef.current = true;
+      setIsReadyToInstall(true);
+      showToast('downloaded', 0);
+    } catch (error) {
+      showToast('error', TOAST_ERROR_HIDE_MS);
+    } finally {
+      isDownloadingRef.current = false;
+    }
+  }, [showToast, TOAST_ERROR_HIDE_MS]);
 
   const checkForUpdates = useCallback(async () => {
-    if (!Updates.isEnabled) return;
+    if (!Updates.isEnabled || isDownloadingRef.current || hasReadyUpdateRef.current) {
+      return;
+    }
 
     try {
       const update = await Updates.checkForUpdateAsync();
       if (update.isAvailable) {
-        setIsVisible(true);
-        setStatus('available');
+        fetchAndPrepareUpdate();
       }
     } catch (error) {
       // Silent fail for update check
     }
-  }, []);
+  }, [fetchAndPrepareUpdate]);
 
   useEffect(() => {
     checkForUpdates();
@@ -680,41 +769,55 @@ const UpdatePrompt = () => {
     };
   }, [checkForUpdates]);
 
-  const handleLater = () => {
-    setIsVisible(false);
-    setStatus('idle');
-    setProgress(null);
-  };
-
-  const handleDownload = async () => {
-    setStatus('downloading');
-    setProgress(null);
-
-    try {
-      await Updates.fetchUpdateAsync();
-      setStatus('ready');
-    } catch (error) {
-      setStatus('error');
-    }
-  };
+  useEffect(() => {
+    return () => {
+      clearHideTimer();
+    };
+  }, [clearHideTimer]);
 
   const handleInstall = async () => {
-    setStatus('installing');
+    if (isInstalling) {
+      return;
+    }
+
+    setIsInstalling(true);
     try {
       await Updates.reloadAsync();
     } catch (error) {
-      setStatus('error');
+      setIsInstalling(false);
+      showToast('error', TOAST_ERROR_HIDE_MS);
     }
   };
 
-  const titleText = t('common.updates.title');
-  const bodyText = (() => {
-    if (status === 'available') return t('common.updates.availableBody');
-    if (status === 'downloading') return t('common.updates.downloading');
-    if (status === 'ready') return t('common.updates.ready');
-    if (status === 'installing') return t('common.updates.installing');
-    if (status === 'error') return t('common.updates.error');
-    return t('common.updates.availableBody');
+  const toastBodyText = (() => {
+    if (toastKind === 'available') return t('common.updates.detected');
+    if (toastKind === 'downloaded') return t('common.updates.downloaded');
+    if (toastKind === 'error') return t('common.updates.error');
+    return '';
+  })();
+
+  const toastIconName = (() => {
+    if (toastKind === 'downloaded') return 'checkmark-circle';
+    if (toastKind === 'error') return 'alert-circle';
+    return 'cloud-download';
+  })();
+
+  const toneColor = (() => {
+    if (toastKind === 'downloaded') return theme.success || '#16A34A';
+    if (toastKind === 'error') return theme.danger || '#DC2626';
+    return theme.primary;
+  })();
+
+  const toastBackgroundColor = (() => {
+    if (toastKind === 'downloaded') {
+      return isDarkMode ? 'rgba(22, 163, 74, 0.18)' : 'rgba(22, 163, 74, 0.08)';
+    }
+
+    if (toastKind === 'error') {
+      return isDarkMode ? 'rgba(220, 38, 38, 0.2)' : 'rgba(220, 38, 38, 0.08)';
+    }
+
+    return theme.card || theme.backgroundSecondary;
   })();
 
   if (!isVisible || !Updates.isEnabled) {
@@ -722,134 +825,56 @@ const UpdatePrompt = () => {
   }
 
   return (
-    <Modal visible={isVisible} transparent animationType="fade" onRequestClose={() => setIsVisible(false)}>
-      <View style={[updateStyles.overlay, { backgroundColor: theme.overlay }]}>
-        <View
-          style={[
-            updateStyles.card,
-            {
-              backgroundColor: theme.card || theme.backgroundSecondary,
-              borderColor: theme.border,
-              shadowColor: theme.shadow,
-            },
-          ]}
-        >
-          <Text style={[updateStyles.title, { color: theme.text }]}>{titleText}</Text>
-          <Text style={[updateStyles.body, { color: theme.textSecondary }]}>{bodyText}</Text>
-
-          {status === 'downloading' && (
-            <View style={updateStyles.progressContainer}>
-              <ActivityIndicator size="small" color={theme.primary} />
-              <Text style={[updateStyles.progressText, { color: theme.textSecondary }]}>
-                {progress !== null
-                  ? t('common.updates.progress', { percent: Math.round(progress * 100) })
-                  : t('common.updates.downloading')}
-              </Text>
-              <View
-                style={[
-                  updateStyles.progressTrack,
-                  { backgroundColor: theme.borderSecondary },
-                ]}
-              >
-                <View
-                  style={[
-                    updateStyles.progressFill,
-                    {
-                      backgroundColor: theme.primary,
-                      width: progress !== null ? `${Math.max(4, Math.round(progress * 100))}%` : '12%',
-                    },
-                  ]}
-                />
-              </View>
-            </View>
-          )}
-
-          {status === 'installing' && (
-            <View style={updateStyles.progressContainer}>
-              <ActivityIndicator size="small" color={theme.primary} />
-              <Text style={[updateStyles.progressText, { color: theme.textSecondary }]}>
-                {t('common.updates.installing')}
-              </Text>
-            </View>
-          )}
-
-          <View style={updateStyles.actions}>
-            {status === 'available' && (
-              <>
-                <TouchableOpacity
-                  style={[updateStyles.secondaryButton, { borderColor: theme.border }]}
-                  activeOpacity={0.8}
-                  onPress={handleLater}
-                >
-                  <Text style={[updateStyles.secondaryText, { color: theme.textSecondary }]}>
-                    {t('common.updates.later')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[updateStyles.primaryButton, { backgroundColor: theme.primary }]}
-                  activeOpacity={0.85}
-                  onPress={handleDownload}
-                >
-                  <Text
-                    style={[
-                      updateStyles.primaryText,
-                      { color: isDarkMode ? theme.text : theme.background },
-                    ]}
-                  >
-                    {t('common.updates.download')}
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {status === 'ready' && (
-              <TouchableOpacity
-                style={[updateStyles.primaryButton, { backgroundColor: theme.primary }]}
-                activeOpacity={0.85}
-                onPress={handleInstall}
-              >
+    <View pointerEvents="box-none" style={[updateStyles.toastHost, { top: insets.top + spacing.sm }]}>
+      <Animated.View
+        style={[
+          updateStyles.toastCard,
+          {
+            backgroundColor: toastBackgroundColor,
+            borderColor: theme.border,
+            shadowColor: theme.shadow,
+            opacity: toastOpacity,
+            transform: [{ translateY: toastTranslateY }],
+          },
+        ]}
+      >
+        <View style={[updateStyles.accentBar, { backgroundColor: toneColor }]} />
+        <View style={updateStyles.toastRow}>
+          <Ionicons
+            name={toastIconName}
+            size={normalize(18)}
+            color={toneColor}
+            style={updateStyles.toastIcon}
+          />
+          <View style={updateStyles.toastTextWrap}>
+            <Text style={[updateStyles.toastTitle, { color: theme.text }]}>{t('common.updates.title')}</Text>
+            <Text style={[updateStyles.toastBody, { color: theme.textSecondary }]}>{toastBodyText}</Text>
+          </View>
+          {toastKind === 'available' && <ActivityIndicator size="small" color={theme.primary} />}
+          {toastKind === 'downloaded' && isReadyToInstall && (
+            <TouchableOpacity
+              style={[updateStyles.actionButton, { backgroundColor: theme.primary }]}
+              activeOpacity={0.85}
+              onPress={handleInstall}
+              disabled={isInstalling}
+            >
+              {isInstalling ? (
+                <ActivityIndicator size="small" color={isDarkMode ? theme.text : theme.background} />
+              ) : (
                 <Text
                   style={[
-                    updateStyles.primaryText,
+                    updateStyles.actionText,
                     { color: isDarkMode ? theme.text : theme.background },
                   ]}
                 >
-                  {t('common.updates.install')}
+                  {t('common.updates.restartApp')}
                 </Text>
-              </TouchableOpacity>
-            )}
-
-            {status === 'error' && (
-              <>
-                <TouchableOpacity
-                  style={[updateStyles.secondaryButton, { borderColor: theme.border }]}
-                  activeOpacity={0.8}
-                  onPress={handleLater}
-                >
-                  <Text style={[updateStyles.secondaryText, { color: theme.textSecondary }]}>
-                    {t('common.updates.later')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[updateStyles.primaryButton, { backgroundColor: theme.primary }]}
-                  activeOpacity={0.85}
-                  onPress={handleDownload}
-                >
-                  <Text
-                    style={[
-                      updateStyles.primaryText,
-                      { color: isDarkMode ? theme.text : theme.background },
-                    ]}
-                  >
-                    {t('common.updates.retry')}
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
-      </View>
-    </Modal>
+      </Animated.View>
+    </View>
   );
 };
 
@@ -1464,75 +1489,63 @@ const loadingStyles = StyleSheet.create({
 });
 
 const updateStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+  toastHost: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    paddingHorizontal: spacing.md,
+    zIndex: 40,
   },
-  card: {
-    width: wp(86),
+  toastCard: {
+    position: 'relative',
+    width: '100%',
     maxWidth: 420,
-    borderRadius: borderRadius.lg,
+    alignSelf: 'center',
+    borderRadius: borderRadius.md,
     borderWidth: 1,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     ...shadows.medium,
   },
-  title: {
-    fontSize: normalize(18),
-    fontWeight: '700',
-    marginBottom: spacing.sm,
+  accentBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    borderTopLeftRadius: borderRadius.md,
+    borderBottomLeftRadius: borderRadius.md,
   },
-  body: {
-    fontSize: normalize(14),
-    lineHeight: normalize(20),
-    marginBottom: spacing.md,
-  },
-  progressContainer: {
-    marginTop: spacing.sm,
-  },
-  progressText: {
-    marginTop: spacing.xs,
-    fontSize: normalize(12),
-  },
-  progressTrack: {
-    width: '100%',
-    height: normalize(6),
-    borderRadius: borderRadius.round,
-    overflow: 'hidden',
-    marginTop: spacing.sm,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: borderRadius.round,
-  },
-  actions: {
-    marginTop: spacing.lg,
+  toastRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  primaryButton: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.md,
-    minWidth: wp(28),
     alignItems: 'center',
   },
-  primaryText: {
-    fontSize: normalize(14),
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
+  toastIcon: {
     marginRight: spacing.sm,
-    minWidth: wp(28),
-    alignItems: 'center',
   },
-  secondaryText: {
-    fontSize: normalize(14),
+  toastTextWrap: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  toastTitle: {
+    fontSize: normalize(13),
+    fontWeight: '700',
+    marginBottom: spacing.xs / 2,
+  },
+  toastBody: {
+    fontSize: normalize(12),
+    lineHeight: normalize(16),
+  },
+  actionButton: {
+    minWidth: wp(24),
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: borderRadius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionText: {
+    fontSize: normalize(12),
     fontWeight: '600',
   },
 });
