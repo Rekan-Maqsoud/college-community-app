@@ -13,6 +13,7 @@ import { GlassContainer } from './GlassComponents';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { POST_TYPES } from '../constants/postConstants';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 
 export const SORT_OPTIONS = {
   NEWEST: 'newest',
@@ -153,10 +154,11 @@ const FilterSortModal = ({
       onRequestClose={onClose}
     >
       <TouchableOpacity
-        style={styles.modalOverlay}
+        style={[styles.modalOverlay, { backgroundColor: 'transparent' }]}
         activeOpacity={1}
         onPress={onClose}
       >
+        <LiquidGlassView colorScheme="dark" effect="regular" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         <View style={styles.modalContent}>
           <GlassContainer
             borderRadius={borderRadius.lg}

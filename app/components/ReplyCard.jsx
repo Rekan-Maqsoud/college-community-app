@@ -14,6 +14,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { GlassCard, GlassModalCard } from './GlassComponents';
 
 const ReplyCard = ({ 
   reply, 
@@ -98,10 +99,11 @@ const ReplyCard = ({
 
   return (
     <>
-      <View 
+      <GlassCard 
         style={[
           styles.replyCard,
-          reply.isAccepted && styles.acceptedCard
+          reply.isAccepted && styles.acceptedCard,
+          { backgroundColor: 'transparent', borderColor: reply.isAccepted ? '#10B981' : theme.border }
         ]}>
         
         {reply.isAccepted && (
@@ -208,7 +210,7 @@ const ReplyCard = ({
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </GlassCard>
 
       <Modal
         visible={showMenu}
@@ -219,7 +221,7 @@ const ReplyCard = ({
           style={styles.menuOverlay}
           activeOpacity={1}
           onPress={() => setShowMenu(false)}>
-          <View style={[styles.menuContent, { backgroundColor: theme.card }]}>
+          <GlassModalCard style={[styles.menuContent, { backgroundColor: 'transparent' }]}>
             {isOwner && (
               <>
                 <TouchableOpacity
@@ -265,7 +267,7 @@ const ReplyCard = ({
                 </Text>
               </TouchableOpacity>
             )}
-          </View>
+          </GlassModalCard>
         </TouchableOpacity>
       </Modal>
 

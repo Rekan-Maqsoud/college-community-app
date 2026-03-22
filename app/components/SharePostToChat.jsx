@@ -24,6 +24,7 @@ import {
   hp,
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { GlassModalCard } from './GlassComponents';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -266,11 +267,13 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : insets.bottom + 20}
         >
-          <View
+          <GlassModalCard
             style={[
               styles.container,
-              { backgroundColor: isDarkMode ? '#1a1a2e' : '#FFFFFF' },
-            ]}>
+            ]}
+            borderRadiusValue={borderRadius.xl}
+            padding={0}
+          >
           {/* Header */}
           <View style={styles.header}>
             <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(18) }]}>
@@ -345,7 +348,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
               />
             </View>
           )}
-          </View>
+          </GlassModalCard>
         </KeyboardAvoidingView>
       </View>
     </Modal>

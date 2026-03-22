@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { GlassContainer } from './GlassComponents';
+import { GlassContainer, GlassPill } from './GlassComponents';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 
@@ -83,40 +83,39 @@ const StageFilter = ({ selectedStage = 'all', onStageChange, visible = false, on
                 return (
                   <TouchableOpacity
                     key={stage.key}
-                    style={[
-                      styles.stageItem,
-                      isSelected && {
-                        backgroundColor: isDarkMode
-                          ? 'rgba(255, 255, 255, 0.12)'
-                          : 'rgba(0, 122, 255, 0.15)',
-                        borderWidth: 1,
-                        borderColor: isDarkMode
-                          ? 'rgba(255, 255, 255, 0.18)'
-                          : theme.primary + '40',
-                      },
-                    ]}
                     onPress={() => handleStageSelect(stage.key)}
                     activeOpacity={0.7}
+                    style={{ marginBottom: spacing.xs }}
                   >
-                    <Text
+                    <GlassPill
+                      active={isSelected}
+                      activeColor={theme.primary}
                       style={[
-                        styles.stageLabel,
-                        {
-                          color: isSelected ? theme.primary : theme.text,
-                          fontSize: fontSize(15),
-                          fontWeight: isSelected ? '600' : '400',
-                        },
+                        styles.stageItem,
+                        { marginBottom: 0 }
                       ]}
+                      borderRadiusValue={borderRadius.md}
                     >
-                      {t(stage.label)}
-                    </Text>
-                    {isSelected && (
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={moderateScale(22)}
-                        color={theme.primary}
-                      />
-                    )}
+                      <Text
+                        style={[
+                          styles.stageLabel,
+                          {
+                            color: isSelected ? theme.primary : theme.text,
+                            fontSize: fontSize(15),
+                            fontWeight: isSelected ? '600' : '400',
+                          },
+                        ]}
+                      >
+                        {t(stage.label)}
+                      </Text>
+                      {isSelected && (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={moderateScale(22)}
+                          color={theme.primary}
+                        />
+                      )}
+                    </GlassPill>
                   </TouchableOpacity>
                 );
               })}

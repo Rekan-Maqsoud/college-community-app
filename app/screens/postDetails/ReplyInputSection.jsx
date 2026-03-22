@@ -13,9 +13,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { postDetailsStyles as styles } from './styles';
-import ProfilePicture from '../../components/ProfilePicture';
 import { getFriends, searchUsers } from '../../../database/users';
 import { moderateScale, fontSize, spacing } from '../../utils/responsive';
+import { GlassInput } from '../../components/GlassComponents';
 
 const ReplyInputSection = ({
   editingReply,
@@ -274,25 +274,27 @@ const ReplyInputSection = ({
         </View>
       )}
 
-      <TextInput
-        ref={inputRef}
-        style={[
-          styles.replyTextInput,
-          localStyles.replyTextInput,
-          {
-            backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
-            color: theme.text,
-            borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
-          },
-        ]}
-        placeholder={t('post.writeReply')}
-        placeholderTextColor={theme.textSecondary}
-        value={replyText}
-        onChangeText={handleTextChange}
-        onFocus={() => setShowActionSheet(false)}
-        multiline
-        maxLength={2000}
-      />
+      <GlassInput focused={false}>
+        <TextInput
+          ref={inputRef}
+          style={[
+            styles.replyTextInput,
+            localStyles.replyTextInput,
+            {
+              backgroundColor: 'transparent',
+              color: theme.text,
+              borderColor: 'transparent',
+            },
+          ]}
+          placeholder={t('post.writeReply')}
+          placeholderTextColor={theme.textSecondary}
+          value={replyText}
+          onChangeText={handleTextChange}
+          onFocus={() => setShowActionSheet(false)}
+          multiline
+          maxLength={2000}
+        />
+      </GlassInput>
 
       {replyImages.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagePreviewScroll}>
@@ -319,16 +321,18 @@ const ReplyInputSection = ({
             </View>
           ))}
           <View style={styles.linkInputRow}>
-            <TextInput
-              style={[styles.linkInput, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#F3F4F6', color: theme.text }]}
-              placeholder={t('post.linksPlaceholder')}
-              placeholderTextColor={theme.textSecondary}
-              value={linkInput}
-              onChangeText={onLinkInputChange}
-              onSubmitEditing={onAddLink}
-              autoCapitalize="none"
-              keyboardType="url"
-            />
+            <GlassInput style={{ flex: 1, marginRight: spacing.sm, height: moderateScale(40) }} focused={false}>
+              <TextInput
+                style={[styles.linkInput, { flex: 1, backgroundColor: 'transparent', color: theme.text, margin: 0 }]}
+                placeholder={t('post.linksPlaceholder')}
+                placeholderTextColor={theme.textSecondary}
+                value={linkInput}
+                onChangeText={onLinkInputChange}
+                onSubmitEditing={onAddLink}
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+            </GlassInput>
             <TouchableOpacity 
               style={[styles.addLinkBtn, { opacity: linkInput.trim() ? 1 : 0.5 }]} 
               onPress={onAddLink}

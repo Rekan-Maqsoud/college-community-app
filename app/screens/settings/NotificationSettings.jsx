@@ -10,7 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { borderRadius, shadows } from '../../theme/designTokens';
@@ -53,9 +53,9 @@ const NotificationSettings = ({ navigation }) => {
   };
 
   const GlassCard = ({ children, style }) => (
-    <BlurView
-      intensity={isDarkMode ? 30 : 0}
-      tint={isDarkMode ? 'dark' : 'light'}
+    <LiquidGlassView
+      colorScheme={isDarkMode ? 'dark' : 'light'}
+      effect="regular"
       style={[
         styles.glassCard,
         {
@@ -65,7 +65,7 @@ const NotificationSettings = ({ navigation }) => {
         style,
       ]}>
       {children}
-    </BlurView>
+    </LiquidGlassView>
   );
 
   return (

@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useTranslation } from '../hooks/useTranslation';
@@ -111,8 +111,15 @@ const CustomAlert = ({
           styles.overlay,
           {
             opacity: opacityAnim,
+            backgroundColor: 'transparent',
           },
         ]}>
+        <LiquidGlassView 
+          colorScheme="dark" 
+          effect="regular" 
+          style={StyleSheet.absoluteFillObject} 
+          pointerEvents="none" 
+        />
         <TouchableOpacity
           style={styles.overlayTouchable}
           activeOpacity={1}
@@ -126,9 +133,9 @@ const CustomAlert = ({
               },
             ]}>
             <TouchableOpacity activeOpacity={1}>
-              <BlurView
-                intensity={isDarkMode ? 40 : 60}
-                tint={isDarkMode ? 'dark' : 'light'}
+              <LiquidGlassView
+                colorScheme={isDarkMode ? 'dark' : 'light'}
+                effect="regular"
                 style={[
                   styles.alertContent,
                   {
@@ -228,7 +235,7 @@ const CustomAlert = ({
                     </TouchableOpacity>
                   ))}
                 </View>
-              </BlurView>
+              </LiquidGlassView>
             </TouchableOpacity>
           </Animated.View>
         </TouchableOpacity>

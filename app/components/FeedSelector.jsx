@@ -8,6 +8,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { wp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
@@ -19,6 +20,7 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
   const [containerWidth, setContainerWidth] = useState(wp(60));
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 360;
+  const glassScheme = theme.glass?.tint || (isDarkMode ? 'dark' : 'light');
 
   const feeds = [
     {
@@ -90,13 +92,6 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
         styles.container,
         {
           height,
-          backgroundColor: isDarkMode
-            ? 'rgba(255, 255, 255, 0.1)'
-            : 'rgba(0, 0, 0, 0.04)',
-          borderWidth: 0.5,
-          borderColor: isDarkMode
-            ? 'rgba(255, 255, 255, 0.15)'
-            : 'rgba(0, 0, 0, 0.08)',
         }
       ]}
       onLayout={(event) => {
@@ -106,6 +101,25 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
         }
       }}
     >
+      <LiquidGlassView
+        colorScheme={glassScheme}
+        effect="regular"
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { borderRadius: borderRadius.lg, overflow: 'hidden' }]}
+      />
+      <View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            borderRadius: borderRadius.lg,
+            backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.45)',
+            borderWidth: 0.5,
+            borderColor: isDarkMode ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.5)',
+            borderBottomColor: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.15)',
+          },
+        ]}
+      />
       <View style={styles.feedRow}>
         <Animated.View
           style={[

@@ -12,7 +12,7 @@ import {
   Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 import { Ionicons } from '@expo/vector-icons';
 import safeStorage from '../../utils/safeStorage';
 import { useAppSettings } from '../../context/AppSettingsContext';
@@ -32,9 +32,9 @@ const COOLDOWN_DAYS = 30;
 const FREE_ACADEMIC_CHANGES = 2;
 
 const GlassCard = memo(({ children, style, isDarkMode }) => (
-  <BlurView
-    intensity={isDarkMode ? 30 : 0}
-    tint={isDarkMode ? 'dark' : 'light'}
+  <LiquidGlassView
+    colorScheme={isDarkMode ? 'dark' : 'light'}
+    effect="regular"
     style={[
       styles.glassCard,
       {
@@ -44,7 +44,7 @@ const GlassCard = memo(({ children, style, isDarkMode }) => (
       style,
     ]}>
     {children}
-  </BlurView>
+  </LiquidGlassView>
 ));
 
 GlassCard.displayName = 'GlassCard';

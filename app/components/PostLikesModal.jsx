@@ -15,6 +15,7 @@ import UserCard from './UserCard';
 import { fontSize, spacing, moderateScale, hp } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { FlashList } from '@shopify/flash-list';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 
 const PostLikesModal = ({ visible, onClose, likedByIds }) => {
   const { t, theme, isDarkMode } = useAppSettings();
@@ -102,7 +103,8 @@ const PostLikesModal = ({ visible, onClose, likedByIds }) => {
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { backgroundColor: 'transparent' }]}>
+        <LiquidGlassView colorScheme="dark" effect="regular" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         <View
           style={[
             styles.container,

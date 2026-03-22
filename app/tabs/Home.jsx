@@ -26,6 +26,7 @@ import FeedSelector from '../components/FeedSelector';
 import FilterSortModal, { SORT_OPTIONS, FILTER_TYPES } from '../components/FilterSortModal';
 import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
+import { GlassIconButton, GlassModalCard } from '../components/GlassComponents';
 import GreetingBanner from '../components/GreetingBanner';
 import { PostCardSkeleton } from '../components/SkeletonLoader';
 import UnifiedEmptyState from '../components/UnifiedEmptyState';
@@ -1069,30 +1070,17 @@ const Home = ({ navigation, route }) => {
               accessibilityLabel={t('home.filterSort')}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <View
-                style={[
-                  styles.sortContainer,
-                  {
-                    width: actionButtonSize,
-                    height: actionButtonSize,
-                    backgroundColor: (sortBy !== SORT_OPTIONS.NEWEST || filterType !== 'all' || selectedStage !== 'all')
-                      || answerStatus !== 'all'
-                      ? (isDarkMode ? 'rgba(0, 122, 255, 0.2)' : 'rgba(0, 122, 255, 0.1)')
-                      : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.04)'),
-                    borderWidth: 0.5,
-                    borderColor: (sortBy !== SORT_OPTIONS.NEWEST || filterType !== 'all' || selectedStage !== 'all')
-                      || answerStatus !== 'all'
-                      ? theme.primary + '40'
-                      : (isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)'),
-                  }
-                ]}
+              <GlassIconButton
+                size={actionButtonSize}
+                borderRadiusValue={borderRadius.md}
+                active={(sortBy !== SORT_OPTIONS.NEWEST || filterType !== 'all' || selectedStage !== 'all') || answerStatus !== 'all'}
               >
                 <Ionicons 
                   name="options-outline" 
                   size={headerIconSize} 
                   color={(sortBy !== SORT_OPTIONS.NEWEST || filterType !== 'all' || selectedStage !== 'all') || answerStatus !== 'all' ? theme.primary : theme.text} 
                 />
-              </View>
+              </GlassIconButton>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -1103,21 +1091,9 @@ const Home = ({ navigation, route }) => {
               accessibilityLabel={t('notifications.title')}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <View
-                style={[
-                  styles.notificationContainer,
-                  {
-                    width: actionButtonSize,
-                    height: actionButtonSize,
-                    backgroundColor: isDarkMode
-                      ? 'rgba(255, 255, 255, 0.1)'
-                      : 'rgba(0, 0, 0, 0.04)',
-                    borderWidth: 0.5,
-                    borderColor: isDarkMode
-                      ? 'rgba(255, 255, 255, 0.15)'
-                      : 'rgba(0, 0, 0, 0.08)',
-                  }
-                ]}
+              <GlassIconButton
+                size={actionButtonSize}
+                borderRadiusValue={borderRadius.md}
               >
                 <Ionicons name="notifications-outline" size={headerIconSize} color={theme.text} />
                 {unreadNotifications > 0 && (
@@ -1127,7 +1103,7 @@ const Home = ({ navigation, route }) => {
                     </Text>
                   </View>
                 )}
-              </View>
+              </GlassIconButton>
             </TouchableOpacity>
           </Animated.View>
 
@@ -1162,7 +1138,7 @@ const Home = ({ navigation, route }) => {
         }}
       >
         <View style={styles.reportModalOverlay}>
-          <View style={[styles.reportModalCard, { backgroundColor: theme.card || theme.cardBackground, borderColor: theme.border }]}>
+          <GlassModalCard style={[styles.reportModalCard]}>
             <View style={styles.reportModalHeader}>
               <View style={styles.reportModalHeaderTextWrap}>
                 <Text style={[styles.reportModalTitle, { color: theme.text }]}>{t('post.reportPost')}</Text>
@@ -1218,7 +1194,7 @@ const Home = ({ navigation, route }) => {
                 <Text style={[styles.reportSubmittingText, { color: theme.textSecondary }]}>{t('report.submitting')}</Text>
               </View>
             ) : null}
-          </View>
+          </GlassModalCard>
         </View>
       </Modal>
 
@@ -1241,17 +1217,14 @@ const Home = ({ navigation, route }) => {
         <TouchableOpacity
           onPress={handleScrollToTop}
           activeOpacity={0.8}
-          style={[
-            styles.scrollToTopTouchable,
-            {
-              backgroundColor: theme.primary,
-            }
-          ]}
+          style={styles.scrollToTopTouchable}
           accessibilityRole="button"
           accessibilityLabel={t('home.scrollToTop') || t('common.goBack')}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="arrow-up" size={moderateScale(22)} color="#FFFFFF" />
+          <GlassIconButton size={moderateScale(48)} tint="dark">
+            <Ionicons name="arrow-up" size={moderateScale(22)} color="#FFFFFF" />
+          </GlassIconButton>
         </TouchableOpacity>
       </Animated.View>
       <CustomAlert

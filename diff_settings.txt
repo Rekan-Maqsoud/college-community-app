@@ -1,0 +1,60 @@
+diff --git a/app/screens/settings/index.js b/app/screens/settings/index.js
+index b928ff4..9d83006 100644
+--- a/app/screens/settings/index.js
++++ b/app/screens/settings/index.js
+@@ -9,6 +9,7 @@ import {
+ import { LinearGradient } from 'expo-linear-gradient';
+ import { Ionicons } from '@expo/vector-icons';
+ import { useAppSettings } from '../../context/AppSettingsContext';
++import { GlassCard } from '../../components/GlassComponents';
+ import { borderRadius } from '../../theme/designTokens';
+ import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
+ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+@@ -95,28 +96,26 @@ const Settings = ({ navigation }) => {
+   const SettingCard = ({ item }) => (
+     <TouchableOpacity
+       onPress={() => navigation.navigate(item.screen)}
+-      activeOpacity={0.7}
+-      style={[
+-        styles.card,
+-        {
+-          backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.6)' : 'rgba(255, 255, 255, 0.85)',
+-          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)',
+-        },
+-      ]}>
+-      <View style={styles.cardContent}>
+-        <View style={[styles.iconContainer, { backgroundColor: isDarkMode ? `${item.color}15` : `${item.color}15` }]}>
+-          <Ionicons name={item.icon} size={moderateScale(22)} color={item.color} />
++      activeOpacity={0.7}>
++      <GlassCard
++        style={[styles.card]}
++        padding={0}
++      >
++        <View style={styles.cardContent}>
++          <View style={[styles.iconContainer, { backgroundColor: isDarkMode ? `${item.color}15` : `${item.color}15` }]}>
++            <Ionicons name={item.icon} size={moderateScale(22)} color={item.color} />
++          </View>
++          <View style={styles.textContainer}>
++            <Text style={[styles.cardTitle, { color: theme.text }]}>
++              {item.title}
++            </Text>
++            <Text style={[styles.cardDescription, { color: theme.textSecondary }]}>
++              {item.description}
++            </Text>
++          </View>
++          <Ionicons name="chevron-forward" size={moderateScale(18)} color={theme.textSecondary} />
+         </View>
+-        <View style={styles.textContainer}>
+-          <Text style={[styles.cardTitle, { color: theme.text }]}>
+-            {item.title}
+-          </Text>
+-          <Text style={[styles.cardDescription, { color: theme.textSecondary }]}>
+-            {item.description}
+-          </Text>
+-        </View>
+-        <Ionicons name="chevron-forward" size={moderateScale(18)} color={theme.textSecondary} />
+-      </View>
++      </GlassCard>
+     </TouchableOpacity>
+   );
+ 

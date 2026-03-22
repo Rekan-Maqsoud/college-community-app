@@ -13,6 +13,7 @@ import {
 } from '../../utils/responsive';
 import { MUTE_DURATIONS, MUTE_TYPES } from '../../../database/userChatSettings';
 import { chatRoomStyles as styles } from './styles';
+import { GlassModalCard } from '../../components/GlassComponents';
 
 export const MuteModal = ({ 
   visible, 
@@ -31,10 +32,7 @@ export const MuteModal = ({
       animationType="slide"
       onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={[
-          styles.modalContent,
-          { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' }
-        ]}>
+        <GlassModalCard style={[styles.modalContent, { backgroundColor: 'transparent' }]}>
           <Text style={[styles.modalTitle, { color: theme.text, fontSize: fontSize(18) }]}>
             {t('chats.muteOptions')}
           </Text>
@@ -113,7 +111,7 @@ export const MuteModal = ({
               {t('common.cancel')}
             </Text>
           </TouchableOpacity>
-        </View>
+        </GlassModalCard>
       </View>
     </Modal>
   );
@@ -137,10 +135,7 @@ export const PinnedMessagesModal = ({
       animationType="slide"
       onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={[
-          styles.pinnedModalContent,
-          { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' }
-        ]}>
+        <GlassModalCard style={[styles.pinnedModalContent, { backgroundColor: 'transparent' }]}>
           <View style={styles.pinnedModalHeader}>
             <Text style={[styles.modalTitle, { color: theme.text, fontSize: fontSize(18), marginBottom: 0 }]}>
               {t('chats.pinnedMessages')}
@@ -193,7 +188,7 @@ export const PinnedMessagesModal = ({
               ))
             )}
           </ScrollView>
-        </View>
+        </GlassModalCard>
       </View>
     </Modal>
   );
@@ -225,10 +220,7 @@ export const ChatOptionsModal = ({
       animationType="slide"
       onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={[
-          styles.modalContent,
-          { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' }
-        ]}>
+        <GlassModalCard style={[styles.modalContent, { backgroundColor: 'transparent' }]}>
           <Text style={[styles.modalTitle, { color: theme.text, fontSize: fontSize(18) }]}>
             {chatDisplayName}
           </Text>
@@ -336,7 +328,7 @@ export const ChatOptionsModal = ({
               {t('common.cancel')}
             </Text>
           </TouchableOpacity>
-        </View>
+        </GlassModalCard>
       </View>
     </Modal>
   );

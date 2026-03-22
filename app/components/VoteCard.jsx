@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ProfilePicture from './ProfilePicture';
+import { GlassContainer } from './GlassComponents';
 import { wp, normalize, spacing } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 
@@ -15,20 +16,24 @@ const VoteCard = ({ candidate, voteCount, isVotedByMe, isLeading, disabled, isTi
   const userId = candidate?.$id || candidate?.userID || '';
 
   return (
-    <TouchableOpacity
+    <GlassContainer
       style={[
         styles.card,
         {
-          backgroundColor: colors.card,
-          borderColor: isVotedByMe ? colors.primary : colors.border,
-          borderWidth: isVotedByMe ? 2 : 1,
+          borderColor: isVotedByMe ? colors.primary : 'transparent',
+          borderWidth: isVotedByMe ? 2 : 0,
           opacity: disabled ? 0.6 : 1,
         },
       ]}
-      onPress={() => onVote(userId)}
-      activeOpacity={disabled ? 1 : 0.7}
-      disabled={disabled}
+      borderRadius={borderRadius.lg}
+      borderWidth={isVotedByMe ? 0 : 1}
     >
+      <TouchableOpacity
+        style={styles.cardInner}
+        onPress={() => onVote(userId)}
+        activeOpacity={disabled ? 1 : 0.7}
+        disabled={disabled}
+      >
       <View style={styles.left}>
         <ProfilePicture
           uri={avatar}
@@ -67,17 +72,20 @@ const VoteCard = ({ candidate, voteCount, isVotedByMe, isLeading, disabled, isTi
         </View>
       </View>
     </TouchableOpacity>
+    </GlassContainer>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.sm,
+  },
+  cardInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: wp(3.5),
-    borderRadius: borderRadius.lg,
-    marginBottom: spacing.sm,
   },
   left: {
     flexDirection: 'row',

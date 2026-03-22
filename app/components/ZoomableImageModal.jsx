@@ -21,10 +21,10 @@ import Animated, {
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import { Ionicons } from '@expo/vector-icons';
-import { useAppSettings } from '../context/AppSettingsContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import CustomAlert from './CustomAlert';
 import { FlashList } from '@shopify/flash-list';
+import { GlassContainer, GlassIconButton } from './GlassComponents';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -277,9 +277,11 @@ const ZoomableImageModal = ({
       statusBarTranslucent
     >
       <GestureHandlerRootView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.headerButton} onPress={onClose}>
-            <Ionicons name="close" size={28} color="#fff" />
+        <GlassContainer style={[styles.header, { backgroundColor: 'transparent' }]} disableBackgroundOverlay={true}>
+          <TouchableOpacity onPress={onClose}>
+            <GlassIconButton size={44} active={false}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </GlassIconButton>
           </TouchableOpacity>
           
           {imageArray.length > 1 && (
@@ -290,25 +292,28 @@ const ZoomableImageModal = ({
           
           <View style={styles.headerActions}>
             {showShare && (
-              <TouchableOpacity style={styles.headerButton} onPress={handleShare}>
-                <Ionicons name="share-outline" size={24} color="#fff" />
+              <TouchableOpacity onPress={handleShare}>
+                <GlassIconButton size={44} active={false}>
+                  <Ionicons name="share-outline" size={24} color="#fff" />
+                </GlassIconButton>
               </TouchableOpacity>
             )}
             {showDownload && (
               <TouchableOpacity 
-                style={styles.headerButton} 
                 onPress={handleDownload}
                 disabled={isDownloading}
               >
-                {isDownloading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Ionicons name="download-outline" size={24} color="#fff" />
-                )}
+                <GlassIconButton size={44} active={false}>
+                  {isDownloading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Ionicons name="download-outline" size={24} color="#fff" />
+                  )}
+                </GlassIconButton>
               </TouchableOpacity>
             )}
           </View>
-        </View>
+        </GlassContainer>
 
         {imageArray.length === 1 ? (
           <ZoomableImage 

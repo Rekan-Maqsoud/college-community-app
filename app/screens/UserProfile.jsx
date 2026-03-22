@@ -6,6 +6,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { FlashList } from '@shopify/flash-list';
 import { useUser } from '../context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 import { Ionicons } from '@expo/vector-icons';
 import AnimatedBackground from '../components/AnimatedBackground';
 import PostCard from '../components/PostCard';
@@ -528,7 +529,9 @@ const UserProfile = ({ route, navigation }) => {
   const renderAboutSection = () => (
     <View style={styles.sectionContainer}>
       <Text style={[styles.sectionHeader, { color: theme.text }]}>{t('profile.about')}</Text>
-      <View
+      <LiquidGlassView
+        colorScheme={isDarkMode ? 'dark' : 'light'}
+        effect="regular"
         style={[
           styles.infoCard,
           {
@@ -604,14 +607,16 @@ const UserProfile = ({ route, navigation }) => {
             })}
           </>
         )}
-      </View>
+      </LiquidGlassView>
 
       {/* Social Links - respect visibility settings */}
       {userData?.socialLinks &&
         Object.values(userData.socialLinks).some((v) => v) &&
         (userData.socialLinksVisibility === 'everyone' ||
           (userData.socialLinksVisibility === 'friends' && isFollowing)) && (
-          <View
+          <LiquidGlassView
+            colorScheme={isDarkMode ? 'dark' : 'light'}
+            effect="regular"
             style={[
               styles.infoCard,
               {
@@ -659,7 +664,7 @@ const UserProfile = ({ route, navigation }) => {
                 );
               })}
             </View>
-          </View>
+          </LiquidGlassView>
         )}
     </View>
   );
@@ -795,7 +800,10 @@ const UserProfile = ({ route, navigation }) => {
           </View>
         )}
         
-        <View style={[styles.statsContainer, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.7)' : 'rgba(255, 255, 255, 0.9)' }]}>
+        <LiquidGlassView 
+          colorScheme={isDarkMode ? 'dark' : 'light'}
+          effect="regular"
+          style={[styles.statsContainer, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.7)' : 'rgba(255, 255, 255, 0.9)' }]}>
           <TouchableOpacity style={styles.statItem} activeOpacity={0.7}>
             <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.posts}</Text>
             <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.posts')}</Text>
@@ -826,7 +834,7 @@ const UserProfile = ({ route, navigation }) => {
             <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.following}</Text>
             <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.following')}</Text>
           </TouchableOpacity>
-        </View>
+        </LiquidGlassView>
       </View>
       
       <View style={styles.contentSection}>
@@ -842,7 +850,9 @@ const UserProfile = ({ route, navigation }) => {
     if (loadingPosts) {
       return (
         <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
-          <View 
+          <LiquidGlassView 
+            colorScheme={isDarkMode ? 'dark' : 'light'}
+            effect="regular"
             style={[
               styles.emptyCard,
               {
@@ -856,14 +866,16 @@ const UserProfile = ({ route, navigation }) => {
             <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
               {t('common.loading')}
             </Text>
-          </View>
+          </LiquidGlassView>
         </View>
       );
     }
     if (postsError) {
       return (
         <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
-          <View 
+          <LiquidGlassView 
+            colorScheme={isDarkMode ? 'dark' : 'light'}
+            effect="regular"
             style={[
               styles.emptyCard,
               {
@@ -880,13 +892,15 @@ const UserProfile = ({ route, navigation }) => {
             <TouchableOpacity onPress={loadUserPosts} style={styles.retryButton}>
               <Text style={[styles.retryButtonText, { color: theme.primary }]}>{t('common.retry')}</Text>
             </TouchableOpacity>
-          </View>
+          </LiquidGlassView>
         </View>
       );
     }
     return (
       <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
-        <View 
+        <LiquidGlassView 
+          colorScheme={isDarkMode ? 'dark' : 'light'}
+          effect="regular"
           style={[
             styles.emptyCard,
             {
@@ -900,7 +914,7 @@ const UserProfile = ({ route, navigation }) => {
           <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
             {t('profile.noPostsUser')}
           </Text>
-        </View>
+        </LiquidGlassView>
       </View>
     );
   };

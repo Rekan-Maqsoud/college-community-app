@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppSettingsSafe } from '../context/AppSettingsContext';
 
@@ -26,21 +26,14 @@ export const GlassContainer = ({
       : 'rgba(255, 255, 255, 0.5)' 
   );
   
-  // Use higher blur for a more 'liquid' look
-  const glassIntensity = intensity || (isAndroid ? 50 : 45); 
-  const glassTint = theme.glass?.tint || (isDarkMode ? 'dark' : 'light');
-
-  // Gradient stops for lighting reflection (liquid look)
-  const gradientColors = isDarkMode
-    ? [`rgba(255,255,255,${gradientOpacity})`, `rgba(255,255,255,0)`]
-    : [`rgba(255,255,255,${gradientOpacity * 2})`, `rgba(255,255,255,0.1)`];
+  const glassScheme = theme.glass?.tint || (isDarkMode ? 'dark' : 'light');
 
   return (
     <View style={[styles.container, { borderRadius }, style]}>
-      {/* Both iOS and modern Android can use BlurView */}
-      <BlurView
-        intensity={glassIntensity}
-        tint={glassTint}
+      {/* LiquidGlassView replaces BlurView */}
+      <LiquidGlassView
+        colorScheme={glassScheme}
+        effect="regular"
         pointerEvents="none"
         style={[
           StyleSheet.absoluteFill,
@@ -69,18 +62,6 @@ export const GlassContainer = ({
         />
       )}
 
-      {/* Shine/Reflection using Linear Gradient */}
-      <LinearGradient
-        colors={gradientColors}
-        start={{ x: 0.1, y: 0.1 }}
-        end={{ x: 0.9, y: 0.9 }}
-        style={[
-          StyleSheet.absoluteFill,
-          { borderRadius }
-        ]}
-        pointerEvents="none"
-      />
-
       {/* Liquid Glass Borders (Highlight Top-Left, Shadow Bottom-Right) */}
       {borderWidth > 0 && (
         <View
@@ -98,9 +79,7 @@ export const GlassContainer = ({
         />
       )}
       
-      <View style={styles.content}>
-        {children}
-      </View>
+      {children}
     </View>
   );
 };
@@ -114,7 +93,6 @@ export const GlassCard = ({
   return (
     <GlassContainer
       style={[{ padding }, style]}
-      intensity={intensity}
       borderWidth={1}
       gradientOpacity={0.15}
     >
@@ -132,7 +110,7 @@ export const GlassInput = ({
   const theme = context?.theme || {};
   const isDarkMode = context?.isDarkMode || false;
 
-  const glassTint = theme.glass?.tint || (isDarkMode ? 'dark' : 'light');       
+  const glassScheme = theme.glass?.tint || (isDarkMode ? 'dark' : 'light');       
   const primaryColor = theme.primary || '#007AFF';
 
   const backgroundColor = isDarkMode
@@ -145,9 +123,9 @@ export const GlassInput = ({
 
   return (
     <View style={[styles.container, style]}>
-      <BlurView
-        intensity={30}
-        tint={glassTint}
+      <LiquidGlassView
+        colorScheme={glassScheme}
+        effect="regular"
         pointerEvents="none"
         style={[
           StyleSheet.absoluteFill,
@@ -180,9 +158,7 @@ export const GlassInput = ({
           }
         ]}
       />
-      <View style={styles.content}>
-        {children}
-      </View>
+      {children}
     </View>
   );
 };
@@ -212,14 +188,14 @@ export const GlassButton = ({
     }
   };
 
-  const glassTint = theme.glass?.tint || (isDarkMode ? 'dark' : 'light');       
+  const glassScheme = theme.glass?.tint || (isDarkMode ? 'dark' : 'light');       
 
   return (
     <View style={[styles.container, style]}>
       {variant === 'secondary' && (
-        <BlurView
-          intensity={40}
-          tint={glassTint}
+        <LiquidGlassView
+          colorScheme={glassScheme}
+          effect="regular"
           pointerEvents="none"
           style={[StyleSheet.absoluteFill, styles.buttonBlur]}
         />
@@ -268,9 +244,168 @@ export const GlassButton = ({
         ]}
       />
       
-      <View style={styles.content}>
-        {children}
-      </View>
+      {children}
+    </View>
+  );
+};
+
+/**
+ * GlassIconButton — Small circular glass button for header actions.
+ * Replaces inline `rgba(255,255,255,0.08)` / `rgba(0,0,0,0.04)` icon containers.
+ */
+export const GlassIconButton = ({
+  children,
+  style,
+  size = 40,
+  borderRadiusValue,
+  active = false,
+  activeColor,
+}) => {
+  const context = useAppSettingsSafe();
+  const theme = context?.theme || {};
+  const isDarkMode = context?.isDarkMode || false;
+
+  const glassScheme = theme.glass?.tint || (isDarkMode ? 'dark' : 'light');
+  const radius = borderRadiusValue ?? size / 2;
+  const accentColor = activeColor || theme.primary || '#007AFF';
+
+  return (
+    <View style={[{ width: size, height: size, borderRadius: radius, position: 'relative', overflow: 'visible', justifyContent: 'center', alignItems: 'center' }, style]}>
+      <LiquidGlassView
+        colorScheme={glassScheme}
+        effect="regular"
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          { borderRadius: radius, overflow: 'hidden' },
+        ]}
+      />
+      <View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            borderRadius: radius,
+            backgroundColor: active
+              ? (isDarkMode ? `${accentColor}33` : `${accentColor}1A`)
+              : (isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.45)'),
+            borderWidth: 0.5,
+            borderColor: active
+              ? `${accentColor}60`
+              : (isDarkMode ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.5)'),
+            borderBottomColor: active
+              ? `${accentColor}40`
+              : (isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.15)'),
+          },
+        ]}
+      />
+      {children}
+    </View>
+  );
+};
+
+/**
+ * GlassPill — Pill-shaped glass element for filters, tabs, switchers.
+ * Replaces inline rgba filter pills and window-switcher buttons.
+ */
+export const GlassPill = ({
+  children,
+  style,
+  active = false,
+  activeColor,
+  borderRadiusValue = 20,
+}) => {
+  const context = useAppSettingsSafe();
+  const theme = context?.theme || {};
+  const isDarkMode = context?.isDarkMode || false;
+
+  const glassScheme = theme.glass?.tint || (isDarkMode ? 'dark' : 'light');
+  const accentColor = activeColor || theme.primary || '#007AFF';
+
+  return (
+    <View style={[{ borderRadius: borderRadiusValue, position: 'relative', overflow: 'visible', justifyContent: 'center', alignItems: 'center' }, style]}>
+      {!active && (
+        <LiquidGlassView
+          colorScheme={glassScheme}
+          effect="regular"
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            { borderRadius: borderRadiusValue, overflow: 'hidden' },
+          ]}
+        />
+      )}
+      <View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            borderRadius: borderRadiusValue,
+            backgroundColor: active
+              ? accentColor
+              : (isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.4)'),
+            borderWidth: 0.5,
+            borderColor: active
+              ? accentColor
+              : (isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.45)'),
+          },
+        ]}
+      />
+      {children}
+    </View>
+  );
+};
+
+/**
+ * GlassModalCard — Glass-styled modal content card.
+ * Replaces opaque modal cards with a liquid glass frosted panel.
+ */
+export const GlassModalCard = ({
+  children,
+  style,
+  borderRadiusValue = 24,
+}) => {
+  const context = useAppSettingsSafe();
+  const theme = context?.theme || {};
+  const isDarkMode = context?.isDarkMode || false;
+
+  const isAndroid = Platform.OS === 'android';
+  const glassScheme = theme.glass?.tint || (isDarkMode ? 'dark' : 'light');
+
+  return (
+    <View style={[style, { borderRadius: borderRadiusValue, overflow: 'hidden', position: 'relative' }]}>
+      <LiquidGlassView
+        colorScheme={glassScheme}
+        effect="regular"
+        pointerEvents="none"
+        style={StyleSheet.absoluteFill}
+      />
+      <View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            backgroundColor: isDarkMode
+              ? 'rgba(20, 20, 28, 0.55)'
+              : 'rgba(255, 255, 255, 0.6)',
+          },
+        ]}
+      />
+      {/* Top-left highlight border */}
+      <View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            borderRadius: borderRadiusValue,
+            borderWidth: 1,
+            borderColor: isDarkMode ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.5)',
+            borderBottomColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.1)',
+            borderRightColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.1)',
+          },
+        ]}
+      />
+      {children}
     </View>
   );
 };

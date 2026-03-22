@@ -14,7 +14,7 @@ import CustomAlert from '../../components/CustomAlert';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
@@ -155,9 +155,9 @@ const AccountSettings = ({ navigation }) => {
   };
 
   const GlassCard = ({ children, style }) => (
-    <BlurView
-      intensity={isDarkMode ? 30 : 0}
-      tint={isDarkMode ? 'dark' : 'light'}
+    <LiquidGlassView
+      colorScheme={isDarkMode ? 'dark' : 'light'}
+      effect="regular"
       style={[
         styles.glassCard,
         {
@@ -167,7 +167,7 @@ const AccountSettings = ({ navigation }) => {
         style,
       ]}>
       {children}
-    </BlurView>
+    </LiquidGlassView>
   );
 
   const SettingItem = ({ icon, title, description, onPress, danger, iconColor }) => (

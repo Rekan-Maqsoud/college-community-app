@@ -13,6 +13,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { wp, normalize, moderateScale, spacing } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { GlassIconButton } from './GlassComponents';
 
 const LAST_GREETING_KEY = '@last_greeting_index';
 const LAST_GREETING_DATE_KEY = '@last_greeting_date';
@@ -529,22 +530,20 @@ const GreetingBanner = () => {
 
         <View style={styles.content}>
           <Animated.View
-            style={[
-              styles.iconContainer,
-              compactMode && styles.iconContainerCompact,
-              {
-                transform: [{ scale: pulseAnim }],
-                backgroundColor: isDarkMode
-                  ? 'rgba(255,255,255,0.15)'
-                  : 'rgba(255,255,255,0.4)',
-              },
-            ]}
+            style={{
+              transform: [{ scale: pulseAnim }],
+              marginRight: compactMode ? spacing.xs + 1 : spacing.sm,
+            }}
           >
-            <Ionicons
-              name={greeting.icon}
-              size={moderateScale(20)}
-              color={isDarkMode ? '#fff' : '#333'}
-            />
+            <GlassIconButton
+              size={compactMode ? moderateScale(30) : moderateScale(36)}
+            >
+              <Ionicons
+                name={greeting.icon}
+                size={moderateScale(20)}
+                color={isDarkMode ? '#fff' : '#333'}
+              />
+            </GlassIconButton>
           </Animated.View>
           
           <Text

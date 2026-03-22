@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAppSettings } from '../context/AppSettingsContext';
 import { wp, hp, normalize, spacing } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { GlassModalCard } from './GlassComponents';
 
 const RepDetectionPopup = ({ visible, onVote, onDismiss, hasActiveElection }) => {
   const { t, theme } = useAppSettings();
@@ -19,7 +19,7 @@ const RepDetectionPopup = ({ visible, onVote, onDismiss, hasActiveElection }) =>
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
       <View style={styles.backdrop}>
-        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <GlassModalCard style={styles.card}>
           <View style={[styles.iconCircle, { backgroundColor: theme.primary + '20' }]}>
             <Ionicons name="people-outline" size={normalize(36)} color={theme.primary} />
           </View>
@@ -54,7 +54,7 @@ const RepDetectionPopup = ({ visible, onVote, onDismiss, hasActiveElection }) =>
               {t('repVoting.maybeLater')}
             </Text>
           </TouchableOpacity>
-        </View>
+        </GlassModalCard>
       </View>
     </Modal>
   );
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     padding: wp(6),
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 0,
   },
   iconCircle: {
     width: normalize(72),

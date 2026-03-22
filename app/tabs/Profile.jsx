@@ -7,6 +7,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { FlashList } from '@shopify/flash-list';
 import { useUser } from '../context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 import { Ionicons } from '@expo/vector-icons';
 import AnimatedBackground from '../components/AnimatedBackground';
 import PostCard from '../components/PostCard';
@@ -324,7 +325,9 @@ const Profile = ({ navigation, route }) => {
           style={styles.gradient}
         >
           <View style={styles.loadingContainer}>
-            <View 
+            <LiquidGlassView 
+              colorScheme={isDarkMode ? 'dark' : 'light'}
+              effect="regular"
               style={[
                 styles.notSignedInCard, 
                 { 
@@ -354,7 +357,7 @@ const Profile = ({ navigation, route }) => {
                   <Text style={styles.signInButtonText}>{t('auth.signIn')}</Text>
                 </LinearGradient>
               </TouchableOpacity>
-            </View>
+            </LiquidGlassView>
           </View>
         </LinearGradient>
       </View>
@@ -612,7 +615,10 @@ const Profile = ({ navigation, route }) => {
           {isMeRep && <RepBadge size="medium" colors={theme} label={t('repVoting.repLabel')} />}
         </View>
         {userProfile.bio && <Text style={[styles.bio, { fontSize: fontSize(13), color: isDarkMode ? 'rgba(255,255,255,0.8)' : 'rgba(28, 28, 30, 0.8)' }]} numberOfLines={2}>{userProfile.bio}</Text>}
-        <View style={[styles.statsContainer, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.7)' : 'rgba(255, 255, 255, 0.9)' }]}>
+        <LiquidGlassView 
+          colorScheme={isDarkMode ? 'dark' : 'light'}
+          effect="regular"
+          style={[styles.statsContainer, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.7)' : 'rgba(255, 255, 255, 0.9)' }]}>
           <TouchableOpacity style={styles.statItem} activeOpacity={0.7}>
             <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.posts}</Text>
             <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.posts')}</Text>
@@ -643,7 +649,7 @@ const Profile = ({ navigation, route }) => {
             <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.following}</Text>
             <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.following')}</Text>
           </TouchableOpacity>
-        </View>
+        </LiquidGlassView>
       </View>
       <View style={styles.contentSection}>
         {renderAboutSection()}
@@ -658,7 +664,9 @@ const Profile = ({ navigation, route }) => {
     if (loadingPosts) {
       return (
         <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
-          <View 
+          <LiquidGlassView 
+            colorScheme={isDarkMode ? 'dark' : 'light'}
+            effect="regular"
             style={[
               styles.emptyCard,
               {
@@ -672,14 +680,16 @@ const Profile = ({ navigation, route }) => {
             <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
               {t('common.loading')}
             </Text>
-          </View>
+          </LiquidGlassView>
         </View>
       );
     }
     if (postsError) {
       return (
         <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
-          <View 
+          <LiquidGlassView 
+            colorScheme={isDarkMode ? 'dark' : 'light'}
+            effect="regular"
             style={[
               styles.emptyCard,
               {
@@ -696,13 +706,15 @@ const Profile = ({ navigation, route }) => {
             <TouchableOpacity onPress={loadUserPosts} style={styles.retryButton}>
               <Text style={[styles.retryButtonText, { color: theme.primary }]}>{t('common.retry')}</Text>
             </TouchableOpacity>
-          </View>
+          </LiquidGlassView>
         </View>
       );
     }
     return (
       <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
-        <View 
+        <LiquidGlassView 
+          colorScheme={isDarkMode ? 'dark' : 'light'}
+          effect="regular"
           style={[
             styles.emptyCard,
             {
@@ -716,7 +728,7 @@ const Profile = ({ navigation, route }) => {
           <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
             {t('profile.noPosts')}
           </Text>
-        </View>
+        </LiquidGlassView>
       </View>
     );
   };

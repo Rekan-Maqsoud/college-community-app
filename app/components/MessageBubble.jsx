@@ -58,6 +58,7 @@ import {
   getBubbleStyleRadius,
 } from './messageBubble/constants';
 import { parseMessageReactions } from './messageBubble/reactionUtils';
+import { GlassModalCard } from './GlassComponents';
 
 const ReanimatedView = ReanimatedModule?.View || View;
 const CHAT_DOWNLOADS_DIR = 'chat_downloads';
@@ -1983,10 +1984,12 @@ const MessageBubble = ({
         <Pressable 
           style={styles.actionsOverlay}
           onPress={() => setActionsVisible(false)}>
-          <View style={[
-            styles.actionsContainer,
-            { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' }
-          ]}>
+          <GlassModalCard
+            style={[
+              styles.actionsContainer,
+            ]}
+            padding={16}
+          >
             {onToggleReaction && (
               <ScrollView
                 horizontal
@@ -2045,7 +2048,7 @@ const MessageBubble = ({
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </GlassModalCard>
         </Pressable>
       </Modal>
 
@@ -2058,12 +2061,11 @@ const MessageBubble = ({
           style={styles.reactionPickerOverlay}
           onPress={() => setReactionPickerVisible(false)}
         >
-          <Pressable
+          <GlassModalCard
             style={[
               styles.reactionPickerContent,
-              { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' }
             ]}
-            onPress={() => {}}
+            padding={16}
           >
             <Text style={[styles.reactionPickerTitle, { color: theme.text, fontSize: fontSize(14) }]}>
               {t('chats.addReaction')}
@@ -2099,7 +2101,7 @@ const MessageBubble = ({
               )}
             </ScrollView>
 
-          </Pressable>
+          </GlassModalCard>
         </Pressable>
       </Modal>
 
@@ -2112,10 +2114,12 @@ const MessageBubble = ({
         <Pressable 
           style={styles.mentionPreviewOverlay}
           onPress={() => setMentionPreview(null)}>
-          <View style={[
-            styles.mentionPreviewContainer,
-            { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' }
-          ]}>
+          <GlassModalCard
+            style={[
+              styles.mentionPreviewContainer,
+            ]}
+            padding={24}
+          >
             {mentionPreview && (
               <>
                 <View style={styles.mentionPreviewHeader}>
@@ -2153,7 +2157,7 @@ const MessageBubble = ({
                 </TouchableOpacity>
               </>
             )}
-          </View>
+          </GlassModalCard>
         </Pressable>
       </Modal>
     </ReanimatedView>

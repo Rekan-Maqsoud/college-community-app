@@ -31,6 +31,7 @@ import SharePostToChat from './SharePostToChat';
 import CustomAlert from './CustomAlert';
 import PostLikesModal from './PostLikesModal';
 import useCustomAlertHook from '../hooks/useCustomAlert';
+import { GlassCard } from './GlassComponents';
 import { 
   postCardStyles as styles, 
   STAGE_COLORS, 
@@ -635,13 +636,12 @@ const PostCard = ({
   };
 
   return (
-    <View 
+    <GlassCard 
       style={[
         styles.card, 
         { 
-          backgroundColor: theme.card || theme.cardBackground,
-          borderColor: isOwner ? theme.primary : theme.border,
-          borderWidth: isOwner ? 1.5 : 1,
+          borderColor: isOwner ? theme.primary : 'transparent',
+          borderWidth: isOwner ? 1.5 : 0,
         },
         compact && styles.cardCompact,
       ]}
@@ -933,7 +933,7 @@ const PostCard = ({
           t={t}
         />
       )}
-    </View>
+    </GlassCard>
   );
 };
 

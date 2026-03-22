@@ -9,7 +9,7 @@ import {
   Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
@@ -224,9 +224,9 @@ const ChatSettings = ({ navigation, route }) => {
   }, [focusSection, reactionSectionY]);
 
   const GlassCard = ({ children, style }) => (
-    <BlurView
-      intensity={isDarkMode ? 30 : 0}
-      tint={isDarkMode ? 'dark' : 'light'}
+    <LiquidGlassView
+      colorScheme={isDarkMode ? 'dark' : 'light'}
+      effect="regular"
       style={[
         styles.glassCard,
         {
@@ -236,7 +236,7 @@ const ChatSettings = ({ navigation, route }) => {
         style,
       ]}>
       {children}
-    </BlurView>
+    </LiquidGlassView>
   );
 
   const [sliderBubbleRadius, setSliderBubbleRadius] = useState(() => {

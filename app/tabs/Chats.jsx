@@ -24,6 +24,7 @@ import ChatListItem from '../components/ChatListItem';
 import RepDetectionPopup from '../components/RepDetectionPopup';
 import useRepDetection from '../hooks/useRepDetection';
 import UnifiedEmptyState from '../components/UnifiedEmptyState';
+import { GlassIconButton, GlassPill, GlassModalCard } from '../components/GlassComponents';
 import { ChatListSkeleton } from '../components/SkeletonLoader';
 import { 
   initializeUserGroups,
@@ -1113,14 +1114,16 @@ const Chats = ({ navigation }) => {
         <View style={styles.titleRow}>
           {showArchivedChats && (
             <TouchableOpacity
-              style={[styles.backButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)' }]}
+              style={[styles.backButton]}
               activeOpacity={0.7}
               onPress={() => setShowArchivedChats(false)}
               accessibilityRole="button"
               accessibilityLabel={t('common.goBack')}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="arrow-back" size={moderateScale(16)} color={theme.text} />
+              <GlassIconButton size={moderateScale(34)} borderRadiusValue={moderateScale(17)}>
+                <Ionicons name="arrow-back" size={moderateScale(16)} color={theme.text} />
+              </GlassIconButton>
             </TouchableOpacity>
           )}
           <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(22) }]}>
@@ -1129,44 +1132,48 @@ const Chats = ({ navigation }) => {
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity
-            style={[styles.iconButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)' }]}
+            style={[styles.iconButton]}
             activeOpacity={0.7}
             onPress={() => navigation.navigate('UserSearch')}
             accessibilityRole="button"
             accessibilityLabel={t('chats.startNewChat')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="search" size={moderateScale(18)} color={theme.primary} />
+            <GlassIconButton size={moderateScale(36)} borderRadiusValue={moderateScale(12)}>
+              <Ionicons name="search" size={moderateScale(18)} color={theme.primary} />
+            </GlassIconButton>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[
-              styles.iconButton,
-              {
-                backgroundColor: showArchivedChats
-                  ? (isDarkMode ? 'rgba(245,158,11,0.22)' : 'rgba(245,158,11,0.16)')
-                  : (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'),
-              },
-            ]}
+            style={[styles.iconButton]}
             activeOpacity={0.7}
             onPress={() => setShowArchivedChats((prev) => !prev)}
             accessibilityRole="button"
             accessibilityLabel={t('chats.archivedChats')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="archive-outline" size={moderateScale(17)} color="#F59E0B" />
-            {archivedUnreadChatsCount > 0 && (
-              <View style={[styles.archiveCountBadge, { backgroundColor: isDarkMode ? 'rgba(59,130,246,0.92)' : '#3B82F6' }]}>
-                <Text style={styles.archiveCountBadgeText}>{archivedUnreadChatsCount > 99 ? '99+' : archivedUnreadChatsCount}</Text>
-              </View>
-            )}
+            <GlassIconButton
+              size={moderateScale(36)}
+              borderRadiusValue={moderateScale(12)}
+              active={showArchivedChats}
+              activeColor="#F59E0B"
+            >
+              <Ionicons name="archive-outline" size={moderateScale(17)} color="#F59E0B" />
+              {archivedUnreadChatsCount > 0 && (
+                <View style={[styles.archiveCountBadge, { backgroundColor: isDarkMode ? 'rgba(59,130,246,0.92)' : '#3B82F6' }]}>
+                  <Text style={styles.archiveCountBadgeText}>{archivedUnreadChatsCount > 99 ? '99+' : archivedUnreadChatsCount}</Text>
+                </View>
+              )}
+            </GlassIconButton>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.iconButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)' }]}
+            style={[styles.iconButton]}
             activeOpacity={0.7}
             onPress={() => navigation.navigate('CreateGroup')}
             accessibilityRole="button"
             accessibilityLabel={t('chats.createGroup')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="add" size={moderateScale(18)} color="#F59E0B" />
+            <GlassIconButton size={moderateScale(36)} borderRadiusValue={moderateScale(12)}>
+              <Ionicons name="add" size={moderateScale(18)} color="#F59E0B" />
+            </GlassIconButton>
           </TouchableOpacity>
         </View>
       </View>
@@ -1178,26 +1185,25 @@ const Chats = ({ navigation }) => {
               key={filter.key}
               style={[
                 styles.filterPill,
-                { 
-                  backgroundColor: activeFilter === filter.key 
-                    ? theme.primary 
-                    : isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' 
-                }
               ]}
               activeOpacity={0.7}
               onPress={() => setActiveFilter(filter.key)}
               accessibilityRole="button"
               accessibilityLabel={filter.label}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={[
-                styles.filterPillText,
-                { 
-                  color: activeFilter === filter.key ? '#FFFFFF' : theme.textSecondary,
-                  fontSize: fontSize(11)
-                }
-              ]}>
-                {filter.label}
-              </Text>
+              <GlassPill active={activeFilter === filter.key}>
+                <Text style={[
+                  styles.filterPillText,
+                  { 
+                    color: activeFilter === filter.key ? '#FFFFFF' : theme.textSecondary,
+                    fontSize: fontSize(11),
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                  }
+                ]}>
+                  {filter.label}
+                </Text>
+              </GlassPill>
             </TouchableOpacity>
           ))}
         </View>
@@ -1326,11 +1332,9 @@ const Chats = ({ navigation }) => {
               onRequestClose={closeChatMenu}
             >
               <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeChatMenu}>
-                <View
-                  style={[
-                    styles.menuCard,
-                    { backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF' },
-                  ]}
+                <GlassModalCard
+                  style={[styles.menuCard]}
+                  padding={16}
                 >
                   <Text style={[styles.menuTitle, { color: theme.text, fontSize: fontSize(15) }]} numberOfLines={1}>
                     {getSelectedChatMenuTitle()}
@@ -1425,7 +1429,7 @@ const Chats = ({ navigation }) => {
                       </Text>
                     </TouchableOpacity>
                   )}
-                </View>
+                </GlassModalCard>
               </TouchableOpacity>
             </Modal>
 
@@ -1436,11 +1440,9 @@ const Chats = ({ navigation }) => {
               onRequestClose={closeMuteOptions}
             >
               <View style={styles.modalOverlay}>
-                <View
-                  style={[
-                    styles.muteModalCard,
-                    { backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF' },
-                  ]}
+                <GlassModalCard
+                  style={[styles.muteModalCard]}
+                  padding={16}
                 >
                   <Text style={[styles.menuTitle, { color: theme.text, fontSize: fontSize(16) }]}> 
                     {t('chats.muteOptions')}
@@ -1495,7 +1497,7 @@ const Chats = ({ navigation }) => {
                       {t('common.cancel')}
                     </Text>
                   </TouchableOpacity>
-                </View>
+                </GlassModalCard>
               </View>
             </Modal>
           </LinearGradient>

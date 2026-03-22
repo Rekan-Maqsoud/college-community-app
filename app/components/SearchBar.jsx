@@ -15,15 +15,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
-import { GlassContainer } from './GlassComponents';
-import { fontSize, spacing, moderateScale } from '../utils/responsive';
-import { borderRadius } from '../theme/designTokens';
-import UserCard from './UserCard';
-import PostCard from './PostCard';
-import { LinearGradient } from 'expo-linear-gradient';
 import { searchUsers } from '../../database/users';
 import { searchPosts, enrichPostsWithUserData } from '../../database/posts';
 import { FlashList } from '@shopify/flash-list';
+import { GlassContainer, GlassInput, GlassIconButton, GlassPill } from './GlassComponents';
+import { moderateScale, wp, hp, fontSize, spacing } from '../utils/responsive';
 
 const SEARCH_FILTERS = {
   ALL: 'all',
@@ -301,27 +297,13 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
         activeOpacity={0.7}
       >
         {iconOnly ? (
-          <View 
-            style={[
-              styles.iconOnlyButton,
-              {
-                backgroundColor: isDarkMode 
-                  ? 'rgba(255, 255, 255, 0.1)' 
-                  : 'rgba(0, 0, 0, 0.04)',
-                borderWidth: 0.5,
-                borderColor: isDarkMode 
-                  ? 'rgba(255, 255, 255, 0.15)' 
-                  : 'rgba(0, 0, 0, 0.08)',
-                borderRadius: borderRadius.md,
-              }
-            ]}
-          >
+          <GlassIconButton size={moderateScale(44)} style={styles.iconOnlyButton}>
             <Ionicons
               name="search-outline"
               size={moderateScale(22)}
               color={theme.text}
             />
-          </View>
+          </GlassIconButton>
         ) : (
           <GlassContainer borderRadius={borderRadius.lg} style={styles.searchButton}>
             <Ionicons
@@ -362,14 +344,13 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
               <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.text} />
             </TouchableOpacity>
             
-            <View style={[
-              styles.searchInputContainer,
-              {
-                backgroundColor: isDarkMode 
-                  ? 'rgba(255, 255, 255, 0.1)' 
-                  : 'rgba(0, 0, 0, 0.06)',
-              }
-            ]}>
+            <GlassInput
+              style={[
+                styles.searchInputContainer,
+                { paddingHorizontal: spacing.md }
+              ]}
+              focused={searchQuery.length > 0}
+            >
               <Ionicons
                 name="search-outline"
                 size={moderateScale(20)}
@@ -402,7 +383,7 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
                   />
                 </TouchableOpacity>
               )}
-            </View>
+            </GlassInput>
           </View>
 
           <ScrollView 
@@ -421,36 +402,31 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
               return (
                 <TouchableOpacity
                   key={filter.key}
-                  style={[
-                    styles.filterTab,
-                    {
-                      backgroundColor: isActive
-                        ? (isDarkMode ? 'rgba(0, 122, 255, 0.2)' : 'rgba(0, 122, 255, 0.12)')
-                        : (isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'),
-                      borderColor: isActive
-                        ? theme.primary + '50'
-                        : 'transparent',
-                    },
-                  ]}
                   onPress={() => handleFilterChange(filter.key)}
                   activeOpacity={0.7}
                 >
-                  <Ionicons
-                    name={isActive ? filter.icon.replace('-outline', '') : filter.icon}
-                    size={moderateScale(16)}
-                    color={isActive ? theme.primary : (isDarkMode ? 'rgba(255,255,255,0.6)' : theme.textSecondary)}
-                  />
-                  <Text
-                    style={[
-                      styles.filterTabText,
-                      {
-                        color: isActive ? theme.primary : (isDarkMode ? 'rgba(255,255,255,0.6)' : theme.textSecondary),
-                        fontWeight: isActive ? '600' : '500',
-                      },
-                    ]}
+                  <GlassPill
+                    active={isActive}
+                    activeColor={theme.primary}
+                    style={styles.filterTab}
                   >
-                    {filter.label}
-                  </Text>
+                    <Ionicons
+                      name={isActive ? filter.icon.replace('-outline', '') : filter.icon}
+                      size={moderateScale(16)}
+                      color={isActive ? theme.primary : (isDarkMode ? 'rgba(255,255,255,0.6)' : theme.textSecondary)}
+                    />
+                    <Text
+                      style={[
+                        styles.filterTabText,
+                        {
+                          color: isActive ? theme.primary : (isDarkMode ? 'rgba(255,255,255,0.6)' : theme.textSecondary),
+                          fontWeight: isActive ? '600' : '500',
+                        },
+                      ]}
+                    >
+                      {filter.label}
+                    </Text>
+                  </GlassPill>
                 </TouchableOpacity>
               );
             })}
