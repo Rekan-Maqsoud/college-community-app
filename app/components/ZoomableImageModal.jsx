@@ -25,6 +25,7 @@ import { useCustomAlert } from '../hooks/useCustomAlert';
 import CustomAlert from './CustomAlert';
 import { FlashList } from '@shopify/flash-list';
 import { GlassContainer, GlassIconButton } from './GlassComponents';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 

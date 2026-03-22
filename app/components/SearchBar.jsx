@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { searchUsers } from '../../database/users';
@@ -20,6 +21,9 @@ import { searchPosts, enrichPostsWithUserData } from '../../database/posts';
 import { FlashList } from '@shopify/flash-list';
 import { GlassContainer, GlassInput, GlassIconButton, GlassPill } from './GlassComponents';
 import { moderateScale, wp, hp, fontSize, spacing } from '../utils/responsive';
+import { borderRadius } from '../theme/designTokens';
+import UserCard from './UserCard';
+import PostCard from './PostCard';
 
 const SEARCH_FILTERS = {
   ALL: 'all',

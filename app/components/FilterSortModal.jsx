@@ -277,7 +277,6 @@ const styles = StyleSheet.create({
     maxHeight: hp(84),
   },
   modalCard: {
-    overflow: 'hidden',
     maxHeight: hp(80),
   },
   modalHeader: {

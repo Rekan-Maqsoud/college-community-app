@@ -17,6 +17,8 @@ import CustomAlert from './components/CustomAlert';
 import { GlobalAlertProvider, useGlobalAlert } from './context/GlobalAlertContext';
 import { wp, normalize, spacing } from './utils/responsive';
 import { borderRadius, shadows } from './theme/designTokens';
+import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
+import { BlurView } from 'expo-blur';
 import realtimeDebugLogger from './utils/realtimeDebugLogger';
 import telemetry from './utils/telemetry';
 import { initCrashReporting, setCrashReportingUser } from './utils/crashReporting';
@@ -73,6 +75,10 @@ import { RepVotingScreen, ReselectionRequestScreen } from './screens/representat
 import Notifications from './screens/Notifications';
 import LectureChannel from './screens/lectureChannel';
 import { NewChat, UserSearch, CreateGroup, GroupSettings, ForwardMessage, AddMembers } from './screens/chats';
+
+// Startup logs removed for clarity
+// console.log('[startup:app] module loaded', {  borderRadiusKeys: Object.keys(borderRadius || {}),
+// });
 
 initCrashReporting();
 
@@ -153,9 +159,9 @@ const withActivityBoundary = (ScreenComponent, screenName) => {
         renderCount: renderCountRef.current,
       });
 
-      if (__DEV__) {
-        console.log(`[render] ${screenName} #${renderCountRef.current}`);
-      }
+      // if (__DEV__) {
+      //   console.log(`[render] ${screenName} #${renderCountRef.current}`);
+      // }
     }, [screenName]);
 
     useEffect(() => {
@@ -361,18 +367,29 @@ const TabNavigator = () => {
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textSecondary,
         tabBarStyle: {
-          backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+          backgroundColor: 'transparent',
           borderTopWidth: 0,
           elevation: 0,
           height: Platform.OS === 'ios' ? (60 + Math.max(insets.bottom, 20)) : (56 + Math.max(insets.bottom, 10)),
           paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 20) : Math.max(insets.bottom, 10),
           paddingTop: 8,
           position: 'absolute',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
         },
+        tabBarBackground: () => (
+          isLiquidGlassSupported ? (
+            <LiquidGlassView
+              colorScheme={isDarkMode ? 'dark' : 'light'}
+              effect="regular"
+              style={StyleSheet.absoluteFill}
+            />
+          ) : (
+            <BlurView
+              intensity={isDarkMode ? 80 : 75}
+              tint={isDarkMode ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFill}
+            />
+          )
+        ),
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',

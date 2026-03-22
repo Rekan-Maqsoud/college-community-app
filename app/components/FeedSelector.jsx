@@ -104,21 +104,7 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
       <LiquidGlassView
         colorScheme={glassScheme}
         effect="regular"
-        pointerEvents="none"
-        style={[StyleSheet.absoluteFill, { borderRadius: borderRadius.lg, overflow: 'hidden' }]}
-      />
-      <View
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          {
-            borderRadius: borderRadius.lg,
-            backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.45)',
-            borderWidth: 0.5,
-            borderColor: isDarkMode ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.5)',
-            borderBottomColor: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.15)',
-          },
-        ]}
+        style={[StyleSheet.absoluteFill, { borderRadius: borderRadius.lg }]}
       />
       <View style={styles.feedRow}>
         <Animated.View

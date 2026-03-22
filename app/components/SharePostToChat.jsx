@@ -61,10 +61,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
         return arr.findIndex((item) => (item?.$id || item?.id) === chatId) === index;
       });
 
-      console.log('[SharePostToChat] chats:loaded', {
-        userId: user?.$id || '',
-        total: uniqueChats.length,
-      });
+
 
       setChats(uniqueChats);
     } catch (error) {
@@ -80,13 +77,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
 
   useEffect(() => {
     if (visible) {
-      console.log('[SharePostToChat] modal:visible', {
-        visible,
-        postId: post?.$id || '',
-        userId: user?.$id || '',
-        keyboardOffset: Platform.OS === 'ios' ? 12 : insets.bottom + 20,
-        insetsBottom: insets.bottom,
-      });
+
       loadChats();
     }
   }, [visible, loadChats, insets.bottom, post?.$id, user?.$id]);
@@ -97,17 +88,11 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
     }
 
     const showSub = Keyboard.addListener('keyboardDidShow', (event) => {
-      console.log('[SharePostToChat] keyboard:show', {
-        height: event?.endCoordinates?.height || 0,
-        duration: event?.duration || 0,
-        keyboardOffset: Platform.OS === 'ios' ? 12 : insets.bottom + 20,
-      });
+
     });
 
     const hideSub = Keyboard.addListener('keyboardDidHide', () => {
-      console.log('[SharePostToChat] keyboard:hide', {
-        keyboardOffset: Platform.OS === 'ios' ? 12 : insets.bottom + 20,
-      });
+
     });
 
     return () => {
@@ -156,20 +141,10 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
         metadata,
       };
 
-      console.log('[SharePostToChat] send:start', {
-        chatId,
-        postId: metadata.postId,
-        deepLink: metadata.deepLink,
-        deeplink: metadata.deeplink,
-        titleLength: String(metadata.title || '').length,
-        summaryLength: String(metadata.summaryText || '').length,
-      });
+
 
       await sendMessage(chatId, messageData);
-      console.log('[SharePostToChat] send:success', {
-        chatId,
-        postId: metadata.postId,
-      });
+
       onClose();
     } catch (error) {
       console.error('[SharePostToChat] send:error', {

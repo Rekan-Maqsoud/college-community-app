@@ -24,8 +24,8 @@ export const lightTheme = {
   gradientLight: ['rgba(0, 122, 255, 0.15)', 'rgba(88, 86, 214, 0.15)'],
   
   glass: {
-    background: 'rgba(255, 255, 255, 0.7)',
-    border: 'rgba(0, 0, 0, 0.1)',
+    background: 'rgba(255, 255, 255, 0.4)',
+    border: 'rgba(255, 255, 255, 0.5)',
     tint: 'light',
     intensity: 20,
   },
@@ -75,8 +75,8 @@ export const darkTheme = {
   gradientLight: ['rgba(10, 132, 255, 0.15)', 'rgba(94, 92, 230, 0.15)'],
   
   glass: {
-    background: 'rgba(28, 28, 30, 0.7)',
-    border: 'rgba(255, 255, 255, 0.12)',
+    background: 'rgba(28, 28, 30, 0.4)',
+    border: 'rgba(255, 255, 255, 0.2)',
     tint: 'dark',
     intensity: 20,
   },
@@ -99,6 +99,8 @@ export const darkTheme = {
   
   overlay: 'rgba(0, 0, 0, 0.6)',
 };
+
+
 
 export const shadows = {
   small: {
@@ -140,6 +142,8 @@ export const borderRadius = {
   xxl: 32,
   round: 9999,
 };
+
+
 
 export const typography = {
   largeTitle: {

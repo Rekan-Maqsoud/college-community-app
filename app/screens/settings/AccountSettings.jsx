@@ -14,7 +14,7 @@ import CustomAlert from '../../components/CustomAlert';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LiquidGlassView } from '@callstack/liquid-glass';
+import { GlassCard } from '../../components/GlassComponents';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
@@ -154,21 +154,7 @@ const AccountSettings = ({ navigation }) => {
     }
   };
 
-  const GlassCard = ({ children, style }) => (
-    <LiquidGlassView
-      colorScheme={isDarkMode ? 'dark' : 'light'}
-      effect="regular"
-      style={[
-        styles.glassCard,
-        {
-          backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.6)' : '#FFFFFF',
-          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
-        },
-        style,
-      ]}>
-      {children}
-    </LiquidGlassView>
-  );
+
 
   const SettingItem = ({ icon, title, description, onPress, danger, iconColor }) => (
     <TouchableOpacity
@@ -458,9 +444,7 @@ const styles = StyleSheet.create({
   },
   glassCard: {
     borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    borderWidth: 1,
-    ...shadows.small,
+    marginBottom: 2,
   },
   settingItem: {
     flexDirection: 'row',

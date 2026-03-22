@@ -7,7 +7,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { FlashList } from '@shopify/flash-list';
 import { useUser } from '../context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LiquidGlassView } from '@callstack/liquid-glass';
+import { GlassContainer } from '../components/GlassComponents';
 import { Ionicons } from '@expo/vector-icons';
 import AnimatedBackground from '../components/AnimatedBackground';
 import PostCard from '../components/PostCard';
@@ -325,18 +325,7 @@ const Profile = ({ navigation, route }) => {
           style={styles.gradient}
         >
           <View style={styles.loadingContainer}>
-            <LiquidGlassView 
-              colorScheme={isDarkMode ? 'dark' : 'light'}
-              effect="regular"
-              style={[
-                styles.notSignedInCard, 
-                { 
-                  backgroundColor: cardBackground,
-                  borderRadius: borderRadius.xl,
-                  borderWidth: isDarkMode ? 0 : 1,
-                  borderColor: 'rgba(0, 0, 0, 0.04)',
-                }
-              ]}>
+            <GlassContainer style={[styles.notSignedInCard, { borderRadius: borderRadius.xl }]}>
               <Ionicons name="person-circle-outline" size={moderateScale(60)} color={theme.primary} />
               <Text style={[styles.notSignedInTitle, { color: theme.text, marginTop: spacing.md }]}>
                 {t('profile.notSignedIn') || 'Not Signed In'}
@@ -357,7 +346,7 @@ const Profile = ({ navigation, route }) => {
                   <Text style={styles.signInButtonText}>{t('auth.signIn')}</Text>
                 </LinearGradient>
               </TouchableOpacity>
-            </LiquidGlassView>
+            </GlassContainer>
           </View>
         </LinearGradient>
       </View>
@@ -437,16 +426,10 @@ const Profile = ({ navigation, route }) => {
   const renderAboutSection = () => (
     <View style={styles.sectionContainer}>
       <Text style={[styles.sectionHeader, { color: theme.text }]}>{t('profile.about')}</Text>
-      <View 
-        style={[
-          styles.infoCard,
-          {
-            backgroundColor: cardBackground,
-            borderRadius: borderRadius.lg,
-            borderWidth: isDarkMode ? 0 : 1,
-            borderColor: 'rgba(0, 0, 0, 0.04)',
-          }
-        ]}>
+      <GlassContainer
+        style={[styles.infoCard]}
+        borderRadius={borderRadius.lg}
+      >
         {renderInfoRow({
           iconName: 'mail-outline',
           iconColor: theme.primary,
@@ -513,21 +496,14 @@ const Profile = ({ navigation, route }) => {
             })}
           </>
         )}
-      </View>
+      </GlassContainer>
 
       {/* Social Links - Own profile always visible */}
       {user?.socialLinks && Object.values(user.socialLinks).some(v => v) && (
-        <View 
-          style={[
-            styles.infoCard,
-            {
-              backgroundColor: cardBackground,
-              borderRadius: borderRadius.lg,
-              borderWidth: isDarkMode ? 0 : 1,
-              borderColor: 'rgba(0, 0, 0, 0.04)',
-              marginTop: spacing.md,
-            }
-          ]}>
+        <GlassContainer
+          style={[styles.infoCard, { marginTop: spacing.md }]}
+          borderRadius={borderRadius.lg}
+        >
           <Text style={[styles.infoLabel, { fontSize: fontSize(10), color: theme.textSecondary, marginBottom: spacing.sm }]}>
             {t('settings.socialLinks')}
           </Text>
@@ -565,7 +541,7 @@ const Profile = ({ navigation, route }) => {
               );
             })}
           </View>
-        </View>
+        </GlassContainer>
       )}
     </View>
   );
@@ -578,7 +554,6 @@ const Profile = ({ navigation, route }) => {
             style={[
               styles.headerActionButton,
               {
-                backgroundColor: cardBackground,
                 borderRadius: borderRadius.round,
               }
             ]}
@@ -590,7 +565,6 @@ const Profile = ({ navigation, route }) => {
             style={[
               styles.headerActionButton,
               {
-                backgroundColor: cardBackground,
                 borderRadius: borderRadius.round,
               }
             ]} 
@@ -615,10 +589,7 @@ const Profile = ({ navigation, route }) => {
           {isMeRep && <RepBadge size="medium" colors={theme} label={t('repVoting.repLabel')} />}
         </View>
         {userProfile.bio && <Text style={[styles.bio, { fontSize: fontSize(13), color: isDarkMode ? 'rgba(255,255,255,0.8)' : 'rgba(28, 28, 30, 0.8)' }]} numberOfLines={2}>{userProfile.bio}</Text>}
-        <LiquidGlassView 
-          colorScheme={isDarkMode ? 'dark' : 'light'}
-          effect="regular"
-          style={[styles.statsContainer, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.7)' : 'rgba(255, 255, 255, 0.9)' }]}>
+        <GlassContainer style={[styles.statsContainer]} borderRadius={borderRadius.lg}>
           <TouchableOpacity style={styles.statItem} activeOpacity={0.7}>
             <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.posts}</Text>
             <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.posts')}</Text>
@@ -649,7 +620,7 @@ const Profile = ({ navigation, route }) => {
             <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.following}</Text>
             <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.following')}</Text>
           </TouchableOpacity>
-        </LiquidGlassView>
+        </GlassContainer>
       </View>
       <View style={styles.contentSection}>
         {renderAboutSection()}
@@ -664,41 +635,19 @@ const Profile = ({ navigation, route }) => {
     if (loadingPosts) {
       return (
         <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
-          <LiquidGlassView 
-            colorScheme={isDarkMode ? 'dark' : 'light'}
-            effect="regular"
-            style={[
-              styles.emptyCard,
-              {
-                backgroundColor: cardBackground,
-                borderRadius: borderRadius.lg,
-                borderWidth: isDarkMode ? 0 : 1,
-                borderColor: 'rgba(0, 0, 0, 0.04)',
-              }
-            ]}>
+          <GlassContainer style={[styles.emptyCard]} borderRadius={borderRadius.lg}>
             <ActivityIndicator size="large" color={theme.primary} />
             <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
               {t('common.loading')}
             </Text>
-          </LiquidGlassView>
+          </GlassContainer>
         </View>
       );
     }
     if (postsError) {
       return (
         <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
-          <LiquidGlassView 
-            colorScheme={isDarkMode ? 'dark' : 'light'}
-            effect="regular"
-            style={[
-              styles.emptyCard,
-              {
-                backgroundColor: cardBackground,
-                borderRadius: borderRadius.lg,
-                borderWidth: isDarkMode ? 0 : 1,
-                borderColor: 'rgba(0, 0, 0, 0.04)',
-              }
-            ]}>
+          <GlassContainer style={[styles.emptyCard]} borderRadius={borderRadius.lg}>
             <Ionicons name="alert-circle-outline" size={moderateScale(40)} color={theme.error} />
             <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
               {t('common.error')}
@@ -706,29 +655,18 @@ const Profile = ({ navigation, route }) => {
             <TouchableOpacity onPress={loadUserPosts} style={styles.retryButton}>
               <Text style={[styles.retryButtonText, { color: theme.primary }]}>{t('common.retry')}</Text>
             </TouchableOpacity>
-          </LiquidGlassView>
+          </GlassContainer>
         </View>
       );
     }
     return (
       <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
-        <LiquidGlassView 
-          colorScheme={isDarkMode ? 'dark' : 'light'}
-          effect="regular"
-          style={[
-            styles.emptyCard,
-            {
-              backgroundColor: cardBackground,
-              borderRadius: borderRadius.lg,
-              borderWidth: isDarkMode ? 0 : 1,
-              borderColor: 'rgba(0, 0, 0, 0.04)',
-            }
-          ]}>
+        <GlassContainer style={[styles.emptyCard]} borderRadius={borderRadius.lg}>
           <Ionicons name="document-text-outline" size={moderateScale(40)} color={theme.textSecondary} />
           <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
             {t('profile.noPosts')}
           </Text>
-        </LiquidGlassView>
+        </GlassContainer>
       </View>
     );
   };

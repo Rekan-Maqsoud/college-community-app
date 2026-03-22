@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { wp, hp, normalize, spacing } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { GlassModalCard } from './GlassComponents';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const RepDetectionPopup = ({ visible, onVote, onDismiss, hasActiveElection }) => {
   const { t, theme } = useAppSettings();

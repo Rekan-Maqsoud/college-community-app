@@ -1,8 +1,21 @@
 import { StyleSheet } from 'react-native';
 import { wp, spacing, fontSize, moderateScale } from '../../utils/responsive';
-import { borderRadius } from '../../theme/designTokens';
+import { borderRadius as designTokenBorderRadius } from '../../theme/designTokens';
 
-export default StyleSheet.create({
+
+
+const borderRadius = designTokenBorderRadius || {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  round: 9999,
+};
+
+
+
+const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -744,4 +757,6 @@ export default StyleSheet.create({
     fontWeight: '700',
   },
 });
+
+export default styles;
 

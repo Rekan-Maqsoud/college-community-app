@@ -9,7 +9,7 @@ import {
   Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LiquidGlassView } from '@callstack/liquid-glass';
+import { GlassCard } from '../../components/GlassComponents';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
@@ -223,21 +223,7 @@ const ChatSettings = ({ navigation, route }) => {
     return () => clearTimeout(timer);
   }, [focusSection, reactionSectionY]);
 
-  const GlassCard = ({ children, style }) => (
-    <LiquidGlassView
-      colorScheme={isDarkMode ? 'dark' : 'light'}
-      effect="regular"
-      style={[
-        styles.glassCard,
-        {
-          backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.6)' : '#FFFFFF',
-          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
-        },
-        style,
-      ]}>
-      {children}
-    </LiquidGlassView>
-  );
+
 
   const [sliderBubbleRadius, setSliderBubbleRadius] = useState(() => {
     const parsed = Number(chatSettings?.bubbleRadius);

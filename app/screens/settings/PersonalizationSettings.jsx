@@ -9,7 +9,7 @@ import {
   TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LiquidGlassView } from '@callstack/liquid-glass';
+import { GlassCard } from '../../components/GlassComponents';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { borderRadius, shadows } from '../../theme/designTokens';
@@ -89,21 +89,7 @@ const PersonalizationSettings = ({ navigation }) => {
     { code: 'ku', name: 'Kurdish', nativeName: 'کوردی' },
   ];
 
-  const GlassCard = ({ children, style }) => (
-    <LiquidGlassView
-      colorScheme={isDarkMode ? 'dark' : 'light'}
-      effect="regular"
-      style={[
-        styles.glassCard,
-        {
-          backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.6)' : '#FFFFFF',
-          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
-        },
-        style,
-      ]}>
-      {children}
-    </LiquidGlassView>
-  );
+
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -704,9 +690,7 @@ const styles = StyleSheet.create({
   },
   glassCard: {
     borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    borderWidth: 1,
-    ...shadows.small,
+    marginBottom: 2,
   },
   optionItem: {
     flexDirection: 'row',

@@ -12,7 +12,7 @@ import {
   Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LiquidGlassView } from '@callstack/liquid-glass';
+import { GlassCard } from '../../components/GlassComponents';
 import { Ionicons } from '@expo/vector-icons';
 import safeStorage from '../../utils/safeStorage';
 import { useAppSettings } from '../../context/AppSettingsContext';
@@ -31,23 +31,8 @@ import { getUniversityKeys, getCollegesForUniversity, getDepartmentsForCollege, 
 const COOLDOWN_DAYS = 30;
 const FREE_ACADEMIC_CHANGES = 2;
 
-const GlassCard = memo(({ children, style, isDarkMode }) => (
-  <LiquidGlassView
-    colorScheme={isDarkMode ? 'dark' : 'light'}
-    effect="regular"
-    style={[
-      styles.glassCard,
-      {
-        backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.6)' : '#FFFFFF',
-        borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
-      },
-      style,
-    ]}>
-    {children}
-  </LiquidGlassView>
-));
 
-GlassCard.displayName = 'GlassCard';
+
 
 const ProfileSettings = ({ navigation }) => {
   const { t, theme, isDarkMode } = useAppSettings();
@@ -516,7 +501,7 @@ const ProfileSettings = ({ navigation }) => {
             </Text>
           </View>
 
-          <GlassCard isDarkMode={isDarkMode}>
+          <GlassCard>
             <View style={styles.profileCard}>
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>

@@ -268,19 +268,14 @@ const PostCard = ({
         .filter(Boolean)
         .join('\n\n');
 
-      console.log('[PostCard] share:start', {
-        postId,
-        deepLink,
-        topicLength: String(post?.topic || '').trim().length,
-        textLength: String(post?.text || '').trim().length,
-      });
+
 
       await Share.share({
         message: shareBody,
         title: post.topic,
         url: deepLink || undefined,
       });
-      console.log('[PostCard] share:success', { postId, deepLink });
+
     } catch (error) {
       console.error('[PostCard] share:error', {
         postId: post?.$id || '',
@@ -337,10 +332,7 @@ const PostCard = ({
   const handleVisitOriginal = () => {
     if (!post?.originalPostId) return;
 
-    console.log('[PostCard] visitOriginal:modal', {
-      currentPostId: post?.$id || '',
-      originalPostId: post?.originalPostId || '',
-    });
+
 
     navigation.navigate('PostDetails', { postId: post.originalPostId });
   };

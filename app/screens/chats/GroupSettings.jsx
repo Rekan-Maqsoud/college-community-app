@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
@@ -663,15 +664,15 @@ const GroupSettings = ({ navigation, route }) => {
               <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
                 {t('chats.groupInfo')}
               </Text>
-              <View style={[
-              styles.sectionCard,
-              { 
-                backgroundColor: isDarkMode 
-                  ? 'rgba(255, 255, 255, 0.08)' 
-                  : 'rgba(255, 255, 255, 0.7)',
-                borderRadius: borderRadius.lg,
-              }
-            ]}>
+              <LiquidGlassView
+                colorScheme={isDarkMode ? 'dark' : 'light'}
+                effect="regular"
+                style={[
+                styles.sectionCard,
+                { 
+                  borderRadius: borderRadius.lg,
+                }
+              ]}>
                 {/* Group Photo */}
                 <View style={styles.groupPhotoSection}>
                   <TouchableOpacity
@@ -754,7 +755,7 @@ const GroupSettings = ({ navigation, route }) => {
                     placeholderTextColor={theme.textSecondary}
                   />
                 </View>
-              </View>
+              </LiquidGlassView>
             </View>
 
             {/* Permissions Section */}
@@ -762,12 +763,12 @@ const GroupSettings = ({ navigation, route }) => {
               <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
                 {t('chats.permissions')}
               </Text>
-              <View style={[
+              <LiquidGlassView
+                colorScheme={isDarkMode ? 'dark' : 'light'}
+                effect="regular"
+                style={[
                 styles.sectionCard,
                 { 
-                  backgroundColor: isDarkMode 
-                    ? 'rgba(255, 255, 255, 0.08)' 
-                    : 'rgba(255, 255, 255, 0.7)',
                   borderRadius: borderRadius.lg,
                 }
               ]}>
@@ -810,7 +811,7 @@ const GroupSettings = ({ navigation, route }) => {
                   settings.onlyAdminsCanPin,
                   (val) => handleSettingToggle('onlyAdminsCanPin', val)
                 )}
-              </View>
+              </LiquidGlassView>
             </View>
 
             {/* Personal Notification Settings - Available to everyone */}
@@ -818,14 +819,14 @@ const GroupSettings = ({ navigation, route }) => {
               <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
                 {t('chats.linkedLectureChannel')}
               </Text>
-              <View style={[
+              <LiquidGlassView
+                colorScheme={isDarkMode ? 'dark' : 'light'}
+                effect="regular"
+                style={[
                 styles.sectionCard,
-                {
-                  backgroundColor: isDarkMode
-                    ? 'rgba(255, 255, 255, 0.08)'
-                    : 'rgba(255, 255, 255, 0.7)',
+                { 
                   borderRadius: borderRadius.lg,
-                },
+                }
               ]}>
                 {chat.type === CHAT_TYPES.DEPARTMENT_GROUP ? (
                   <Text style={[styles.lectureLinkInfoText, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
@@ -898,19 +899,19 @@ const GroupSettings = ({ navigation, route }) => {
                     )}
                   </>
                 )}
-              </View>
+              </LiquidGlassView>
             </View>
 
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
                 {t('chats.yourSettings') || 'Your Settings'}
               </Text>
-              <View style={[
+              <LiquidGlassView
+                colorScheme={isDarkMode ? 'dark' : 'light'}
+                effect="regular"
+                style={[
                 styles.sectionCard,
                 { 
-                  backgroundColor: isDarkMode 
-                    ? 'rgba(255, 255, 255, 0.08)' 
-                    : 'rgba(255, 255, 255, 0.7)',
                   borderRadius: borderRadius.lg,
                 }
               ]}>
@@ -935,7 +936,7 @@ const GroupSettings = ({ navigation, route }) => {
                     style={Platform.OS === 'ios' ? { transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] } : undefined}
                   />
                 </View>
-              </View>
+              </LiquidGlassView>
             </View>
 
             {/* Members Section */}
@@ -961,13 +962,14 @@ const GroupSettings = ({ navigation, route }) => {
                   <ActivityIndicator size="large" color={theme.primary} />
                 </View>
               ) : (
-              <View style={[
+              <LiquidGlassView
+                  colorScheme={isDarkMode ? 'dark' : 'light'}
+                  effect="regular"
+                  style={[
                   styles.membersCard,
                   { 
-                    backgroundColor: isDarkMode 
-                      ? 'rgba(255, 255, 255, 0.08)' 
-                      : 'rgba(255, 255, 255, 0.7)',
                     borderRadius: borderRadius.lg,
+                    overflow: 'hidden'
                   }
                 ]}>
                   <FlashList
@@ -979,7 +981,7 @@ const GroupSettings = ({ navigation, route }) => {
                       <View style={[styles.separator, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]} />
                     )}
                   />
-                </View>
+                </LiquidGlassView>
               )}
             </View>
 

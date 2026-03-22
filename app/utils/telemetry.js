@@ -82,7 +82,7 @@ const startTrace = (name, meta = {}) => {
       if (__DEV__) {
         const tag = entry.success ? 'OK' : 'FAIL';
         const slow = entry.isSlow ? ' [SLOW]' : '';
-        console.log(`[telemetry] ${tag}${slow} ${name} ${durationMs}ms`, entry);
+        // console.log(`[telemetry] ${tag}${slow} ${name} ${durationMs}ms`, entry);
       }
 
       if (_flushFn && _buffer.length >= AUTO_FLUSH_SIZE) {

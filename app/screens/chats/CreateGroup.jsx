@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
@@ -391,14 +392,10 @@ const CreateGroup = ({ navigation }) => {
               </Text>
               
               {/* Only Admins Can Post */}
-              <View style={[
-                styles.settingItem,
-                { 
-                  backgroundColor: isDarkMode 
-                    ? 'rgba(255, 255, 255, 0.08)' 
-                    : 'rgba(255, 255, 255, 0.7)',
-                }
-              ]}>
+              <LiquidGlassView
+                colorScheme={isDarkMode ? 'dark' : 'light'}
+                effect="regular"
+                style={styles.settingItem}>
                 <View style={styles.settingInfo}>
                   <Text style={[styles.settingTitle, { color: theme.text, fontSize: fontSize(14) }]}>
                     {t('chats.onlyAdminsCanPost')}
@@ -413,17 +410,13 @@ const CreateGroup = ({ navigation }) => {
                   trackColor={{ false: theme.border, true: theme.primary + '50' }}
                   thumbColor={settings.onlyAdminsCanPost ? theme.primary : isDarkMode ? '#888' : '#f4f3f4'}
                 />
-              </View>
+              </LiquidGlassView>
 
               {/* Allow Member Invites */}
-              <View style={[
-                styles.settingItem,
-                { 
-                  backgroundColor: isDarkMode 
-                    ? 'rgba(255, 255, 255, 0.08)' 
-                    : 'rgba(255, 255, 255, 0.7)',
-                }
-              ]}>
+              <LiquidGlassView
+                colorScheme={isDarkMode ? 'dark' : 'light'}
+                effect="regular"
+                style={styles.settingItem}>
                 <View style={styles.settingInfo}>
                   <Text style={[styles.settingTitle, { color: theme.text, fontSize: fontSize(14) }]}>
                     {t('chats.allowMemberInvites')}
@@ -438,17 +431,13 @@ const CreateGroup = ({ navigation }) => {
                   trackColor={{ false: theme.border, true: theme.primary + '50' }}
                   thumbColor={settings.allowMemberInvites ? theme.primary : isDarkMode ? '#888' : '#f4f3f4'}
                 />
-              </View>
+              </LiquidGlassView>
 
               {/* Only Admins Can @everyone */}
-              <View style={[
-                styles.settingItem,
-                { 
-                  backgroundColor: isDarkMode 
-                    ? 'rgba(255, 255, 255, 0.08)' 
-                    : 'rgba(255, 255, 255, 0.7)',
-                }
-              ]}>
+              <LiquidGlassView
+                colorScheme={isDarkMode ? 'dark' : 'light'}
+                effect="regular"
+                style={styles.settingItem}>
                 <View style={styles.settingInfo}>
                   <Text style={[styles.settingTitle, { color: theme.text, fontSize: fontSize(14) }]}>
                     {t('chats.onlyAdminsCanMention')}
@@ -463,17 +452,13 @@ const CreateGroup = ({ navigation }) => {
                   trackColor={{ false: theme.border, true: theme.primary + '50' }}
                   thumbColor={settings.onlyAdminsCanMention ? theme.primary : isDarkMode ? '#888' : '#f4f3f4'}
                 />
-              </View>
+              </LiquidGlassView>
 
               {/* Only Admins Can Pin */}
-              <View style={[
-                styles.settingItem,
-                { 
-                  backgroundColor: isDarkMode 
-                    ? 'rgba(255, 255, 255, 0.08)' 
-                    : 'rgba(255, 255, 255, 0.7)',
-                }
-              ]}>
+              <LiquidGlassView
+                colorScheme={isDarkMode ? 'dark' : 'light'}
+                effect="regular"
+                style={styles.settingItem}>
                 <View style={styles.settingInfo}>
                   <Text style={[styles.settingTitle, { color: theme.text, fontSize: fontSize(14) }]}>
                     {t('chats.onlyAdminsCanPin')}
@@ -488,7 +473,7 @@ const CreateGroup = ({ navigation }) => {
                   trackColor={{ false: theme.border, true: theme.primary + '50' }}
                   thumbColor={settings.onlyAdminsCanPin ? theme.primary : isDarkMode ? '#888' : '#f4f3f4'}
                 />
-              </View>
+              </LiquidGlassView>
             </View>
 
             <View style={styles.formSection}>

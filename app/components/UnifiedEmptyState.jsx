@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { wp, fontSize, spacing, moderateScale } from '../utils/responsive';
@@ -17,20 +18,14 @@ const UnifiedEmptyState = ({
 }) => {
   const { theme, isDarkMode } = useAppSettings();
 
-  const cardBackground = isDarkMode
-    ? 'rgba(255, 255, 255, 0.05)'
-    : 'rgba(255, 255, 255, 0.8)';
-
   return (
     <View style={[styles.container, compact && styles.containerCompact, style]}>
-      <View
+      <LiquidGlassView
+        colorScheme={isDarkMode ? 'dark' : 'light'}
+        effect="regular"
         style={[
           styles.card,
           compact && styles.cardCompact,
-          {
-            backgroundColor: cardBackground,
-            borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-          },
         ]}
       >
         <View
@@ -62,7 +57,7 @@ const UnifiedEmptyState = ({
             <Text style={styles.actionText}>{actionLabel}</Text>
           </TouchableOpacity>
         ) : null}
-      </View>
+      </LiquidGlassView>
     </View>
   );
 };
@@ -81,7 +76,6 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     borderRadius: borderRadius.xl,
-    borderWidth: 1,
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xl,

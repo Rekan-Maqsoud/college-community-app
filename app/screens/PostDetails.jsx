@@ -151,16 +151,7 @@ const PostDetails = ({ navigation, route }) => {
     return unsubscribe;
   }, [navigation, post?.$id, user?.$id]);
 
-  useEffect(() => {
-    console.log('[PostDetails] route:params', {
-      postIdFromRoute: routePostId || '',
-      initialPostId: initialPost?.$id || '',
-      routeReplyId: routeReplyId || '',
-      targetReplyId: targetReplyId || '',
-      effectiveReplyId: effectiveReplyId || '',
-      source: source || '',
-    });
-  }, [effectiveReplyId, initialPost?.$id, routePostId, routeReplyId, source, targetReplyId]);
+
 
   const trackView = async () => {
     if (!post?.$id || !user?.$id || post.userId === user.$id) return;
@@ -375,15 +366,7 @@ const PostDetails = ({ navigation, route }) => {
     setIsSubmitting(true);
     triggerHaptic('light');
 
-    console.log('[PostDetails] addReply:start', {
-      postId: post?.$id || '',
-      editingReplyId: editingReply?.$id || '',
-      replyingToId: replyingTo?.$id || '',
-      textLength: replyText.trim().length,
-      imageCount: Array.isArray(replyImages) ? replyImages.length : 0,
-      linkCount: Array.isArray(finalLinks) ? finalLinks.length : 0,
-      userId: user?.$id || '',
-    });
+
 
     try {
       let uploadedImageUrls = [];
@@ -459,10 +442,7 @@ const PostDetails = ({ navigation, route }) => {
         );
       }
 
-      console.log('[PostDetails] addReply:success', {
-        postId: post?.$id || '',
-        editingReplyId: editingReply?.$id || '',
-      });
+
     } catch (error) {
       console.error('[PostDetails] addReply:error', {
         postId: post?.$id || '',

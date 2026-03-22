@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LiquidGlassView } from '@callstack/liquid-glass';
+import { GlassCard } from '../../components/GlassComponents';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
@@ -122,21 +122,7 @@ const BlockList = ({ navigation }) => {
     });
   };
 
-  const GlassCard = ({ children, style }) => (
-    <LiquidGlassView
-      colorScheme={isDarkMode ? 'dark' : 'light'}
-      effect="regular"
-      style={[
-        styles.glassCard,
-        {
-          backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.6)' : '#FFFFFF',
-          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
-        },
-        style,
-      ]}>
-      {children}
-    </LiquidGlassView>
-  );
+
 
   const renderBlockedUser = (blockedUser, onUnblock, isChatOnly = false) => (
     <View key={blockedUser.$id} style={styles.userItem}>
@@ -334,9 +320,7 @@ const styles = StyleSheet.create({
   },
   glassCard: {
     borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    borderWidth: 1,
-    ...shadows.small,
+    marginBottom: 2,
   },
   centerContainer: {
     flex: 1,

@@ -17,6 +17,7 @@ import { useGlobalAlert } from '../../context/GlobalAlertContext';
 import { borderRadius } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
 import { createSuggestion, SUGGESTION_CATEGORIES } from '../../../database/suggestions';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 
 const MIN_MESSAGE_LENGTH = 10;
 
@@ -123,14 +124,10 @@ const SuggestionSettings = ({ navigation }) => {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scrollContent}
       >
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.card,
-              borderColor: theme.border,
-            },
-          ]}
+        <LiquidGlassView
+          colorScheme={isDarkMode ? 'dark' : 'light'}
+          effect="regular"
+          style={styles.card}
         >
           <Text style={[styles.label, { color: theme.textSecondary }]}>{t('settings.suggestionTitleLabel')}</Text>
           <TextInput
@@ -229,7 +226,7 @@ const SuggestionSettings = ({ navigation }) => {
               </Text>
             )}
           </TouchableOpacity>
-        </View>
+        </LiquidGlassView>
       </ScrollView>
     </View>
   );
@@ -279,7 +276,6 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: borderRadius.lg,
-    borderWidth: 1,
     padding: spacing.lg,
   },
   label: {

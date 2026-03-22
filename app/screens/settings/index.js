@@ -207,8 +207,6 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    borderWidth: 1,
     marginBottom: spacing.sm,
   },
   cardContent: {
