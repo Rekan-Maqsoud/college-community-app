@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated, PanResponder } from
 import { Ionicons } from '@expo/vector-icons';
 import ProfilePicture from './ProfilePicture';
 import RepBadge from './RepBadge';
-import { GlassContainer } from './GlassComponents';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { 
   fontSize, 
@@ -238,11 +237,15 @@ const ChatListItem = ({
       <Animated.View
         style={[
           styles.container,
-          { transform: [{ translateX }] },
+          { 
+            transform: [{ translateX }],
+            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.85)',
+            borderColor: isDarkMode ? 'transparent' : 'rgba(0,0,0,0.03)',
+            borderWidth: isDarkMode ? 0 : 0.5,
+          },
         ]}
         {...(onArchive ? panResponder.panHandlers : {})}
       >
-        <GlassContainer borderRadius={borderRadius.md} style={styles.glassCard}>
         <TouchableOpacity
           onPress={onPress}
           onLongPress={onLongPress}
@@ -337,7 +340,6 @@ const ChatListItem = ({
             style={styles.chevron}
           />
         </TouchableOpacity>
-        </GlassContainer>
       </Animated.View>
     </View>
   );

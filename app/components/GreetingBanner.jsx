@@ -477,7 +477,7 @@ const GreetingBanner = () => {
       morning: ['#ffecd2', '#fcb69f', '#ff9a9e'],
       afternoon: ['#a8edea', '#fed6e3', '#d299c2'],
       evening: ['#e0c3fc', '#8ec5fc', '#a8c0ff'],
-      night: ['#667eea', '#764ba2', '#6b8dd6'],
+      night: ['#a1c4fd', '#c2e9fb', '#e0c3fc'],
     };
     return lightGradients[period];
   };

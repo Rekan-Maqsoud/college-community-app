@@ -1024,13 +1024,11 @@ const Home = ({ navigation, route }) => {
       <LinearGradient
         colors={isDarkMode
           ? ['#1a1a2e', '#16213e', '#0f3460']
-          : ['#FFFEF7', '#FFF9E6', '#FFF4D6']
+          : ['#e3f2fd', '#bbdefb', '#90caf9']
         }
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}>
-
-        <AnimatedBackground particleCount={compactMode ? 12 : 18} />
 
         <View style={[styles.content, { paddingTop: headerTop }]}>
           <Animated.View

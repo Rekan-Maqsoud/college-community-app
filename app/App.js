@@ -58,6 +58,7 @@ import Profile from './tabs/Profile';
 import Settings from './screens/Settings';
 import ChangePassword from './screens/ChangePassword';
 import ProfileSettings from './screens/settings/ProfileSettings';
+import AnimatedBackground from './components/AnimatedBackground';
 import PersonalizationSettings from './screens/settings/PersonalizationSettings';
 import NotificationSettings from './screens/settings/NotificationSettings';
 import SuggestionSettings from './screens/settings/SuggestionSettings';
@@ -1456,6 +1457,10 @@ const AppNavigationRoot = ({ navigationRef, pendingRouteRef, coldStartTrace }) =
     </NavigationContainer>
   );
 };
+const AnimatedBackgroundOverlay = () => {
+  const { compactMode } = useAppSettings();
+  return <AnimatedBackground particleCount={compactMode ? 12 : 25} />;
+};
 
 export default function App() {
   const navigationRef = useNavigationContainerRef();
@@ -1469,7 +1474,8 @@ export default function App() {
           <ErrorBoundary>
             <AppSettingsProvider>
               <UserProvider>
-                <GlobalAlertProvider>
+                  <GlobalAlertProvider>
+                  <AnimatedBackgroundOverlay />
                   <AppNavigationRoot
                     navigationRef={navigationRef}
                     pendingRouteRef={pendingRouteRef}

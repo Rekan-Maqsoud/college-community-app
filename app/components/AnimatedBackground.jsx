@@ -9,34 +9,50 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
   const isDarkMode = context?.isDarkMode || false;
   const reduceMotion = context?.reduceMotion || false;
   const motionProfile = context?.motionProfile;
+  const compactMode = context?.compactMode;
+  
+  // Use more dots: ~60 for normal, ~30 for compact
+  const baseCount = compactMode ? 30 : 60;
+  // Override incoming particleCount if it's too small for the snow effect
+  const finalCount = particleCount < baseCount ? baseCount : particleCount;
+  
   const effectiveParticleCount = reduceMotion
-    ? Math.max(4, Math.round(particleCount * 0.35))
-    : particleCount;
-  const particles = useRef(
+    ? Math.max(8, Math.round(finalCount * 0.35))
+    : finalCount;
+    
+  // Use useState hook initialized once to completely avoid re-creating particles on re-renders 
+  // which might be triggering resets when navigation causes AppSettings context to momentarily update.
+  const [particles] = React.useState(() =>
     Array.from({ length: effectiveParticleCount }, () => {
       const startX = Math.random() * width;
-      const startY = -50 - Math.random() * 100;
+      // Spread them across the entire height initially so they don't all start at the top
+      const startY = Math.random() * (height + 200) - 100;
       return {
         translateX: new Animated.Value(startX),
         translateY: new Animated.Value(startY),
         opacity: new Animated.Value(Math.random() * 0.4 + 0.2),
+        // Add random size variation for snow
+        size: Math.random() * 3 + 2, 
       };
     })
-  ).current;
+  );
 
   useEffect(() => {
+    let timeoutIds = [];
+
     const animations = particles.map((particle, index) => {
+      // Much slower, consistent snow fall (e.g., 20s to 45s to cross screen vertically)
       const duration = reduceMotion
-        ? 42000 + Math.random() * 12000
-        : 25000 + Math.random() * 15000;
-      const delay = index * 300;
+        ? 35000 + Math.random() * 15000
+        : 20000 + Math.random() * 25000;
+        
       const currentStartX = particle.translateX._value;
-      const horizontalTravel = reduceMotion ? width * 0.12 : width * 0.3;
+      // Drift sideways slightly like snow
+      const horizontalTravel = (Math.random() > 0.5 ? 1 : -1) * (width * 0.15 + Math.random() * width * 0.2);
       const endX = currentStartX + horizontalTravel;
       
       const moveAnimation = Animated.loop(
         Animated.sequence([
-          Animated.delay(delay),
           Animated.timing(particle.translateX, {
             toValue: endX,
             duration: duration,
@@ -47,42 +63,59 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
             duration: 0,
             useNativeDriver: true,
           }),
-          Animated.timing(particle.translateY, {
-            toValue: -50 - Math.random() * 100,
-            duration: 0,
-            useNativeDriver: true,
-          }),
         ])
       );
 
-      const moveYAnimation = Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(particle.translateY, {
-            toValue: height + 100,
-            duration: duration,
-            useNativeDriver: true,
-          }),
-        ])
-      );
+      // Determine where this specific particle is starting right now
+      const startY = particle.translateY._value;
+      // The distance it needs to travel to reach the bottom
+      const distanceToBottom = (height + 100) - startY;
+      const totalDistance = height + 160;
+      // Calculate how long it should take to just reach the bottom from its current random start position
+      const initialDuration = (distanceToBottom / totalDistance) * duration;
+
+      const moveYAnimation = Animated.sequence([
+        // First, animate from current random position to bottom
+        Animated.timing(particle.translateY, {
+          toValue: height + 100,
+          duration: initialDuration,
+          useNativeDriver: true,
+        }),
+        // Then loop from top to bottom continuously
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(particle.translateY, {
+              toValue: -60,
+              duration: 0,
+              useNativeDriver: true,
+            }),
+            Animated.timing(particle.translateY, {
+              toValue: height + 100,
+              duration: duration,
+              useNativeDriver: true,
+            }),
+          ])
+        )
+      ]);
 
       const opacityAnimation = reduceMotion
         ? null
         : Animated.loop(
             Animated.sequence([
               Animated.timing(particle.opacity, {
-                toValue: Math.random() * 0.3 + 0.4,
-                duration: 2000 + Math.random() * 1000,
+                toValue: Math.random() * 0.3 + 0.5,
+                duration: 3000 + Math.random() * 2000,
                 useNativeDriver: true,
               }),
               Animated.timing(particle.opacity, {
                 toValue: Math.random() * 0.2 + 0.1,
-                duration: 2000 + Math.random() * 1000,
+                duration: 3000 + Math.random() * 2000,
                 useNativeDriver: true,
               }),
             ])
           );
 
+      // Start immediately because they are already distributed across the screen
       moveAnimation.start();
       moveYAnimation.start();
       if (opacityAnimation) {
@@ -93,6 +126,7 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
     });
 
     return () => {
+      timeoutIds.forEach(clearTimeout);
       animations.forEach(({ moveAnimation, moveYAnimation, opacityAnimation }) => {
         moveAnimation.stop();
         moveYAnimation.stop();
@@ -111,13 +145,16 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
           style={[
             styles.particle,
             {
+              width: particle.size,
+              height: particle.size,
+              borderRadius: particle.size / 2,
               transform: [
                 { translateX: particle.translateX },
                 { translateY: particle.translateY },
               ],
-              opacity: reduceMotion ? 0.18 : particle.opacity,
-              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 122, 255, 0.3)',
-              shadowColor: isDarkMode ? '#fff' : '#007AFF',
+              opacity: reduceMotion ? 0.2 : particle.opacity,
+              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(255, 255, 255, 0.8)',
+              shadowColor: isDarkMode ? '#fff' : '#ffffff',
             },
           ]}
         />
@@ -133,9 +170,6 @@ const styles = StyleSheet.create({
   },
   particle: {
     position: 'absolute',
-    width: 4,
-    height: 4,
-    borderRadius: 2,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 3,

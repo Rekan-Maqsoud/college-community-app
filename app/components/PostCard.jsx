@@ -632,8 +632,8 @@ const PostCard = ({
       style={[
         styles.card, 
         { 
-          borderColor: isOwner ? theme.primary : 'transparent',
-          borderWidth: isOwner ? 1.5 : 0,
+          borderColor: isOwner ? theme.primary : (isDarkMode ? 'transparent' : 'rgba(0,0,0,0.1)'),
+          borderWidth: isOwner ? 1.5 : (isDarkMode ? 0 : 0.5),
         },
         compact && styles.cardCompact,
       ]}

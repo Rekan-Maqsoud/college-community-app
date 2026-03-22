@@ -13,13 +13,14 @@ import {
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
+import ReanimatedAnimated, { FadeInRight, FadeInDown, FadeOutDown } from 'react-native-reanimated';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { useTranslation } from '../hooks/useTranslation';
-import AnimatedBackground from '../components/AnimatedBackground';
-import { GlassIconButton, GlassPill, GlassModalCard, GlassContainer } from '../components/GlassComponents';
+import { GlassContainer, GlassPill, isLiquidGlassSupported } from '../components/GlassComponents';
 import { getActorIdentityIds, getPrimaryActorId, matchesAnyActorIdentity } from '../utils/actorIdentity';
 import { canLinkLectureGroup } from '../utils/lectureAccess';
 import { useLectureChannelsRealtime } from '../hooks/useRealtimeSubscription';
@@ -813,9 +814,11 @@ const Lecture = ({ navigation }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
-      <AnimatedBackground particleCount={35} />
       <LinearGradient
-        colors={isDarkMode ? ['#1a1a2e', '#16213e', '#0f3460'] : ['#e3f2fd', '#bbdefb', '#90caf9']}
+        colors={isDarkMode
+          ? ['#1a1a2e', '#16213e', '#0f3460']
+          : ['#e3f2fd', '#bbdefb', '#90caf9']
+        }
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}>
@@ -833,18 +836,18 @@ const Lecture = ({ navigation }) => {
             activeOpacity={0.7}
             onPress={() => setSearchVisible(prev => !prev)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <GlassIconButton size={moderateScale(36)} borderRadiusValue={moderateScale(12)}>
+            <GlassContainer size={moderateScale(36)} borderRadius={moderateScale(12)}>
               <Ionicons name="search" size={moderateScale(18)} color={colors.primary} />
-            </GlassIconButton>
+            </GlassContainer>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.headerIconBtn]}
             activeOpacity={0.7}
             onPress={() => setCreateOpen(true)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <GlassIconButton size={moderateScale(36)} borderRadiusValue={moderateScale(12)}>
+            <GlassContainer size={moderateScale(36)} borderRadius={moderateScale(12)}>
               <Ionicons name="add" size={moderateScale(18)} color={colors.primary} />
-            </GlassIconButton>
+            </GlassContainer>
           </TouchableOpacity>
         </View>
       </View>
@@ -874,30 +877,26 @@ const Lecture = ({ navigation }) => {
 
       <View style={styles.windowSwitcher}>
         <TouchableOpacity
-          style={[styles.windowBtn]}
+          style={{ flex: 1 }}
           activeOpacity={0.7}
           onPress={() => setActiveWindow(LECTURE_WINDOWS.COMMUNITY)}>
-          <GlassPill active={activeWindow === LECTURE_WINDOWS.COMMUNITY}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, gap: 6 }}>
-              <Ionicons name="people-outline" size={14} color={activeWindow === LECTURE_WINDOWS.COMMUNITY ? '#FFFFFF' : colors.text} />
-              <Text style={[styles.windowBtnText, { color: activeWindow === LECTURE_WINDOWS.COMMUNITY ? '#FFFFFF' : colors.text }]}> 
-                {t('lectures.communityWindow')}
-              </Text>
-            </View>
+          <GlassPill active={activeWindow === LECTURE_WINDOWS.COMMUNITY} style={styles.windowBtn}>
+            <Ionicons name="people-outline" size={16} color={activeWindow === LECTURE_WINDOWS.COMMUNITY ? '#FFFFFF' : colors.text} />
+            <Text style={[styles.windowBtnText, { color: activeWindow === LECTURE_WINDOWS.COMMUNITY ? '#FFFFFF' : colors.text }]}> 
+              {t('lectures.communityWindow')}
+            </Text>
           </GlassPill>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.windowBtn]}
+          style={{ flex: 1 }}
           activeOpacity={0.7}
           onPress={() => setActiveWindow(LECTURE_WINDOWS.OFFICIAL)}>
-          <GlassPill active={activeWindow === LECTURE_WINDOWS.OFFICIAL}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, gap: 6 }}>
-              <Ionicons name="school-outline" size={14} color={activeWindow === LECTURE_WINDOWS.OFFICIAL ? '#FFFFFF' : colors.text} />
-              <Text style={[styles.windowBtnText, { color: activeWindow === LECTURE_WINDOWS.OFFICIAL ? '#FFFFFF' : colors.text }]}> 
-                {t('lectures.officialWindow')}
-              </Text>
-            </View>
+          <GlassPill active={activeWindow === LECTURE_WINDOWS.OFFICIAL} style={styles.windowBtn}>
+            <Ionicons name="school-outline" size={16} color={activeWindow === LECTURE_WINDOWS.OFFICIAL ? '#FFFFFF' : colors.text} />
+            <Text style={[styles.windowBtnText, { color: activeWindow === LECTURE_WINDOWS.OFFICIAL ? '#FFFFFF' : colors.text }]}> 
+              {t('lectures.officialWindow')}
+            </Text>
           </GlassPill>
         </TouchableOpacity>
       </View>
@@ -1003,7 +1002,7 @@ const Lecture = ({ navigation }) => {
           activeOpacity={1}
           style={[styles.menuBackdrop, { backgroundColor: colors.overlay }]}
           onPress={() => setChannelMenuOpen(false)}>
-          <GlassModalCard style={[styles.channelMenuCard]} padding={spacing.md}> 
+          <GlassContainer style={[styles.channelMenuCard]} padding={spacing.md}> 
             <View style={styles.channelMenuHeader}>
               <Ionicons
                 name={channelMenuTarget?.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? 'school' : 'people'}
@@ -1076,7 +1075,7 @@ const Lecture = ({ navigation }) => {
               <Ionicons name="close-outline" size={16} color={colors.textSecondary} />
               <Text style={[styles.channelMenuItemText, { color: colors.textSecondary }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
-          </GlassModalCard>
+          </GlassContainer>
         </TouchableOpacity>
       </Modal>
       </LinearGradient>
@@ -1143,14 +1142,15 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     borderRadius: borderRadius.round,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
   },
   windowBtnText: {
-    fontSize: fontSize(12),
+    fontSize: fontSize(15),
     fontWeight: '700',
+    textAlign: 'center',
   },
   suggestedWrap: {
     paddingHorizontal: wp(4),
