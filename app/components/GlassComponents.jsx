@@ -20,12 +20,16 @@ const getColorScheme = (isDarkMode) => (isDarkMode ? 'dark' : 'light');
 const FallbackGlassView = ({ children, style, borderRadius = 16, isDarkMode }) => {
   const overlayColor = isDarkMode
     ? 'rgba(25, 25, 35, 0.50)'
-    : 'rgba(255, 255, 255, 0.40)';
+    : 'rgba(255, 255, 255, 0.45)';
+
+  const borderStyle = isDarkMode
+    ? {}
+    : { borderWidth: 0.5, borderColor: 'rgba(0, 0, 0, 0.10)' };
 
   return (
-    <View style={[{ borderRadius, overflow: 'hidden' }, style]}>
+    <View style={[{ borderRadius, overflow: 'hidden' }, borderStyle, style]}>
       <BlurView
-        intensity={isDarkMode ? 50 : 40}
+        intensity={isDarkMode ? 50 : 45}
         tint={isDarkMode ? 'dark' : 'light'}
         style={StyleSheet.absoluteFill}
       />
@@ -43,6 +47,7 @@ const FallbackGlassView = ({ children, style, borderRadius = 16, isDarkMode }) =
     </View>
   );
 };
+
 
 // ---------------------------------------------------------------------------
 // GlassContainer — base building block

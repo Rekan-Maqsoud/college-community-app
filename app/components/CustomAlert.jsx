@@ -7,7 +7,9 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native';
-import { LiquidGlassView } from '@callstack/liquid-glass';
+import { BlurView } from 'expo-blur';
+import { GlassModalCard } from './GlassComponents';
+import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useTranslation } from '../hooks/useTranslation';
@@ -114,12 +116,22 @@ const CustomAlert = ({
             backgroundColor: 'transparent',
           },
         ]}>
-        <LiquidGlassView 
-          colorScheme="dark" 
-          effect="regular" 
-          style={StyleSheet.absoluteFillObject} 
-          pointerEvents="none" 
-        />
+        {/* Modal backdrop: liquid glass on iOS 26+, BlurView tint on Android / older iOS */}
+        {isLiquidGlassSupported ? (
+          <LiquidGlassView
+            colorScheme={isDarkMode ? 'dark' : 'light'}
+            effect="regular"
+            style={StyleSheet.absoluteFillObject}
+            pointerEvents="none"
+          />
+        ) : (
+          <BlurView
+            intensity={isDarkMode ? 50 : 40}
+            tint={isDarkMode ? 'dark' : 'light'}
+            style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
+            pointerEvents="none"
+          />
+        )}
         <TouchableOpacity
           style={styles.overlayTouchable}
           activeOpacity={1}
@@ -133,20 +145,10 @@ const CustomAlert = ({
               },
             ]}>
             <TouchableOpacity activeOpacity={1}>
-              <LiquidGlassView
-                colorScheme={isDarkMode ? 'dark' : 'light'}
-                effect="regular"
-                style={[
-                  styles.alertContent,
-                  {
-                    backgroundColor: isDarkMode
-                      ? 'rgba(28, 28, 30, 0.95)'
-                      : 'rgba(255, 255, 255, 0.95)',
-                    borderColor: isDarkMode
-                      ? 'rgba(255, 255, 255, 0.1)'
-                      : 'rgba(0, 0, 0, 0.1)',
-                  },
-                ]}>
+              <GlassModalCard
+                style={styles.alertContent}
+                borderRadiusValue={borderRadius.xl}
+              >
                 <View style={styles.iconContainer}>
                   <View
                     style={[
@@ -235,7 +237,7 @@ const CustomAlert = ({
                     </TouchableOpacity>
                   ))}
                 </View>
-              </LiquidGlassView>
+              </GlassModalCard>
             </TouchableOpacity>
           </Animated.View>
         </TouchableOpacity>

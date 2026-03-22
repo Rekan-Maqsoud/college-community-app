@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated, PanResponder } from
 import { Ionicons } from '@expo/vector-icons';
 import ProfilePicture from './ProfilePicture';
 import RepBadge from './RepBadge';
+import { GlassContainer } from './GlassComponents';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { 
   fontSize, 
@@ -212,9 +213,6 @@ const ChatListItem = ({
     ? isUserOnline(chat.otherUser.lastSeen)
     : false;
 
-  const cardBackground = isDarkMode 
-    ? 'rgba(255, 255, 255, 0.05)' 
-    : 'rgba(255, 255, 255, 0.9)';
 
   return (
     <View style={styles.swipeContainer}>
@@ -240,14 +238,11 @@ const ChatListItem = ({
       <Animated.View
         style={[
           styles.container,
-          {
-            backgroundColor: cardBackground,
-            borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
-            transform: [{ translateX }],
-          },
+          { transform: [{ translateX }] },
         ]}
         {...(onArchive ? panResponder.panHandlers : {})}
       >
+        <GlassContainer borderRadius={borderRadius.md} style={styles.glassCard}>
         <TouchableOpacity
           onPress={onPress}
           onLongPress={onLongPress}
@@ -342,6 +337,7 @@ const ChatListItem = ({
             style={styles.chevron}
           />
         </TouchableOpacity>
+        </GlassContainer>
       </Animated.View>
     </View>
   );
@@ -373,7 +369,11 @@ const styles = StyleSheet.create({
   },
   container: {
     borderRadius: borderRadius.md,
-    borderWidth: 1,
+    overflow: 'hidden',
+    marginBottom: 0,
+  },
+  glassCard: {
+    borderRadius: borderRadius.md,
   },
   touchContent: {
     flexDirection: 'row',

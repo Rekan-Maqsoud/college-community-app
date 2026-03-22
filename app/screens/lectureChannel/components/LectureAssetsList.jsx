@@ -3,6 +3,7 @@ import { Image, Linking, Text, TouchableOpacity, View, RefreshControl, Alert } f
 import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import { SavedPostSkeleton } from '../../../components/SkeletonLoader';
+import { GlassContainer } from '../../../components/GlassComponents';
 import { moderateScale } from '../../../utils/responsive';
 import { LECTURE_UPLOAD_TYPES } from '../../../../database/lectures';
 import {
@@ -157,18 +158,16 @@ const LectureAssetsList = ({
         onPress={() => openAsset(asset)}
         onLongPress={() => openAssetMenu(asset)}
         delayLongPress={260}
-        style={[
-          styles.assetCard,
-          {
-            borderColor: accentColor,
-            backgroundColor: colors.card,
-            minHeight: asset.uploadType === LECTURE_UPLOAD_TYPES.YOUTUBE
-              ? moderateScale(210)
-              : asset.uploadType === LECTURE_UPLOAD_TYPES.FILE
-                ? moderateScale(134)
-                : moderateScale(118),
-          },
-        ]}>
+        style={[styles.assetCardWrapper, {
+          minHeight: asset.uploadType === LECTURE_UPLOAD_TYPES.YOUTUBE
+            ? moderateScale(210)
+            : asset.uploadType === LECTURE_UPLOAD_TYPES.FILE
+              ? moderateScale(134)
+              : moderateScale(118),
+        }]}>
+        <GlassContainer
+          borderRadius={18}
+          style={[styles.assetCard, { borderColor: accentColor }]}>
         <View style={styles.assetHeader}>
           <Text style={[styles.assetTitle, { color: colors.text }]} numberOfLines={2}>{asset.title}</Text>
           <Text style={[styles.assetType, { color: accentColor }]}>{typeText}</Text>
@@ -205,6 +204,7 @@ const LectureAssetsList = ({
             </TouchableOpacity>
           )}
         </View>
+        </GlassContainer>
       </TouchableOpacity>
     );
   };

@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LiquidGlassView } from '@callstack/liquid-glass';
+import { GlassContainer } from '../../components/GlassComponents';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
@@ -664,9 +664,7 @@ const GroupSettings = ({ navigation, route }) => {
               <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
                 {t('chats.groupInfo')}
               </Text>
-              <LiquidGlassView
-                colorScheme={isDarkMode ? 'dark' : 'light'}
-                effect="regular"
+              <GlassContainer
                 style={[
                 styles.sectionCard,
                 { 
@@ -755,7 +753,7 @@ const GroupSettings = ({ navigation, route }) => {
                     placeholderTextColor={theme.textSecondary}
                   />
                 </View>
-              </LiquidGlassView>
+              </GlassContainer>
             </View>
 
             {/* Permissions Section */}
@@ -763,9 +761,7 @@ const GroupSettings = ({ navigation, route }) => {
               <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
                 {t('chats.permissions')}
               </Text>
-              <LiquidGlassView
-                colorScheme={isDarkMode ? 'dark' : 'light'}
-                effect="regular"
+              <GlassContainer
                 style={[
                 styles.sectionCard,
                 { 
@@ -811,7 +807,7 @@ const GroupSettings = ({ navigation, route }) => {
                   settings.onlyAdminsCanPin,
                   (val) => handleSettingToggle('onlyAdminsCanPin', val)
                 )}
-              </LiquidGlassView>
+              </GlassContainer>
             </View>
 
             {/* Personal Notification Settings - Available to everyone */}
@@ -819,9 +815,7 @@ const GroupSettings = ({ navigation, route }) => {
               <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
                 {t('chats.linkedLectureChannel')}
               </Text>
-              <LiquidGlassView
-                colorScheme={isDarkMode ? 'dark' : 'light'}
-                effect="regular"
+              <GlassContainer
                 style={[
                 styles.sectionCard,
                 { 
@@ -899,16 +893,14 @@ const GroupSettings = ({ navigation, route }) => {
                     )}
                   </>
                 )}
-              </LiquidGlassView>
+              </GlassContainer>
             </View>
 
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
                 {t('chats.yourSettings') || 'Your Settings'}
               </Text>
-              <LiquidGlassView
-                colorScheme={isDarkMode ? 'dark' : 'light'}
-                effect="regular"
+              <GlassContainer
                 style={[
                 styles.sectionCard,
                 { 
@@ -936,7 +928,7 @@ const GroupSettings = ({ navigation, route }) => {
                     style={Platform.OS === 'ios' ? { transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] } : undefined}
                   />
                 </View>
-              </LiquidGlassView>
+              </GlassContainer>
             </View>
 
             {/* Members Section */}
@@ -962,9 +954,7 @@ const GroupSettings = ({ navigation, route }) => {
                   <ActivityIndicator size="large" color={theme.primary} />
                 </View>
               ) : (
-              <LiquidGlassView
-                  colorScheme={isDarkMode ? 'dark' : 'light'}
-                  effect="regular"
+              <GlassContainer
                   style={[
                   styles.membersCard,
                   { 
@@ -981,7 +971,7 @@ const GroupSettings = ({ navigation, route }) => {
                       <View style={[styles.separator, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]} />
                     )}
                   />
-                </LiquidGlassView>
+                </GlassContainer>
               )}
             </View>
 

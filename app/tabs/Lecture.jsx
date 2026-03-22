@@ -712,7 +712,6 @@ const Lecture = ({ navigation }) => {
 
     return (
       <TouchableOpacity
-        style={[styles.channelCard, { backgroundColor: colors.card, borderColor: colors.border }]}
         activeOpacity={canOpen ? 0.7 : 1}
         onPress={() => openChannel(item)}
         disabled={!canOpen}
@@ -721,6 +720,9 @@ const Lecture = ({ navigation }) => {
           setChannelMenuOpen(true);
         }}
         delayLongPress={280}>
+        <GlassContainer
+          borderRadius={borderRadius.lg}
+          style={[styles.channelCard]}>
         <View style={styles.channelHeader}>
           <View style={styles.channelHeaderLeft}>
             <View style={[styles.channelIcon, { backgroundColor: isOfficial ? `${colors.primary}20` : `${colors.textSecondary}15` }]}>
@@ -789,6 +791,7 @@ const Lecture = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         )}
+        </GlassContainer>
       </TouchableOpacity>
     );
   };
@@ -848,7 +851,7 @@ const Lecture = ({ navigation }) => {
 
       {searchVisible && (
         <View style={styles.searchWrap}>
-          <View style={[styles.searchInputWrap, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
+          <GlassContainer borderRadius={borderRadius.lg} style={[styles.searchInputWrap]}>
             <Ionicons name="search-outline" size={16} color={colors.textSecondary} />
             <TextInput
               value={search}
@@ -865,7 +868,7 @@ const Lecture = ({ navigation }) => {
                 <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
               </TouchableOpacity>
             )}
-          </View>
+          </GlassContainer>
         </View>
       )}
 
@@ -911,27 +914,30 @@ const Lecture = ({ navigation }) => {
               const sugJoined = myChannelIds.has(item.$id);
               return (
                 <TouchableOpacity
-                  style={[styles.suggestedCard, { borderColor: colors.border, backgroundColor: colors.card }]}
                   activeOpacity={sugJoined ? 0.7 : 1}
                   disabled={!sugJoined}
                   onPress={() => openChannel(item)}>
-                  <View style={styles.suggestedCardTop}>
-                    <Ionicons
-                      name={item.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? 'school' : 'people'}
-                      size={14}
-                      color={colors.primary}
-                    />
-                    <Text style={[styles.suggestedCardTitle, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
-                  </View>
-                  <Text style={[styles.suggestedCardSub, { color: colors.textSecondary }]} numberOfLines={1}>
-                    {t('lectures.membersCount').replace('{count}', String(item.membersCount || 0))}
-                  </Text>
-                  {sugJoined && (
-                    <View style={[styles.suggestedJoinedBadge, { backgroundColor: '#10b98115' }]}>
-                      <Ionicons name="checkmark-circle" size={10} color="#10b981" />
-                      <Text style={styles.suggestedJoinedText}>{t('lectures.joined')}</Text>
+                  <GlassContainer
+                    borderRadius={borderRadius.lg}
+                    style={[styles.suggestedCard]}>
+                    <View style={styles.suggestedCardTop}>
+                      <Ionicons
+                        name={item.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? 'school' : 'people'}
+                        size={14}
+                        color={colors.primary}
+                      />
+                      <Text style={[styles.suggestedCardTitle, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
                     </View>
-                  )}
+                    <Text style={[styles.suggestedCardSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                      {t('lectures.membersCount').replace('{count}', String(item.membersCount || 0))}
+                    </Text>
+                    {sugJoined && (
+                      <View style={[styles.suggestedJoinedBadge, { backgroundColor: '#10b98115' }]}>
+                        <Ionicons name="checkmark-circle" size={10} color="#10b981" />
+                        <Text style={styles.suggestedJoinedText}>{t('lectures.joined')}</Text>
+                      </View>
+                    )}
+                  </GlassContainer>
                 </TouchableOpacity>
               );
             }}
@@ -1116,7 +1122,6 @@ const styles = StyleSheet.create({
   searchInputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -1137,7 +1142,6 @@ const styles = StyleSheet.create({
   windowBtn: {
     flex: 1,
     flexDirection: 'row',
-    borderWidth: 1,
     borderRadius: borderRadius.round,
     paddingVertical: spacing.sm,
     alignItems: 'center',
@@ -1158,12 +1162,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   suggestedCard: {
-    borderWidth: 1,
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     marginRight: spacing.sm,
     minWidth: wp(36),
+    overflow: 'hidden',
   },
   suggestedCardTop: {
     flexDirection: 'row',
@@ -1202,10 +1206,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(4),
   },
   channelCard: {
-    borderWidth: 1,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     marginBottom: spacing.sm,
+    overflow: 'hidden',
   },
   channelHeader: {
     flexDirection: 'row',

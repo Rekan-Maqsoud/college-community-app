@@ -244,11 +244,13 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: fontSize(12),
   },
-  assetCard: {
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    padding: spacing.sm,
+  assetCardWrapper: {
     marginBottom: spacing.sm,
+  },
+  assetCard: {
+    borderRadius: 18,
+    padding: spacing.sm,
+    overflow: 'hidden',
   },
   assetHeader: {
     flexDirection: 'row',

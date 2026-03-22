@@ -15,7 +15,8 @@ import UserCard from './UserCard';
 import { fontSize, spacing, moderateScale, hp } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { FlashList } from '@shopify/flash-list';
-import { LiquidGlassView } from '@callstack/liquid-glass';
+import { BlurView } from 'expo-blur';
+import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass';
 
 const PostLikesModal = ({ visible, onClose, likedByIds }) => {
   const { t, theme, isDarkMode } = useAppSettings();
@@ -104,7 +105,21 @@ const PostLikesModal = ({ visible, onClose, likedByIds }) => {
       onRequestClose={onClose}
     >
       <View style={[styles.overlay, { backgroundColor: 'transparent' }]}>
-        <LiquidGlassView colorScheme="dark" effect="regular" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+        {isLiquidGlassSupported ? (
+          <LiquidGlassView
+            colorScheme={isDarkMode ? 'dark' : 'light'}
+            effect="regular"
+            style={StyleSheet.absoluteFillObject}
+            pointerEvents="none"
+          />
+        ) : (
+          <BlurView
+            intensity={isDarkMode ? 50 : 40}
+            tint={isDarkMode ? 'dark' : 'light'}
+            style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.4)' }]}
+            pointerEvents="none"
+          />
+        )}
         <View
           style={[
             styles.container,

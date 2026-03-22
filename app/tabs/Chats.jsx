@@ -1597,12 +1597,10 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     flexDirection: 'row',
-    marginTop: spacing.sm,
-    gap: spacing.xs,
+    marginTop: spacing.xs,
+    gap: 4,
   },
   filterPill: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
     borderRadius: moderateScale(12),
   },
   filterPillText: {

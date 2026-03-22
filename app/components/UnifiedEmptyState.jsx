@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { LiquidGlassView } from '@callstack/liquid-glass';
+import { GlassContainer } from './GlassComponents';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { wp, fontSize, spacing, moderateScale } from '../utils/responsive';
@@ -20,9 +20,8 @@ const UnifiedEmptyState = ({
 
   return (
     <View style={[styles.container, compact && styles.containerCompact, style]}>
-      <LiquidGlassView
-        colorScheme={isDarkMode ? 'dark' : 'light'}
-        effect="regular"
+      <GlassContainer
+        borderRadius={borderRadius.xl}
         style={[
           styles.card,
           compact && styles.cardCompact,
@@ -57,7 +56,7 @@ const UnifiedEmptyState = ({
             <Text style={styles.actionText}>{actionLabel}</Text>
           </TouchableOpacity>
         ) : null}
-      </LiquidGlassView>
+      </GlassContainer>
     </View>
   );
 };

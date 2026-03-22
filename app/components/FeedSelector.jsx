@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LiquidGlassView } from '@callstack/liquid-glass';
+import { GlassContainer } from './GlassComponents';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { wp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
@@ -20,7 +20,7 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
   const [containerWidth, setContainerWidth] = useState(wp(60));
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 360;
-  const glassScheme = theme.glass?.tint || (isDarkMode ? 'dark' : 'light');
+
 
   const feeds = [
     {
@@ -101,10 +101,9 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
         }
       }}
     >
-      <LiquidGlassView
-        colorScheme={glassScheme}
-        effect="regular"
-        style={[StyleSheet.absoluteFill, { borderRadius: borderRadius.lg }]}
+      <GlassContainer
+        style={StyleSheet.absoluteFill}
+        borderRadius={borderRadius.lg}
       />
       <View style={styles.feedRow}>
         <Animated.View
