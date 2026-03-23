@@ -11,6 +11,7 @@ import {
   SectionList,
   Modal,
   Alert,
+  Animated,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useIsFocused } from '@react-navigation/native';
@@ -23,7 +24,7 @@ import ChatListItem from '../components/ChatListItem';
 import RepDetectionPopup from '../components/RepDetectionPopup';
 import useRepDetection from '../hooks/useRepDetection';
 import UnifiedEmptyState from '../components/UnifiedEmptyState';
-import { GlassIconButton, GlassPill, GlassModalCard } from '../components/GlassComponents';
+import { GlassContainer, GlassIconButton, GlassModalCard } from '../components/GlassComponents';
 import { ChatListSkeleton } from '../components/SkeletonLoader';
 import { 
   initializeUserGroups,
@@ -79,6 +80,7 @@ const Chats = ({ navigation }) => {
   const [customGroups, setCustomGroups] = useState([]);
   const [privateChats, setPrivateChats] = useState([]);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [filterContainerWidth, setFilterContainerWidth] = useState(0);
   const [unreadCounts, setUnreadCounts] = useState({});
   const [clearedAtMap, setClearedAtMap] = useState({});
   const [muteStatusMap, setMuteStatusMap] = useState({});
@@ -103,6 +105,7 @@ const Chats = ({ navigation }) => {
   const lastNetworkSyncAtRef = useRef(0);
   const isSyncInFlightRef = useRef(false);
   const initializeSignatureRef = useRef(null);
+  const filterIndicatorAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     defaultGroupsRef.current = defaultGroups;
@@ -1107,6 +1110,25 @@ const Chats = ({ navigation }) => {
     { key: 'direct', label: t('chats.filterDirect') },
   ];
 
+  const selectedFilterIndex = Math.max(0, filterOptions.findIndex((option) => option.key === activeFilter));
+  const filterTabWidth = filterContainerWidth > 0 ? (filterContainerWidth / filterOptions.length) : 0;
+
+  useEffect(() => {
+    const animation = Animated.spring(filterIndicatorAnim, {
+      toValue: selectedFilterIndex,
+      useNativeDriver: true,
+      tension: 68,
+      friction: 12,
+    });
+
+    animation.start();
+  }, [filterIndicatorAnim, selectedFilterIndex]);
+
+  const filterTranslateX = filterIndicatorAnim.interpolate({
+    inputRange: [0, 1, 2, 3],
+    outputRange: [0, filterTabWidth, filterTabWidth * 2, filterTabWidth * 3],
+  });
+
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       <View style={styles.headerTop}>
@@ -1178,33 +1200,48 @@ const Chats = ({ navigation }) => {
       </View>
       
       {!showArchivedChats && (
-        <View style={styles.filterContainer}>
-          {filterOptions.map((filter) => (
-            <TouchableOpacity
-              key={filter.key}
+        <View
+          style={styles.filterContainer}
+          onLayout={(event) => {
+            const width = event.nativeEvent.layout.width;
+            if (width && width !== filterContainerWidth) {
+              setFilterContainerWidth(width);
+            }
+          }}
+        >
+          <GlassContainer style={StyleSheet.absoluteFill} borderRadius={moderateScale(12)} />
+          <View style={styles.filterRow}>
+            <Animated.View
               style={[
-                styles.filterPill,
+                styles.filterIndicator,
+                {
+                  width: filterTabWidth,
+                  backgroundColor: theme.primary,
+                  transform: [{ translateX: filterTranslateX }],
+                },
               ]}
-              activeOpacity={0.7}
-              onPress={() => setActiveFilter(filter.key)}
-              accessibilityRole="button"
-              accessibilityLabel={filter.label}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <GlassPill active={activeFilter === filter.key}>
+            />
+            {filterOptions.map((filter) => (
+              <TouchableOpacity
+                key={filter.key}
+                style={[styles.filterPill, { width: filterTabWidth || `${100 / filterOptions.length}%` }]}
+                activeOpacity={0.7}
+                onPress={() => setActiveFilter(filter.key)}
+                accessibilityRole="button"
+                accessibilityLabel={filter.label}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Text style={[
                   styles.filterPillText,
-                  { 
-                    color: activeFilter === filter.key ? '#FFFFFF' : theme.textSecondary,
+                  {
+                    color: activeFilter === filter.key ? '#FFFFFF' : (isDarkMode ? 'rgba(255,255,255,0.84)' : theme.textSecondary),
                     fontSize: fontSize(11),
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
                   }
                 ]}>
                   {filter.label}
                 </Text>
-              </GlassPill>
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       )}
     </View>
@@ -1591,15 +1628,39 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   filterContainer: {
-    flexDirection: 'row',
     marginTop: spacing.xs,
-    gap: 4,
+    height: moderateScale(40),
+    borderRadius: moderateScale(12),
+    overflow: 'hidden',
+  },
+  filterRow: {
+    flexDirection: 'row',
+    position: 'relative',
+    height: '100%',
+    width: '100%',
+  },
+  filterIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: moderateScale(12),
+    zIndex: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   filterPill: {
-    borderRadius: moderateScale(12),
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+    paddingHorizontal: spacing.xs,
   },
   filterPillText: {
-    fontWeight: '500',
+    fontWeight: '600',
+    textAlign: 'center',
   },
   quickActionCard: {
     flex: 1,

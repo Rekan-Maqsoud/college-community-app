@@ -78,12 +78,12 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
 
   const textColor = (isSelected) => {
     if (isSelected) return '#FFFFFF';
-    return isDarkMode ? theme.subText : theme.textSecondary;
+    return isDarkMode ? 'rgba(255, 255, 255, 0.84)' : theme.textSecondary;
   };
 
   const iconColor = (isSelected) => {
     if (isSelected) return '#FFFFFF';
-    return isDarkMode ? theme.subText : theme.textSecondary;
+    return isDarkMode ? 'rgba(255, 255, 255, 0.84)' : theme.textSecondary;
   };
 
   return (

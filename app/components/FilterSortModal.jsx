@@ -9,12 +9,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { GlassContainer } from './GlassComponents';
+import { GlassModalCard } from './GlassComponents';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { POST_TYPES } from '../constants/postConstants';
-import { BlurView } from 'expo-blur';
-import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass';
 
 export const SORT_OPTIONS = {
   NEWEST: 'newest',
@@ -152,29 +150,15 @@ const FilterSortModal = ({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableOpacity
-        style={[styles.modalOverlay, { backgroundColor: 'transparent' }]}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        {isLiquidGlassSupported ? (
-          <LiquidGlassView
-            colorScheme={isDarkMode ? 'dark' : 'light'}
-            effect="regular"
-            style={StyleSheet.absoluteFillObject}
-            pointerEvents="none"
-          />
-        ) : (
-          <BlurView
-            intensity={isDarkMode ? 50 : 40}
-            tint={isDarkMode ? 'dark' : 'light'}
-            style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.4)' }]}
-            pointerEvents="none"
-          />
-        )}
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity
+          style={styles.backdropPressArea}
+          activeOpacity={1}
+          onPress={onClose}
+        />
         <View style={styles.modalContent}>
-          <GlassContainer
-            borderRadius={borderRadius.lg}
+          <GlassModalCard
+            borderRadiusValue={borderRadius.lg}
             style={styles.modalCard}
           >
             <View style={styles.modalHeader}>
@@ -268,9 +252,9 @@ const FilterSortModal = ({
             >
               <Text style={styles.applyButtonText}>{t('common.ok')}</Text>
             </TouchableOpacity>
-          </GlassContainer>
+          </GlassModalCard>
         </View>
-      </TouchableOpacity>
+      </View>
     </Modal>
   );
 };
@@ -278,19 +262,24 @@ const FilterSortModal = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.62)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: wp(5),
     paddingVertical: hp(4),
   },
+  backdropPressArea: {
+    ...StyleSheet.absoluteFillObject,
+  },
   modalContent: {
     width: '100%',
     maxWidth: 560,
-    maxHeight: hp(84),
+    height: hp(80),
   },
   modalCard: {
-    maxHeight: hp(80),
+    height: '100%',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -327,6 +316,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
     marginBottom: spacing.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   optionLeft: {
     flexDirection: 'row',

@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   StatusBar,
   ScrollView,
+  Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,7 +20,7 @@ import { useUser } from '../context/UserContext';
 import { searchUsers } from '../../database/users';
 import { searchPosts, enrichPostsWithUserData } from '../../database/posts';
 import { FlashList } from '@shopify/flash-list';
-import { GlassContainer, GlassInput, GlassIconButton, GlassPill } from './GlassComponents';
+import { GlassContainer, GlassInput, GlassIconButton } from './GlassComponents';
 import { moderateScale, wp, hp, fontSize, spacing } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import UserCard from './UserCard';
@@ -33,18 +34,52 @@ const SEARCH_FILTERS = {
 };
 
 const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, ref) => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, reduceMotion } = useAppSettings();
   const { user: currentUser } = useUser();
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [activeFilter, setActiveFilter] = useState(SEARCH_FILTERS.ALL);
+  const [filterContainerWidth, setFilterContainerWidth] = useState(0);
   const [results, setResults] = useState({
     users: [],
     posts: [],
   });
   const searchTimeout = useRef(null);
+  const filterIndicatorAnim = useRef(new Animated.Value(0)).current;
+
+  const filterTabs = [
+    { key: SEARCH_FILTERS.ALL, label: t('search.all') || 'All', icon: 'apps-outline' },
+    { key: SEARCH_FILTERS.PEOPLE, label: t('search.people') || 'People', icon: 'people-outline' },
+    { key: SEARCH_FILTERS.POSTS, label: t('search.posts') || 'Posts', icon: 'document-text-outline' },
+    { key: SEARCH_FILTERS.HASHTAGS, label: t('search.hashtags') || 'Tags', icon: 'pricetag-outline' },
+  ];
+
+  const selectedFilterIndex = Math.max(0, filterTabs.findIndex((tab) => tab.key === activeFilter));
+  const filterTabWidth = filterContainerWidth > 0 ? (filterContainerWidth / filterTabs.length) : 0;
+
+  useEffect(() => {
+    const animation = reduceMotion
+      ? Animated.timing(filterIndicatorAnim, {
+          toValue: selectedFilterIndex,
+          duration: 100,
+          useNativeDriver: true,
+        })
+      : Animated.spring(filterIndicatorAnim, {
+          toValue: selectedFilterIndex,
+          useNativeDriver: true,
+          tension: 68,
+          friction: 12,
+        });
+
+    animation.start();
+  }, [filterIndicatorAnim, reduceMotion, selectedFilterIndex]);
+
+  const filterTranslateX = filterIndicatorAnim.interpolate({
+    inputRange: [0, 1, 2, 3],
+    outputRange: [0, filterTabWidth, filterTabWidth * 2, filterTabWidth * 3],
+  });
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
@@ -390,51 +425,62 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
             </GlassInput>
           </View>
 
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            style={[styles.filterTabsContainer, { borderBottomColor: theme.border }]}
-            contentContainerStyle={styles.filterTabsContent}
+          <View
+            style={styles.filterTabsContainer}
+            onLayout={(event) => {
+              const width = event.nativeEvent.layout.width;
+              if (width && width !== filterContainerWidth) {
+                setFilterContainerWidth(width);
+              }
+            }}
           >
-            {[
-              { key: SEARCH_FILTERS.ALL, label: t('search.all') || 'All', icon: 'apps-outline' },
-              { key: SEARCH_FILTERS.PEOPLE, label: t('search.people') || 'People', icon: 'people-outline' },
-              { key: SEARCH_FILTERS.POSTS, label: t('search.posts') || 'Posts', icon: 'document-text-outline' },
-              { key: SEARCH_FILTERS.HASHTAGS, label: t('search.hashtags') || 'Tags', icon: 'pricetag-outline' },
-            ].map((filter) => {
-              const isActive = activeFilter === filter.key;
-              return (
-                <TouchableOpacity
-                  key={filter.key}
-                  onPress={() => handleFilterChange(filter.key)}
-                  activeOpacity={0.7}
-                >
-                  <GlassPill
-                    active={isActive}
-                    activeColor={theme.primary}
-                    style={styles.filterTab}
+            <GlassContainer style={StyleSheet.absoluteFill} borderRadius={borderRadius.lg} />
+            <View style={styles.filterTabsRow}>
+              <Animated.View
+                style={[
+                  styles.filterTabsIndicator,
+                  {
+                    width: filterTabWidth,
+                    backgroundColor: theme.primary,
+                    transform: [{ translateX: filterTranslateX }],
+                  },
+                ]}
+              />
+              {filterTabs.map((filter, index) => {
+                const isActive = activeFilter === filter.key;
+
+                return (
+                  <TouchableOpacity
+                    key={filter.key}
+                    onPress={() => handleFilterChange(filter.key)}
+                    activeOpacity={0.7}
+                    style={[styles.filterTab, { width: filterTabWidth || `${100 / filterTabs.length}%` }]}
                   >
                     <Ionicons
                       name={isActive ? filter.icon.replace('-outline', '') : filter.icon}
-                      size={moderateScale(16)}
-                      color={isActive ? theme.primary : (isDarkMode ? 'rgba(255,255,255,0.6)' : theme.textSecondary)}
+                      size={moderateScale(14)}
+                      color={isActive ? '#FFFFFF' : (isDarkMode ? 'rgba(255,255,255,0.84)' : theme.textSecondary)}
+                      style={[styles.filterTabIcon, index === 0 && { marginLeft: 2 }]}
                     />
                     <Text
                       style={[
                         styles.filterTabText,
                         {
-                          color: isActive ? theme.primary : (isDarkMode ? 'rgba(255,255,255,0.6)' : theme.textSecondary),
-                          fontWeight: isActive ? '600' : '500',
+                          color: isActive ? '#FFFFFF' : (isDarkMode ? 'rgba(255,255,255,0.84)' : theme.textSecondary),
+                          fontWeight: isActive ? '700' : '600',
                         },
                       ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.75}
                     >
                       {filter.label}
                     </Text>
-                  </GlassPill>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
 
           <View style={[styles.divider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]} />
 
@@ -480,28 +526,44 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   filterTabsContainer: {
-    borderBottomWidth: 0,
-    maxHeight: moderateScale(52),
+    marginHorizontal: spacing.md,
+    marginVertical: spacing.sm,
+    height: moderateScale(44),
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
   },
-  filterTabsContent: {
+  filterTabsRow: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    gap: spacing.sm,
-    alignItems: 'center',
+    height: '100%',
+    width: '100%',
+    position: 'relative',
+  },
+  filterTabsIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: borderRadius.lg,
+    zIndex: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   filterTab: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.xs + 2,
-    paddingHorizontal: spacing.sm + 2,
-    gap: spacing.xs,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
+    gap: 4,
+    zIndex: 2,
+    paddingHorizontal: spacing.xs,
+  },
+  filterTabIcon: {
+    marginTop: 1,
   },
   filterTabText: {
-    fontSize: fontSize(11),
+    fontSize: fontSize(10.5),
   },
   divider: {
     height: 1,

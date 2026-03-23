@@ -43,7 +43,7 @@ const safeStorage = {
     if (storage) {
       try {
         const value = storage.getString(key);
-        return value ?? null;
+        return value ?? (memoryStore.has(key) ? memoryStore.get(key) : null);
       } catch (error) {
         return memoryStore.has(key) ? memoryStore.get(key) : null;
       }
@@ -51,17 +51,18 @@ const safeStorage = {
     return memoryStore.has(key) ? memoryStore.get(key) : null;
   },
   async setItem(key, value) {
+    const normalizedValue = value == null ? '' : String(value);
     const storage = getMmkvStorage();
     if (storage) {
       try {
-        storage.set(key, value);
+        storage.set(key, normalizedValue);
         return null;
       } catch (error) {
-        memoryStore.set(key, value);
+        memoryStore.set(key, normalizedValue);
         return null;
       }
     }
-    memoryStore.set(key, value);
+    memoryStore.set(key, normalizedValue);
     return null;
   },
   async removeItem(key) {
@@ -97,7 +98,8 @@ const safeStorage = {
     if (storage) {
       try {
         if (typeof storage.getAllKeys === 'function') {
-          return storage.getAllKeys();
+          const mmkvKeys = storage.getAllKeys();
+          return Array.from(new Set([...(Array.isArray(mmkvKeys) ? mmkvKeys : []), ...Array.from(memoryStore.keys())]));
         }
         return Array.from(memoryStore.keys());
       } catch (error) {

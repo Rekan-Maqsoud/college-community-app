@@ -420,6 +420,8 @@ const EditPost = ({ navigation, route }) => {
                   placeholder={t('post.postType')}
                   icon={POST_ICONS[postType] || 'list-outline'}
                   disabled={loading}
+                  useGlass={false}
+                  selectorStyle={{ backgroundColor: theme.input.background, borderColor: theme.input.border }}
                 />
               </View>
 
@@ -435,6 +437,8 @@ const EditPost = ({ navigation, route }) => {
                   icon="stats-chart-outline"
                   disabled={loading}
                   compact
+                  useGlass={false}
+                  selectorStyle={{ backgroundColor: theme.input.background, borderColor: theme.input.border }}
                 />
               </View>
 

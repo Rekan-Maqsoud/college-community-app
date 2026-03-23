@@ -518,7 +518,6 @@ const PostDetails = ({ navigation, route }) => {
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('common.delete'),
-              telemetry.recordEvent('post_details_add_reply_failed', {
           onPress: async () => {
             try {
               triggerHaptic('warning');
