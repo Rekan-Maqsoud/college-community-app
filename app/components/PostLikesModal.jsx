@@ -17,6 +17,7 @@ import { borderRadius } from '../theme/designTokens';
 import { FlashList } from '@shopify/flash-list';
 import { BlurView } from 'expo-blur';
 import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass';
+import { GlassModalCard } from './GlassComponents';
 
 const PostLikesModal = ({ visible, onClose, likedByIds }) => {
   const { t, theme, isDarkMode } = useAppSettings();
@@ -116,19 +117,28 @@ const PostLikesModal = ({ visible, onClose, likedByIds }) => {
           <BlurView
             intensity={isDarkMode ? 50 : 40}
             tint={isDarkMode ? 'dark' : 'light'}
-            style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.4)' }]}
+            style={StyleSheet.absoluteFillObject}
             pointerEvents="none"
           />
         )}
         <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFillObject,
+            { backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.48)' : 'rgba(0, 0, 0, 0.36)' },
+          ]}
+        />
+        <GlassModalCard
           style={[
             styles.container,
             {
-              backgroundColor: theme.card || theme.cardBackground || (isDarkMode ? '#1a1a2e' : '#FFFFFF'),
               borderColor: theme.border,
               paddingTop: Math.max(insets.top, spacing.sm),
             },
+            isDarkMode ? styles.containerDarkTint : styles.containerLightTint,
           ]}
+          borderRadiusValue={borderRadius.lg}
+          disableBackgroundOverlay={false}
         >
           <View style={[styles.header, { borderBottomColor: theme.border }]}>
             <Text style={[styles.headerTitle, { color: theme.text }]}>{titleText}</Text>
@@ -154,8 +164,10 @@ const PostLikesModal = ({ visible, onClose, likedByIds }) => {
               data={users}
               renderItem={renderUser}
               keyExtractor={(item) => item.$id}
+              style={styles.list}
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
+              estimatedItemSize={72}
               ListEmptyComponent={
                 <View style={styles.stateContainer}>
                   <Ionicons name="heart-outline" size={moderateScale(32)} color={theme.textSecondary} />
@@ -166,7 +178,7 @@ const PostLikesModal = ({ visible, onClose, likedByIds }) => {
               }
             />
           )}
-        </View>
+        </GlassModalCard>
       </View>
     </Modal>
   );
@@ -183,11 +195,17 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     maxWidth: 560,
-    maxHeight: hp(70),
+    height: hp(70),
     borderRadius: borderRadius.lg,
     borderWidth: 1,
     paddingBottom: spacing.md,
     overflow: 'hidden',
+  },
+  containerDarkTint: {
+    backgroundColor: 'rgba(18, 24, 38, 0.32)',
+  },
+  containerLightTint: {
+    backgroundColor: 'rgba(24, 30, 44, 0.14)',
   },
   header: {
     flexDirection: 'row',
@@ -205,7 +223,12 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   listContent: {
+    flexGrow: 1,
     paddingVertical: spacing.sm,
+    paddingBottom: spacing.lg,
+  },
+  list: {
+    flex: 1,
   },
   userCard: {
     paddingHorizontal: spacing.md,

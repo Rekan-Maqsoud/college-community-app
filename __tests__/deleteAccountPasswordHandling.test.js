@@ -179,4 +179,52 @@ describe('deleteAccount password handling', () => {
       code: 'DELETE_ACCOUNT_USER_RECORD_CLEANUP_FAILED',
     });
   });
+
+  it('paginates message anonymization with cursor to avoid stalling on 100+ messages', async () => {
+    const msgPageOne = Array.from({ length: 100 }, (_, index) => ({
+      $id: `msg-${index + 1}`,
+      senderId: 'user-1',
+      senderName: 'Student User',
+    }));
+    const msgPageTwo = [{
+      $id: 'msg-101',
+      senderId: 'user-1',
+      senderName: 'Student User',
+    }];
+
+    mockListDocuments
+      // posts
+      .mockResolvedValueOnce({ documents: [] })
+      // replies
+      .mockResolvedValueOnce({ documents: [] })
+      // notifications (received)
+      .mockResolvedValueOnce({ documents: [] })
+      // notifications (sent)
+      .mockResolvedValueOnce({ documents: [] })
+      // push tokens
+      .mockResolvedValueOnce({ documents: [] })
+      // chat settings
+      .mockResolvedValueOnce({ documents: [] })
+      // messages page 1
+      .mockResolvedValueOnce({ documents: msgPageOne })
+      // messages page 2
+      .mockResolvedValueOnce({ documents: msgPageTwo })
+      // chats
+      .mockResolvedValueOnce({ documents: [] });
+
+    await deleteAccount('correct-password');
+
+    const messageListCalls = mockListDocuments.mock.calls.filter(
+      ([request]) => request?.collectionId === 'messages',
+    );
+
+    expect(messageListCalls.length).toBe(2);
+    expect(messageListCalls[0][0].queries.length).toBe(3);
+    expect(messageListCalls[1][0].queries.length).toBe(4);
+
+    const messageUpdateCalls = mockUpdateDocument.mock.calls.filter(
+      ([request]) => request?.collectionId === 'messages',
+    );
+    expect(messageUpdateCalls.length).toBe(101);
+  });
 });

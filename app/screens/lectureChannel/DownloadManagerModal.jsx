@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { GlassContainer, GlassIconButton } from '../../components/GlassComponents';
 import { spacing, fontSize, moderateScale, wp } from '../../utils/responsive';
@@ -47,6 +48,8 @@ const DownloadManagerModal = ({
       onRequestClose={onClose}
     >
       <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}> 
+        <BlurView intensity={32} tint="dark" style={styles.backdropBlur} />
+        <View pointerEvents="none" style={styles.backdropScrim} />
         <GlassContainer
           borderRadius={24}
           disableBackgroundOverlay
@@ -157,6 +160,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: wp(5),
+    overflow: 'hidden',
+  },
+  backdropBlur: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  backdropScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(7, 12, 26, 0.40)',
   },
   card: {
     borderWidth: 1,

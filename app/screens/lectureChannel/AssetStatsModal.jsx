@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import ProfilePicture from '../../components/ProfilePicture';
 import { spacing, fontSize, wp, moderateScale } from '../../utils/responsive';
@@ -82,6 +83,8 @@ const AssetStatsModal = ({ visible, onClose, colors, t, asset, userProfiles = {}
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}> 
+        <BlurView intensity={30} tint="dark" style={styles.backdropBlur} />
+        <View pointerEvents="none" style={styles.backdropScrim} />
         <View style={[styles.cardWrap, { backgroundColor: colors.card, borderColor: colors.border }]}> 
           <View style={styles.headerRow}>
             <View style={styles.headerMeta}>
@@ -115,6 +118,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: wp(5),
+    overflow: 'hidden',
+  },
+  backdropBlur: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  backdropScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(7, 12, 26, 0.40)',
   },
   cardWrap: {
     borderWidth: 1,

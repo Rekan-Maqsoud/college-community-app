@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { GlassInput } from './GlassComponents';
+import { GlassInput, GlassModalCard } from './GlassComponents';
 import { fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 
@@ -124,7 +124,17 @@ const SearchableDropdownNew = ({
             onPress={closeModal}
           />
           <Animated.View style={[styles.modalBox, { opacity: fadeAnim }]}>
-            <View style={[styles.modalContent, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)' }]}>
+            <GlassModalCard
+              borderRadiusValue={borderRadius.xl}
+              style={[
+                styles.modalContent,
+                {
+                  backgroundColor: isDarkMode
+                    ? 'rgba(18, 22, 30, 0.72)'
+                    : 'rgba(255, 255, 255, 0.84)',
+                },
+              ]}
+            >
               
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: theme.text, fontSize: fontSize(18) }]}>
@@ -167,7 +177,11 @@ const SearchableDropdownNew = ({
                         style={[
                           styles.item,
                           {
-                            backgroundColor: isSelected ? `${theme.primary}15` : 'transparent',
+                            backgroundColor: isSelected
+                              ? `${theme.primary}26`
+                              : isDarkMode
+                              ? 'rgba(255, 255, 255, 0.06)'
+                              : 'rgba(0, 0, 0, 0.035)',
                           }
                         ]}
                         onPress={() => handleSelect(item)}
@@ -195,12 +209,12 @@ const SearchableDropdownNew = ({
                   <View style={styles.emptyContainer}>
                     <Ionicons name="search-outline" size={moderateScale(48)} color={theme.textSecondary} style={{ opacity: 0.5 }} />
                     <Text style={[styles.emptyText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
-                      {t('common.noResults') || 'No results found'}
+                      {t('common.noResults')}
                     </Text>
                   </View>
                 )}
               </ScrollView>
-            </View>
+            </GlassModalCard>
           </Animated.View>
         </View>
       </Modal>
@@ -236,7 +250,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.62)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.lg,
@@ -247,18 +261,17 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
   },
   modalContent: {
-    borderRadius: borderRadius.xl,
     padding: spacing.lg,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.34,
     shadowRadius: 20,
     elevation: 10,
     borderWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.3)',
-    borderLeftColor: 'rgba(255, 255, 255, 0.3)',
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-    borderRightColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopColor: 'rgba(255, 255, 255, 0.34)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.34)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.14)',
+    borderRightColor: 'rgba(255, 255, 255, 0.14)',
   },
   modalHeader: {
     flexDirection: 'row',

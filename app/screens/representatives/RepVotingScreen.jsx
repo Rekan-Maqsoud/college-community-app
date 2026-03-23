@@ -12,6 +12,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../../context/AppSettingsContext';
@@ -35,6 +36,7 @@ import {
   getTiebreakerCandidates,
   ELECTION_STATUS,
   MAX_REPS_PER_CLASS,
+  MIN_STUDENTS_FOR_REP_ELECTION,
 } from '../../../database/repElections';
 import { castVote, getElectionResults } from '../../../database/repVotes';
 
@@ -65,12 +67,19 @@ const RepVotingScreen = ({ navigation, route }) => {
       // Load students in this class
       const classStudents = await getClassStudents(department, stage);
       setStudents(classStudents);
+      const classSize = Array.isArray(classStudents) ? classStudents.length : 0;
 
       // Get current reps and next available seat
       const reps = await getClassRepresentatives(department, stage);
       setClassReps(reps);
       const next = await getNextSeatNumber(department, stage);
       setNextSeat(next);
+
+      if (classSize < MIN_STUDENTS_FOR_REP_ELECTION) {
+        setElection(null);
+        setResults({ candidates: [], totalVotes: 0, myVote: null });
+        return;
+      }
 
       // Resolve election context:
       // 1) prefer active election (seat-specific when requested)
@@ -198,6 +207,10 @@ const RepVotingScreen = ({ navigation, route }) => {
       const updated = await getElectionResults(election.$id);
       setResults(updated);
     } catch (error) {
+      if (error?.message?.includes('At least 5 students are required')) {
+        showToast(t('repVoting.minimumStudentsRequired').replace('{min}', String(MIN_STUDENTS_FOR_REP_ELECTION)));
+        return;
+      }
       if (error?.message === 'Voting time has expired' || error?.message === 'Election is closed') {
         showToast(t('repVoting.votingClosed'));
         loadData(false);
@@ -238,6 +251,10 @@ const RepVotingScreen = ({ navigation, route }) => {
 
     try {
       const res = await requestNextRepresentativeElection(election.$id);
+      if (res?.reason === 'min_students_required') {
+        showToast(t('repVoting.minimumStudentsRequired').replace('{min}', String(MIN_STUDENTS_FOR_REP_ELECTION)));
+        return;
+      }
       if (res?.nextElectionStarted && res?.nextSeat) {
         showToast(t('repVoting.nextRepElectionStarted').replace('{seat}', String(res.nextSeat)));
         setMenuVisible(false);
@@ -298,7 +315,9 @@ const RepVotingScreen = ({ navigation, route }) => {
   const hasRepNoActiveElection = classReps.length > 0 && !isIdle && !isActive && !isInTiebreaker;
 
   const canRequestReselection = !!election && isCompleted;
-  const canElectNextRep = !!nextSeat && nextSeat <= MAX_REPS_PER_CLASS && classReps.length >= 1 && classReps.length < MAX_REPS_PER_CLASS;
+  const hasMinimumStudents = students.length >= MIN_STUDENTS_FOR_REP_ELECTION;
+  const canElectNextRep = hasMinimumStudents && !!nextSeat && nextSeat <= MAX_REPS_PER_CLASS && classReps.length >= 1 && classReps.length < MAX_REPS_PER_CLASS;
+  const canRequestReselectionWithClassSize = hasMinimumStudents && canRequestReselection;
   const nextSeatLabel = nextSeat || Math.min((currentSeat || 1) + 1, MAX_REPS_PER_CLASS);
 
   const renderItem = useCallback(({ item }) => {
@@ -338,6 +357,15 @@ const RepVotingScreen = ({ navigation, route }) => {
     return (
     <View style={styles.headerInfo}>
       {/* Election completed banner */}
+      {!hasMinimumStudents && (
+        <View style={[styles.closedBanner, { backgroundColor: (theme.error || '#EF4444') + '15', borderColor: (theme.error || '#EF4444') + '40' }]}>
+          <Ionicons name="alert-circle-outline" size={fontSize(16)} color={theme.error || '#EF4444'} />
+          <Text style={[styles.closedText, { color: theme.error || '#EF4444' }]}>
+            {t('repVoting.minimumStudentsRequired').replace('{min}', String(MIN_STUDENTS_FOR_REP_ELECTION))}
+          </Text>
+        </View>
+      )}
+
       {isCompleted && winner && (
         <View style={[styles.winnerBanner, { backgroundColor: (theme.success || '#22C55E') + '15', borderColor: (theme.success || '#22C55E') + '40' }]}>
           <Ionicons name="trophy" size={fontSize(22)} color={theme.success || '#22C55E'} />
@@ -498,20 +526,23 @@ const RepVotingScreen = ({ navigation, route }) => {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
 
+      <LinearGradient
+        colors={isDarkMode
+          ? ['rgba(245, 158, 11, 0.24)', 'rgba(245, 158, 11, 0.08)', 'transparent']
+          : ['rgba(245, 158, 11, 0.2)', 'rgba(245, 158, 11, 0.04)', 'transparent']
+        }
+        style={styles.headerGradient}
+      />
+
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.xs, backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={normalize(24)} color={theme.text} />
+          <Ionicons name="arrow-back" size={normalize(22)} color={theme.text} />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>{t('repVoting.title')}</Text>
-          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]} numberOfLines={1}>
-            {t(`departments.${department}`)} • {t(`stages.${stage}`)}
-          </Text>
-        </View>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>{t('repVoting.title')}</Text>
         <TouchableOpacity
           onPress={() => setMenuVisible(true)}
-          style={styles.moreBtn}
+          style={styles.backBtn}
           activeOpacity={0.7}
         >
           <Ionicons name="ellipsis-vertical" size={normalize(20)} color={theme.text} />
@@ -523,10 +554,10 @@ const RepVotingScreen = ({ navigation, route }) => {
         <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={() => setMenuVisible(false)}>
           <View style={[styles.menuContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <TouchableOpacity
-              disabled={!canRequestReselection}
-              style={[styles.menuItem, !canRequestReselection && styles.menuItemDisabled]}
+              disabled={!canRequestReselectionWithClassSize}
+              style={[styles.menuItem, !canRequestReselectionWithClassSize && styles.menuItemDisabled]}
               onPress={() => {
-                if (!canRequestReselection) return;
+                if (!canRequestReselectionWithClassSize) return;
                 setMenuVisible(false);
                 navigation.navigate('ReselectionRequest', { election, department, stage, seatNumber: currentSeat });
               }}
@@ -534,12 +565,12 @@ const RepVotingScreen = ({ navigation, route }) => {
               <Ionicons
                 name="refresh-outline"
                 size={normalize(20)}
-                color={canRequestReselection ? theme.text : theme.textSecondary}
+                color={canRequestReselectionWithClassSize ? theme.text : theme.textSecondary}
               />
               <Text
                 style={[
                   styles.menuItemText,
-                  { color: canRequestReselection ? theme.text : theme.textSecondary },
+                  { color: canRequestReselectionWithClassSize ? theme.text : theme.textSecondary },
                 ]}
               >
                 {t('repVoting.requestReselection')}
@@ -611,27 +642,27 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: spacing.sm,
-    paddingHorizontal: wp(4),
-    borderBottomWidth: 1,
+    justifyContent: 'space-between',
+    paddingHorizontal: wp(5),
+    paddingBottom: spacing.md,
+  },
+  headerGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: hp(20),
   },
   backBtn: {
-    padding: spacing.xs,
-  },
-  headerCenter: {
-    flex: 1,
-    marginLeft: spacing.sm,
+    width: normalize(40),
+    height: normalize(40),
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: normalize(17),
-    fontWeight: '700',
-  },
-  headerSubtitle: {
-    fontSize: normalize(11),
-    marginTop: 1,
-  },
-  moreBtn: {
-    padding: spacing.xs,
+    flex: 1,
+    textAlign: 'center',
+    fontSize: normalize(20),
+    fontWeight: '600',
   },
   listContent: {
     padding: wp(4),

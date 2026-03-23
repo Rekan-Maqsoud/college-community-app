@@ -3,12 +3,12 @@ import safeStorage from '../app/utils/safeStorage';
 const mockStorage = {
   getString: jest.fn(),
   set: jest.fn(),
-  delete: jest.fn(),
+  remove: jest.fn(),
   getAllKeys: jest.fn(),
 };
 
 jest.mock('react-native-mmkv', () => ({
-  MMKV: jest.fn(() => mockStorage),
+  createMMKV: jest.fn(() => mockStorage),
 }));
 
 describe('safeStorage', () => {
@@ -16,7 +16,7 @@ describe('safeStorage', () => {
     jest.clearAllMocks();
     mockStorage.getString.mockReturnValue(null);
     mockStorage.set.mockImplementation(() => {});
-    mockStorage.delete.mockImplementation(() => {});
+    mockStorage.remove.mockImplementation(() => {});
     mockStorage.getAllKeys.mockReturnValue([]);
   });
 
@@ -48,7 +48,7 @@ describe('safeStorage', () => {
     mockStorage.getString.mockImplementation(() => {
       throw new Error('storage down');
     });
-    mockStorage.delete.mockImplementation(() => {
+    mockStorage.remove.mockImplementation(() => {
       throw new Error('storage down');
     });
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import ProfilePicture from '../../../components/ProfilePicture';
 import { GlassContainer, GlassIconButton } from '../../../components/GlassComponents';
@@ -70,6 +71,8 @@ const LectureSettingsModal = ({
   return (
     <Modal visible={settingsOpen} transparent animationType="slide" onRequestClose={() => setSettingsOpen(false)}>
       <View style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}> 
+        <BlurView intensity={34} tint="dark" style={styles.modalBackdropBlur} />
+        <View pointerEvents="none" style={styles.modalBackdropScrim} />
         <GlassContainer borderRadius={24} style={styles.settingsModalGlass} disableBackgroundOverlay>
         <View style={[styles.modalCard, { backgroundColor: 'transparent', borderColor: `${colors.primary}33` }]}> 
           <View style={styles.modalHeaderRow}>

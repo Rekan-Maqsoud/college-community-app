@@ -198,8 +198,8 @@ const AccountSettings = ({ navigation }) => {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <LinearGradient
         colors={isDarkMode
-          ? ['rgba(255, 59, 48, 0.15)', 'transparent']
-          : ['rgba(255, 59, 48, 0.1)', 'transparent']
+          ? ['rgba(255, 59, 48, 0.24)', 'rgba(255, 59, 48, 0.08)', 'transparent']
+          : ['rgba(255, 59, 48, 0.2)', 'rgba(255, 59, 48, 0.04)', 'transparent']
         }
         style={styles.headerGradient}
       />

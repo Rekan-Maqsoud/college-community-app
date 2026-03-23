@@ -335,7 +335,7 @@ const TabNavigator = () => {
           return <AnimatedTabIcon focused={focused} iconName={iconName} color={color} size={size} />;
         },
         tabBarActiveTintColor: theme.primary,
-        tabBarInactiveTintColor: theme.textSecondary,
+        tabBarInactiveTintColor: isDarkMode ? 'rgba(255, 255, 255, 0.88)' : (theme.text || theme.textSecondary),
         tabBarStyle: {
           backgroundColor: 'transparent',
           borderTopWidth: 0,
@@ -362,7 +362,8 @@ const TabNavigator = () => {
         ),
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '600',
+          fontWeight: '700',
+          letterSpacing: 0.2,
         },
         sceneStyle: {
           backgroundColor: theme.background,
@@ -1444,12 +1445,12 @@ export default function App() {
             <AppSettingsProvider>
               <UserProvider>
                   <GlobalAlertProvider>
-                  <AnimatedBackgroundOverlay />
                   <AppNavigationRoot
                     navigationRef={navigationRef}
                     pendingRouteRef={pendingRouteRef}
                     coldStartTrace={coldStartTrace}
                   />
+                  <AnimatedBackgroundOverlay />
                   <GlobalCustomAlert />
                 </GlobalAlertProvider>
               </UserProvider>

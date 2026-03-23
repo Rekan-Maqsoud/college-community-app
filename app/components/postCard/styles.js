@@ -394,7 +394,8 @@ export const postCardStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    flexWrap: 'wrap',
+    minWidth: 0,
+    flexWrap: 'nowrap',
   },
   footerLeftCompact: {
     flexWrap: 'nowrap',
@@ -402,21 +403,24 @@ export const postCardStyles = StyleSheet.create({
   footerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     justifyContent: 'flex-end',
     flexShrink: 1,
-    maxWidth: '45%',
-    gap: getResponsiveSize(moderateScale(4), moderateScale(8), moderateScale(10)),
+    minWidth: 0,
+    maxWidth: '42%',
+    gap: getResponsiveSize(moderateScale(3), moderateScale(6), moderateScale(8)),
   },
   footerRightCompact: {
     maxWidth: '35%',
-    gap: getResponsiveSize(moderateScale(3), moderateScale(5), moderateScale(7)),
+    gap: getResponsiveSize(moderateScale(2), moderateScale(4), moderateScale(6)),
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: getResponsiveSize(moderateScale(4), moderateScale(6), moderateScale(8)),
-    paddingHorizontal: getResponsiveSize(moderateScale(4), moderateScale(8), moderateScale(10)),
+    flexShrink: 1,
+    minWidth: 0,
+    paddingVertical: getResponsiveSize(moderateScale(3), moderateScale(4), moderateScale(6)),
+    paddingHorizontal: getResponsiveSize(moderateScale(3), moderateScale(6), moderateScale(8)),
     gap: getResponsiveSize(moderateScale(2), moderateScale(3), moderateScale(4)),
   },
   actionButtonCompact: {
@@ -426,6 +430,7 @@ export const postCardStyles = StyleSheet.create({
   actionText: {
     fontSize: getResponsiveSize(fontSize(9), fontSize(10), fontSize(11)),
     fontWeight: '600',
+    flexShrink: 1,
   },
   actionTextCompact: {
     fontSize: getResponsiveSize(fontSize(8), fontSize(9), fontSize(10)),
@@ -434,6 +439,7 @@ export const postCardStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexShrink: 1,
+    minWidth: 0,
     gap: getResponsiveSize(moderateScale(2), moderateScale(3), moderateScale(4)),
   },
   statsItemCompact: {
@@ -443,6 +449,7 @@ export const postCardStyles = StyleSheet.create({
     fontSize: getResponsiveSize(fontSize(8), fontSize(9), fontSize(10)),
     fontWeight: '500',
     flexShrink: 1,
+    minWidth: 0,
   },
   statsTextCompact: {
     fontSize: getResponsiveSize(fontSize(7), fontSize(8), fontSize(9)),

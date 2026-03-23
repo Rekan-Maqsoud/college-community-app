@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, TextInput,  StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { GlassContainer, GlassIconButton } from '../../components/GlassComponents';
 import { spacing, fontSize, wp, moderateScale } from '../../utils/responsive';
@@ -128,6 +129,8 @@ const AdminOrganizerModal = ({
         style={[styles.backdrop, { backgroundColor: colors.overlay }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       > 
+        <BlurView intensity={34} tint="dark" style={styles.backdropBlur} />
+        <View pointerEvents="none" style={styles.backdropScrim} />
         <GlassContainer borderRadius={24} style={styles.cardGlass} disableBackgroundOverlay>
         <View style={[styles.card, { backgroundColor: 'transparent', borderColor: `${colors.primary}33` }]}> 
           <View style={styles.headerRow}>
@@ -221,6 +224,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: wp(5),
+    overflow: 'hidden',
+  },
+  backdropBlur: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  backdropScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(7, 12, 26, 0.40)',
   },
   card: {
     borderWidth: 1,

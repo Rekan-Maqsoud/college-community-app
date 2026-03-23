@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -129,6 +130,8 @@ const CreateChannelModal = ({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}> 
+        <BlurView intensity={34} tint="dark" style={styles.modalBackdropBlur} />
+        <View pointerEvents="none" style={styles.modalBackdropScrim} />
         <GlassContainer borderRadius={borderRadius.xl} style={styles.createModalGlass}>
         <View style={[styles.modalCard, { backgroundColor: 'transparent', borderColor: `${colors.primary}33` }]}> 
           <View style={styles.modalHeader}>
@@ -993,6 +996,8 @@ const Lecture = ({ navigation }) => {
           activeOpacity={1}
           style={[styles.menuBackdrop, { backgroundColor: colors.overlay }]}
           onPress={() => setChannelMenuOpen(false)}>
+          <BlurView intensity={26} tint="dark" style={styles.menuBackdropBlur} />
+          <View pointerEvents="none" style={styles.menuBackdropScrim} />
           <GlassContainer style={[styles.channelMenuCard]} padding={spacing.md}> 
             <View style={styles.channelMenuHeader}>
               <Ionicons
@@ -1091,7 +1096,7 @@ const styles = StyleSheet.create({
   },
   screenTitle: {
     fontSize: fontSize(22),
-    fontWeight: '700',
+    fontWeight: '800',
   },
   headerActions: {
     flexDirection: 'row',
@@ -1328,6 +1333,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: wp(6),
+    overflow: 'hidden',
+  },
+  modalBackdropBlur: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalBackdropScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(7, 12, 26, 0.40)',
   },
   modalCard: {
     borderWidth: 1,
@@ -1477,6 +1490,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     paddingHorizontal: wp(5),
     paddingBottom: spacing.xl,
+    overflow: 'hidden',
+  },
+  menuBackdropBlur: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  menuBackdropScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(7, 12, 26, 0.38)',
   },
   channelMenuCard: {
     borderWidth: 1,

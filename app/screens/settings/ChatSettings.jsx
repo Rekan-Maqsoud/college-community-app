@@ -391,8 +391,8 @@ const ChatSettings = ({ navigation, route }) => {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <LinearGradient
         colors={isDarkMode
-          ? ['rgba(102, 126, 234, 0.15)', 'transparent']
-          : ['rgba(102, 126, 234, 0.1)', 'transparent']
+          ? ['rgba(102, 126, 234, 0.24)', 'rgba(102, 126, 234, 0.08)', 'transparent']
+          : ['rgba(102, 126, 234, 0.2)', 'rgba(102, 126, 234, 0.04)', 'transparent']
         }
         style={styles.headerGradient}
       />

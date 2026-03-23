@@ -1,5 +1,6 @@
 import React from 'react';
 import { KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { GlassContainer, GlassIconButton } from '../../../components/GlassComponents';
 import { LECTURE_UPLOAD_TYPES } from '../../../../database/lectures';
@@ -34,6 +35,8 @@ const LectureUploadModal = ({
   return (
     <Modal visible={showUploadComposer} transparent animationType="slide" onRequestClose={onClose}>
       <View style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}> 
+        <BlurView intensity={32} tint="dark" style={styles.modalBackdropBlur} />
+        <View pointerEvents="none" style={styles.modalBackdropScrim} />
         <KeyboardAvoidingView
           style={styles.modalKeyboardWrap}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}

@@ -1000,6 +1000,7 @@ const formatDeleteAccountError = (error) => ({
 const DELETE_ACCOUNT_REAUTH_CACHE_TTL_MS = 10 * 60 * 1000;
 const DELETE_ACCOUNT_REAUTH_RATE_LIMIT_COOLDOWN_MS = 60 * 1000;
 const DELETE_ACCOUNT_INVALID_PASSWORD_COOLDOWN_MS = 4 * 1000;
+const DELETED_ACCOUNT_SENDER_NAME = 'Deleted Account';
 const deleteAccountReauthStateByUser = new Map();
 
 const createDeleteAccountError = (code, extra = {}) => {
@@ -1482,19 +1483,32 @@ const _deleteAllUserChatSettings = async (userId) => {
 };
 
 /**
- * Anonymize all messages sent by this user (set senderName to "Deleted Account")
+ * Anonymize all messages sent by this user
  */
 const _anonymizeUserMessages = async (userId) => {
     try {
+        let cursorAfter = null;
         let hasMore = true;
         while (hasMore) {
+            const queries = [
+                Query.equal('senderId', userId),
+                Query.orderAsc('$createdAt'),
+                Query.limit(100),
+            ];
+
+            if (cursorAfter) {
+                queries.push(Query.cursorAfter(cursorAfter));
+            }
+
             const messages = await databases.listDocuments({
                 databaseId: config.databaseId,
                 collectionId: config.messagesCollectionId,
-                queries: [Query.equal('senderId', userId), Query.orderAsc('$createdAt'), Query.limit(100)],
+                queries,
             });
 
-            if (messages.documents.length === 0) break;
+            if (messages.documents.length === 0) {
+                break;
+            }
 
             for (const msg of messages.documents) {
                 try {
@@ -1502,12 +1516,15 @@ const _anonymizeUserMessages = async (userId) => {
                         databaseId: config.databaseId,
                         collectionId: config.messagesCollectionId,
                         documentId: msg.$id,
-                        data: { senderName: 'Deleted Account' },
+                        data: { senderName: DELETED_ACCOUNT_SENDER_NAME },
                     });
                 } catch (err) { /* continue */ }
             }
 
-            if (messages.documents.length < 100) hasMore = false;
+            cursorAfter = messages.documents[messages.documents.length - 1]?.$id || null;
+            if (messages.documents.length < 100 || !cursorAfter) {
+                hasMore = false;
+            }
         }
     } catch (error) {
         // Non-critical

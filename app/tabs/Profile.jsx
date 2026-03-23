@@ -7,7 +7,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { FlashList } from '@shopify/flash-list';
 import { useUser } from '../context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { GlassCard, GlassContainer } from '../components/GlassComponents';
+import { GlassCard, GlassContainer, GlassIconButton } from '../components/GlassComponents';
 import { Ionicons } from '@expo/vector-icons';
 import AnimatedBackground from '../components/AnimatedBackground';
 import PostCard from '../components/PostCard';
@@ -22,7 +22,7 @@ import useLayout from '../hooks/useLayout';
 import telemetry from '../utils/telemetry';
 
 const Profile = ({ navigation, route }) => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const { user, isLoading, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
@@ -404,20 +404,31 @@ const Profile = ({ navigation, route }) => {
     ? 'rgba(255, 255, 255, 0.08)' 
     : 'rgba(255, 255, 255, 0.85)';
 
-  const renderInfoRow = ({ iconName, iconColor, label, value }) => {
+  const renderInfoRow = ({ iconName, iconColor, label, value, valueNumberOfLines = 1, valueStyle }) => {
     if (!value) {
       return null;
     }
 
     return (
-      <View style={styles.infoRow}>
-        <View style={styles.infoIconWrap}>
+      <View style={[styles.infoRow, isRTL && styles.infoRowRtl]}>
+        <View style={[styles.infoIconWrap, isRTL && styles.infoIconWrapRtl]}>
           <Ionicons name={iconName} size={moderateScale(16)} color={iconColor} />
         </View>
-        <Text style={[styles.infoLabel, { color: theme.textSecondary }]} numberOfLines={1}>
+        <Text
+          style={[styles.infoLabel, isRTL && styles.infoLabelRtl, { color: theme.textSecondary }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.72}
+        >
           {label}
         </Text>
-        <Text style={[styles.infoValue, { color: theme.text }]} numberOfLines={2} ellipsizeMode="tail">
+        <Text
+          style={[styles.infoValue, isRTL && styles.infoValueRtl, valueStyle, { color: theme.text }]}
+          numberOfLines={valueNumberOfLines}
+          adjustsFontSizeToFit
+          minimumFontScale={0.62}
+          ellipsizeMode="tail"
+        >
           {value}
         </Text>
       </View>
@@ -436,6 +447,8 @@ const Profile = ({ navigation, route }) => {
           iconColor: theme.primary,
           label: t('profile.email'),
           value: userProfile.email,
+          valueNumberOfLines: 1,
+          valueStyle: styles.infoValueCompact,
         })}
         
         {userProfile.university && (
@@ -551,28 +564,22 @@ const Profile = ({ navigation, route }) => {
     <>
       <View style={styles.profileHeader}>
         <View style={styles.headerRightActions}>
-          <TouchableOpacity
-            style={[
-              styles.headerActionButton,
-              {
-                borderRadius: borderRadius.round,
-              }
-            ]}
+          <GlassIconButton
+            size={moderateScale(40)}
+            style={styles.headerActionButton}
             onPress={() => setShowQRModal(true)}
-            activeOpacity={0.7}>
+            accessibilityLabel={t('profile.shareProfile')}
+          >
             <Ionicons name="qr-code-outline" size={moderateScale(22)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[
-              styles.headerActionButton,
-              {
-                borderRadius: borderRadius.round,
-              }
-            ]} 
-            onPress={() => navigation.navigate('Settings')} 
-            activeOpacity={0.7}>
+          </GlassIconButton>
+          <GlassIconButton
+            size={moderateScale(40)}
+            style={styles.headerActionButton}
+            onPress={() => navigation.navigate('Settings')}
+            accessibilityLabel={t('settings.title')}
+          >
             <Ionicons name="settings-outline" size={moderateScale(22)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
-          </TouchableOpacity>
+          </GlassIconButton>
         </View>
         <View style={styles.avatarContainer}>
           <LinearGradient colors={theme.gradient} style={styles.avatarBorder} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
@@ -823,7 +830,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: hp(6) }, 
   profileHeader: { alignItems: 'center', paddingHorizontal: wp(5), marginBottom: spacing.md, position: 'relative' }, 
   headerRightActions: { position: 'absolute', top: spacing.md, right: wp(5), zIndex: 10, flexDirection: 'row', gap: spacing.xs },
-  headerActionButton: { width: moderateScale(40), height: moderateScale(40), justifyContent: 'center', alignItems: 'center' }, 
+  headerActionButton: { justifyContent: 'center', alignItems: 'center' }, 
   avatarContainer: { marginBottom: spacing.sm, marginTop: moderateScale(50) }, 
   avatarBorder: { width: moderateScale(110), height: moderateScale(110), borderRadius: moderateScale(55), padding: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 4 }, 
   avatarInner: { width: moderateScale(104), height: moderateScale(104), borderRadius: moderateScale(52), padding: 3 }, 
@@ -857,37 +864,56 @@ const styles = StyleSheet.create({
   }, 
   infoRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingVertical: spacing.xs + 2,
     minHeight: moderateScale(34),
   }, 
+  infoRowRtl: {
+    flexDirection: 'row-reverse',
+  },
   infoIconWrap: {
     width: moderateScale(20),
     alignItems: 'center',
     marginRight: spacing.xs,
-    paddingTop: moderateScale(1),
+    justifyContent: 'center',
+  },
+  infoIconWrapRtl: {
+    marginRight: 0,
+    marginLeft: spacing.xs,
   },
   infoDivider: { height: 1, marginHorizontal: -spacing.md },
   infoTextContainer: { flex: 1, flexShrink: 1 }, 
   infoLabel: {
     fontWeight: '600',
-    fontSize: fontSize(10),
+    fontSize: fontSize(8.5),
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    width: '34%',
-    minWidth: wp(24),
-    maxWidth: wp(34),
+    letterSpacing: 0.2,
+    width: '30%',
+    minWidth: wp(20),
+    maxWidth: wp(30),
     paddingRight: spacing.xs,
-    paddingTop: 1,
+    textAlign: 'center',
   }, 
+  infoLabelRtl: {
+    textAlign: 'center',
+    paddingRight: 0,
+    paddingLeft: spacing.xs,
+  },
   infoValue: {
     flex: 1,
     fontWeight: '500',
-    fontSize: fontSize(13),
-    textAlign: 'right',
-    lineHeight: fontSize(18),
+    fontSize: fontSize(11),
+    textAlign: 'center',
+    lineHeight: fontSize(13),
     flexShrink: 1,
   }, 
+  infoValueRtl: {
+    textAlign: 'center',
+  },
+  infoValueCompact: {
+    fontSize: fontSize(9.5),
+    lineHeight: fontSize(12),
+  },
   emptyCard: { 
     padding: spacing.lg, 
     alignItems: 'center',

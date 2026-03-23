@@ -68,12 +68,12 @@ const LectureWindowSelector = ({ selectedWindow, onWindowChange, height = modera
 
   const textColor = (isSelected) => {
     if (isSelected) return '#FFFFFF';
-    return isDarkMode ? 'rgba(255, 255, 255, 0.84)' : theme.textSecondary;
+    return isDarkMode ? 'rgba(255, 255, 255, 0.94)' : (theme.text || theme.textSecondary);
   };
 
   const iconColor = (isSelected) => {
     if (isSelected) return '#FFFFFF';
-    return isDarkMode ? 'rgba(255, 255, 255, 0.84)' : theme.textSecondary;
+    return isDarkMode ? 'rgba(255, 255, 255, 0.92)' : (theme.text || theme.textSecondary);
   };
 
   return (
@@ -131,10 +131,14 @@ const LectureWindowSelector = ({ selectedWindow, onWindowChange, height = modera
                   {
                     color: textColor(isSelected),
                     fontSize: fontSize(isSmallScreen ? 11 : 13),
-                    fontWeight: isSelected ? '700' : '600',
-                    textShadowColor: isSelected ? 'rgba(0, 0, 0, 0.2)' : 'transparent',
+                    fontWeight: isSelected ? '800' : '700',
+                    textShadowColor: isSelected
+                      ? 'rgba(0, 0, 0, 0.26)'
+                      : isDarkMode
+                      ? 'rgba(0, 0, 0, 0.16)'
+                      : 'rgba(255, 255, 255, 0.35)',
                     textShadowOffset: isSelected ? { width: 0, height: 1 } : { width: 0, height: 0 },
-                    textShadowRadius: isSelected ? 2 : 0,
+                    textShadowRadius: isSelected ? 3 : 1,
                   },
                 ]}
                 numberOfLines={1}

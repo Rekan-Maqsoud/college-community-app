@@ -349,6 +349,21 @@ export const AppSettingsProvider = ({ children }) => {
       source: 'provider_init',
     });
     try {
+      const storageBackendInfo = typeof safeStorage.getBackendInfo === 'function'
+        ? safeStorage.getBackendInfo()
+        : { backend: 'unknown', volatileFallback: false, reason: null };
+
+      if (storageBackendInfo?.volatileFallback) {
+        telemetry.recordEvent('app_settings_storage_volatile_fallback', {
+          backend: storageBackendInfo.backend,
+          reason: storageBackendInfo.reason || '',
+        });
+
+        if (__DEV__) {
+          console.warn('[AppSettings] Persistent MMKV storage is unavailable. Settings will reset after app restart.');
+        }
+      }
+
       const [savedLanguage, savedThemePreference, savedNotifications, savedNotificationSettings, savedChatSettings, savedFontScale, savedReduceMotion, savedHapticEnabled, savedShowActivityStatus, savedCompactMode, savedQuietHours, savedDarkModeSchedule, savedAccentColor, savedDataSaverMode] = await Promise.all([
         safeStorage.getItem('appLanguage'),
         safeStorage.getItem('themePreference'),

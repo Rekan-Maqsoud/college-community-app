@@ -45,6 +45,10 @@ const ReselectionRequestScreen = ({ navigation, route }) => {
       const res = await requestReselection(election.$id);
       setResult(res);
 
+      if (res?.reason === 'min_students_required') {
+        return;
+      }
+
       if (res.reselectionTriggered) {
         // New election created — navigate to voting
         navigation.replace('RepVoting', { department, stage, seatNumber });
@@ -115,6 +119,15 @@ const ReselectionRequestScreen = ({ navigation, route }) => {
             <Ionicons name="checkmark-done-circle" size={normalize(18)} color={theme.success || '#22C55E'} />
             <Text style={[styles.statusText, { color: theme.success || '#22C55E' }]}>
               {t('repVoting.reselectionTriggered')}
+            </Text>
+          </View>
+        )}
+
+        {result?.reason === 'min_students_required' && (
+          <View style={[styles.statusBox, { backgroundColor: (theme.error || '#EF4444') + '20', borderColor: (theme.error || '#EF4444') + '40' }]}>
+            <Ionicons name="alert-circle-outline" size={normalize(18)} color={theme.error || '#EF4444'} />
+            <Text style={[styles.statusText, { color: theme.error || '#EF4444' }]}>
+              {t('repVoting.minimumStudentsRequired').replace('{min}', String(result?.minimumStudents || 5))}
             </Text>
           </View>
         )}

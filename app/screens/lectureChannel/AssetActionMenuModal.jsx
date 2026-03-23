@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, fontSize, wp } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
@@ -25,6 +26,8 @@ const AssetActionMenuModal = ({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity activeOpacity={1} style={[styles.backdrop, { backgroundColor: colors.overlay }]} onPress={onClose}>
+        <BlurView intensity={26} tint="dark" style={styles.backdropBlur} />
+        <View pointerEvents="none" style={styles.backdropScrim} />
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}> 
           <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>{asset.title || t('lectures.file')}</Text>
 
@@ -73,6 +76,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     paddingHorizontal: wp(5),
     paddingBottom: spacing.xl,
+    overflow: 'hidden',
+  },
+  backdropBlur: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  backdropScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(7, 12, 26, 0.38)',
   },
   card: {
     borderWidth: 1,

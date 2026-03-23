@@ -30,7 +30,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const UserProfile = ({ route, navigation }) => {
   const { userId, userData: initialUserData } = route?.params || {};
-  const { t, theme, isDarkMode, triggerHaptic } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL, triggerHaptic } = useAppSettings();
   const { user: currentUser, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
@@ -507,20 +507,31 @@ const UserProfile = ({ route, navigation }) => {
     ? 'rgba(255, 255, 255, 0.08)'
     : 'rgba(255, 255, 255, 0.85)';
 
-  const renderInfoRow = ({ iconName, iconColor, label, value }) => {
+  const renderInfoRow = ({ iconName, iconColor, label, value, valueNumberOfLines = 1, valueStyle }) => {
     if (!value) {
       return null;
     }
 
     return (
-      <View style={styles.infoRow}>
-        <View style={styles.infoIconWrap}>
+      <View style={[styles.infoRow, isRTL && styles.infoRowRtl]}>
+        <View style={[styles.infoIconWrap, isRTL && styles.infoIconWrapRtl]}>
           <Ionicons name={iconName} size={moderateScale(16)} color={iconColor} />
         </View>
-        <Text style={[styles.infoLabel, { color: theme.textSecondary }]} numberOfLines={1}>
+        <Text
+          style={[styles.infoLabel, isRTL && styles.infoLabelRtl, { color: theme.textSecondary }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.72}
+        >
           {label}
         </Text>
-        <Text style={[styles.infoValue, { color: theme.text }]} numberOfLines={2} ellipsizeMode="tail">
+        <Text
+          style={[styles.infoValue, isRTL && styles.infoValueRtl, valueStyle, { color: theme.text }]}
+          numberOfLines={valueNumberOfLines}
+          adjustsFontSizeToFit
+          minimumFontScale={0.62}
+          ellipsizeMode="tail"
+        >
           {value}
         </Text>
       </View>
@@ -539,6 +550,8 @@ const UserProfile = ({ route, navigation }) => {
           iconColor: theme.primary,
           label: t('profile.email'),
           value: userProfile.email,
+          valueNumberOfLines: 1,
+          valueStyle: styles.infoValueCompact,
         })}
 
         {userProfile.university && (
@@ -819,7 +832,7 @@ const UserProfile = ({ route, navigation }) => {
       <View style={styles.contentSection}>
         {renderAboutSection()}
         <View style={styles.sectionContainer}>
-          <Text style={[styles.sectionHeader, { color: theme.text }]}>{t('profile.userPosts')}</Text>
+          <Text style={[styles.sectionHeader, { color: theme.text }]}>{t('profile.posts')}</Text>
         </View>
       </View>
     </>
@@ -1012,7 +1025,13 @@ const styles = StyleSheet.create({
   avatarInner: { width: moderateScale(104), height: moderateScale(104), borderRadius: moderateScale(52), padding: 3 }, 
   avatar: { width: moderateScale(98), height: moderateScale(98), borderRadius: moderateScale(49) }, 
   name: { fontWeight: '700', marginBottom: spacing.xs / 2, textAlign: 'center', textShadowColor: 'rgba(0, 0, 0, 0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }, 
-  genderText: { textAlign: 'center', marginBottom: spacing.xs, fontStyle: 'italic' },
+  genderText: {
+    textAlign: 'center',
+    marginBottom: spacing.xs,
+    lineHeight: fontSize(16),
+    paddingVertical: 1,
+    includeFontPadding: true,
+  },
   bio: { textAlign: 'center', marginBottom: spacing.md, lineHeight: fontSize(18), paddingHorizontal: wp(5) }, 
   followButtonContainer: {
     marginBottom: spacing.md,
@@ -1205,37 +1224,56 @@ const styles = StyleSheet.create({
   },
   infoRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingVertical: spacing.xs + 2,
     minHeight: moderateScale(34),
   }, 
+  infoRowRtl: {
+    flexDirection: 'row-reverse',
+  },
   infoIconWrap: {
     width: moderateScale(20),
     alignItems: 'center',
     marginRight: spacing.xs,
-    paddingTop: moderateScale(1),
+    justifyContent: 'center',
+  },
+  infoIconWrapRtl: {
+    marginRight: 0,
+    marginLeft: spacing.xs,
   },
   infoDivider: { height: 1, marginHorizontal: -spacing.md },
   infoTextContainer: { flex: 1, flexShrink: 1 }, 
   infoLabel: {
     fontWeight: '600',
-    fontSize: fontSize(10),
+    fontSize: fontSize(8.5),
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    width: '34%',
-    minWidth: wp(24),
-    maxWidth: wp(34),
+    letterSpacing: 0.2,
+    width: '30%',
+    minWidth: wp(20),
+    maxWidth: wp(30),
     paddingRight: spacing.xs,
-    paddingTop: 1,
+    textAlign: 'center',
   }, 
+  infoLabelRtl: {
+    textAlign: 'center',
+    paddingRight: 0,
+    paddingLeft: spacing.xs,
+  },
   infoValue: {
     flex: 1,
     fontWeight: '500',
-    fontSize: fontSize(13),
-    textAlign: 'right',
-    lineHeight: fontSize(18),
+    fontSize: fontSize(11),
+    textAlign: 'center',
+    lineHeight: fontSize(13),
     flexShrink: 1,
   }, 
+  infoValueRtl: {
+    textAlign: 'center',
+  },
+  infoValueCompact: {
+    fontSize: fontSize(9.5),
+    lineHeight: fontSize(12),
+  },
   emptyCard: { 
     padding: spacing.lg, 
     alignItems: 'center',

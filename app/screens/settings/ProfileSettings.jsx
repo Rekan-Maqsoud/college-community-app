@@ -30,6 +30,56 @@ import { getUniversityKeys, getCollegesForUniversity, getDepartmentsForCollege, 
 
 const COOLDOWN_DAYS = 30;
 const FREE_ACADEMIC_CHANGES = 2;
+const NON_ACADEMIC_AUTOSAVE_DELAY_MS = 1800;
+
+const STAGE_ALIASES = {
+  firstYear: 'firstYear',
+  secondYear: 'secondYear',
+  thirdYear: 'thirdYear',
+  fourthYear: 'fourthYear',
+  fifthYear: 'fifthYear',
+  sixthYear: 'sixthYear',
+  'First Year': 'firstYear',
+  'Second Year': 'secondYear',
+  'Third Year': 'thirdYear',
+  'Fourth Year': 'fourthYear',
+  'Fifth Year': 'fifthYear',
+  'Sixth Year': 'sixthYear',
+  stage_1: 'firstYear',
+  stage_2: 'secondYear',
+  stage_3: 'thirdYear',
+  stage_4: 'fourthYear',
+  stage_5: 'fifthYear',
+  stage_6: 'sixthYear',
+  '1': 'firstYear',
+  '2': 'secondYear',
+  '3': 'thirdYear',
+  '4': 'fourthYear',
+  '5': 'fifthYear',
+  '6': 'sixthYear',
+};
+
+const normalizeStageKey = (value) => {
+  if (value === null || value === undefined) return '';
+  const trimmed = String(value).trim();
+  if (!trimmed) return '';
+  return STAGE_ALIASES[trimmed] || '';
+};
+
+const normalizeAcademicSnapshot = (data = {}) => ({
+  university: data.university || '',
+  college: data.college || '',
+  department: data.department || '',
+  stage: normalizeStageKey(data.stage),
+});
+
+const normalizeSocialLinks = (links = {}) => ({
+  instagram: links?.instagram || '',
+  twitter: links?.twitter || '',
+  linkedin: links?.linkedin || '',
+  github: links?.github || '',
+  website: links?.website || '',
+});
 
 
 
@@ -42,10 +92,12 @@ const ProfileSettings = ({ navigation }) => {
   const { contentStyle } = useLayout();
 
   const bioInputRef = useRef(null);
+  const autoSaveTimeoutRef = useRef(null);
+  const hasHydratedProfileRef = useRef(false);
   
-  const [hasChanges, setHasChanges] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [canEditAcademic, setCanEditAcademic] = useState(true);
   const [cooldownInfo, setCooldownInfo] = useState(null);
@@ -73,6 +125,43 @@ const ProfileSettings = ({ navigation }) => {
   });
 
   const [initialLoadDone, setInitialLoadDone] = useState(false);
+
+  const hasAcademicChanges = useMemo(() => {
+    const currentAcademic = normalizeAcademicSnapshot(profileData);
+    const userAcademic = normalizeAcademicSnapshot(user || {});
+    return currentAcademic.university !== userAcademic.university
+      || currentAcademic.college !== userAcademic.college
+      || currentAcademic.department !== userAcademic.department
+      || currentAcademic.stage !== userAcademic.stage;
+  }, [
+    profileData.university,
+    profileData.college,
+    profileData.department,
+    profileData.stage,
+    user,
+  ]);
+
+  const hasNonAcademicChanges = useMemo(() => {
+    if (!user?.$id) {
+      return false;
+    }
+
+    const currentLinks = normalizeSocialLinks(profileData.socialLinks);
+    const userLinks = normalizeSocialLinks(user?.socialLinks);
+
+    return (profileData.fullName || '') !== (user?.fullName || '')
+      || (profileData.bio || '') !== (user?.bio || '')
+      || (profileData.gender || '') !== (user?.gender || '')
+      || (profileData.socialLinksVisibility || 'everyone') !== (user?.socialLinksVisibility || 'everyone')
+      || JSON.stringify(currentLinks) !== JSON.stringify(userLinks);
+  }, [
+    profileData.fullName,
+    profileData.bio,
+    profileData.gender,
+    profileData.socialLinks,
+    profileData.socialLinksVisibility,
+    user,
+  ]);
 
   const checkAcademicCooldown = useCallback(() => {
     const academicChangesCount = Number(profileData.academicChangesCount) || 0;
@@ -132,7 +221,7 @@ const ProfileSettings = ({ navigation }) => {
           university: user.university || '',
           college: user.college || '',
           department: user.department || '',
-          stage: user.stage || '',
+          stage: normalizeStageKey(user.stage),
           bio: user.bio || '',
           gender: user.gender || '',
           profilePicture: user.profilePicture || '',
@@ -141,6 +230,7 @@ const ProfileSettings = ({ navigation }) => {
           socialLinks: user.socialLinks || { instagram: '', twitter: '', linkedin: '', github: '', website: '' },
           socialLinksVisibility: user.socialLinksVisibility || 'everyone',
         });
+        hasHydratedProfileRef.current = true;
       } else {
         const userData = await safeStorage.getItem('userData');
         if (userData) {
@@ -151,7 +241,7 @@ const ProfileSettings = ({ navigation }) => {
             university: parsedData.university || '',
             college: parsedData.college || '',
             department: parsedData.department || '',
-            stage: parsedData.stage || '',
+            stage: normalizeStageKey(parsedData.stage),
             bio: parsedData.bio || '',
             gender: parsedData.gender || '',
             profilePicture: parsedData.profilePicture || '',
@@ -160,6 +250,7 @@ const ProfileSettings = ({ navigation }) => {
             socialLinks: parsedData.socialLinks || { instagram: '', twitter: '', linkedin: '', github: '', website: '' },
             socialLinksVisibility: parsedData.socialLinksVisibility || 'everyone',
           });
+          hasHydratedProfileRef.current = true;
         }
       }
     } catch (error) {
@@ -171,13 +262,14 @@ const ProfileSettings = ({ navigation }) => {
   const saveProfileChanges = async () => {
     setIsSaving(true);
     try {
-      const hasAcademicChanges = 
-        profileData.university !== (user?.university || '') ||
-        profileData.college !== (user?.college || '') ||
-        profileData.department !== (user?.department || '') ||
-        profileData.stage !== (user?.stage || '');
+      const normalizedCurrentStage = normalizeStageKey(profileData.stage);
 
       const currentAcademicChangesCount = Number(profileData.academicChangesCount) || 0;
+
+      if (!hasAcademicChanges) {
+        setIsSaving(false);
+        return;
+      }
 
       if (hasAcademicChanges && !canEditAcademic && currentAcademicChangesCount >= FREE_ACADEMIC_CHANGES) {
         showAlert({
@@ -189,36 +281,33 @@ const ProfileSettings = ({ navigation }) => {
         return;
       }
 
-      const updatedData = { ...profileData };
+      const updatedAcademicData = {
+        university: profileData.university,
+        college: profileData.college,
+        department: profileData.department,
+        stage: normalizedCurrentStage,
+      };
+
       if (hasAcademicChanges) {
         const nextAcademicChangesCount = currentAcademicChangesCount + 1;
-        updatedData.academicChangesCount = nextAcademicChangesCount;
+        updatedAcademicData.academicChangesCount = nextAcademicChangesCount;
 
         if (nextAcademicChangesCount >= FREE_ACADEMIC_CHANGES) {
-          updatedData.lastAcademicUpdate = new Date().toISOString();
+          updatedAcademicData.lastAcademicUpdate = new Date().toISOString();
         }
       }
 
-      const success = await updateUser(updatedData);
+      const success = await updateUser(updatedAcademicData);
       
       if (success) {
         await refreshUser();
 
-        // If the display name changed, sync it across chat messages and notifications
-        if (updatedData.fullName && updatedData.fullName !== user.fullName) {
-          syncUserNameInChats(user.$id, updatedData.fullName).catch(() => {});
-        }
-
-        // If the profile picture changed, sync it across notifications
-        if (updatedData.profilePicture !== user.profilePicture) {
-          syncUserProfilePicture(user.$id, updatedData.profilePicture).catch(() => {});
-        }
-
         setProfileData({
-          ...updatedData,
-          lastAcademicUpdate: hasAcademicChanges ? updatedData.lastAcademicUpdate : profileData.lastAcademicUpdate,
+          ...profileData,
+          stage: normalizedCurrentStage,
+          lastAcademicUpdate: hasAcademicChanges ? updatedAcademicData.lastAcademicUpdate : profileData.lastAcademicUpdate,
           academicChangesCount: hasAcademicChanges
-            ? (Number(updatedData.academicChangesCount) || 0)
+            ? (Number(updatedAcademicData.academicChangesCount) || 0)
             : (Number(profileData.academicChangesCount) || 0),
         });
         showAlert({
@@ -226,7 +315,6 @@ const ProfileSettings = ({ navigation }) => {
           title: t('common.success'),
           message: hasAcademicChanges ? t('settings.academicInfoUpdated') : t('settings.profileUpdated'),
         });
-        setHasChanges(false);
       } else {
         throw new Error('Update failed');
       }
@@ -240,6 +328,99 @@ const ProfileSettings = ({ navigation }) => {
       setIsSaving(false);
     }
   };
+
+  const autoSaveNonAcademicChanges = useCallback(async () => {
+    if (!user?.$id) {
+      return;
+    }
+
+    if (!hasNonAcademicChanges || isSaving || isAutoSaving) {
+      return;
+    }
+
+    const normalizedCurrentLinks = normalizeSocialLinks(profileData.socialLinks);
+    const normalizedUserLinks = normalizeSocialLinks(user?.socialLinks);
+
+    const updates = {};
+    if ((profileData.fullName || '') !== (user?.fullName || '')) updates.fullName = profileData.fullName || '';
+    if ((profileData.bio || '') !== (user?.bio || '')) updates.bio = profileData.bio || '';
+    if ((profileData.gender || '') !== (user?.gender || '')) updates.gender = profileData.gender || '';
+    if ((profileData.socialLinksVisibility || 'everyone') !== (user?.socialLinksVisibility || 'everyone')) {
+      updates.socialLinksVisibility = profileData.socialLinksVisibility || 'everyone';
+    }
+    if (JSON.stringify(normalizedCurrentLinks) !== JSON.stringify(normalizedUserLinks)) {
+      updates.socialLinks = normalizedCurrentLinks;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return;
+    }
+
+    try {
+      setIsAutoSaving(true);
+      const success = await updateUser(updates);
+      if (success && updates.fullName && updates.fullName !== (user?.fullName || '')) {
+        syncUserNameInChats(user?.$id, updates.fullName).catch(() => {});
+      }
+      if (!success) {
+        throw new Error('autosave failed');
+      }
+    } catch (error) {
+      showAlert({
+        type: 'error',
+        title: t('common.error'),
+        message: t('settings.profileUpdateError'),
+      });
+    } finally {
+      setIsAutoSaving(false);
+    }
+  }, [
+    hasNonAcademicChanges,
+    isSaving,
+    isAutoSaving,
+    profileData.fullName,
+    profileData.bio,
+    profileData.gender,
+    profileData.socialLinks,
+    profileData.socialLinksVisibility,
+    updateUser,
+    user,
+    showAlert,
+    t,
+  ]);
+
+  useEffect(() => {
+    if (!initialLoadDone || isLoading || !hasHydratedProfileRef.current || !hasNonAcademicChanges) {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+        autoSaveTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      autoSaveNonAcademicChanges();
+    }, NON_ACADEMIC_AUTOSAVE_DELAY_MS);
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+        autoSaveTimeoutRef.current = null;
+      }
+    };
+  }, [initialLoadDone, isLoading, hasNonAcademicChanges, autoSaveNonAcademicChanges]);
+
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleUploadProfilePicture = async () => {
     try {
@@ -275,7 +456,6 @@ const ProfileSettings = ({ navigation }) => {
   };
 
   const handleUniversityChange = (value) => {
-    setHasChanges(true);
     setProfileData(prev => ({
       ...prev,
       university: value,
@@ -286,7 +466,6 @@ const ProfileSettings = ({ navigation }) => {
   };
 
   const handleCollegeChange = (value) => {
-    setHasChanges(true);
     setProfileData(prev => ({
       ...prev,
       college: value,
@@ -296,7 +475,6 @@ const ProfileSettings = ({ navigation }) => {
   };
 
   const handleDepartmentChange = (value) => {
-    setHasChanges(true);
     setProfileData(prev => ({
       ...prev,
       department: value,
@@ -305,7 +483,6 @@ const ProfileSettings = ({ navigation }) => {
   };
 
   const handleStageChange = (value) => {
-    setHasChanges(true);
     setProfileData(prev => ({
       ...prev,
       stage: value,
@@ -313,22 +490,18 @@ const ProfileSettings = ({ navigation }) => {
   };
 
   const handleBioChange = (text) => {
-    setHasChanges(true);
     setProfileData(prev => ({ ...prev, bio: text }));
   };
 
   const handleGenderChange = (value) => {
-    setHasChanges(true);
     setProfileData(prev => ({ ...prev, gender: value }));
   };
 
   const handleSocialLinksVisibilityChange = (value) => {
-    setHasChanges(true);
     setProfileData(prev => ({ ...prev, socialLinksVisibility: value }));
   };
 
   const handleSocialLinkChange = (platform, text) => {
-    setHasChanges(true);
     setProfileData(prev => ({
       ...prev,
       socialLinks: {
@@ -339,7 +512,6 @@ const ProfileSettings = ({ navigation }) => {
   };
 
   const handleFullNameChange = (text) => {
-    setHasChanges(true);
     setProfileData(prev => ({ ...prev, fullName: text }));
   };
 
@@ -375,10 +547,10 @@ const ProfileSettings = ({ navigation }) => {
 
   useEffect(() => {
     if (!profileData.stage) return;
+    if (!profileData.university || !profileData.college || !profileData.department) return;
     const allowedStageKeys = stageOptions.map(option => option.key);
     if (!allowedStageKeys.includes(profileData.stage)) {
       setProfileData(prev => ({ ...prev, stage: '' }));
-      setHasChanges(true);
     }
   }, [profileData.stage, stageOptions]);
 
@@ -437,8 +609,8 @@ const ProfileSettings = ({ navigation }) => {
 
       <LinearGradient
         colors={isDarkMode
-          ? ['rgba(10, 132, 255, 0.15)', 'transparent']
-          : ['rgba(0, 122, 255, 0.1)', 'transparent']
+          ? ['rgba(10, 132, 255, 0.24)', 'rgba(10, 132, 255, 0.08)', 'transparent']
+          : ['rgba(0, 122, 255, 0.2)', 'rgba(0, 122, 255, 0.04)', 'transparent']
         }
         style={styles.headerGradient}
       />
@@ -527,19 +699,24 @@ const ProfileSettings = ({ navigation }) => {
                 <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
                   {t('auth.collegeEmail')}
                 </Text>
-                <TextInput
+                <View
                   style={[
                     styles.input,
+                    styles.emailValueContainer,
                     {
-                      color: theme.textSecondary,
                       backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
                       borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.08)',
                     },
                   ]}
-                  value={profileData.email}
-                  editable={false}
-                  placeholderTextColor={theme.textSecondary}
-                />
+                >
+                  <Text
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    style={[styles.emailValueText, { color: theme.textSecondary }]}
+                  >
+                    {profileData.email}
+                  </Text>
+                </View>
               </View>
 
               <View style={styles.inputGroup}>
@@ -736,15 +913,22 @@ const ProfileSettings = ({ navigation }) => {
             </View>
           </GlassCard>
 
-          <View style={[styles.bottomPadding, hasChanges && { height: hp(12) }]} />
+          <View style={[styles.bottomPadding, hasAcademicChanges && { height: hp(12) }]} />
         </ScrollView>
 
-        {hasChanges && (
+        {hasAcademicChanges && (
           <View style={[styles.fixedButtonContainer, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)', borderTopColor: theme.border }]}>
             <TouchableOpacity
               onPress={() => {
-                setHasChanges(false);
-                loadUserProfile();
+                setProfileData(prev => ({
+                  ...prev,
+                  university: user?.university || '',
+                  college: user?.college || '',
+                  department: user?.department || '',
+                  stage: normalizeStageKey(user?.stage),
+                  lastAcademicUpdate: user?.lastAcademicUpdate || prev.lastAcademicUpdate,
+                  academicChangesCount: Number(user?.academicChangesCount) || prev.academicChangesCount,
+                }));
               }}
               style={[styles.cancelButton, { borderColor: theme.border }]}>
               <Text style={[styles.cancelButtonText, { color: theme.text }]}>
@@ -898,6 +1082,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
     borderWidth: 1,
+  },
+  emailValueContainer: {
+    justifyContent: 'center',
+    minHeight: moderateScale(44),
+  },
+  emailValueText: {
+    fontSize: responsiveFontSize(13),
+    fontWeight: '500',
   },
   bioInput: {
     minHeight: moderateScale(100),

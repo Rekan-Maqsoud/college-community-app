@@ -188,13 +188,49 @@ export const UserProvider = ({ children }) => {
       'Third Year': 3,
       'Fourth Year': 4,
       'Fifth Year': 5,
-      'Sixth Year': 6
+      'Sixth Year': 6,
+      'stage_1': 1,
+      'stage_2': 2,
+      'stage_3': 3,
+      'stage_4': 4,
+      'stage_5': 5,
+      'stage_6': 6,
     };
-    return stageMap[stage] || parseInt(stage) || null;
+
+    if (stage === null || stage === undefined) return null;
+    const key = String(stage).trim();
+    if (!key) return null;
+
+    const mapped = stageMap[key];
+    if (mapped) return mapped;
+
+    const parsed = Number.parseInt(key.replace(/^stage_/i, ''), 10);
+    return Number.isInteger(parsed) && parsed >= 1 && parsed <= 6 ? parsed : null;
   };
 
   const yearToStage = (year) => {
     if (year === null || year === undefined) return null;
+
+    const stageMap = {
+      stage_1: 'firstYear',
+      stage_2: 'secondYear',
+      stage_3: 'thirdYear',
+      stage_4: 'fourthYear',
+      stage_5: 'fifthYear',
+      stage_6: 'sixthYear',
+      firstYear: 'firstYear',
+      secondYear: 'secondYear',
+      thirdYear: 'thirdYear',
+      fourthYear: 'fourthYear',
+      fifthYear: 'fifthYear',
+      sixthYear: 'sixthYear',
+    };
+
+    if (typeof year === 'string') {
+      const trimmed = year.trim();
+      if (stageMap[trimmed]) return stageMap[trimmed];
+    }
+
     const yearMap = {
       1: 'firstYear',
       2: 'secondYear',
@@ -231,7 +267,10 @@ export const UserProvider = ({ children }) => {
         if (updates.college !== undefined) appwriteUpdates.major = updates.college;
         if (updates.department !== undefined) appwriteUpdates.department = updates.department;
         if (updates.stage !== undefined) {
-          appwriteUpdates.year = stageToYear(updates.stage);
+          const mappedYear = stageToYear(updates.stage);
+          if (mappedYear !== null) {
+            appwriteUpdates.year = mappedYear;
+          }
         }
         if (updates.lastAcademicUpdate !== undefined) appwriteUpdates.lastAcademicUpdate = updates.lastAcademicUpdate;
         if (updates.gender !== undefined) appwriteUpdates.gender = updates.gender;

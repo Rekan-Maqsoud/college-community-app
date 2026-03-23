@@ -404,7 +404,28 @@ const Home = ({ navigation, route }) => {
   }, [feedLoadSignature, navigation, posts.length]);
 
   const loadPosts = useCallback(async (reset = false, options = {}) => {
-    if (!user || !scopedDepartment) {
+    if (!user?.$id) {
+      if (reset) {
+        setPosts([]);
+        setHasMore(false);
+        setIsLoadingPosts(false);
+        setIsRefreshing(false);
+      } else {
+        setIsLoadingMore(false);
+      }
+      return;
+    }
+
+    const requiresDepartmentContext = selectedFeed !== FEED_TYPES.PUBLIC;
+    if (requiresDepartmentContext && !scopedDepartment) {
+      if (reset) {
+        setPosts([]);
+        setHasMore(false);
+        setIsLoadingPosts(false);
+        setIsRefreshing(false);
+      } else {
+        setIsLoadingMore(false);
+      }
       return;
     }
 
@@ -540,7 +561,10 @@ const Home = ({ navigation, route }) => {
   }, [answerStatus, filterType, isAcademicOtherUser, page, scopedDepartment, selectedFeed, selectedStage, showAlert, sortBy, t, user]);
 
   useEffect(() => {
-    if (!user?.$id || !scopedDepartment) {
+    const requiresDepartmentContext = selectedFeed !== FEED_TYPES.PUBLIC;
+    if (!user?.$id || (requiresDepartmentContext && !scopedDepartment)) {
+      setIsLoadingPosts(false);
+      setIsRefreshing(false);
       return;
     }
 

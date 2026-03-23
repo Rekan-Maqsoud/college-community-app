@@ -113,7 +113,6 @@ const CustomAlert = ({
           styles.overlay,
           {
             opacity: opacityAnim,
-            backgroundColor: 'transparent',
           },
         ]}>
         {/* Modal backdrop: liquid glass on iOS 26+, BlurView tint on Android / older iOS */}
@@ -128,10 +127,19 @@ const CustomAlert = ({
           <BlurView
             intensity={isDarkMode ? 50 : 40}
             tint={isDarkMode ? 'dark' : 'light'}
-            style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
+            style={StyleSheet.absoluteFillObject}
             pointerEvents="none"
           />
         )}
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFillObject,
+            {
+              backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.44)' : 'rgba(0, 0, 0, 0.34)',
+            },
+          ]}
+        />
         <TouchableOpacity
           style={styles.overlayTouchable}
           activeOpacity={1}
@@ -148,6 +156,7 @@ const CustomAlert = ({
               <GlassModalCard
                 style={styles.alertContent}
                 borderRadiusValue={borderRadius.xl}
+                disableBackgroundOverlay
               >
                 <View style={styles.iconContainer}>
                   <View
@@ -249,7 +258,7 @@ const CustomAlert = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'absolute',

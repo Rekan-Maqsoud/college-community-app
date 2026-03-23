@@ -805,7 +805,13 @@ const PostCard = ({
             activeOpacity={0.7}
           >
             <Ionicons name="chatbubble-outline" size={footerIconSize} color={theme.textSecondary} />
-            <Text style={[styles.actionText, compact && styles.actionTextCompact, { color: theme.textSecondary }]}> 
+            <Text
+              style={[styles.actionText, compact && styles.actionTextCompact, { color: theme.textSecondary }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              ellipsizeMode="tail"
+            > 
               {compact ? (post.replyCount || 0) : `${t('post.reply')} (${post.replyCount || 0})`}
             </Text>
           </TouchableOpacity>
@@ -830,7 +836,14 @@ const PostCard = ({
         <View style={[styles.footerRight, compact && styles.footerRightCompact]}>
           <View style={[styles.statsItem, compact && styles.statsItemCompact]}>
             <Ionicons name="eye-outline" size={footerStatsIconSize} color={theme.textTertiary} />
-            <Text style={[styles.statsText, compact && styles.statsTextCompact, { color: theme.textTertiary }]}>{post.viewCount || 0}</Text>
+            <Text
+              style={[styles.statsText, compact && styles.statsTextCompact, { color: theme.textTertiary }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              {post.viewCount || 0}
+            </Text>
           </View>
           {post.postType === 'question' && (
             <View style={[styles.statsItem, compact && styles.statsItemCompact]}>
@@ -838,7 +851,13 @@ const PostCard = ({
                 <>
                   <Ionicons name="checkmark-circle" size={footerStatsIconSize} color="#10B981" />
                   {!compact && (
-                    <Text style={[styles.statsText, compact && styles.statsTextCompact, { color: '#10B981' }]}>
+                    <Text
+                      style={[styles.statsText, compact && styles.statsTextCompact, { color: '#10B981' }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.72}
+                      ellipsizeMode="tail"
+                    >
                       {t('post.resolved')}
                     </Text>
                   )}
@@ -847,7 +866,13 @@ const PostCard = ({
                 <>
                   <Ionicons name="help-circle-outline" size={footerStatsIconSize} color="#F59E0B" />
                   {!compact && (
-                    <Text style={[styles.statsText, compact && styles.statsTextCompact, { color: '#F59E0B' }]}>
+                    <Text
+                      style={[styles.statsText, compact && styles.statsTextCompact, { color: '#F59E0B' }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.72}
+                      ellipsizeMode="tail"
+                    >
                       {t('post.unanswered')}
                     </Text>
                   )}

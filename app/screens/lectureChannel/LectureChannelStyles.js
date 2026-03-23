@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: fontSize(20),
-    fontWeight: '700',
+    fontWeight: '800',
     flex: 1,
   },
   headerActions: {
@@ -515,6 +515,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: wp(5),
+    overflow: 'hidden',
+  },
+  modalBackdropBlur: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalBackdropScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(7, 12, 26, 0.40)',
   },
   modalKeyboardWrap: {
     width: '100%',
@@ -749,7 +757,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   commentsModalWrap: {
+    width: '100%',
+  },
+  commentsModalGlass: {
+    borderRadius: borderRadius.xl,
     flex: 1,
+  },
+  commentsModalSurface: {
+    borderWidth: 1,
+    borderRadius: borderRadius.xl,
+    flex: 1,
+    minHeight: moderateScale(300),
+    overflow: 'hidden',
   },
   commentsHeader: {
     borderBottomWidth: 1,
@@ -758,7 +777,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    marginTop: spacing.sm,
   },
   commentsTitle: {
     flex: 1,
@@ -769,6 +787,10 @@ const styles = StyleSheet.create({
   commentsList: {
     padding: spacing.sm,
     paddingBottom: spacing.xl,
+  },
+  commentsListView: {
+    flex: 1,
+    minHeight: moderateScale(140),
   },
   commentCard: {
     borderWidth: 1,

@@ -102,8 +102,8 @@ const SuggestionSettings = ({ navigation }) => {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <LinearGradient
         colors={isDarkMode
-          ? ['rgba(10, 132, 255, 0.15)', 'transparent']
-          : ['rgba(0, 122, 255, 0.1)', 'transparent']
+          ? ['rgba(10, 132, 255, 0.24)', 'rgba(10, 132, 255, 0.08)', 'transparent']
+          : ['rgba(0, 122, 255, 0.2)', 'rgba(0, 122, 255, 0.04)', 'transparent']
         }
         style={styles.headerGradient}
       />

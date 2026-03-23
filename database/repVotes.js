@@ -26,6 +26,7 @@ import {
   ELECTION_STATUS,
   isElectionTimerExpired,
   getTiebreakerCandidates,
+  MIN_STUDENTS_FOR_REP_ELECTION,
 } from './repElections';
 
 const COLLECTION_ID = () => config.repVotesCollectionId;
@@ -53,6 +54,14 @@ export const castVote = async (electionId, candidateId) => {
     // Fetch election to validate state
     const { getElectionById } = require('./repElections');
     const election = await getElectionById(electionId);
+
+    const liveClassStudents = await getClassStudents(election.department, election.stage);
+    const resolvedClassSize = Array.isArray(liveClassStudents) && liveClassStudents.length > 0
+      ? liveClassStudents.length
+      : (Number(election.totalStudents) || 0);
+    if (resolvedClassSize < MIN_STUDENTS_FOR_REP_ELECTION) {
+      throw new Error('At least 5 students are required before elections can start');
+    }
 
     // Block voting on completed/archived elections
     if (election.status === ELECTION_STATUS.COMPLETED || election.status === ELECTION_STATUS.RESELECTION_PENDING) {

@@ -1,27 +1,81 @@
-import { MMKV } from 'react-native-mmkv';
+import * as MMKVPackage from 'react-native-mmkv';
 
 const memoryStore = new Map();
 let mmkvInstance = null;
+let mmkvInitErrorMessage = null;
+let didWarnVolatileFallback = false;
+
+const createStorageInstance = () => {
+  if (typeof MMKVPackage.createMMKV === 'function') {
+    return MMKVPackage.createMMKV({
+      id: 'college-community-storage',
+    });
+  }
+
+  if (typeof MMKVPackage.MMKV === 'function') {
+    return new MMKVPackage.MMKV({
+      id: 'college-community-storage',
+    });
+  }
+
+  throw new Error('react-native-mmkv export is unavailable');
+};
+
+const removeFromStorage = (storage, key) => {
+  if (typeof storage.remove === 'function') {
+    storage.remove(key);
+    return;
+  }
+
+  if (typeof storage.delete === 'function') {
+    storage.delete(key);
+    return;
+  }
+
+  throw new Error('MMKV instance missing remove/delete method');
+};
+
+const warnVolatileFallbackOnce = () => {
+  if (didWarnVolatileFallback) {
+    return;
+  }
+
+  didWarnVolatileFallback = true;
+  const reason = mmkvInitErrorMessage
+    ? ` Reason: ${mmkvInitErrorMessage}`
+    : '';
+
+  // MMKV uses native JSI. If unavailable, fallback is process-memory only.
+  console.warn(
+    `[safeStorage] MMKV unavailable; using volatile memory fallback. Settings/cache will reset after app restart.${reason}`
+  );
+};
 
 const getMmkvStorage = () => {
   try {
     if (!mmkvInstance) {
-      mmkvInstance = new MMKV({
-        id: 'college-community-storage',
-      });
+      mmkvInstance = createStorageInstance();
+      mmkvInitErrorMessage = null;
     }
 
     if (
       mmkvInstance &&
       typeof mmkvInstance.getString === 'function' &&
-      typeof mmkvInstance.set === 'function'
+      typeof mmkvInstance.set === 'function' &&
+      (typeof mmkvInstance.remove === 'function' || typeof mmkvInstance.delete === 'function')
     ) {
       return mmkvInstance;
     }
+
+    mmkvInitErrorMessage = 'MMKV instance missing expected methods';
+    warnVolatileFallbackOnce();
   } catch (error) {
+    mmkvInitErrorMessage = error?.message || String(error || 'Unknown MMKV init error');
+    warnVolatileFallbackOnce();
     return null;
   }
 
+  warnVolatileFallbackOnce();
   return null;
 };
 
@@ -69,7 +123,7 @@ const safeStorage = {
     const storage = getMmkvStorage();
     if (storage) {
       try {
-        storage.delete(key);
+        removeFromStorage(storage, key);
         return null;
       } catch (error) {
         memoryStore.delete(key);
@@ -83,7 +137,7 @@ const safeStorage = {
     const storage = getMmkvStorage();
     if (storage) {
       try {
-        keys.forEach((key) => storage.delete(key));
+        keys.forEach((key) => removeFromStorage(storage, key));
         return null;
       } catch (error) {
         keys.forEach((key) => memoryStore.delete(key));
@@ -107,6 +161,22 @@ const safeStorage = {
       }
     }
     return Array.from(memoryStore.keys());
+  },
+  getBackendInfo() {
+    const storage = getMmkvStorage();
+    if (storage) {
+      return {
+        backend: 'mmkv',
+        volatileFallback: false,
+        reason: null,
+      };
+    }
+
+    return {
+      backend: 'memory',
+      volatileFallback: true,
+      reason: mmkvInitErrorMessage,
+    };
   },
 };
 

@@ -95,8 +95,8 @@ const PersonalizationSettings = ({ navigation }) => {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <LinearGradient
         colors={isDarkMode
-          ? ['rgba(255, 149, 0, 0.15)', 'transparent']
-          : ['rgba(255, 149, 0, 0.1)', 'transparent']
+          ? ['rgba(255, 149, 0, 0.24)', 'rgba(255, 149, 0, 0.08)', 'transparent']
+          : ['rgba(255, 149, 0, 0.2)', 'rgba(255, 149, 0, 0.04)', 'transparent']
         }
         style={styles.headerGradient}
       />
