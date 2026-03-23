@@ -696,6 +696,8 @@ export default {
     "notSignedIn": "چوونەژوورەوە نەکراوە",
     "pleaseSignIn": "تکایە بچۆ ژوورەوە بۆ بینینی پرۆفایلەکەت",
     "userNotFound": "بەکارهێنەر نەدۆزرایەوە",
+    "deletedAccountName": "هەژماری سڕاوە",
+    "deletedAccountBio": "ئەم هەژمارە چیتر بەردەست نییە.",
     "followError": "نوێکردنەوەی دۆخی فۆڵۆو سەرکەوتوو نەبوو",
     "blockUser": "بلۆککردنی بەکارهێنەر",
     "blockConfirm": "ئایا دڵنیایت لە بلۆککردنی {name}؟",

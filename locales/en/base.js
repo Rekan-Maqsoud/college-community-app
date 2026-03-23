@@ -696,6 +696,8 @@ export default {
     "notSignedIn": "Not Signed In",
     "pleaseSignIn": "Please sign in to view your profile",
     "userNotFound": "User not found",
+    "deletedAccountName": "Deleted Account",
+    "deletedAccountBio": "This account is no longer available.",
     "followError": "Failed to update follow status",
     "blockUser": "Block User",
     "blockConfirm": "Are you sure you want to block {name}?",

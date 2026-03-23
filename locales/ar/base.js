@@ -696,6 +696,8 @@ export default {
     "notSignedIn": "غير مسجل الدخول",
     "pleaseSignIn": "الرجاء تسجيل الدخول لعرض ملفك الشخصي",
     "userNotFound": "المستخدم غير موجود",
+    "deletedAccountName": "حساب محذوف",
+    "deletedAccountBio": "هذا الحساب لم يعد متاحًا.",
     "followError": "فشل في تحديث حالة المتابعة",
     "blockUser": "حظر المستخدم",
     "blockConfirm": "هل أنت متأكد من حظر {name}؟",

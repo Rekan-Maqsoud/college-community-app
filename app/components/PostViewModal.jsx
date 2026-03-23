@@ -140,13 +140,14 @@ const PostViewModal = ({
   }, [post, navigation, onViewReplies, onClose]);
 
   const handleUserPress = useCallback(() => {
-    if (!post?.userId) return;
+    const targetUserId = String(post?.userId || '').trim();
+    if (!targetUserId) return;
     onClose();
     if (navigation) {
-      if (post.userId === user?.$id) {
+      if (targetUserId === user?.$id) {
         navigation.navigate('MainTabs', { screen: 'Profile' });
       } else {
-        navigation.navigate('UserProfile', { userId: post.userId });
+        navigation.navigate('UserProfile', { userId: targetUserId });
       }
     }
   }, [post, navigation, user, onClose]);

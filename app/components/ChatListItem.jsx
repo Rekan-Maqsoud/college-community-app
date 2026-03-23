@@ -22,6 +22,7 @@ const CHAT_TYPES = {
 const ARCHIVE_SWIPE_TRIGGER = 76;
 const ARCHIVE_SWIPE_MAX = 110;
 const ARCHIVE_DISMISS_OFFSET = -420;
+const DELETED_CHAT_MARKER = '[deleted_chat]';
 
 const ChatListItem = ({
   chat,
@@ -172,6 +173,10 @@ const ChatListItem = ({
       return chatSubtitle ? chatSubtitle : t('chats.noMessages');
     }
 
+    if (lastMsg === DELETED_CHAT_MARKER) {
+      return t('chats.deletedChat');
+    }
+
     // Check if chat was cleared after the last message
     if (clearedAt && chat.lastMessageAt) {
       const clearedDate = new Date(clearedAt);
@@ -203,6 +208,7 @@ const ChatListItem = ({
   };
 
   const isPrivateChat = chat.type === CHAT_TYPES.PRIVATE;
+  const isDeletedChat = chat?.lastMessage === DELETED_CHAT_MARKER;
   const chatName = getChatName();
   const chatSubtitle = getChatSubtitle();
   const iconColor = getChatIconColor();
@@ -314,7 +320,14 @@ const ChatListItem = ({
         </View>
 
         <Text 
-          style={[styles.lastMessage, { fontSize: fontSize(13), color: theme.textSecondary }]}
+          style={[
+            styles.lastMessage,
+            {
+              fontSize: fontSize(13),
+              color: isDeletedChat ? '#D97706' : theme.textSecondary,
+            },
+            isDeletedChat ? styles.deletedChatMessage : null,
+          ]}
           numberOfLines={1}>
           {getLastMessagePreview()}
         </Text>
@@ -443,6 +456,10 @@ const styles = StyleSheet.create({
   },
   lastMessage: {
     marginTop: 2,
+  },
+  deletedChatMessage: {
+    fontStyle: 'italic',
+    fontWeight: '600',
   },
   infoRow: {
     flexDirection: 'row',

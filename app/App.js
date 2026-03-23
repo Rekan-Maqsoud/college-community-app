@@ -952,7 +952,11 @@ const NotificationSetup = ({ navigationRef }) => {
     } else if (data.chatId) {
       await navigateToChat(data.chatId);
     } else if (data.userId && type === 'follow') {
-      navigationRef.current.navigate('UserProfile', { userId: data.userId });
+      const targetUserId = String(data.userId || '').trim();
+      if (!targetUserId) {
+        return;
+      }
+      navigationRef.current.navigate('UserProfile', { userId: targetUserId });
     } else if (type) {
       navigationRef.current.navigate('Notifications');
     }

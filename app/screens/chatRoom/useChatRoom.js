@@ -1046,7 +1046,12 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   const handleVisitProfile = () => {
     setShowChatOptionsModal(false);
     if (chat.type === 'private' && chat.otherUser) {
-      navigation.navigate('UserProfile', { userId: chat.otherUser.$id || chat.otherUser.id });
+      const targetUserId = String(chat.otherUser.$id || chat.otherUser.id || '').trim();
+      if (!targetUserId) {
+        triggerAlert(t('common.error'), t('profile.userNotFound'));
+        return;
+      }
+      navigation.navigate('UserProfile', { userId: targetUserId });
     }
   };
 

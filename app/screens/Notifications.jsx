@@ -856,14 +856,18 @@ const Notifications = ({ navigation }) => {
         setPostModalVisible(true);
       }
     } else if (notificationData.senderId) {
+      const targetUserId = String(notificationData.senderId || '').trim();
+      if (!targetUserId) {
+        return;
+      }
       if (notificationData.type === NOTIFICATION_TYPES.FOLLOW) {
-        dismissPresentedNotificationsByTarget({ senderId: notificationData.senderId, types: [NOTIFICATION_TYPES.FOLLOW] }).catch(() => {});
+        dismissPresentedNotificationsByTarget({ senderId: targetUserId, types: [NOTIFICATION_TYPES.FOLLOW] }).catch(() => {});
         markNotificationsAsReadByContext(user?.$id, {
-          senderId: notificationData.senderId,
+          senderId: targetUserId,
           types: [NOTIFICATION_TYPES.FOLLOW],
         }).catch(() => {});
       }
-      navigation.navigate('UserProfile', { userId: notificationData.senderId });
+      navigation.navigate('UserProfile', { userId: targetUserId });
     }
   };
 

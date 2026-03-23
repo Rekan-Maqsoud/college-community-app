@@ -459,7 +459,13 @@ const RepVotingScreen = ({ navigation, route }) => {
             key={rep.userId}
             style={[styles.currentRepCard, { backgroundColor: theme.card, borderColor: theme.primary + '40' }]}
             activeOpacity={0.7}
-            onPress={() => navigation.navigate('UserProfile', { userId: rep.userId })}
+            onPress={() => {
+              const targetUserId = String(rep.userId || '').trim();
+              if (!targetUserId) {
+                return;
+              }
+              navigation.navigate('UserProfile', { userId: targetUserId });
+            }}
           >
             <ProfilePicture uri={repAvatar} name={repName} size={normalize(52)} />
             <View style={styles.currentRepInfo}>

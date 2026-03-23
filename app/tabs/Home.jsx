@@ -612,7 +612,17 @@ const Home = ({ navigation, route }) => {
   };
 
   const handleUserPress = (userData) => {
-    navigation.navigate('UserProfile', { userId: userData.$id });
+    const targetUserId = String(userData?.$id || '').trim();
+    if (!targetUserId) {
+      showAlert({
+        type: 'error',
+        title: t('common.error'),
+        message: t('profile.userNotFound'),
+      });
+      return;
+    }
+
+    navigation.navigate('UserProfile', { userId: targetUserId });
   };
 
   const handlePostPress = (post) => {

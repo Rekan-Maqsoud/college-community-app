@@ -138,6 +138,7 @@ export const config = {
     reportReviewEndpoint: process.env.EXPO_PUBLIC_REPORT_REVIEW_ENDPOINT,
     repElectionsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_REP_ELECTIONS_COLLECTION_ID,
     repVotesCollectionId: process.env.EXPO_PUBLIC_APPWRITE_REP_VOTES_COLLECTION_ID,
+    deleteAccountEndpoint: process.env.EXPO_PUBLIC_DELETE_ACCOUNT_ENDPOINT,
 };
 
 export default client;

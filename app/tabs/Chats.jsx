@@ -802,7 +802,7 @@ const Chats = ({ navigation }) => {
   };
 
   const handleVisitSelectedProfile = () => {
-    const targetUserId = selectedChat?.otherUser?.$id || selectedChat?.otherUser?.id;
+    const targetUserId = String(selectedChat?.otherUser?.$id || selectedChat?.otherUser?.id || '').trim();
     if (!targetUserId) return;
     setChatMenuVisible(false);
     navigation.navigate('UserProfile', { userId: targetUserId });

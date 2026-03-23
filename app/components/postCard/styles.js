@@ -432,6 +432,11 @@ export const postCardStyles = StyleSheet.create({
     fontWeight: '600',
     flexShrink: 1,
   },
+  actionCountText: {
+    flexShrink: 0,
+    minWidth: moderateScale(14),
+    textAlign: 'center',
+  },
   actionTextCompact: {
     fontSize: getResponsiveSize(fontSize(8), fontSize(9), fontSize(10)),
   },

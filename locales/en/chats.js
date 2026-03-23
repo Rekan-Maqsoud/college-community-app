@@ -17,6 +17,7 @@ export default {
     "emptySearchTitle": "No Users Found",
     "emptySearchMessage": "Try searching with a different name or email",
     "noMessages": "No messages yet",
+    "deletedChat": "Deleted chat",
     "beFirstToMessage": "Be the first to send a message",
     "typeMessage": "Type a message...",
     "mentionEveryone": "@everyone",

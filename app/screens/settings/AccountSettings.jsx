@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -27,7 +27,7 @@ import { wp, hp, fontSize as responsiveFontSize, spacing } from '../../utils/res
 import useLayout from '../../hooks/useLayout';
 
 const AccountSettings = ({ navigation }) => {
-  const { t, theme, isDarkMode, resetSettings } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL, resetSettings } = useAppSettings();
   const { user, clearUser } = useUser();
   const { contentStyle } = useLayout();
   const [, setIsClearingCache] = useState(false);
@@ -35,7 +35,6 @@ const AccountSettings = ({ navigation }) => {
   const [deletePassword, setDeletePassword] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-  const deleteInFlightRef = useRef(false);
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   const handleClearCache = () => {
@@ -115,7 +114,7 @@ const AccountSettings = ({ navigation }) => {
   };
 
   const confirmDeleteAccount = async () => {
-    if (deleteInFlightRef.current || isDeleting) {
+    if (isDeleting) {
       return;
     }
 
@@ -124,14 +123,26 @@ const AccountSettings = ({ navigation }) => {
       return;
     }
 
-    deleteInFlightRef.current = true;
     setIsDeleting(true);
     setDeleteError('');
+
+    let didNavigateAfterSuccess = false;
+
     try {
       await deleteAccount(deletePassword);
-      await clearUser();
+
       setShowDeleteModal(false);
-      navigation.replace('SignIn');
+      setDeletePassword('');
+      setDeleteError('');
+      didNavigateAfterSuccess = true;
+
+      // Navigation should not be blocked by storage cleanup.
+      clearUser().catch(() => {});
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'SignIn' }],
+      });
+      return;
     } catch (error) {
       telemetry.recordEvent('account_settings_delete_account_failed', {
         code: error?.code ?? null,
@@ -141,21 +152,20 @@ const AccountSettings = ({ navigation }) => {
         responseType: error?.response?.type ?? null,
         responseMessage: error?.response?.message ?? null,
       });
-      const errorMessage = error?.message === 'DELETE_ACCOUNT_INVALID_PASSWORD'
-        || error?.code === 'DELETE_ACCOUNT_INVALID_PASSWORD'
+
+      const code = String(error?.code || error?.message || '');
+      const errorMessage = code === 'DELETE_ACCOUNT_INVALID_PASSWORD'
         ? t('settings.incorrectPassword')
-        : error?.message === 'DELETE_ACCOUNT_REAUTH_RATE_LIMITED'
-          || error?.code === 'DELETE_ACCOUNT_REAUTH_RATE_LIMITED'
+        : code === 'DELETE_ACCOUNT_REAUTH_RATE_LIMITED'
           ? t('settings.deleteAccountRateLimited')
-        : t('settings.deleteAccountError');
+          : t('settings.deleteAccountError');
       setDeleteError(errorMessage);
     } finally {
-      deleteInFlightRef.current = false;
-      setIsDeleting(false);
+      if (!didNavigateAfterSuccess) {
+        setIsDeleting(false);
+      }
     }
   };
-
-
 
   const SettingItem = ({ icon, title, description, onPress, danger, iconColor }) => (
     <TouchableOpacity
@@ -318,18 +328,56 @@ const AccountSettings = ({ navigation }) => {
               {t('settings.deleteAccount')}
             </Text>
 
-            <Text style={[styles.deleteModalMessage, { color: theme.textSecondary }]}>
+            <Text
+              style={[
+                styles.deleteModalMessage,
+                {
+                  color: theme.textSecondary,
+                  textAlign: isRTL ? 'right' : 'left',
+                  writingDirection: isRTL ? 'rtl' : 'ltr',
+                },
+              ]}>
               {t('settings.deleteAccountConfirm')}
             </Text>
 
-            <View style={styles.deleteWarningList}>
-              <Text style={[styles.deleteWarningItem, { color: theme.textSecondary }]}>
+            <View
+              style={[
+                styles.deleteWarningList,
+                {
+                  alignItems: isRTL ? 'flex-end' : 'flex-start',
+                },
+              ]}>
+              <Text
+                style={[
+                  styles.deleteWarningItem,
+                  {
+                    color: theme.textSecondary,
+                    textAlign: isRTL ? 'right' : 'left',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                  },
+                ]}>
                 {'\u2022'} {t('settings.deleteWarningPosts')}
               </Text>
-              <Text style={[styles.deleteWarningItem, { color: theme.textSecondary }]}>
+              <Text
+                style={[
+                  styles.deleteWarningItem,
+                  {
+                    color: theme.textSecondary,
+                    textAlign: isRTL ? 'right' : 'left',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                  },
+                ]}>
                 {'\u2022'} {t('settings.deleteWarningMessages')}
               </Text>
-              <Text style={[styles.deleteWarningItem, { color: theme.textSecondary }]}>
+              <Text
+                style={[
+                  styles.deleteWarningItem,
+                  {
+                    color: theme.textSecondary,
+                    textAlign: isRTL ? 'right' : 'left',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                  },
+                ]}>
                 {'\u2022'} {t('settings.deleteWarningIrreversible')}
               </Text>
             </View>
@@ -340,7 +388,11 @@ const AccountSettings = ({ navigation }) => {
                 {
                   color: theme.text,
                   backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-                  borderColor: deleteError ? '#FF3B30' : (isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'),
+                  borderColor: deleteError
+                    ? '#FF3B30'
+                    : (isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'),
+                  textAlign: isRTL ? 'right' : 'left',
+                  writingDirection: isRTL ? 'rtl' : 'ltr',
                 },
               ]}
               placeholder={t('settings.enterPasswordToDelete')}
@@ -356,14 +408,33 @@ const AccountSettings = ({ navigation }) => {
             />
 
             {deleteError ? (
-              <Text style={styles.deleteErrorText}>{deleteError}</Text>
+              <Text
+                style={[
+                  styles.deleteErrorText,
+                  {
+                    textAlign: isRTL ? 'right' : 'left',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                  },
+                ]}>
+                {deleteError}
+              </Text>
             ) : null}
 
-            <View style={styles.deleteModalButtons}>
+            <View
+              style={[
+                styles.deleteModalButtons,
+                {
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}>
               <TouchableOpacity
-                style={[styles.deleteModalButton, styles.deleteModalCancelButton, {
-                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                }]}
+                style={[
+                  styles.deleteModalButton,
+                  styles.deleteModalCancelButton,
+                  {
+                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                  },
+                ]}
                 onPress={() => setShowDeleteModal(false)}
                 disabled={isDeleting}>
                 <Text style={[styles.deleteModalButtonText, { color: theme.text }]}>
@@ -505,12 +576,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: wp(6),
+    paddingHorizontal: wp(4),
   },
   deleteModal: {
     width: '100%',
+    maxWidth: wp(92),
+    maxHeight: hp(82),
     borderRadius: borderRadius.lg,
-    padding: spacing.xl,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
     alignItems: 'center',
     ...shadows.medium,
   },
@@ -525,14 +599,14 @@ const styles = StyleSheet.create({
   },
   deleteModalMessage: {
     fontSize: responsiveFontSize(14),
-    textAlign: 'center',
     lineHeight: responsiveFontSize(20),
     marginBottom: spacing.md,
+    alignSelf: 'stretch',
   },
   deleteWarningList: {
     alignSelf: 'stretch',
     marginBottom: spacing.lg,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
   deleteWarningItem: {
     fontSize: responsiveFontSize(13),
@@ -555,7 +629,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   deleteModalButtons: {
-    flexDirection: 'row',
     gap: spacing.md,
     alignSelf: 'stretch',
     marginTop: spacing.sm,

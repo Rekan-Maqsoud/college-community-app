@@ -17,6 +17,7 @@ export default {
     "emptySearchTitle": "هیچ بەکارهێنەرێک نەدۆزرایەوە",
     "emptySearchMessage": "بە ناو یان ئیمەیڵێکی تر بگەڕێ",
     "noMessages": "هێشتا هیچ نامەیەک نییە",
+    "deletedChat": "گفتوگۆی سڕاوە",
     "beFirstToMessage": "یەکەم کەس بە بۆ ناردنی نامە",
     "typeMessage": "نامەیەک بنووسە...",
     "mentionEveryone": "@هەمووان",

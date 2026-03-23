@@ -988,29 +988,14 @@ export const resendEmailVerification = async () => {
     }
 };
 
-const formatDeleteAccountError = (error) => ({
-    code: error?.code ?? null,
-    type: error?.type ?? null,
-    message: error?.message ?? 'Unknown error',
-    responseCode: error?.response?.code ?? null,
-    responseType: error?.response?.type ?? null,
-    responseMessage: error?.response?.message ?? null,
-});
-
-const DELETE_ACCOUNT_REAUTH_CACHE_TTL_MS = 10 * 60 * 1000;
-const DELETE_ACCOUNT_REAUTH_RATE_LIMIT_COOLDOWN_MS = 60 * 1000;
-const DELETE_ACCOUNT_INVALID_PASSWORD_COOLDOWN_MS = 4 * 1000;
-const DELETED_ACCOUNT_SENDER_NAME = 'Deleted Account';
-const deleteAccountReauthStateByUser = new Map();
-
-const createDeleteAccountError = (code, extra = {}) => {
+const createDeleteAccountClientError = (code, extra = {}) => {
     const error = new Error(code);
     error.code = code;
     Object.assign(error, extra);
     return error;
 };
 
-const isRateLimitError = (error) => {
+const isDeleteAccountRateLimitError = (error) => {
     const code = Number(error?.code ?? error?.response?.code ?? 0);
     const type = String(error?.type ?? error?.response?.type ?? '').toLowerCase();
     const message = `${String(error?.message ?? '')} ${String(error?.response?.message ?? '')}`.toLowerCase();
@@ -1018,623 +1003,264 @@ const isRateLimitError = (error) => {
     return code === 429 || type.includes('rate_limit') || message.includes('rate limit');
 };
 
-export const __resetDeleteAccountReauthStateForTests = () => {
-    deleteAccountReauthStateByUser.clear();
+const isUnauthorizedSessionError = (error) => {
+    const code = Number(error?.code ?? error?.response?.code ?? 0);
+    const type = String(error?.type ?? error?.response?.type ?? '').toLowerCase();
+    const message = `${String(error?.message ?? '')} ${String(error?.response?.message ?? '')}`.toLowerCase();
+    return code === 401 || type.includes('unauthorized') || message.includes('unauthorized') || message.includes('missing scopes');
+};
+
+const extractDeleteProxyResponse = async (response) => {
+    try {
+        return await response.json();
+    } catch {
+        return null;
+    }
+};
+
+const withTimeout = async (promise, timeoutMs, timeoutCode) => {
+    let timeoutHandle = null;
+
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+            reject(createDeleteAccountClientError(timeoutCode));
+        }, timeoutMs);
+    });
+
+    try {
+        return await Promise.race([promise, timeoutPromise]);
+    } finally {
+        if (timeoutHandle) {
+            clearTimeout(timeoutHandle);
+        }
+    }
+};
+
+const fetchWithTimeout = async (url, options = {}, timeoutMs = 20000, timeoutCode = 'DELETE_ACCOUNT_NETWORK_TIMEOUT') => {
+    return withTimeout(fetch(url, options), timeoutMs, timeoutCode);
 };
 
 export const deleteAccount = async (password) => {
     try {
-        const currentUser = await getCurrentUser();
+        const currentUser = await withTimeout(
+            getCurrentUser(),
+            10000,
+            'DELETE_ACCOUNT_GET_CURRENT_USER_TIMEOUT'
+        );
         if (!currentUser) {
-            throw new Error('No authenticated user found');
+            throw createDeleteAccountClientError('DELETE_ACCOUNT_UNAUTHORIZED');
         }
 
-        const userId = currentUser.$id;
-
-        // Re-authenticate to confirm identity
         const providedPassword = typeof password === 'string' ? password : '';
-        console.log('[delete-account] start', {
-            userId,
-            email: currentUser.email,
-            hasPassword: Boolean(providedPassword),
-        });
-
-        if (providedPassword) {
-            const now = Date.now();
-            const reauthState = deleteAccountReauthStateByUser.get(userId) || {
-                lastSuccessAt: 0,
-                cooldownUntil: 0,
-            };
-
-            if (reauthState.cooldownUntil && now < reauthState.cooldownUntil) {
-                throw createDeleteAccountError('DELETE_ACCOUNT_REAUTH_RATE_LIMITED', {
-                    retryAfterMs: reauthState.cooldownUntil - now,
-                });
-            }
-
-            const hasRecentReauth = reauthState.lastSuccessAt
-                && (now - reauthState.lastSuccessAt) < DELETE_ACCOUNT_REAUTH_CACHE_TTL_MS;
-
-            if (!hasRecentReauth) {
-            try {
-                console.log('[delete-account] re-authentication start', { userId });
-                await account.createEmailPasswordSession({
-                    email: currentUser.email,
-                    password: providedPassword,
-                });
-                console.log('[delete-account] re-authentication success', { userId });
-                deleteAccountReauthStateByUser.set(userId, {
-                    lastSuccessAt: Date.now(),
-                    cooldownUntil: 0,
-                });
-            } catch (reauthError) {
-                const reauthMessage = reauthError?.message || '';
-                const reauthMessageLower = reauthMessage.toLowerCase();
-                const invalidCredentials = reauthError?.code === 401
-                    || reauthMessageLower.includes('invalid credentials')
-                    || reauthMessageLower.includes('invalid email')
-                    || reauthMessageLower.includes('invalid password');
-
-                const reauthWasRateLimited = isRateLimitError(reauthError);
-
-                if (invalidCredentials || reauthWasRateLimited) {
-                    console.warn('[delete-account] re-authentication failed (expected)', {
-                        userId,
-                        error: formatDeleteAccountError(reauthError),
-                    });
-                } else {
-                    console.error('[delete-account] re-authentication failed', {
-                        userId,
-                        error: formatDeleteAccountError(reauthError),
-                    });
-                }
-
-                if (invalidCredentials) {
-                    deleteAccountReauthStateByUser.set(userId, {
-                        lastSuccessAt: 0,
-                        cooldownUntil: Date.now() + DELETE_ACCOUNT_INVALID_PASSWORD_COOLDOWN_MS,
-                    });
-                    throw createDeleteAccountError('DELETE_ACCOUNT_INVALID_PASSWORD');
-                }
-
-                if (reauthWasRateLimited) {
-                    const cooldownUntil = Date.now() + DELETE_ACCOUNT_REAUTH_RATE_LIMIT_COOLDOWN_MS;
-                    deleteAccountReauthStateByUser.set(userId, {
-                        lastSuccessAt: 0,
-                        cooldownUntil,
-                    });
-
-                    throw createDeleteAccountError('DELETE_ACCOUNT_REAUTH_RATE_LIMITED', {
-                        retryAfterMs: cooldownUntil - Date.now(),
-                    });
-                }
-
-                const passwordAuthUnavailable = reauthMessageLower.includes('password')
-                    || reauthMessageLower.includes('provider')
-                    || reauthMessageLower.includes('oauth')
-                    || reauthMessageLower.includes('sessions limit');
-
-                if (!passwordAuthUnavailable) {
-                    throw reauthError;
-                }
-
-                console.warn('[delete-account] password re-auth unavailable; continuing best-effort flow', {
-                    userId,
-                    error: formatDeleteAccountError(reauthError),
-                });
-            }
-            } else {
-                console.log('[delete-account] re-authentication skipped: recently confirmed', {
-                    userId,
-                });
-            }
+        if (!providedPassword) {
+            throw createDeleteAccountClientError('DELETE_ACCOUNT_PASSWORD_REQUIRED');
         }
 
-        // 1. Delete all user's posts (cascades to replies & notifications via deletePost)
-        console.log('[delete-account] step 1 start: delete posts', { userId });
-        await _deleteAllUserPosts(userId);
-        console.log('[delete-account] step 1 complete: delete posts', { userId });
+        const currentEmail = sanitizeInput(currentUser.email || '');
+        if (!currentEmail) {
+            throw createDeleteAccountClientError('DELETE_ACCOUNT_EMAIL_REQUIRED');
+        }
 
-        // 2. Delete all user's replies on other posts
-        console.log('[delete-account] step 2 start: delete replies', { userId });
-        await _deleteAllUserReplies(userId);
-        console.log('[delete-account] step 2 complete: delete replies', { userId });
+        const reauthEmailCandidates = [currentEmail];
 
-        // 3. Delete all notifications for/from this user
-        console.log('[delete-account] step 3 start: delete notifications', { userId });
-        await _deleteAllUserNotifications(userId);
-        console.log('[delete-account] step 3 complete: delete notifications', { userId });
-
-        // 4. Delete all push tokens
-        console.log('[delete-account] step 4 start: delete push tokens', { userId });
-        await _deleteAllUserPushTokens(userId);
-        console.log('[delete-account] step 4 complete: delete push tokens', { userId });
-
-        // 5. Delete all user chat settings
-        console.log('[delete-account] step 5 start: delete chat settings', { userId });
-        await _deleteAllUserChatSettings(userId);
-        console.log('[delete-account] step 5 complete: delete chat settings', { userId });
-
-        // 6. Anonymize messages sent by this user (set senderName to "Deleted Account")
-        console.log('[delete-account] step 6 start: anonymize messages', { userId });
-        await _anonymizeUserMessages(userId);
-        console.log('[delete-account] step 6 complete: anonymize messages', { userId });
-
-        // 7. Remove user from chat participants
-        console.log('[delete-account] step 7 start: remove from chats', { userId });
-        await _removeUserFromChats(userId);
-        console.log('[delete-account] step 7 complete: remove from chats', { userId });
-
-        // 8. Remove user from followers/following lists of other users
-        console.log('[delete-account] step 8 start: remove from follow lists', { userId });
-        await _removeUserFromFollowLists(userId);
-        console.log('[delete-account] step 8 complete: remove from follow lists', { userId });
-
-        // 9. Anonymize the user document instead of deleting it
-        // This ensures any remaining references resolve to "Deleted Account"
+        let reauthSucceeded = false;
+        let reauthFailure = null;
         try {
-            console.log('[delete-account] step 9 start: anonymize user document', { userId });
-            await databases.updateDocument({
-                databaseId: config.databaseId,
-                collectionId: config.usersCollectionId,
-                documentId: userId,
-                data: {
-                    name: 'Deleted Account',
-                    email: `deleted_${userId}@deleted.local`,
-                    bio: null,
-                    profilePicture: null,
-                    coverPhoto: null,
-                    isActive: false,
-                    university: null,
-                    major: null,
-                    department: null,
-                    following: [],
-                    followers: [],
-                    blockedUsers: [],
-                    followersCount: 0,
-                    followingCount: 0,
-                    postsCount: 0,
+            for (const emailCandidate of reauthEmailCandidates) {
+                try {
+                    await withTimeout(
+                        account.createEmailPasswordSession({
+                            email: emailCandidate,
+                            password: providedPassword,
+                        }),
+                        20000,
+                        'DELETE_ACCOUNT_REAUTH_TIMEOUT'
+                    );
+
+                    reauthSucceeded = true;
+                    break;
+                } catch (reauthError) {
+                    reauthFailure = reauthError;
+                }
+            }
+
+            if (!reauthSucceeded && reauthFailure) {
+                throw reauthFailure;
+            }
+        } catch (reauthError) {
+            const message = String(reauthError?.message || '').toLowerCase();
+            const responseMessage = String(reauthError?.response?.message || '').toLowerCase();
+            const responseType = String(reauthError?.response?.type || reauthError?.type || '').toLowerCase();
+            const combined = `${message} ${responseMessage} ${responseType}`;
+            const invalidCredentials = combined.includes('invalid credentials')
+                || combined.includes('invalid email')
+                || combined.includes('invalid password')
+                || combined.includes('user_invalid_credentials');
+
+            if (invalidCredentials) {
+                throw createDeleteAccountClientError('DELETE_ACCOUNT_INVALID_PASSWORD', {
+                    originalError: reauthError,
+                });
+            }
+
+            if (isDeleteAccountRateLimitError(reauthError)) {
+                // Reauth endpoint is rate-limited by Appwrite; continue with current
+                // authenticated session JWT instead of blocking account deletion.
+                reauthSucceeded = true;
+            }
+
+            // If the credentials are valid but session-creation fails for another reason,
+            // continue using the current authenticated session JWT.
+        }
+
+        const endpoint = sanitizeInput(config.deleteAccountEndpoint || '');
+        if (!endpoint) {
+            throw createDeleteAccountClientError('DELETE_ACCOUNT_ENDPOINT_NOT_CONFIGURED');
+        }
+
+        const jwt = await withTimeout(
+            account.createJWT(),
+            20000,
+            'DELETE_ACCOUNT_AUTH_TOKEN_TIMEOUT'
+        );
+        const token = jwt?.jwt;
+        if (!token) {
+            throw createDeleteAccountClientError('DELETE_ACCOUNT_AUTH_TOKEN_MISSING');
+        }
+
+        const payload = {
+            action: 'delete_account',
+            requestedAt: new Date().toISOString(),
+            authToken: token,
+        };
+
+        const isExecutionEndpoint = endpoint.includes('/functions/') && endpoint.includes('/executions');
+
+        if (isExecutionEndpoint) {
+            const executionResponse = await fetchWithTimeout(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Appwrite-Project': config.projectId,
                 },
-            });
-            console.log('[delete-account] step 9 complete: anonymize user document', { userId });
-        } catch (err) {
-            console.warn('[delete-account] step 9 update failed; attempting delete fallback', {
-                userId,
-                error: formatDeleteAccountError(err),
-            });
-            // If update fails, try to delete the document entirely
+                body: JSON.stringify({
+                    async: true,
+                    method: 'POST',
+                    path: '/',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify(payload),
+                }),
+            }, 20000, 'DELETE_ACCOUNT_PROXY_EXECUTION_CREATE_TIMEOUT');
+
+            const createdExecution = await extractDeleteProxyResponse(executionResponse);
+            const executionId = String(createdExecution?.$id || '');
+            if (!executionResponse.ok || !executionId) {
+                throw createDeleteAccountClientError('DELETE_ACCOUNT_PROXY_EXECUTION_CREATE_FAILED');
+            }
+
+            const executionBaseEndpoint = endpoint.replace(/\/executions\/?$/, '');
+            let execution = createdExecution;
+            let reachedTerminal = false;
+            let pollWithAuth = true;
+
+            for (let attempt = 0; attempt < 45; attempt += 1) {
+                await new Promise((resolve) => setTimeout(resolve, 2000));
+
+                const pollHeaders = {
+                    'X-Appwrite-Project': config.projectId,
+                    ...(pollWithAuth ? { Authorization: `Bearer ${token}` } : {}),
+                };
+
+                const pollResponse = await fetchWithTimeout(`${executionBaseEndpoint}/${encodeURIComponent(executionId)}`, {
+                    method: 'GET',
+                    headers: pollHeaders,
+                }, 15000, 'DELETE_ACCOUNT_PROXY_EXECUTION_POLL_TIMEOUT');
+
+                if ((pollResponse.status === 401 || pollResponse.status === 403) && pollWithAuth) {
+                    pollWithAuth = false;
+                    continue;
+                }
+
+                const pollExecution = await extractDeleteProxyResponse(pollResponse);
+                if (pollResponse.ok && pollExecution) {
+                    execution = pollExecution;
+                }
+
+                const status = String(execution?.status || '').toLowerCase();
+                if (status === 'completed' || status === 'failed' || status === 'crashed' || status === 'timeout' || status === 'cancelled') {
+                    reachedTerminal = true;
+                    break;
+                }
+            }
+
+            const status = String(execution?.status || '').toLowerCase();
+            if (!reachedTerminal) {
+                try {
+                    await withTimeout(
+                        account.get(),
+                        5000,
+                        'DELETE_ACCOUNT_POST_TIMEOUT_ACCOUNT_CHECK_TIMEOUT'
+                    );
+                } catch (postTimeoutCheckError) {
+                    if (isUnauthorizedSessionError(postTimeoutCheckError)) {
+                        return { success: true, accepted: true, reason: 'session_gone_after_timeout' };
+                    }
+                }
+
+                throw createDeleteAccountClientError('DELETE_ACCOUNT_PROXY_TIMEOUT');
+            }
+
+            if (status !== 'completed') {
+                throw createDeleteAccountClientError('DELETE_ACCOUNT_PROXY_TIMEOUT');
+            }
+
+            const executionStatus = Number(execution?.responseStatusCode || 0);
+
+            let body = null;
             try {
-                await databases.deleteDocument({
-                    databaseId: config.databaseId,
-                    collectionId: config.usersCollectionId,
-                    documentId: userId,
-                });
-                console.log('[delete-account] step 9 fallback complete: delete user document', { userId });
-            } catch (fallbackErr) {
-                console.error('[delete-account] step 9 failed: unable to anonymize or delete user document', {
-                    userId,
-                    updateError: formatDeleteAccountError(err),
-                    fallbackError: formatDeleteAccountError(fallbackErr),
-                });
-                throw createDeleteAccountError('DELETE_ACCOUNT_USER_RECORD_CLEANUP_FAILED');
+                body = execution?.responseBody ? JSON.parse(execution.responseBody) : null;
+            } catch {
+                body = null;
+            }
+
+            if (!executionResponse.ok || executionStatus >= 400 || body?.success === false) {
+                throw createDeleteAccountClientError(
+                    String(body?.errorCode || body?.error || 'DELETE_ACCOUNT_PROXY_FAILED')
+                );
+            }
+        } else {
+            const response = await fetchWithTimeout(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(payload),
+            }, 20000, 'DELETE_ACCOUNT_PROXY_REQUEST_TIMEOUT');
+
+            const data = await extractDeleteProxyResponse(response);
+            if (!response.ok || data?.success === false) {
+                throw createDeleteAccountClientError(
+                    String(data?.errorCode || data?.error || 'DELETE_ACCOUNT_PROXY_FAILED')
+                );
             }
         }
 
-        // 10. Disable the Appwrite auth identity
         try {
-            console.log('[delete-account] step 10 start: disable auth identity', { userId });
-            await account.updateStatus();
-            console.log('[delete-account] step 10 complete: disable auth identity', { userId });
-        } catch (err) {
-            console.warn('[delete-account] step 10 failed: disable auth identity', {
-                userId,
-                error: formatDeleteAccountError(err),
-            });
-            // Continue even if status update fails
+            await withTimeout(
+                account.deleteSession({ sessionId: 'current' }),
+                5000,
+                'DELETE_ACCOUNT_DELETE_SESSION_TIMEOUT'
+            );
+        } catch {
         }
 
-        // 11. Clear sessions from this device
-        try {
-            console.log('[delete-account] step 11 start: delete current session', { userId });
-            await account.deleteSession({ sessionId: 'current' });
-            console.log('[delete-account] step 11 complete: delete current session', { userId });
-        } catch (err) {
-            console.warn('[delete-account] step 11 failed: delete current session', {
-                userId,
-                error: formatDeleteAccountError(err),
-            });
-            // Continue even if session cleanup fails
-        }
-
-        console.log('[delete-account] completed successfully', { userId });
         return { success: true };
     } catch (error) {
-        const errorCode = error?.code || error?.message;
-        if (errorCode === 'DELETE_ACCOUNT_INVALID_PASSWORD' || errorCode === 'DELETE_ACCOUNT_REAUTH_RATE_LIMITED') {
-            console.warn('[delete-account] expected failure', {
-                error: formatDeleteAccountError(error),
-            });
-        } else {
-            console.error('[delete-account] fatal error', {
-                error: formatDeleteAccountError(error),
-            });
-        }
         throw error;
-    }
-};
-
-/**
- * Delete all posts created by a user (bypasses assertPostOwner for account deletion)
- */
-const _deleteAllUserPosts = async (userId) => {
-    try {
-        let hasMore = true;
-        while (hasMore) {
-            const posts = await databases.listDocuments({
-                databaseId: config.databaseId,
-                collectionId: config.postsCollectionId,
-                queries: [Query.equal('userId', userId), Query.orderAsc('$createdAt'), Query.limit(100)],
-            });
-
-            if (posts.documents.length === 0) {
-                hasMore = false;
-                break;
-            }
-
-            for (const post of posts.documents) {
-                try {
-                    // Delete replies for this post
-                    const { deleteRepliesByPost } = require('./replies');
-                    const { deleteNotificationsByPostId } = require('./notifications');
-                    await deleteRepliesByPost(post.$id);
-                    await deleteNotificationsByPostId(post.$id);
-
-                    await databases.deleteDocument({
-                        databaseId: config.databaseId,
-                        collectionId: config.postsCollectionId,
-                        documentId: post.$id,
-                    });
-                } catch (err) {
-                    // Continue deleting other posts
-                }
-            }
-
-            if (posts.documents.length < 100) {
-                hasMore = false;
-            }
-        }
-    } catch (error) {
-        // Non-critical: continue with account deletion
-    }
-};
-
-/**
- * Delete all replies created by a user on other people's posts
- */
-const _deleteAllUserReplies = async (userId) => {
-    try {
-        let hasMore = true;
-        while (hasMore) {
-            const replies = await databases.listDocuments({
-                databaseId: config.databaseId,
-                collectionId: config.repliesCollectionId,
-                queries: [Query.equal('userId', userId), Query.orderAsc('$createdAt'), Query.limit(100)],
-            });
-
-            if (replies.documents.length === 0) {
-                hasMore = false;
-                break;
-            }
-
-            for (const reply of replies.documents) {
-                try {
-                    await databases.deleteDocument({
-                        databaseId: config.databaseId,
-                        collectionId: config.repliesCollectionId,
-                        documentId: reply.$id,
-                    });
-
-                    // Decrement reply count on the parent post
-                    if (reply.postId) {
-                        try {
-                            const post = await databases.getDocument({
-                                databaseId: config.databaseId,
-                                collectionId: config.postsCollectionId,
-                                documentId: reply.postId,
-                            });
-                            if (post) {
-                                await databases.updateDocument({
-                                    databaseId: config.databaseId,
-                                    collectionId: config.postsCollectionId,
-                                    documentId: reply.postId,
-                                    data: { replyCount: Math.max(0, (post.replyCount || 1) - 1) },
-                                });
-                            }
-                        } catch (err) {
-                            // Post may already be deleted
-                        }
-                    }
-                } catch (err) {
-                    // Continue deleting other replies
-                }
-            }
-
-            if (replies.documents.length < 100) {
-                hasMore = false;
-            }
-        }
-    } catch (error) {
-        // Non-critical
-    }
-};
-
-/**
- * Delete all notifications for and from a user
- */
-const _deleteAllUserNotifications = async (userId) => {
-    try {
-        // Delete notifications received by the user
-        let hasMore = true;
-        while (hasMore) {
-            const notifs = await databases.listDocuments({
-                databaseId: config.databaseId,
-                collectionId: config.notificationsCollectionId,
-                queries: [Query.equal('userId', userId), Query.orderAsc('$createdAt'), Query.limit(100)],
-            });
-
-            if (notifs.documents.length === 0) break;
-
-            for (const n of notifs.documents) {
-                try {
-                    await databases.deleteDocument({
-                        databaseId: config.databaseId,
-                        collectionId: config.notificationsCollectionId,
-                        documentId: n.$id,
-                    });
-                } catch (err) { /* continue */ }
-            }
-
-            if (notifs.documents.length < 100) hasMore = false;
-        }
-
-        // Delete notifications sent by the user
-        hasMore = true;
-        while (hasMore) {
-            const notifs = await databases.listDocuments({
-                databaseId: config.databaseId,
-                collectionId: config.notificationsCollectionId,
-                queries: [Query.equal('senderId', userId), Query.orderAsc('$createdAt'), Query.limit(100)],
-            });
-
-            if (notifs.documents.length === 0) break;
-
-            for (const n of notifs.documents) {
-                try {
-                    await databases.deleteDocument({
-                        databaseId: config.databaseId,
-                        collectionId: config.notificationsCollectionId,
-                        documentId: n.$id,
-                    });
-                } catch (err) { /* continue */ }
-            }
-
-            if (notifs.documents.length < 100) hasMore = false;
-        }
-    } catch (error) {
-        // Non-critical
-    }
-};
-
-/**
- * Delete all push tokens for a user
- */
-const _deleteAllUserPushTokens = async (userId) => {
-    try {
-        const tokens = await databases.listDocuments({
-            databaseId: config.databaseId,
-            collectionId: config.pushTokensCollectionId,
-            queries: [Query.equal('userId', userId), Query.orderAsc('$createdAt'), Query.limit(100)],
-        });
-
-        for (const token of tokens.documents) {
-            try {
-                await databases.deleteDocument({
-                    databaseId: config.databaseId,
-                    collectionId: config.pushTokensCollectionId,
-                    documentId: token.$id,
-                });
-            } catch (err) { /* continue */ }
-        }
-    } catch (error) {
-        // Non-critical
-    }
-};
-
-/**
- * Delete all user chat settings
- */
-const _deleteAllUserChatSettings = async (userId) => {
-    try {
-        let hasMore = true;
-        while (hasMore) {
-            const settings = await databases.listDocuments({
-                databaseId: config.databaseId,
-                collectionId: config.userChatSettingsCollectionId,
-                queries: [Query.equal('userId', userId), Query.orderAsc('$createdAt'), Query.limit(100)],
-            });
-
-            if (settings.documents.length === 0) break;
-
-            for (const s of settings.documents) {
-                try {
-                    await databases.deleteDocument({
-                        databaseId: config.databaseId,
-                        collectionId: config.userChatSettingsCollectionId,
-                        documentId: s.$id,
-                    });
-                } catch (err) { /* continue */ }
-            }
-
-            if (settings.documents.length < 100) hasMore = false;
-        }
-    } catch (error) {
-        // Non-critical
-    }
-};
-
-/**
- * Anonymize all messages sent by this user
- */
-const _anonymizeUserMessages = async (userId) => {
-    try {
-        let cursorAfter = null;
-        let hasMore = true;
-        while (hasMore) {
-            const queries = [
-                Query.equal('senderId', userId),
-                Query.orderAsc('$createdAt'),
-                Query.limit(100),
-            ];
-
-            if (cursorAfter) {
-                queries.push(Query.cursorAfter(cursorAfter));
-            }
-
-            const messages = await databases.listDocuments({
-                databaseId: config.databaseId,
-                collectionId: config.messagesCollectionId,
-                queries,
-            });
-
-            if (messages.documents.length === 0) {
-                break;
-            }
-
-            for (const msg of messages.documents) {
-                try {
-                    await databases.updateDocument({
-                        databaseId: config.databaseId,
-                        collectionId: config.messagesCollectionId,
-                        documentId: msg.$id,
-                        data: { senderName: DELETED_ACCOUNT_SENDER_NAME },
-                    });
-                } catch (err) { /* continue */ }
-            }
-
-            cursorAfter = messages.documents[messages.documents.length - 1]?.$id || null;
-            if (messages.documents.length < 100 || !cursorAfter) {
-                hasMore = false;
-            }
-        }
-    } catch (error) {
-        // Non-critical
-    }
-};
-
-/**
- * Remove user from all chat participant lists
- */
-const _removeUserFromChats = async (userId) => {
-    try {
-        let hasMore = true;
-        while (hasMore) {
-            const chats = await databases.listDocuments({
-                databaseId: config.databaseId,
-                collectionId: config.chatsCollectionId,
-                queries: [Query.contains('participants', [userId]), Query.orderAsc('$createdAt'), Query.limit(50)],
-            });
-
-            if (chats.documents.length === 0) break;
-
-            for (const chat of chats.documents) {
-                try {
-                    const updatedParticipants = (chat.participants || []).filter(id => id !== userId);
-                    const updatedAdmins = (chat.admins || []).filter(id => id !== userId);
-                    const updatedReps = (chat.representatives || []).filter(id => id !== userId);
-
-                    await databases.updateDocument({
-                        databaseId: config.databaseId,
-                        collectionId: config.chatsCollectionId,
-                        documentId: chat.$id,
-                        data: {
-                            participants: updatedParticipants,
-                            admins: updatedAdmins,
-                            representatives: updatedReps,
-                        },
-                    });
-                } catch (err) { /* continue */ }
-            }
-
-            if (chats.documents.length < 50) hasMore = false;
-        }
-    } catch (error) {
-        // Non-critical
-    }
-};
-
-/**
- * Remove user from followers/following lists of other users
- */
-const _removeUserFromFollowLists = async (userId) => {
-    try {
-        // Get the user's followers and following lists
-        let userDoc;
-        try {
-            userDoc = await databases.getDocument({
-                databaseId: config.databaseId,
-                collectionId: config.usersCollectionId,
-                documentId: userId,
-            });
-        } catch (err) {
-            return;
-        }
-
-        const followers = userDoc.followers || [];
-        const following = userDoc.following || [];
-
-        // Remove this user from each follower's "following" list
-        for (const followerId of followers) {
-            try {
-                const follower = await databases.getDocument({
-                    databaseId: config.databaseId,
-                    collectionId: config.usersCollectionId,
-                    documentId: followerId,
-                });
-                const updatedFollowing = (follower.following || []).filter(id => id !== userId);
-                await databases.updateDocument({
-                    databaseId: config.databaseId,
-                    collectionId: config.usersCollectionId,
-                    documentId: followerId,
-                    data: {
-                        following: updatedFollowing,
-                        followingCount: Math.max(0, (follower.followingCount || 1) - 1),
-                    },
-                });
-            } catch (err) { /* continue */ }
-        }
-
-        // Remove this user from each followed user's "followers" list
-        for (const followedId of following) {
-            try {
-                const followed = await databases.getDocument({
-                    databaseId: config.databaseId,
-                    collectionId: config.usersCollectionId,
-                    documentId: followedId,
-                });
-                const updatedFollowers = (followed.followers || []).filter(id => id !== userId);
-                await databases.updateDocument({
-                    databaseId: config.databaseId,
-                    collectionId: config.usersCollectionId,
-                    documentId: followedId,
-                    data: {
-                        followers: updatedFollowers,
-                        followersCount: Math.max(0, (followed.followersCount || 1) - 1),
-                    },
-                });
-            } catch (err) { /* continue */ }
-        }
-    } catch (error) {
-        // Non-critical
     }
 };
 

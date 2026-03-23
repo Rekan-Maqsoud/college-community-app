@@ -794,7 +794,16 @@ const PostCard = ({
               size={footerIconSize} 
               color={liked ? "#EF4444" : theme.textSecondary} 
             />
-            <Text style={[styles.actionText, compact && styles.actionTextCompact, { color: liked ? "#EF4444" : theme.textSecondary }]}>
+            <Text
+              style={[
+                styles.actionText,
+                styles.actionCountText,
+                compact && styles.actionTextCompact,
+                { color: liked ? "#EF4444" : theme.textSecondary },
+              ]}
+              numberOfLines={1}
+              ellipsizeMode="clip"
+            >
               {likeCount}
             </Text>
           </TouchableOpacity>

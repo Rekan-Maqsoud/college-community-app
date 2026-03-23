@@ -48,9 +48,18 @@ const UserProfile = ({ route, navigation }) => {
   const [messageLoading, setMessageLoading] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const qrShareCardRef = useRef(null);
+  const [isDeletedProfile, setIsDeletedProfile] = useState(false);
   const displayName = userData?.fullName || userData?.name || t('errors.unknownUser');
   const { isUserRepresentative } = useRepDetection(currentUser);
   const isThisUserRep = isUserRepresentative(userId);
+
+  const isUserMissingError = useCallback((err) => {
+    const code = Number(err?.code ?? err?.response?.code ?? 0);
+    const type = String(err?.type ?? err?.response?.type ?? '').toLowerCase();
+    const message = `${String(err?.message ?? '')} ${String(err?.response?.message ?? '')}`.toLowerCase();
+
+    return code === 404 || type.includes('not_found') || message.includes('not found') || message.includes('user not found');
+  }, []);
 
   // Generate profile link for sharing
   const getProfileLink = () => {
@@ -161,6 +170,7 @@ const UserProfile = ({ route, navigation }) => {
     const fetchUserData = async () => {
       if (initialUserData) {
         setUserData(initialUserData);
+        setIsDeletedProfile(false);
         setLoadingUser(false);
         return;
       }
@@ -208,15 +218,39 @@ const UserProfile = ({ route, navigation }) => {
         };
         
         setUserData(mappedUser);
+        setIsDeletedProfile(false);
       } catch (error) {
-        setUserError(error.message);
+        if (isUserMissingError(error)) {
+          setUserData({
+            $id: userId,
+            fullName: t('profile.deletedAccountName'),
+            name: t('profile.deletedAccountName'),
+            email: '',
+            bio: t('profile.deletedAccountBio'),
+            gender: '',
+            profilePicture: '',
+            university: '',
+            college: '',
+            department: '',
+            stage: '',
+            postsCount: 0,
+            followersCount: 0,
+            followingCount: 0,
+            socialLinks: null,
+            socialLinksVisibility: 'nobody',
+          });
+          setUserError(null);
+          setIsDeletedProfile(true);
+        } else {
+          setUserError(error.message);
+        }
       } finally {
         setLoadingUser(false);
       }
     };
 
     fetchUserData();
-  }, [userId, initialUserData]);
+  }, [userId, initialUserData, isUserMissingError, t]);
 
   const loadUserPosts = useCallback(async () => {
     if (!userId) return;
@@ -719,7 +753,7 @@ const UserProfile = ({ route, navigation }) => {
         {userProfile.bio && <Text style={[styles.bio, { fontSize: fontSize(13), color: isDarkMode ? 'rgba(255,255,255,0.8)' : 'rgba(28, 28, 30, 0.8)' }]} numberOfLines={2}>{userProfile.bio}</Text>}
         
         {/* Action Buttons Row - Compact layout */}
-        {currentUser?.$id && userId && currentUser.$id !== userId && (
+        {currentUser?.$id && userId && currentUser.$id !== userId && !isDeletedProfile && (
           <View style={styles.actionButtonsRow}>
             {/* Follow Button */}
             <TouchableOpacity 

@@ -17,6 +17,7 @@ export default {
     "emptySearchTitle": "لم يتم العثور على مستخدمين",
     "emptySearchMessage": "حاول البحث باسم أو بريد إلكتروني مختلف",
     "noMessages": "لا توجد رسائل بعد",
+    "deletedChat": "محادثة محذوفة",
     "beFirstToMessage": "كن أول من يرسل رسالة",
     "typeMessage": "اكتب رسالة...",
     "mentionEveryone": "@الكل",

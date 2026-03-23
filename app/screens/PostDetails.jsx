@@ -480,11 +480,12 @@ const PostDetails = ({ navigation, route }) => {
   };
 
   const handleReplyUserPress = useCallback((reply) => {
-    if (!reply?.userId) {
+    const targetUserId = String(reply?.userId || '').trim();
+    if (!targetUserId) {
       return;
     }
 
-    navigation.navigate('UserProfile', { userId: reply.userId });
+    navigation.navigate('UserProfile', { userId: targetUserId });
   }, [navigation]);
 
   const handleCancelReply = () => {

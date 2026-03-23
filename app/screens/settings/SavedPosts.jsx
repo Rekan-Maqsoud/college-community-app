@@ -84,7 +84,11 @@ const SavedPosts = ({ navigation }) => {
   }, [navigation]);
 
   const handleUserPress = useCallback((userId) => {
-    navigation.navigate('UserProfile', { userId });
+    const targetUserId = String(userId || '').trim();
+    if (!targetUserId) {
+      return;
+    }
+    navigation.navigate('UserProfile', { userId: targetUserId });
   }, [navigation]);
 
   const renderPost = ({ item }) => {
