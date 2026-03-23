@@ -1038,6 +1038,7 @@ export default {
     "postHiddenByReports": "your post was hidden for review",
     "lectureUpload": "new lecture upload",
     "lectureMention": "mentioned you in lecture discussion",
+    "lectureJoinRequest": "requested to join your lecture channel",
     "others": "others",
     "liked": "liked",
     "replied": "replied",

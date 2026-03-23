@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
+import { isLiquidGlassSupported } from '@callstack/liquid-glass';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { GlassContainer } from './GlassComponents';
 import { spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 
@@ -41,15 +43,16 @@ export const PostCardSkeleton = () => {
     : 'rgba(255, 255, 255, 0.85)';
 
   return (
-    <View style={[
-      styles.container, 
-      { 
-        backgroundColor: cardBackground,
-        borderRadius: borderRadius.lg,
-        borderWidth: isDarkMode ? 0 : 1,
-        borderColor: 'rgba(0, 0, 0, 0.04)',
-      }
-    ]}>
+    <GlassContainer style={styles.container} borderRadius={borderRadius.lg}>
+      <View
+        style={[
+          styles.skeletonCardInner,
+          {
+            backgroundColor: 'transparent',
+            borderWidth: 0,
+          },
+        ]}
+      >
       <View style={styles.header}>
         <Animated.View
           style={[
@@ -105,7 +108,8 @@ export const PostCardSkeleton = () => {
           />
         ))}
       </View>
-    </View>
+      </View>
+    </GlassContainer>
   );
 };
 
@@ -204,13 +208,19 @@ export const ChatListSkeleton = ({ count = 6 }) => {
   return (
     <View>
       {Array.from({ length: count }).map((_, index) => (
-        <View
+        <GlassContainer
           key={`chat-skeleton-${index}`}
+          borderRadius={borderRadius.lg}
           style={[
             styles.listSkeletonCard,
             {
-              backgroundColor: cardBackground,
-              borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+              backgroundColor: isLiquidGlassSupported ? 'transparent' : cardBackground,
+              borderColor: isLiquidGlassSupported
+                ? 'transparent'
+                : isDarkMode
+                  ? 'rgba(255,255,255,0.08)'
+                  : 'rgba(0,0,0,0.04)',
+              borderWidth: isLiquidGlassSupported ? 0 : 1,
             },
           ]}
         >
@@ -234,7 +244,7 @@ export const ChatListSkeleton = ({ count = 6 }) => {
               ]}
             />
           </View>
-        </View>
+        </GlassContainer>
       ))}
     </View>
   );
@@ -408,7 +418,13 @@ export const SavedPostSkeleton = ({ count = 3 }) => {
 
 const styles = StyleSheet.create({
   container: {
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    marginBottom: spacing.md,
+  },
+  skeletonCardInner: {
     padding: spacing.md,
+    borderRadius: borderRadius.lg,
     marginBottom: spacing.md,
   },
   header: {
@@ -491,7 +507,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    borderWidth: 1,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     marginBottom: spacing.sm,

@@ -65,6 +65,7 @@ export const useLectureChannelControllerActions = ({
   setOrganizerOpen,
   setPostingComment,
   setRefreshing,
+  setJoinRequests,
   setSavingSettings,
   setSearchingManagerSuggestions: _setSearchingManagerSuggestions,
   setSelectedFile,
@@ -352,7 +353,7 @@ export const useLectureChannelControllerActions = ({
   };
 
   const handleApproveRequest = async (membershipId, status) => {
-    if (!isManager) {
+    if (!isManager || !membershipId || !status) {
       return;
     }
 
@@ -363,7 +364,11 @@ export const useLectureChannelControllerActions = ({
     });
 
     try {
+      setSavingSettings(true);
       await updateLectureMembershipStatus({ channelId, membershipId, status });
+      setJoinRequests(prev => (Array.isArray(prev)
+        ? prev.filter(request => request?.$id !== membershipId)
+        : []));
       await loadData({ showLoading: false });
       logLectureChannel('approveRequest:success', {
         channelId,
@@ -372,6 +377,13 @@ export const useLectureChannelControllerActions = ({
       });
     } catch (error) {
       logLectureChannelError('approveRequest:error', error, { channelId, membershipId, status });
+      showAlert(
+        t('common.error'),
+        error?.message || t('common.somethingWentWrong'),
+        'error'
+      );
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -568,6 +580,8 @@ export const useLectureChannelControllerActions = ({
       return;
     }
 
+    let optimisticCommentId = '';
+
     logLectureChannel('submitComment:start', {
       channelId,
       assetId: commentsModalAsset?.$id || '',
@@ -577,7 +591,7 @@ export const useLectureChannelControllerActions = ({
     try {
       setPostingComment(true);
 
-      const optimisticCommentId = `optimistic-${Date.now()}`;
+      optimisticCommentId = `optimistic-${Date.now()}`;
       const optimisticComment = {
         $id: optimisticCommentId,
         channelId,

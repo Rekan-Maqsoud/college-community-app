@@ -41,6 +41,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
   },
+  iconBadgeWrap: {
+    position: 'relative',
+    overflow: 'visible',
+    marginRight: 2,
+  },
   headerMenuBtn: {
     width: moderateScale(34),
     height: moderateScale(34),
@@ -52,27 +57,45 @@ const styles = StyleSheet.create({
   },
   downloadBadge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: moderateScale(16),
-    height: moderateScale(16),
-    borderRadius: moderateScale(8),
+    top: -6,
+    right: -6,
+    minWidth: moderateScale(18),
+    height: moderateScale(18),
+    borderRadius: moderateScale(9),
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 2,
+    paddingHorizontal: 3,
   },
   downloadBadgeText: {
     color: '#FFFFFF',
     fontSize: fontSize(9),
     fontWeight: '700',
   },
+  pendingBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    minWidth: moderateScale(18),
+    height: moderateScale(18),
+    borderRadius: moderateScale(9),
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  pendingBadgeText: {
+    color: '#FFFFFF',
+    fontSize: fontSize(9),
+    fontWeight: '700',
+  },
   content: {
-    padding: spacing.sm,
+    paddingHorizontal: wp(4),
+    paddingTop: spacing.md,
     paddingBottom: spacing.xxl,
   },
   sectionTitle: {
     fontSize: fontSize(14),
     fontWeight: '700',
+    marginTop: spacing.xs,
     marginBottom: spacing.sm,
   },
   statsGrid: {
@@ -245,11 +268,11 @@ const styles = StyleSheet.create({
     fontSize: fontSize(12),
   },
   assetCardWrapper: {
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   assetCard: {
     borderRadius: 18,
-    padding: spacing.sm,
+    padding: spacing.md,
     overflow: 'hidden',
   },
   assetHeader: {
@@ -421,9 +444,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
   },
+  folderHeaderGlass: {
+    marginBottom: spacing.sm,
+  },
   folderHeaderText: {
     fontSize: fontSize(12),
     fontWeight: '800',
+  },
+  warningBannerGlass: {
+    marginBottom: spacing.md,
+  },
+  warningBanner: {
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  warningBannerText: {
+    flex: 1,
+    fontSize: fontSize(12),
+    fontWeight: '600',
   },
   assetStatsCompact: {
     marginTop: spacing.xs,
@@ -442,8 +485,10 @@ const styles = StyleSheet.create({
   assetActionsRow: {
     marginTop: spacing.sm,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
   },
   pinnedLabel: {
     fontSize: fontSize(11),
@@ -484,6 +529,9 @@ const styles = StyleSheet.create({
     maxHeight: '94%',
     minHeight: '72%',
   },
+  uploadComposerGlass: {
+    borderRadius: borderRadius.xl,
+  },
   uploadComposerScrollContent: {
     paddingBottom: spacing.lg,
   },
@@ -496,6 +544,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: fontSize(16),
     fontWeight: '700',
+  },
+  settingsModalGlass: {
+    borderRadius: borderRadius.xl,
+  },
+  settingsGlassBlock: {
+    marginBottom: spacing.xs,
   },
   modalSectionTitle: {
     fontSize: fontSize(13),
@@ -551,7 +605,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   toggleRow: {
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,

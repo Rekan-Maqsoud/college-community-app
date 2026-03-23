@@ -768,6 +768,7 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
     setOrganizerOpen,
     setPostingComment,
     setRefreshing,
+    setJoinRequests,
     setSavingSettings,
     setSearchingManagerSuggestions,
     setSelectedFile,

@@ -13,14 +13,13 @@ import {
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
-import ReanimatedAnimated, { FadeInRight, FadeInDown, FadeOutDown } from 'react-native-reanimated';
-import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { useTranslation } from '../hooks/useTranslation';
-import { GlassContainer, GlassPill, isLiquidGlassSupported } from '../components/GlassComponents';
+import { GlassContainer, GlassIconButton } from '../components/GlassComponents';
+import LectureWindowSelector from '../components/LectureWindowSelector';
 import { getActorIdentityIds, getPrimaryActorId, matchesAnyActorIdentity } from '../utils/actorIdentity';
 import { canLinkLectureGroup } from '../utils/lectureAccess';
 import { useLectureChannelsRealtime } from '../hooks/useRealtimeSubscription';
@@ -130,15 +129,20 @@ const CreateChannelModal = ({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}> 
-        <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+        <GlassContainer borderRadius={borderRadius.xl} style={styles.createModalGlass}>
+        <View style={[styles.modalCard, { backgroundColor: 'transparent', borderColor: `${colors.primary}33` }]}> 
           <View style={styles.modalHeader}>
             <View style={styles.modalHeaderLeft}>
               <Ionicons name="school-outline" size={20} color={colors.primary} />
               <Text style={[styles.modalTitle, { color: colors.text }]}>{t('lectures.createChannel')}</Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <GlassIconButton
+              size={32}
+              borderRadiusValue={16}
+              onPress={onClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close" size={22} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </GlassIconButton>
           </View>
 
           <TextInput
@@ -194,9 +198,6 @@ const CreateChannelModal = ({
                   {t('lectures.official')}
                 </Text>
               </TouchableOpacity>
-            {!canCreateOfficial && (
-              <Text style={[styles.officialHint, { color: colors.textSecondary, fontStyle: 'italic' }]}>{t('lectures.officialHintForStudents')}</Text>
-            )}
 
             <TouchableOpacity
               style={[
@@ -214,51 +215,60 @@ const CreateChannelModal = ({
             </TouchableOpacity>
           </View>
 
+          {!canCreateOfficial && (
+            <Text style={[styles.officialHint, { color: colors.textSecondary, fontStyle: 'italic' }]}>{t('lectures.officialHintForStudents')}</Text>
+          )}
+
           {channelType === LECTURE_CHANNEL_TYPES.COMMUNITY && (
-            <TouchableOpacity
-              style={[styles.toggleRow, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}
-              onPress={() => setNeedsApproval(prev => !prev)}>
-              <Text style={[styles.toggleText, { color: colors.text }]}>{t('lectures.requireApproval')}</Text>
-              <Ionicons name={needsApproval ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
-            </TouchableOpacity>
+            <GlassContainer borderRadius={borderRadius.md} style={styles.createModalOptionGlass}>
+              <TouchableOpacity
+                style={[styles.toggleRow, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
+                onPress={() => setNeedsApproval(prev => !prev)}>
+                <Text style={[styles.toggleText, { color: colors.text }]}>{t('lectures.requireApproval')}</Text>
+                <Ionicons name={needsApproval ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
+              </TouchableOpacity>
+            </GlassContainer>
           )}
 
           {canLinkGroups && (
             <>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('lectures.chooseLinkedGroup')}</Text>
 
-              <TouchableOpacity
-                style={[
-                  styles.groupOption,
-                  {
-                    borderColor: linkedGroupId ? colors.border : colors.primary,
-                    backgroundColor: colors.inputBackground,
-                  },
-                ]}
-                onPress={() => setLinkedGroupId('')}>
-                <Text style={[styles.groupOptionText, { color: colors.text }]}>{t('lectures.noLink')}</Text>
-                {!linkedGroupId && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
-              </TouchableOpacity>
-
-              {groups.map(group => (
+              <GlassContainer borderRadius={borderRadius.md} style={styles.createModalOptionGlass}>
                 <TouchableOpacity
-                  key={group.$id}
                   style={[
                     styles.groupOption,
                     {
-                      borderColor: linkedGroupId === group.$id ? colors.primary : colors.border,
-                      backgroundColor: colors.inputBackground,
+                      borderColor: linkedGroupId ? `${colors.primary}33` : colors.primary,
+                      backgroundColor: 'transparent',
                     },
                   ]}
-                  onPress={() => setLinkedGroupId(group.$id)}>
-                  <View style={styles.groupOptionMeta}>
-                    <Text style={[styles.groupOptionText, { color: colors.text }]} numberOfLines={1}>{group.name}</Text>
-                    <Text style={[styles.groupOptionHint, { color: colors.textSecondary }]} numberOfLines={1}>
-                      {group.type === CHAT_TYPES.STAGE_GROUP ? t('lectures.stageGroup') : t('lectures.customGroup')}
-                    </Text>
-                  </View>
-                  {linkedGroupId === group.$id && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
+                  onPress={() => setLinkedGroupId('')}>
+                  <Text style={[styles.groupOptionText, { color: colors.text }]}>{t('lectures.noLink')}</Text>
+                  {!linkedGroupId && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
                 </TouchableOpacity>
+              </GlassContainer>
+
+              {groups.map(group => (
+                <GlassContainer key={group.$id} borderRadius={borderRadius.md} style={styles.createModalOptionGlass}>
+                  <TouchableOpacity
+                    style={[
+                      styles.groupOption,
+                      {
+                        borderColor: linkedGroupId === group.$id ? colors.primary : `${colors.primary}33`,
+                        backgroundColor: 'transparent',
+                      },
+                    ]}
+                    onPress={() => setLinkedGroupId(group.$id)}>
+                    <View style={styles.groupOptionMeta}>
+                      <Text style={[styles.groupOptionText, { color: colors.text }]} numberOfLines={1}>{group.name}</Text>
+                      <Text style={[styles.groupOptionHint, { color: colors.textSecondary }]} numberOfLines={1}>
+                        {group.type === CHAT_TYPES.STAGE_GROUP ? t('lectures.stageGroup') : t('lectures.customGroup')}
+                      </Text>
+                    </View>
+                    {linkedGroupId === group.$id && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
+                  </TouchableOpacity>
+                </GlassContainer>
               ))}
 
               {groups.length === 0 && (
@@ -292,6 +302,7 @@ const CreateChannelModal = ({
             </TouchableOpacity>
           </View>
         </View>
+        </GlassContainer>
       </View>
     </Modal>
   );
@@ -831,24 +842,23 @@ const Lecture = ({ navigation }) => {
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm, borderBottomColor: colors.border }]}> 
         <Text style={[styles.screenTitle, { color: colors.text }]}>{t('lectures.title')}</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={[styles.headerIconBtn]}
+          <GlassIconButton
+            size={moderateScale(36)}
+            borderRadiusValue={moderateScale(12)}
             activeOpacity={0.7}
             onPress={() => setSearchVisible(prev => !prev)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <GlassContainer size={moderateScale(36)} borderRadius={moderateScale(12)}>
-              <Ionicons name="search" size={moderateScale(18)} color={colors.primary} />
-            </GlassContainer>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.headerIconBtn]}
+            <Ionicons name="search" size={moderateScale(18)} color={colors.primary} />
+          </GlassIconButton>
+          
+          <GlassIconButton
+            size={moderateScale(36)}
+            borderRadiusValue={moderateScale(12)}
             activeOpacity={0.7}
             onPress={() => setCreateOpen(true)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <GlassContainer size={moderateScale(36)} borderRadius={moderateScale(12)}>
-              <Ionicons name="add" size={moderateScale(18)} color={colors.primary} />
-            </GlassContainer>
-          </TouchableOpacity>
+            <Ionicons name="add" size={moderateScale(20)} color={colors.primary} />
+          </GlassIconButton>
         </View>
       </View>
 
@@ -876,29 +886,10 @@ const Lecture = ({ navigation }) => {
       )}
 
       <View style={styles.windowSwitcher}>
-        <TouchableOpacity
-          style={{ flex: 1 }}
-          activeOpacity={0.7}
-          onPress={() => setActiveWindow(LECTURE_WINDOWS.COMMUNITY)}>
-          <GlassPill active={activeWindow === LECTURE_WINDOWS.COMMUNITY} style={styles.windowBtn}>
-            <Ionicons name="people-outline" size={16} color={activeWindow === LECTURE_WINDOWS.COMMUNITY ? '#FFFFFF' : colors.text} />
-            <Text style={[styles.windowBtnText, { color: activeWindow === LECTURE_WINDOWS.COMMUNITY ? '#FFFFFF' : colors.text }]}> 
-              {t('lectures.communityWindow')}
-            </Text>
-          </GlassPill>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={{ flex: 1 }}
-          activeOpacity={0.7}
-          onPress={() => setActiveWindow(LECTURE_WINDOWS.OFFICIAL)}>
-          <GlassPill active={activeWindow === LECTURE_WINDOWS.OFFICIAL} style={styles.windowBtn}>
-            <Ionicons name="school-outline" size={16} color={activeWindow === LECTURE_WINDOWS.OFFICIAL ? '#FFFFFF' : colors.text} />
-            <Text style={[styles.windowBtnText, { color: activeWindow === LECTURE_WINDOWS.OFFICIAL ? '#FFFFFF' : colors.text }]}> 
-              {t('lectures.officialWindow')}
-            </Text>
-          </GlassPill>
-        </TouchableOpacity>
+        <LectureWindowSelector
+          selectedWindow={activeWindow}
+          onWindowChange={setActiveWindow}
+        />
       </View>
 
       {suggestedChannels.length > 0 && !searchVisible && (
@@ -1136,7 +1127,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     paddingHorizontal: wp(4),
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
   },
   windowBtn: {
     flex: 1,
@@ -1154,7 +1146,7 @@ const styles = StyleSheet.create({
   },
   suggestedWrap: {
     paddingHorizontal: wp(4),
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.md,
   },
   suggestedTitle: {
     fontSize: fontSize(12),
@@ -1204,6 +1196,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: wp(4),
+    paddingTop: spacing.xs,
   },
   channelCard: {
     borderRadius: borderRadius.lg,
@@ -1342,6 +1335,12 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     maxHeight: '88%',
   },
+  createModalGlass: {
+    borderRadius: borderRadius.xl,
+  },
+  createModalOptionGlass: {
+    marginBottom: spacing.xs,
+  },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1386,12 +1385,14 @@ const styles = StyleSheet.create({
   typeRow: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginBottom: spacing.sm,
-    flexWrap: 'wrap',
+    marginBottom: spacing.xs,
+    flexWrap: 'nowrap',
   },
   chip: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.xs,
     borderWidth: 1,
     borderRadius: borderRadius.round,
@@ -1405,10 +1406,10 @@ const styles = StyleSheet.create({
   officialHint: {
     fontSize: fontSize(10),
     fontStyle: 'italic',
-    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
   },
   toggleRow: {
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,

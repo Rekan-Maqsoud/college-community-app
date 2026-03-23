@@ -55,6 +55,7 @@ const NOTIFICATION_TYPES = {
   REPLY_REPLY_BATCH: 'reply_reply_batch',
   LECTURE_UPLOAD: 'lecture_upload',
   LECTURE_MENTION: 'lecture_mention',
+  LECTURE_JOIN_REQUEST: 'lecture_join_request',
 };
 
 const GROUPABLE_NOTIFICATION_TYPES = new Set([
@@ -209,6 +210,8 @@ const getNotificationIcon = (type) => {
       return { name: 'book', color: '#0EA5E9' };
     case NOTIFICATION_TYPES.LECTURE_MENTION:
       return { name: 'at', color: '#8B5CF6' };
+    case NOTIFICATION_TYPES.LECTURE_JOIN_REQUEST:
+      return { name: 'person-add', color: '#EF4444' };
     default:
       return { name: 'notifications', color: '#8E8E93' };
   }
@@ -282,6 +285,8 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
         return t('notifications.lectureUpload') || 'new lecture upload';
       case NOTIFICATION_TYPES.LECTURE_MENTION:
         return t('notifications.lectureMention') || 'mentioned you in lecture discussion';
+      case NOTIFICATION_TYPES.LECTURE_JOIN_REQUEST:
+        return t('notifications.lectureJoinRequest') || 'requested to join your lecture channel';
       default:
         return '';
     }
@@ -820,7 +825,11 @@ const Notifications = ({ navigation }) => {
       dismissPresentedNotificationsByTarget({ postId: notificationData.postId }).catch(() => {});
       markNotificationsAsReadByContext(user?.$id, { postId: notificationData.postId }).catch(() => {});
 
-      if (notificationData.type === NOTIFICATION_TYPES.LECTURE_UPLOAD || notificationData.type === NOTIFICATION_TYPES.LECTURE_MENTION) {
+      if (
+        notificationData.type === NOTIFICATION_TYPES.LECTURE_UPLOAD ||
+        notificationData.type === NOTIFICATION_TYPES.LECTURE_MENTION ||
+        notificationData.type === NOTIFICATION_TYPES.LECTURE_JOIN_REQUEST
+      ) {
         navigation.navigate('LectureChannel', {
           channelId: notificationData.postId,
           source: `notification_${notificationData.type}`,

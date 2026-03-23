@@ -108,10 +108,6 @@ const FilterSortModal = ({
           backgroundColor: isDarkMode
             ? 'rgba(255, 255, 255, 0.12)'
             : 'rgba(0, 122, 255, 0.15)',
-          borderWidth: 1,
-          borderColor: isDarkMode
-            ? 'rgba(255, 255, 255, 0.18)'
-            : theme.primary + '40',
         },
       ]}
       onPress={() => onSelect(option.key)}
@@ -138,11 +134,13 @@ const FilterSortModal = ({
         </Text>
       </View>
       {isSelected && (
-        <Ionicons
-          name="checkmark-circle"
-          size={moderateScale(22)}
-          color={theme.primary}
-        />
+        <View style={[styles.selectedIndicator, { backgroundColor: theme.primary }]}>
+          <Ionicons
+            name="checkmark"
+            size={moderateScale(14)}
+            color="#FFFFFF"
+          />
+        </View>
       )}
     </TouchableOpacity>
   );
@@ -339,6 +337,13 @@ const styles = StyleSheet.create({
   },
   optionLabel: {
     fontWeight: '400',
+  },
+  selectedIndicator: {
+    width: moderateScale(22),
+    height: moderateScale(22),
+    borderRadius: moderateScale(11),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   applyButton: {
     marginHorizontal: spacing.lg,

@@ -59,7 +59,6 @@ Primary implementation areas:
 
 - app/tabs/Home.jsx
 - app/tabs/Post.jsx
-- app/screens/CreatePost.jsx
 - app/screens/EditPost.jsx
 - app/screens/PostDetails.jsx
 - app/screens/postDetails/

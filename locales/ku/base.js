@@ -1038,6 +1038,7 @@ export default {
     "postHiddenByReports": "پۆستەکەت بەهۆی ڕیپۆرتەوە شاردراوەتەوە بۆ پێداچوونەوە",
     "lectureUpload": "وانەیەکی نوێی بڵاوکردەوە",
     "lectureMention": "لە گفتوگۆی وانەیەکدا مێنشنتی کرد",
+    "lectureJoinRequest": "داوای بەشداری کرد بۆ کەناڵی وانەکەت",
     "others": "کەسی تر",
     "liked": "ڵایکی کرد",
     "replied": "وەڵامی دایەوە",

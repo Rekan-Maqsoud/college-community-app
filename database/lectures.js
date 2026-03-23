@@ -210,6 +210,26 @@ const getCurrentActorContext = async (userId = null) => {
   };
 };
 
+const resolvePermissionActorIds = async (rawIds = []) => {
+  const baseIds = toUniqueList(Array.isArray(rawIds) ? rawIds : [rawIds]);
+  const resolved = new Set(baseIds);
+
+  await Promise.all(baseIds.map(async (identityId) => {
+    try {
+      const profile = await getUserById(identityId);
+      [profile?.userId, profile?.userID, profile?.accountId, profile?.$id].forEach((value) => {
+        const normalized = sanitizeText(value);
+        if (normalized) {
+          resolved.add(normalized);
+        }
+      });
+    } catch {
+    }
+  }));
+
+  return toUniqueList([...resolved]);
+};
+
 const serializeManagerIds = (managerIds) => {
   return toUniqueList(Array.isArray(managerIds) ? managerIds : [managerIds]).join(',');
 };
@@ -263,6 +283,7 @@ const invokeLectureGuard = async (action, payload = {}) => {
         body: JSON.stringify({
           action,
           payload,
+          authToken: token,
         }),
       }),
     });
@@ -298,6 +319,7 @@ const invokeLectureGuard = async (action, payload = {}) => {
     body: JSON.stringify({
       action,
       payload,
+      authToken: token,
     }),
   });
 
@@ -324,7 +346,9 @@ const tryInvokeLectureGuard = async (action, payload = {}) => {
       message.includes('function env is not configured') ||
       message.includes('lecture guard') ||
       message.includes('failed to fetch') ||
-      message.includes('network request failed');
+      message.includes('network request failed') ||
+      message.includes('missing bearer token') ||
+      message.includes('invalid bearer token');
 
     if (!shouldFallback) {
       throw error;
@@ -601,6 +625,82 @@ const syncChannelCounts = async (channelId) => {
       pendingCount: pending.total,
     },
   });
+};
+
+const getLectureOwnerRecipientIds = async (channelId, fallbackOwnerId = '') => {
+  const fallbackIds = toUniqueList([sanitizeText(fallbackOwnerId)]);
+
+  try {
+    const ownerMemberships = await databases.listDocuments({
+      databaseId: config.databaseId,
+      collectionId: config.lectureMembershipsCollectionId,
+      queries: [
+        Query.equal('channelId', channelId),
+        Query.equal('joinStatus', 'approved'),
+        Query.equal('role', 'owner'),
+        Query.limit(25),
+      ],
+    });
+
+    const ownerIds = toUniqueList((ownerMemberships.documents || []).map((membership) => sanitizeText(membership?.userId)));
+    return ownerIds.length ? ownerIds : fallbackIds;
+  } catch {
+    return fallbackIds;
+  }
+};
+
+const notifyLectureJoinRequestOwners = async ({ channel, requesterId }) => {
+  try {
+    if (!config.notificationsCollectionId || !channel?.$id || !requesterId) {
+      return;
+    }
+
+    const ownerRecipientIds = await getLectureOwnerRecipientIds(channel.$id, channel?.ownerId);
+    const recipients = ownerRecipientIds.filter((recipientId) => recipientId && recipientId !== requesterId);
+
+    if (!recipients.length) {
+      return;
+    }
+
+    let requesterName = '';
+    try {
+      const requesterProfile = await getUserById(requesterId);
+      requesterName = sanitizeText(requesterProfile?.name || requesterProfile?.fullName);
+    } catch {
+      requesterName = '';
+    }
+
+    const channelName = sanitizeText(channel?.name) || 'Lecture channel';
+    const pushBody = requesterName
+      ? `${requesterName} requested to join your channel`
+      : 'A new user requested to join your channel';
+    const preview = `${pushBody} (${channelName})`;
+
+    await Promise.all(
+      recipients.map(async (recipientUserId) => {
+        await createNotification({
+          userId: recipientUserId,
+          senderId: requesterId,
+          senderName: requesterName || 'Lectures',
+          type: 'lecture_join_request',
+          postId: channel.$id,
+          postPreview: preview.substring(0, 90),
+        });
+
+        sendGeneralPushNotification({
+          recipientUserId,
+          senderId: requesterId,
+          senderName: requesterName || 'Lectures',
+          type: 'lecture_join_request',
+          title: channelName,
+          body: pushBody,
+          postId: channel.$id,
+        }).catch(() => {});
+      })
+    );
+  } catch {
+    // Non-blocking notifications
+  }
 };
 
 export const createLectureChannel = async (payload = {}) => {
@@ -1006,6 +1106,15 @@ export const requestJoinLectureChannel = async (channelId) => {
 
   const approvedDirectly = channel.accessType === LECTURE_ACCESS_TYPES.OPEN;
   const nowIso = new Date().toISOString();
+  const channelManagerIds = getManagerIds(channel);
+  const permissionActorIds = await resolvePermissionActorIds([
+    currentUserId,
+    channel?.ownerId,
+    ...channelManagerIds,
+    ...actorContext.identityIds,
+  ]);
+  const updatePermissions = permissionActorIds.map((actorId) => Permission.update(Role.user(actorId)));
+  const deletePermissions = permissionActorIds.map((actorId) => Permission.delete(Role.user(actorId)));
 
   try {
     const membership = await databases.createDocument({
@@ -1026,12 +1135,19 @@ export const requestJoinLectureChannel = async (channelId) => {
       },
       permissions: [
         Permission.read(Role.users()),
-        Permission.update(Role.user(currentUserId)),
-        Permission.delete(Role.user(currentUserId)),
+        ...updatePermissions,
+        ...deletePermissions,
       ],
     });
 
     await syncChannelCounts(channelId);
+    if (!approvedDirectly) {
+      await notifyLectureJoinRequestOwners({
+        channel,
+        requesterId: currentUserId,
+      });
+    }
+
     logLecturesDb('requestJoinLectureChannel:success', {
       channelId,
       userId: currentUserId,
@@ -1056,52 +1172,52 @@ export const updateLectureMembershipStatus = async ({ channelId, membershipId, s
     status,
   });
 
-  const secureResult = await tryInvokeLectureGuard('update_membership_status', {
-    channelId,
-    membershipId,
-    status,
-  });
+  try {
+    const secureResult = await tryInvokeLectureGuard('update_membership_status', {
+      channelId,
+      membershipId,
+      status,
+    });
 
-  if (secureResult?.success) {
-    await syncChannelCounts(channelId).catch(() => {});
-    const membership = await databases.getDocument({
+    if (secureResult?.success) {
+      await syncChannelCounts(channelId).catch(() => {});
+      const membership = await databases.getDocument({
+        databaseId: config.databaseId,
+        collectionId: config.lectureMembershipsCollectionId,
+        documentId: membershipId,
+      });
+      logLecturesDb('updateLectureMembershipStatus:success_guard', {
+        channelId,
+        membershipId,
+        joinStatus: membership?.joinStatus || '',
+      });
+      return membership;
+    }
+
+    const normalizedStatus = normalizeJoinStatus(status);
+    const actorContext = await getCurrentActorContext();
+    const channel = await getLectureChannelById(channelId);
+
+    assertChannelManager(channel, actorContext.identityIds);
+
+    const updatePayload = {
+      joinStatus: normalizedStatus,
+    };
+
+    const membershipDoc = await databases.getDocument({
       databaseId: config.databaseId,
       collectionId: config.lectureMembershipsCollectionId,
       documentId: membershipId,
     });
-    logLecturesDb('updateLectureMembershipStatus:success_guard', {
-      channelId,
-      membershipId,
-      joinStatus: membership?.joinStatus || '',
-    });
-    return membership;
-  }
 
-  const normalizedStatus = normalizeJoinStatus(status);
-  const actorContext = await getCurrentActorContext();
-  const channel = await getLectureChannelById(channelId);
+    if (sanitizeText(membershipDoc?.channelId) !== sanitizeText(channelId)) {
+      throw new Error('Membership channel mismatch');
+    }
 
-  assertChannelManager(channel, actorContext.identityIds);
+    if (normalizedStatus === 'approved') {
+      updatePayload.approvedAt = new Date().toISOString();
+    }
 
-  const updatePayload = {
-    joinStatus: normalizedStatus,
-  };
-
-  const membershipDoc = await databases.getDocument({
-    databaseId: config.databaseId,
-    collectionId: config.lectureMembershipsCollectionId,
-    documentId: membershipId,
-  });
-
-  if (sanitizeText(membershipDoc?.channelId) !== sanitizeText(channelId)) {
-    throw new Error('Membership channel mismatch');
-  }
-
-  if (normalizedStatus === 'approved') {
-    updatePayload.approvedAt = new Date().toISOString();
-  }
-
-  try {
     const updated = await databases.updateDocument({
       databaseId: config.databaseId,
       collectionId: config.lectureMembershipsCollectionId,

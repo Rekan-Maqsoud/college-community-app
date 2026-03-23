@@ -15,6 +15,31 @@ When instructions overlap, apply this order:
 3. `project-map.instructions.md` (edit routing)
 4. Local file patterns in touched feature
 
+## External ECC Bridge (Do Not Edit Source)
+
+The repository includes an external ECC pack under `.agent/.agents/` that is primarily for Antigravity.
+
+1. Never modify files inside `.agent/` unless the user explicitly asks.
+2. Reuse ECC skills by reading the relevant `SKILL.md` only when the task matches.
+3. Keep ECC usage selective to avoid context/token bloat.
+
+### Conditional Skill Routing
+
+- Feature/bug/refactor work: `.agent/.agents/skills/tdd-workflow/SKILL.md`
+- Final quality gate before handoff: `.agent/.agents/skills/verification-loop/SKILL.md`
+- Security-sensitive changes (auth/input/secrets/endpoints): `.agent/.agents/skills/security-review/SKILL.md`
+- General JS/React quality alignment: `.agent/.agents/skills/coding-standards/SKILL.md`
+- Library/API behavior questions requiring fresh docs: `.agent/.agents/skills/documentation-lookup/SKILL.md`
+- Long multi-phase sessions nearing context pressure: `.agent/.agents/skills/strategic-compact/SKILL.md`
+
+### Token Efficiency Policy
+
+1. Default to zero ECC skills for trivial edits.
+2. Load at most one primary skill per task phase; add a second only when clearly needed.
+3. Read only the minimum required section first, then expand if gaps remain.
+4. Prefer local repo instructions over generic ECC guidance if there is any conflict.
+5. If ECC guidance conflicts with `ai-rules.instructions.md`, always follow `ai-rules.instructions.md`.
+
 ## Target Architecture Direction
 
 - Runtime target: Expo SDK 55 + New Architecture + Hermes V1.
@@ -56,6 +81,7 @@ When instructions overlap, apply this order:
 2. Keep item renderers stable: memoize expensive selectors and callbacks.
 3. Avoid creating new inline objects/functions in high-frequency render trees.
 4. Preserve scroll and interaction continuity during incremental updates.
+5. For glass UI: never place a second opaque/solid card background on top of a `GlassContainer`/`GlassModalCard` surface; use transparent inner wrappers and a single surface layer.
 
 ## Internationalization Strategy
 

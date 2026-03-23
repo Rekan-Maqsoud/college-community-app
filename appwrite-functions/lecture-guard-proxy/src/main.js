@@ -57,11 +57,55 @@ const getEnv = (...keys) => {
   return '';
 };
 
-const assertManager = (channel, userId) => {
-  const ownerId = String(channel?.ownerId || '');
-  const managerIds = normalizeList(channel?.managerIds);
+const resolveActorIdentityIds = async ({ db, databaseId, usersCollectionId, accountId }) => {
+  const identityIds = new Set([String(accountId || '').trim()].filter(Boolean));
 
-  if (ownerId !== userId && !managerIds.includes(userId)) {
+  if (!usersCollectionId || !accountId) {
+    return [...identityIds];
+  }
+
+  let profile = null;
+  try {
+    profile = await db.getDocument(databaseId, usersCollectionId, accountId);
+  } catch {
+    profile = null;
+  }
+
+  if (!profile) {
+    try {
+      const byUserId = await db.listDocuments(databaseId, usersCollectionId, [
+        `equal("userId", ["${accountId}"])`,
+        'limit(1)',
+      ]);
+      profile = byUserId?.documents?.[0] || null;
+    } catch {
+      profile = null;
+    }
+  }
+
+  if (profile) {
+    [profile.$id, profile.userId, profile.userID, profile.accountId].forEach((value) => {
+      const normalized = String(value || '').trim();
+      if (normalized) {
+        identityIds.add(normalized);
+      }
+    });
+  }
+
+  return [...identityIds];
+};
+
+const assertManagerByIdentity = (channel, identityIds = []) => {
+  const ownerId = String(channel?.ownerId || '').trim();
+  const managerIds = normalizeList(channel?.managerIds);
+  const normalizedIdentityIds = normalizeList(identityIds);
+
+  if (normalizedIdentityIds.includes(ownerId)) {
+    return;
+  }
+
+  const isManager = managerIds.some((managerId) => normalizedIdentityIds.includes(managerId));
+  if (!isManager) {
     throw new Error('Not authorized');
   }
 };
@@ -72,12 +116,13 @@ export default async ({ req, res }) => {
       return json(res, 405, { success: false, error: 'Method not allowed' });
     }
 
+    const rawBody = parseBody(req);
     const authHeader = getHeader(req.headers, 'authorization');
-    if (!authHeader.startsWith('Bearer ')) {
-      return json(res, 401, { success: false, error: 'Missing bearer token' });
-    }
+    const bodyToken = String(rawBody?.authToken || '').trim();
+    const jwt = authHeader.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length).trim()
+      : bodyToken;
 
-    const jwt = authHeader.slice('Bearer '.length).trim();
     if (!jwt) {
       return json(res, 401, { success: false, error: 'Invalid bearer token' });
     }
@@ -93,6 +138,10 @@ export default async ({ req, res }) => {
     const membershipsCollectionId = getEnv(
       'APPWRITE_LECTURE_MEMBERSHIPS_COLLECTION_ID',
       'EXPO_PUBLIC_APPWRITE_LECTURE_MEMBERSHIPS_COLLECTION_ID'
+    );
+    const usersCollectionId = getEnv(
+      'APPWRITE_USERS_COLLECTION_ID',
+      'EXPO_PUBLIC_APPWRITE_USERS_COLLECTION_ID'
     );
     const assetsCollectionId = getEnv(
       'APPWRITE_LECTURE_ASSETS_COLLECTION_ID',
@@ -123,7 +172,7 @@ export default async ({ req, res }) => {
 
     const db = new Databases(serviceClient);
 
-    const body = parseBody(req);
+    const body = rawBody;
     if (!body || typeof body !== 'object') {
       return json(res, 400, { success: false, error: 'Invalid JSON body' });
     }
@@ -141,7 +190,14 @@ export default async ({ req, res }) => {
     }
 
     const channel = await db.getDocument(databaseId, channelsCollectionId, channelId);
-    assertManager(channel, currentUserId);
+    const actorIdentityIds = await resolveActorIdentityIds({
+      db,
+      databaseId,
+      usersCollectionId,
+      accountId: currentUserId,
+    });
+
+    assertManagerByIdentity(channel, actorIdentityIds);
 
     if (action === 'update_membership_status') {
       const membershipId = String(payload.membershipId || '');

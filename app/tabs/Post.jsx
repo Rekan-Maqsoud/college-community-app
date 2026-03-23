@@ -22,6 +22,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import AnimatedBackground from '../components/AnimatedBackground';
 import SearchableDropdownNew from '../components/SearchableDropdownNew';
+import { GlassContainer } from '../components/GlassComponents';
 import CustomAlert from '../components/CustomAlert';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { uploadImage } from '../../services/imgbbService';
@@ -75,8 +76,8 @@ const Post = () => {
   const [text, setText] = useState('');
   const [department] = useState(user?.department || '');
   const [stage, setStage] = useState(normalizeStageValue(user?.stage));
-  const [topicInputHeight, setTopicInputHeight] = useState(48);
-  const [textInputHeight, setTextInputHeight] = useState(96);
+  const [topicInputHeight, setTopicInputHeight] = useState(44);
+  const [textInputHeight, setTextInputHeight] = useState(128);
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState('');
   const [links, setLinks] = useState([]);
@@ -114,12 +115,6 @@ const Post = () => {
   }, [user, stage]);
 
   const stageOptions = getStageOptionsForDepartment(department || user?.department || '');
-  const dropdownSelectorStyle = {
-    backgroundColor: theme.input.background,
-    borderColor: theme.input.border,
-    borderRadius: borderRadius.sm,
-  };
-
   useEffect(() => {
     if (stage && !stageOptions.some((option) => option.value === stage)) {
       setStage('');
@@ -370,34 +365,37 @@ const Post = () => {
       <LinearGradient
         colors={isDarkMode
           ? ['#1a1a2e', '#16213e', '#0f3460']
-          : ['#FFFEF7', '#FFF9E6', '#FFF4D6']
+          : ['#e3f2fd', '#bbdefb', '#90caf9']
         }
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <AnimatedBackground particleCount={16} />
         
-        <View style={[styles.header, { borderBottomColor: theme.border }]}>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.createPost')}</Text>
-          <TouchableOpacity
-            onPress={handleCreatePost}
-            style={[styles.postButton, { backgroundColor: theme.primary }]}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.postButtonText}>{t('post.post')}</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+      <GlassContainer style={styles.headerGlass} borderRadius={0} disableBackgroundOverlay>
+        <View style={[styles.header, { borderBottomColor: theme.border }]}> 
+            <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.createPost')}</Text>
+            <TouchableOpacity
+              onPress={handleCreatePost}
+              style={[styles.postButton, { backgroundColor: theme.primary }]}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.postButtonText}>{t('post.post')}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+      </GlassContainer>
 
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.flex}
         >
-          <ScrollView style={styles.scrollView} contentContainerStyle={contentStyle} showsVerticalScrollIndicator={false}>
+          <View style={styles.formShell}>
+            <GlassContainer style={styles.formGlass} borderRadius={24} disableBackgroundOverlay>
+              <ScrollView style={styles.scrollView} contentContainerStyle={contentStyle} showsVerticalScrollIndicator={false}>
           
           <View style={styles.section}>
             <View style={styles.topControlsRow}>
@@ -412,8 +410,6 @@ const Post = () => {
                   placeholder={t('post.postType')}
                   icon={POST_ICONS[postType] || 'list-outline'}
                   disabled={loading}
-                  useGlass={false}
-                  selectorStyle={dropdownSelectorStyle}
                 />
               </View>
 
@@ -429,8 +425,6 @@ const Post = () => {
                   icon="stats-chart-outline"
                   disabled={loading}
                   compact
-                  useGlass={false}
-                  selectorStyle={dropdownSelectorStyle}
                 />
               </View>
 
@@ -466,61 +460,75 @@ const Post = () => {
             <Text style={[styles.sectionLabel, { color: theme.text }]}>
               {t('post.topic')}
             </Text>
-            <TextInput
-              style={[styles.input, styles.growingInput, {
-                minHeight: topicInputHeight,
-                height: topicInputHeight,
-                backgroundColor: theme.input.background,
-                borderColor: theme.input.border,
-                color: theme.text 
-              }]}
-              value={topic}
-              onChangeText={setTopic}
-              placeholder={t('post.topicPlaceholder')}
-              placeholderTextColor={theme.input.placeholder}
-              maxLength={200}
-              multiline
-              numberOfLines={1}
-              textAlignVertical="top"
-              editable={!loading}
-              onContentSizeChange={(event) => {
-                const nextHeight = Math.max(48, Math.min(120, event.nativeEvent.contentSize.height + 16));
-                setTopicInputHeight(nextHeight);
-              }}
-            />
-            <Text style={[styles.charCount, { color: theme.textSecondary }]}>
-              {topic.length}/200
-            </Text>
+            <View style={styles.inputShell}>
+              <TextInput
+                style={[
+                  styles.input,
+                  styles.topicInput,
+                  styles.growingInput,
+                  {
+                    minHeight: topicInputHeight,
+                    height: topicInputHeight,
+                    backgroundColor: theme.input.background,
+                    borderColor: theme.input.border,
+                    color: theme.text,
+                  },
+                ]}
+                value={topic}
+                onChangeText={setTopic}
+                placeholder={t('post.topicPlaceholder')}
+                placeholderTextColor={theme.input.placeholder}
+                maxLength={200}
+                multiline
+                numberOfLines={1}
+                textAlignVertical="top"
+                editable={!loading}
+                onContentSizeChange={(event) => {
+                  const nextHeight = Math.max(44, Math.min(96, event.nativeEvent.contentSize.height + 14));
+                  setTopicInputHeight(nextHeight);
+                }}
+              />
+              <Text style={[styles.inlineCharCount, { color: theme.textSecondary }]}>
+                {topic.length}/200
+              </Text>
+            </View>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, styles.compactNextSection]}>
             <Text style={[styles.sectionLabel, { color: theme.text }]}>
               {t('post.description')}
             </Text>
-            <TextInput
-              style={[styles.input, styles.textArea, styles.growingInput, {
-                minHeight: textInputHeight,
-                height: textInputHeight,
-                backgroundColor: theme.input.background,
-                borderColor: theme.input.border,
-                color: theme.text
-              }]}
-              value={text}
-              onChangeText={setText}
-              placeholder={t('post.descriptionPlaceholder')}
-              placeholderTextColor={theme.input.placeholder}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-              editable={!loading}
-              onContentSizeChange={(event) => {
-                const nextHeight = Math.max(96, Math.min(280, event.nativeEvent.contentSize.height + 16));
-                setTextInputHeight(nextHeight);
-              }}
-            />
-            <Text style={[styles.charCount, { color: theme.textSecondary }]}>
-              {text.length}/5000
-            </Text>
+            <View style={styles.inputShell}>
+              <TextInput
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  styles.growingInput,
+                  {
+                    minHeight: textInputHeight,
+                    height: textInputHeight,
+                    backgroundColor: theme.input.background,
+                    borderColor: theme.input.border,
+                    color: theme.text,
+                  },
+                ]}
+                value={text}
+                onChangeText={setText}
+                placeholder={t('post.descriptionPlaceholder')}
+                placeholderTextColor={theme.input.placeholder}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                editable={!loading}
+                onContentSizeChange={(event) => {
+                  const nextHeight = Math.max(128, Math.min(260, event.nativeEvent.contentSize.height + 14));
+                  setTextInputHeight(nextHeight);
+                }}
+              />
+              <Text style={[styles.inlineCharCount, { color: theme.textSecondary }]}>
+                {text.length}/5000
+              </Text>
+            </View>
           </View>
 
           {postType === POST_TYPES.POLL && (
@@ -902,7 +910,9 @@ const Post = () => {
           </View>
 
             <View style={styles.bottomSpace} />
-          </ScrollView>
+              </ScrollView>
+            </GlassContainer>
+          </View>
         </KeyboardAvoidingView>
       </LinearGradient>
 
@@ -966,6 +976,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: 1,
   },
+  headerGlass: {
+    marginHorizontal: 10,
+    marginTop: 8,
+  },
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
@@ -986,10 +1000,21 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  formShell: {
+    flex: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  formGlass: {
+    flex: 1,
+  },
   section: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 12,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  compactNextSection: {
+    paddingTop: 4,
   },
   topControlsRow: {
     flexDirection: 'row',
@@ -1031,9 +1056,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   sectionLabel: {
-    fontSize: fontSizeUtil(16),
+    fontSize: fontSizeUtil(13),
     fontWeight: '600',
-    marginBottom: spacing.sm,
+    marginBottom: 6,
   },
   optional: {
     fontSize: fontSizeUtil(14),
@@ -1041,15 +1066,33 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderRadius: borderRadius.sm,
-    padding: spacing.md,
-    fontSize: fontSizeUtil(16),
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    paddingBottom: 26,
+    fontSize: fontSizeUtil(15),
+  },
+  topicInput: {
+    minHeight: 44,
+    maxHeight: 96,
   },
   growingInput: {
     overflow: 'hidden',
   },
+  inputShell: {
+    position: 'relative',
+  },
+  inlineCharCount: {
+    position: 'absolute',
+    right: 10,
+    bottom: 8,
+    fontSize: fontSizeUtil(10),
+    fontWeight: '600',
+  },
   textArea: {
-    minHeight: 96,
+    minHeight: 128,
+    borderRadius: 12,
+    paddingBottom: 28,
     textAlignVertical: 'top',
   },
   charCount: {

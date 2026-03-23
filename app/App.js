@@ -967,7 +967,7 @@ const NotificationSetup = ({ navigationRef }) => {
 
     runDismissByContext().catch(() => {});
 
-    if ((type === 'lecture_upload' || type === 'lecture_mention') && data.postId) {
+    if ((type === 'lecture_upload' || type === 'lecture_mention' || type === 'lecture_join_request') && data.postId) {
       navigationRef.current.navigate('LectureChannel', { channelId: data.postId });
     } else if (data.postId) {
       if (type === 'post_reply') {

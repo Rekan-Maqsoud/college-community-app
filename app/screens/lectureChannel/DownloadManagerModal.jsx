@@ -1,7 +1,7 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity,  StyleSheet } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FlashList } from '@shopify/flash-list';
+import { GlassContainer, GlassIconButton } from '../../components/GlassComponents';
 import { spacing, fontSize, moderateScale, wp } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
 
@@ -39,24 +39,47 @@ const DownloadManagerModal = ({
   onDeleteFile,
 }) => {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
       <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}> 
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+        <GlassContainer
+          borderRadius={24}
+          disableBackgroundOverlay
+          style={[
+            styles.cardGlass,
+            styles.card,
+            { backgroundColor: 'transparent', borderColor: `${colors.primary}33` },
+          ]}
+        >
           <View style={styles.headerRow}>
             <View>
               <Text style={[styles.title, { color: colors.text }]}>{t('lectures.downloadsTitle')}</Text>
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('lectures.downloadsSubtitle')}</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { borderColor: colors.border }]}> 
+            <GlassIconButton size={30} borderRadiusValue={15} onPress={onClose} style={[styles.closeBtn, { borderColor: `${colors.primary}44` }]}> 
               <Ionicons name="close" size={18} color={colors.text} />
-            </TouchableOpacity>
+            </GlassIconButton>
           </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
 
           {!!activeDownloads.length && (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('lectures.currentDownloads')}</Text>
               {activeDownloads.map((item) => (
-                <View key={item.assetId} style={[styles.rowCard, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}> 
+                <GlassContainer
+                  key={item.assetId}
+                  borderRadius={14}
+                  style={[styles.rowCardGlass, styles.rowCard, { borderColor: `${colors.primary}33` }]}
+                >
                   <View style={styles.rowTop}>
                     <Text style={[styles.fileName, { color: colors.text }]} numberOfLines={1}>{item.fileName}</Text>
                     <Text style={[styles.percentText, { color: colors.primary }]}>{String(item.progress)}%</Text>
@@ -64,23 +87,22 @@ const DownloadManagerModal = ({
                   <View style={[styles.progressTrack, { backgroundColor: colors.border }]}> 
                     <View style={[styles.progressFill, { backgroundColor: colors.primary, width: `${item.progress}%` }]} />
                   </View>
-                </View>
+                </GlassContainer>
               ))}
             </View>
           )}
 
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('lectures.savedDownloads')}</Text>
-            <FlashList
-              data={downloadedFiles}
-              keyExtractor={(item) => item.id}
-              estimatedItemSize={78}
-              style={styles.savedList}
-              contentContainerStyle={downloadedFiles.length === 0 ? styles.savedListEmpty : undefined}
-              renderItem={({ item }) => (
-                <View style={[styles.rowCard, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}> 
+            <View style={styles.savedList}>
+              {downloadedFiles.map((item) => (
+                <GlassContainer
+                  key={item.id}
+                  borderRadius={14}
+                  style={[styles.rowCardGlass, styles.rowCard, { borderColor: `${colors.primary}33` }]}
+                >
                   <View style={styles.savedRowTop}>
-                    <View style={[styles.fileIconWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <View style={[styles.fileIconWrap, { backgroundColor: 'transparent', borderColor: colors.border }]}> 
                       <Ionicons name="document-outline" size={16} color={colors.primary} />
                     </View>
 
@@ -104,7 +126,7 @@ const DownloadManagerModal = ({
                   </View>
 
                   <View style={styles.actionsRow}>
-                    <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={() => onOpenFile(item.path, item.mimeType)}>
+                    <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary, { borderColor: colors.border, backgroundColor: 'transparent' }]} onPress={() => onOpenFile(item.path, item.mimeType)}>
                       <Ionicons name="open-outline" size={14} color={colors.text} />
                       <Text style={[styles.actionText, { color: colors.text }]}>{t('lectures.openFile')}</Text>
                     </TouchableOpacity>
@@ -113,17 +135,18 @@ const DownloadManagerModal = ({
                       <Text style={[styles.actionText, { color: colors.danger }]}>{t('common.delete')}</Text>
                     </TouchableOpacity>
                   </View>
-                </View>
-              )}
-              ListEmptyComponent={
+                </GlassContainer>
+              ))}
+              {downloadedFiles.length === 0 && (
                 <View style={styles.emptyWrap}>
                   <Ionicons name="download-outline" size={22} color={colors.textSecondary} />
                   <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('lectures.noSavedDownloads')}</Text>
                 </View>
-              }
-            />
+              )}
+            </View>
           </View>
-        </View>
+          </ScrollView>
+        </GlassContainer>
       </View>
     </Modal>
   );
@@ -140,6 +163,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     padding: spacing.md,
     maxHeight: '85%',
+  },
+  cardGlass: {
+    borderRadius: borderRadius.xl,
   },
   headerRow: {
     flexDirection: 'row',
@@ -168,13 +194,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     marginBottom: spacing.sm,
   },
-  savedList: {
-    minHeight: moderateScale(180),
-    maxHeight: moderateScale(320),
+  scrollContent: {
+    paddingBottom: spacing.xs,
   },
-  savedListEmpty: {
-    flexGrow: 1,
-    justifyContent: 'center',
+  savedList: {
+    minHeight: moderateScale(120),
   },
   sectionTitle: {
     fontSize: fontSize(13),
@@ -186,6 +210,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  rowCardGlass: {
     marginBottom: spacing.xs,
   },
   rowTop: {

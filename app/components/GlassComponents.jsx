@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
 import { useAppSettingsSafe } from '../context/AppSettingsContext';
@@ -17,12 +17,26 @@ const getColorScheme = (isDarkMode) => (isDarkMode ? 'dark' : 'light');
  * Fallback glass container used when LiquidGlassView is not supported.
  * Provides a styled BlurView-based frosted-glass look for older iOS / Expo Go.
  */
-const FallbackGlassView = ({ children, style, borderRadius = 16, isDarkMode }) => {
+const FallbackGlassView = ({
+  children,
+  style,
+  borderRadius = 16,
+  isDarkMode,
+  showBorder = true,
+  disableBackgroundOverlay = false,
+}) => {
+  const flattenedStyle = StyleSheet.flatten(style) || {};
+  const ownBackgroundColor = flattenedStyle.backgroundColor;
+  const hasOwnBackground = Boolean(ownBackgroundColor && ownBackgroundColor !== 'transparent');
+  const showOverlay = !disableBackgroundOverlay && !hasOwnBackground;
+
   const overlayColor = isDarkMode
     ? 'rgba(25, 25, 35, 0.50)'
     : 'rgba(255, 255, 255, 0.45)';
 
-  const borderStyle = isDarkMode
+  const borderStyle = !showBorder
+    ? {}
+    : isDarkMode
     ? {}
     : { borderWidth: 0.5, borderColor: 'rgba(0, 0, 0, 0.10)' };
 
@@ -33,16 +47,18 @@ const FallbackGlassView = ({ children, style, borderRadius = 16, isDarkMode }) =
         tint={isDarkMode ? 'dark' : 'light'}
         style={StyleSheet.absoluteFill}
       />
-      <View
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          {
-            backgroundColor: overlayColor,
-            borderRadius,
-          },
-        ]}
-      />
+      {showOverlay && (
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              backgroundColor: overlayColor,
+              borderRadius,
+            },
+          ]}
+        />
+      )}
       {children}
     </View>
   );
@@ -57,13 +73,19 @@ export const GlassContainer = ({
   children,
   style,
   borderRadius = 16,
+  disableBackgroundOverlay = false,
 }) => {
   const context = useAppSettingsSafe();
   const isDarkMode = context?.isDarkMode || false;
 
   if (!isLiquidGlassSupported) {
     return (
-      <FallbackGlassView style={style} borderRadius={borderRadius} isDarkMode={isDarkMode}>
+      <FallbackGlassView
+        style={style}
+        borderRadius={borderRadius}
+        isDarkMode={isDarkMode}
+        disableBackgroundOverlay={disableBackgroundOverlay}
+      >
         {children}
       </FallbackGlassView>
     );
@@ -88,6 +110,7 @@ export const GlassCard = ({
   children,
   style,
   padding = 16,
+  disableBackgroundOverlay = false,
 }) => {
   const context = useAppSettingsSafe();
   const isDarkMode = context?.isDarkMode || false;
@@ -95,7 +118,12 @@ export const GlassCard = ({
 
   if (!isLiquidGlassSupported) {
     return (
-      <FallbackGlassView style={[{ padding }, style]} borderRadius={borderRadius} isDarkMode={isDarkMode}>
+      <FallbackGlassView
+        style={[{ padding }, style]}
+        borderRadius={borderRadius}
+        isDarkMode={isDarkMode}
+        disableBackgroundOverlay={disableBackgroundOverlay}
+      >
         {children}
       </FallbackGlassView>
     );
@@ -232,6 +260,12 @@ export const GlassIconButton = ({
   borderRadiusValue,
   active = false,
   activeColor,
+  onPress,
+  disabled = false,
+  activeOpacity = 0.75,
+  hitSlop,
+  testID,
+  accessibilityLabel,
 }) => {
   const context = useAppSettingsSafe();
   const theme = context?.theme || {};
@@ -254,21 +288,22 @@ export const GlassIconButton = ({
       : `${accentColor}1A`
     : 'transparent';
 
-  if (!isLiquidGlassSupported) {
-    return (
-      <FallbackGlassView style={[baseStyle, style]} borderRadius={radius} isDarkMode={isDarkMode}>
-        {active && (
-          <View
-            pointerEvents="none"
-            style={[StyleSheet.absoluteFill, { borderRadius: radius, backgroundColor: activeTintColor }]}
-          />
-        )}
-        {children}
-      </FallbackGlassView>
-    );
-  }
-
-  return (
+  const glassNode = !isLiquidGlassSupported ? (
+    <FallbackGlassView
+      style={[baseStyle, style]}
+      borderRadius={radius}
+      isDarkMode={isDarkMode}
+      showBorder={!active}
+    >
+      {active && (
+        <View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { borderRadius: radius, backgroundColor: activeTintColor }]}
+        />
+      )}
+      {children}
+    </FallbackGlassView>
+  ) : (
     <LiquidGlassView
       colorScheme={getColorScheme(isDarkMode)}
       effect="regular"
@@ -278,6 +313,24 @@ export const GlassIconButton = ({
       {children}
     </LiquidGlassView>
   );
+
+  if (typeof onPress === 'function') {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={disabled}
+        activeOpacity={activeOpacity}
+        hitSlop={hitSlop}
+        testID={testID}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+      >
+        {glassNode}
+      </TouchableOpacity>
+    );
+  }
+
+  return glassNode;
 };
 
 // ---------------------------------------------------------------------------
@@ -304,7 +357,12 @@ export const GlassPill = ({
 
   if (!isLiquidGlassSupported) {
     return (
-      <FallbackGlassView style={[baseStyle, style]} borderRadius={borderRadiusValue} isDarkMode={isDarkMode}>
+      <FallbackGlassView
+        style={[baseStyle, style]}
+        borderRadius={borderRadiusValue}
+        isDarkMode={isDarkMode}
+        showBorder={!active}
+      >
         {active && (
           <View
             pointerEvents="none"
@@ -336,13 +394,19 @@ export const GlassModalCard = ({
   children,
   style,
   borderRadiusValue = 24,
+  disableBackgroundOverlay = false,
 }) => {
   const context = useAppSettingsSafe();
   const isDarkMode = context?.isDarkMode || false;
 
   if (!isLiquidGlassSupported) {
     return (
-      <FallbackGlassView style={style} borderRadius={borderRadiusValue} isDarkMode={isDarkMode}>
+      <FallbackGlassView
+        style={style}
+        borderRadius={borderRadiusValue}
+        isDarkMode={isDarkMode}
+        disableBackgroundOverlay={disableBackgroundOverlay}
+      >
         {children}
       </FallbackGlassView>
     );

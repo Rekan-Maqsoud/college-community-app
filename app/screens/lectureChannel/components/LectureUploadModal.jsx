@@ -1,6 +1,7 @@
 import React from 'react';
 import { KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { GlassContainer, GlassIconButton } from '../../../components/GlassComponents';
 import { LECTURE_UPLOAD_TYPES } from '../../../../database/lectures';
 import styles from '../LectureChannelStyles';
 
@@ -37,14 +38,18 @@ const LectureUploadModal = ({
           style={styles.modalKeyboardWrap}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
-          <View style={[styles.modalCard, styles.uploadComposerCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+          <GlassContainer borderRadius={24} style={styles.uploadComposerGlass} disableBackgroundOverlay>
+          <View style={[styles.modalCard, styles.uploadComposerCard, { backgroundColor: 'transparent', borderColor: `${colors.primary}33` }]}> 
             <View style={styles.modalHeaderRow}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>{t('lectures.addUpload')}</Text>
-              <TouchableOpacity
+              <GlassIconButton
+                size={34}
+                borderRadiusValue={17}
+                activeOpacity={0.7}
                 onPress={onClose}
-                style={[styles.headerMenuBtn, { borderColor: colors.border, backgroundColor: colors.card }]}>
+                style={[styles.headerMenuBtn, { borderColor: `${colors.primary}44`, backgroundColor: 'transparent' }]}>
                 <Ionicons name="close" size={20} color={colors.text} />
-              </TouchableOpacity>
+              </GlassIconButton>
             </View>
 
             <ScrollView
@@ -128,6 +133,7 @@ const LectureUploadModal = ({
               {!!uploadError && <Text style={[styles.uploadError, { color: colors.danger }]}>{uploadError}</Text>}
             </ScrollView>
           </View>
+          </GlassContainer>
         </KeyboardAvoidingView>
       </View>
     </Modal>

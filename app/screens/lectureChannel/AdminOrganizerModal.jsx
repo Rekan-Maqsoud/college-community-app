@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, TextInput,  StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { GlassContainer, GlassIconButton } from '../../components/GlassComponents';
 import { spacing, fontSize, wp, moderateScale } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
 import { FlashList } from '@shopify/flash-list';
@@ -127,12 +128,13 @@ const AdminOrganizerModal = ({
         style={[styles.backdrop, { backgroundColor: colors.overlay }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       > 
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+        <GlassContainer borderRadius={24} style={styles.cardGlass} disableBackgroundOverlay>
+        <View style={[styles.card, { backgroundColor: 'transparent', borderColor: `${colors.primary}33` }]}> 
           <View style={styles.headerRow}>
             <Text style={[styles.title, { color: colors.text }]}>{t('lectures.organizeAssets')}</Text>
-            <TouchableOpacity onPress={onClose} style={[styles.iconBtn, { borderColor: colors.border }]}> 
+            <GlassIconButton size={30} borderRadiusValue={15} onPress={onClose} style={[styles.iconBtn, { borderColor: `${colors.primary}44` }]}> 
               <Ionicons name="close" size={18} color={colors.text} />
-            </TouchableOpacity>
+            </GlassIconButton>
           </View>
 
           <View style={styles.newFolderRow}>
@@ -156,12 +158,14 @@ const AdminOrganizerModal = ({
               keyExtractor={(item) => item.id}
               showsHorizontalScrollIndicator={false}
               renderItem={({ item }) => (
-                <View style={[styles.folderChip, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}> 
-                  <Text style={[styles.folderChipText, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
-                  <TouchableOpacity onPress={() => removeFolder(item.id)}>
-                    <Ionicons name="close" size={14} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
+                <GlassContainer borderRadius={999} style={styles.folderChipGlass}>
+                  <View style={[styles.folderChip, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}> 
+                    <Text style={[styles.folderChipText, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+                    <TouchableOpacity onPress={() => removeFolder(item.id)}>
+                      <Ionicons name="close" size={14} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                </GlassContainer>
               )}
               ListEmptyComponent={
                 <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('lectures.noFoldersYet')}</Text>
@@ -175,24 +179,26 @@ const AdminOrganizerModal = ({
             renderItem={({ item, index }) => {
               const folderId = draftMap[item.$id] || '';
               return (
-                <View style={[styles.assetRow, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}> 
-                  <View style={styles.assetMeta}>
-                    <Text style={[styles.assetTitle, { color: colors.text }]} numberOfLines={1}>{item.title}</Text>
-                    <TouchableOpacity style={[styles.folderAssignBtn, { borderColor: colors.border }]} onPress={() => cycleAssetFolder(item.$id)}>
-                      <Ionicons name="folder-open-outline" size={14} color={colors.primary} />
-                      <Text style={[styles.folderAssignText, { color: colors.primary }]}>{resolveFolderName(folderId)}</Text>
-                    </TouchableOpacity>
-                  </View>
+                <GlassContainer borderRadius={14} style={styles.assetRowGlass}> 
+                  <View style={[styles.assetRow, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}> 
+                    <View style={styles.assetMeta}>
+                      <Text style={[styles.assetTitle, { color: colors.text }]} numberOfLines={1}>{item.title}</Text>
+                      <TouchableOpacity style={[styles.folderAssignBtn, { borderColor: colors.border }]} onPress={() => cycleAssetFolder(item.$id)}>
+                        <Ionicons name="folder-open-outline" size={14} color={colors.primary} />
+                        <Text style={[styles.folderAssignText, { color: colors.primary }]}>{resolveFolderName(folderId)}</Text>
+                      </TouchableOpacity>
+                    </View>
 
-                  <View style={styles.rowActions}>
-                    <TouchableOpacity disabled={index === 0} style={[styles.iconBtn, { borderColor: colors.border, opacity: index === 0 ? 0.4 : 1 }]} onPress={() => moveAsset(item.$id, 'up')}>
-                      <Ionicons name="chevron-up" size={16} color={colors.text} />
-                    </TouchableOpacity>
-                    <TouchableOpacity disabled={index === orderedAssets.length - 1} style={[styles.iconBtn, { borderColor: colors.border, opacity: index === orderedAssets.length - 1 ? 0.4 : 1 }]} onPress={() => moveAsset(item.$id, 'down')}>
-                      <Ionicons name="chevron-down" size={16} color={colors.text} />
-                    </TouchableOpacity>
+                    <View style={styles.rowActions}>
+                      <TouchableOpacity disabled={index === 0} style={[styles.iconBtn, { borderColor: colors.border, opacity: index === 0 ? 0.4 : 1 }]} onPress={() => moveAsset(item.$id, 'up')}>
+                        <Ionicons name="chevron-up" size={16} color={colors.text} />
+                      </TouchableOpacity>
+                      <TouchableOpacity disabled={index === orderedAssets.length - 1} style={[styles.iconBtn, { borderColor: colors.border, opacity: index === orderedAssets.length - 1 ? 0.4 : 1 }]} onPress={() => moveAsset(item.$id, 'down')}>
+                        <Ionicons name="chevron-down" size={16} color={colors.text} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
+                </GlassContainer>
               );
             }}
           />
@@ -204,6 +210,7 @@ const AdminOrganizerModal = ({
             <Text style={styles.saveBtnText}>{t('lectures.saveOrganization')}</Text>
           </TouchableOpacity>
         </View>
+        </GlassContainer>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -220,6 +227,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     padding: spacing.md,
     maxHeight: '88%',
+  },
+  cardGlass: {
+    borderRadius: borderRadius.xl,
   },
   headerRow: {
     flexDirection: 'row',
@@ -273,6 +283,9 @@ const styles = StyleSheet.create({
     gap: spacing.xs / 2,
     maxWidth: wp(45),
   },
+  folderChipGlass: {
+    marginRight: spacing.xs,
+  },
   folderChipText: {
     fontSize: fontSize(11),
     fontWeight: '700',
@@ -291,6 +304,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
+  },
+  assetRowGlass: {
+    marginBottom: spacing.xs,
   },
   assetMeta: {
     flex: 1,

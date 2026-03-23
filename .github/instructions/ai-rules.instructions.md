@@ -18,7 +18,8 @@ This file is the enforcement layer for AI edits. If a rule here conflicts with o
 8. Never introduce new `expo-av` usage. Use `expo-video` and `expo-audio` patterns.
 9. Never add legacy JavaScript crypto polyfills for E2EE flows. Use native-backed crypto modules.
 10. Never ship unbounded list/document queries. Use explicit limits and pagination strategy.
-11. never make native android and ios folders 
+11. never make native android and ios folders
+
 ## Required Coding Standards
 
 1. Keep changes minimal, local, and reversible.
@@ -46,6 +47,7 @@ Target architecture is `react-i18next` with lazy-loaded resources.
 2. Use responsive utilities for dimensions and font scaling where existing screens expect them.
 3. Keep RTL-safe layout behavior for Arabic/Kurdish screens.
 4. Ensure loading, empty, and error states are present for data-driven screens.
+5. When using `GlassContainer` / `GlassModalCard`, do not stack an additional non-transparent card background in the wrapped child/root view. Keep one surface layer only (glass OR solid card), otherwise it creates double-background artifacts.
 
 ## Data and Realtime Guardrails
 
@@ -76,3 +78,4 @@ Target architecture is `react-i18next` with lazy-loaded resources.
 - Inline heavy closures in item renderers.
 - Missing telemetry in loading paths.
 - Missing translation parity across `en/ar/ku`.
+- Glass wrapper plus extra solid card background on the same surface.

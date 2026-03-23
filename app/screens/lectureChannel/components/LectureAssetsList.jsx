@@ -36,10 +36,12 @@ const LectureAssetsList = ({
   const renderAsset = ({ item }) => {
     if (item?.type === 'folder') {
       return (
-        <View style={[styles.folderHeaderRow, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}> 
-          <Ionicons name="folder-open-outline" size={16} color={colors.primary} />
-          <Text style={[styles.folderHeaderText, { color: colors.text }]}>{item.name}</Text>
-        </View>
+        <GlassContainer borderRadius={14} style={[styles.folderHeaderGlass]}> 
+          <View style={[styles.folderHeaderRow, { borderColor: `${colors.primary}44`, backgroundColor: 'transparent' }]}> 
+            <Ionicons name="folder-open-outline" size={16} color={colors.primary} />
+            <Text style={[styles.folderHeaderText, { color: colors.text }]}>{item.name}</Text>
+          </View>
+        </GlassContainer>
       );
     }
 
@@ -226,9 +228,12 @@ const LectureAssetsList = ({
       ) : null}
 
       {!isManager && !!membership && membership.joinStatus === 'approved' && !canUpload && (
-        <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}> 
-          <Text style={[styles.infoText, { color: colors.textSecondary }]}>{t('lectures.onlyAdminsCanUpload')}</Text>
-        </View>
+        <GlassContainer borderRadius={16} style={styles.warningBannerGlass}>
+          <View style={[styles.warningBanner, { borderColor: `${colors.warning}55` }]}>
+            <Ionicons name="warning-outline" size={16} color={colors.warning} />
+            <Text style={[styles.warningBannerText, { color: colors.text }]}>{t('lectures.onlyAdminsCanUpload')}</Text>
+          </View>
+        </GlassContainer>
       )}
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('lectures.uploads')}</Text>
@@ -242,6 +247,7 @@ const LectureAssetsList = ({
       renderItem={renderAsset}
       estimatedItemSize={150}
       ListHeaderComponent={renderHeader}
+      contentContainerStyle={{ paddingBottom: moderateScale(28) }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       ListEmptyComponent={
         loading ? (

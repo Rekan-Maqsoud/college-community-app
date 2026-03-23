@@ -1038,6 +1038,7 @@ export default {
     "postHiddenByReports": "تم إخفاء منشورك للمراجعة",
     "lectureUpload": "تم رفع محتوى محاضرة جديد",
     "lectureMention": "قام بذكرك في نقاش المحاضرة",
+    "lectureJoinRequest": "طلب الانضمام إلى قناة المحاضرة الخاصة بك",
     "others": "آخرين",
     "liked": "أعجب",
     "replied": "رد",

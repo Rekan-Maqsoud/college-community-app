@@ -19,7 +19,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
-import AnimatedBackground from '../components/AnimatedBackground';
 import ChatListItem from '../components/ChatListItem';
 import RepDetectionPopup from '../components/RepDetectionPopup';
 import useRepDetection from '../hooks/useRepDetection';
@@ -1222,10 +1221,9 @@ const Chats = ({ navigation }) => {
         <LinearGradient
           colors={isDarkMode 
             ? ['#1a1a2e', '#16213e', '#0f3460'] 
-            : ['#f0f4ff', '#d8e7ff', '#c0deff']
+            : ['#e3f2fd', '#bbdefb', '#90caf9']
           }
           style={styles.gradient}>
-          <AnimatedBackground particleCount={18} />
           <View style={styles.loadingContainer}>
             <ChatListSkeleton count={6} />
           </View>
@@ -1245,10 +1243,9 @@ const Chats = ({ navigation }) => {
         <LinearGradient
           colors={isDarkMode 
             ? ['#1a1a2e', '#16213e', '#0f3460'] 
-            : ['#f0f4ff', '#d8e7ff', '#c0deff']
+            : ['#e3f2fd', '#bbdefb', '#90caf9']
           }
           style={styles.gradient}>
-          <AnimatedBackground particleCount={18} />
           <View style={styles.loadingContainer}>
             <ChatListSkeleton count={7} />
           </View>
@@ -1271,14 +1268,12 @@ const Chats = ({ navigation }) => {
           <LinearGradient
             colors={isDarkMode 
               ? ['#1a1a2e', '#16213e', '#0f3460'] 
-              : ['#f0f4ff', '#d8e7ff', '#c0deff']
+              : ['#e3f2fd', '#bbdefb', '#90caf9']
             }
             style={styles.gradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}>
-        
-            <AnimatedBackground particleCount={18} />
-        
+
             <View style={[styles.content, { paddingTop: insets.top + spacing.sm }]}> 
               {hasContent ? (
                 <SectionList

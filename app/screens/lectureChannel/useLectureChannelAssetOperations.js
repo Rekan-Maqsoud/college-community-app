@@ -10,8 +10,6 @@ import {
   buildYouTubeVideoId,
   getLectureDeviceChannelDownloadsUriKey,
   getUrlFileExtension,
-  getYouTubeThumbnailUrl,
-  getYouTubeWatchUrl,
   inferMimeType,
   LECTURE_DEVICE_APP_DOWNLOADS_URI_KEY,
   LECTURE_DEVICE_DOWNLOADS_URI_KEY,

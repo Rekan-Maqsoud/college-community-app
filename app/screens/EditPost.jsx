@@ -23,6 +23,7 @@ import AnimatedBackground from '../components/AnimatedBackground';
 import ImagePickerComponent from '../components/ImagePicker';
 import SearchableDropdownNew from '../components/SearchableDropdownNew';
 import CustomAlert from '../components/CustomAlert';
+import { GlassContainer } from '../components/GlassComponents';
 import {
   POST_TYPES,
   POST_TYPE_OPTIONS,
@@ -70,8 +71,8 @@ const EditPost = ({ navigation, route }) => {
   const [text, setText] = useState(post?.text || '');
   const [department, setDepartment] = useState(post?.department || user?.department || '');
   const [stage, setStage] = useState(post?.stage || normalizeStageValue(user?.stage));
-  const [topicInputHeight, setTopicInputHeight] = useState(48);
-  const [textInputHeight, setTextInputHeight] = useState(96);
+  const [topicInputHeight, setTopicInputHeight] = useState(44);
+  const [textInputHeight, setTextInputHeight] = useState(128);
   const [visibility, setVisibility] = useState(post?.visibility || 'department');
   const [canOthersRepost, setCanOthersRepost] = useState(post?.canOthersRepost !== false);
   const [images, setImages] = useState([]);
@@ -360,48 +361,52 @@ const EditPost = ({ navigation, route }) => {
       <LinearGradient
         colors={isDarkMode
           ? ['#1a1a2e', '#16213e', '#0f3460']
-          : ['#FFFEF7', '#FFF9E6', '#FFF4D6']
+          : ['#e3f2fd', '#bbdefb', '#90caf9']
         }
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
         <AnimatedBackground particleCount={16} />
-        <View style={[styles.header, { backgroundColor: 'transparent', borderBottomColor: theme.border }]}>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => navigation.goBack()}
-            disabled={loading}
-          >
-            <Ionicons name="close" size={moderateScale(26)} color={theme.text} />
-          </TouchableOpacity>
-          
-          <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.editPost')}</Text>
-          
-          <TouchableOpacity
-            style={[styles.headerButton, loading && styles.headerButtonDisabled]}
-            onPress={handleUpdatePost}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#3B82F6" />
-            ) : (
-              <Text style={[styles.postButtonText, { color: theme.primary }]}>{t('common.save')}</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        <GlassContainer style={styles.headerGlass} borderRadius={0} disableBackgroundOverlay>
+          <View style={[styles.header, { backgroundColor: 'transparent', borderBottomColor: theme.border }]}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => navigation.goBack()}
+              disabled={loading}
+            >
+              <Ionicons name="close" size={moderateScale(26)} color={theme.text} />
+            </TouchableOpacity>
+
+            <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.editPost')}</Text>
+
+            <TouchableOpacity
+              style={[styles.headerButton, loading && styles.headerButtonDisabled]}
+              onPress={handleUpdatePost}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color={theme.primary} />
+              ) : (
+                <Text style={[styles.postButtonText, { color: theme.primary }]}>{t('common.save')}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </GlassContainer>
 
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={contentStyle}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
+          <View style={styles.formShell}>
+            <GlassContainer style={styles.formGlass} borderRadius={24} disableBackgroundOverlay>
+              <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={contentStyle}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
           <View style={styles.section}>
             <View style={styles.topControlsRow}>
               <View style={[styles.compactField, styles.postTypeField]}>
@@ -501,56 +506,70 @@ const EditPost = ({ navigation, route }) => {
             <Text style={[styles.sectionLabel, { color: theme.text }]}>
               {t('post.topic')}
             </Text>
-            <TextInput
-              style={[styles.topicInput, styles.growingInput, inputColors, {
-                minHeight: topicInputHeight,
-                height: topicInputHeight,
-              }]}
-              value={topic}
-              onChangeText={setTopic}
-              placeholder={t('post.topicPlaceholder')}
-              placeholderTextColor={theme.input.placeholder}
-              editable={!loading}
-              maxLength={VALIDATION_RULES.POST.topic.max}
-              multiline
-              numberOfLines={1}
-              textAlignVertical="top"
-              onContentSizeChange={(event) => {
-                const nextHeight = Math.max(48, Math.min(120, event.nativeEvent.contentSize.height + 16));
-                setTopicInputHeight(nextHeight);
-              }}
-            />
-            <Text style={[styles.charCount, { color: theme.textSecondary }]}>
-              {topic.length}/{VALIDATION_RULES.POST.topic.max}
-            </Text>
+            <View style={styles.inputShell}>
+              <TextInput
+                style={[
+                  styles.topicInput,
+                  styles.growingInput,
+                  inputColors,
+                  {
+                    minHeight: topicInputHeight,
+                    height: topicInputHeight,
+                  },
+                ]}
+                value={topic}
+                onChangeText={setTopic}
+                placeholder={t('post.topicPlaceholder')}
+                placeholderTextColor={theme.input.placeholder}
+                editable={!loading}
+                maxLength={VALIDATION_RULES.POST.topic.max}
+                multiline
+                numberOfLines={1}
+                textAlignVertical="top"
+                onContentSizeChange={(event) => {
+                  const nextHeight = Math.max(44, Math.min(96, event.nativeEvent.contentSize.height + 14));
+                  setTopicInputHeight(nextHeight);
+                }}
+              />
+              <Text style={[styles.inlineCharCount, { color: theme.textSecondary }]}>
+                {topic.length}/{VALIDATION_RULES.POST.topic.max}
+              </Text>
+            </View>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, styles.compactNextSection]}>
             <Text style={[styles.sectionLabel, { color: theme.text }]}>
               {t('post.description')}
             </Text>
-            <TextInput
-              style={[styles.textInput, styles.growingInput, inputColors, {
-                minHeight: textInputHeight,
-                height: textInputHeight,
-              }]}
-              value={text}
-              onChangeText={setText}
-              placeholder={t('post.descriptionPlaceholder')}
-              placeholderTextColor={theme.input.placeholder}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-              editable={!loading}
-              maxLength={VALIDATION_RULES.POST.text.max}
-              onContentSizeChange={(event) => {
-                const nextHeight = Math.max(96, Math.min(280, event.nativeEvent.contentSize.height + 16));
-                setTextInputHeight(nextHeight);
-              }}
-            />
-            <Text style={[styles.charCount, { color: theme.textSecondary }]}>
-              {text.length}/{VALIDATION_RULES.POST.text.max}
-            </Text>
+            <View style={styles.inputShell}>
+              <TextInput
+                style={[
+                  styles.textInput,
+                  styles.growingInput,
+                  inputColors,
+                  {
+                    minHeight: textInputHeight,
+                    height: textInputHeight,
+                  },
+                ]}
+                value={text}
+                onChangeText={setText}
+                placeholder={t('post.descriptionPlaceholder')}
+                placeholderTextColor={theme.input.placeholder}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                editable={!loading}
+                maxLength={VALIDATION_RULES.POST.text.max}
+                onContentSizeChange={(event) => {
+                  const nextHeight = Math.max(128, Math.min(260, event.nativeEvent.contentSize.height + 14));
+                  setTextInputHeight(nextHeight);
+                }}
+              />
+              <Text style={[styles.inlineCharCount, { color: theme.textSecondary }]}>
+                {text.length}/{VALIDATION_RULES.POST.text.max}
+              </Text>
+            </View>
           </View>
 
           {postType === POST_TYPES.POLL && (
@@ -868,7 +887,9 @@ const EditPost = ({ navigation, route }) => {
           </View>
 
             <View style={styles.bottomSpace} />
-          </ScrollView>
+              </ScrollView>
+            </GlassContainer>
+          </View>
         </KeyboardAvoidingView>
       </LinearGradient>
       <CustomAlert
@@ -886,10 +907,14 @@ const EditPost = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: 'transparent',
   },
   gradient: {
     flex: 1,
+  },
+  headerGlass: {
+    marginHorizontal: 10,
+    marginTop: 8,
   },
   header: {
     flexDirection: 'row',
@@ -920,18 +945,29 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
+  formShell: {
+    flex: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  formGlass: {
+    flex: 1,
+  },
   scrollView: {
     flex: 1,
     paddingHorizontal: spacing.md,
   },
   section: {
-    marginTop: spacing.lg,
+    marginTop: 12,
+  },
+  compactNextSection: {
+    marginTop: 8,
   },
   sectionLabel: {
-    fontSize: fontSize(14),
+    fontSize: fontSize(13),
     fontWeight: '600',
     color: '#374151',
-    marginBottom: spacing.xs,
+    marginBottom: 6,
   },
   topControlsRow: {
     flexDirection: 'row',
@@ -1029,12 +1065,13 @@ const styles = StyleSheet.create({
   topicInput: {
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    paddingBottom: 26,
     fontSize: fontSize(15),
     color: '#111827',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: 'rgba(255,255,255,0.22)',
   },
   growingInput: {
     overflow: 'hidden',
@@ -1042,24 +1079,35 @@ const styles = StyleSheet.create({
   textInput: {
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    paddingBottom: 28,
     fontSize: fontSize(15),
     color: '#111827',
-    backgroundColor: '#F9FAFB',
-    minHeight: moderateScale(96),
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    minHeight: 128,
+  },
+  inputShell: {
+    position: 'relative',
+  },
+  inlineCharCount: {
+    position: 'absolute',
+    right: 10,
+    bottom: 8,
+    fontSize: fontSize(10),
+    fontWeight: '600',
   },
   charCount: {
-    fontSize: fontSize(12),
+    fontSize: fontSize(11),
     color: '#6B7280',
     textAlign: 'right',
-    marginTop: spacing.xs / 2,
+    marginTop: 3,
   },
   helperText: {
-    fontSize: fontSize(12),
+    fontSize: fontSize(11),
     color: '#6B7280',
-    marginTop: spacing.xs / 2,
+    marginTop: 3,
   },
   visibilityContainer: {
     flexDirection: 'row',

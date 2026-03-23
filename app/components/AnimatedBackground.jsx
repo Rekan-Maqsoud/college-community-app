@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, Dimensions } from 'react-native';
+import { View, Animated, StyleSheet, Dimensions, Easing } from 'react-native';
 import { useAppSettingsSafe } from '../context/AppSettingsContext';
 
 const { width, height } = Dimensions.get('window');
@@ -25,13 +25,12 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
   const [particles] = React.useState(() =>
     Array.from({ length: effectiveParticleCount }, () => {
       const startX = Math.random() * width;
-      // Spread them across the entire height initially so they don't all start at the top
-      const startY = Math.random() * (height + 200) - 100;
+      // Start them all cleanly above the screen so they fall down continuously in their native loops
+      const startY = -60 - Math.random() * 100;
       return {
         translateX: new Animated.Value(startX),
         translateY: new Animated.Value(startY),
         opacity: new Animated.Value(Math.random() * 0.4 + 0.2),
-        // Add random size variation for snow
         size: Math.random() * 3 + 2, 
       };
     })
@@ -66,37 +65,14 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
         ])
       );
 
-      // Determine where this specific particle is starting right now
-      const startY = particle.translateY._value;
-      // The distance it needs to travel to reach the bottom
-      const distanceToBottom = (height + 100) - startY;
-      const totalDistance = height + 160;
-      // Calculate how long it should take to just reach the bottom from its current random start position
-      const initialDuration = (distanceToBottom / totalDistance) * duration;
-
-      const moveYAnimation = Animated.sequence([
-        // First, animate from current random position to bottom
+      const moveYAnimation = Animated.loop(
         Animated.timing(particle.translateY, {
           toValue: height + 100,
-          duration: initialDuration,
+          duration: duration,
           useNativeDriver: true,
-        }),
-        // Then loop from top to bottom continuously
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(particle.translateY, {
-              toValue: -60,
-              duration: 0,
-              useNativeDriver: true,
-            }),
-            Animated.timing(particle.translateY, {
-              toValue: height + 100,
-              duration: duration,
-              useNativeDriver: true,
-            }),
-          ])
-        )
-      ]);
+          easing: Easing.linear
+        })
+      );
 
       const opacityAnimation = reduceMotion
         ? null
@@ -108,19 +84,25 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
                 useNativeDriver: true,
               }),
               Animated.timing(particle.opacity, {
-                toValue: Math.random() * 0.2 + 0.1,
+                toValue: Math.random() * 0.1 + 0.1,
                 duration: 3000 + Math.random() * 2000,
                 useNativeDriver: true,
               }),
             ])
           );
 
-      // Start immediately because they are already distributed across the screen
-      moveAnimation.start();
-      moveYAnimation.start();
-      if (opacityAnimation) {
-        opacityAnimation.start();
-      }
+      // Random start delay so particles don't all drop at once on load
+      const initialDelay = Math.random() * duration;
+      
+      const timeoutId = setTimeout(() => {
+        moveAnimation.start();
+        moveYAnimation.start();
+        if (opacityAnimation) {
+          opacityAnimation.start();
+        }
+      }, initialDelay);
+      
+      timeoutIds.push(timeoutId);
 
       return { moveAnimation, moveYAnimation, opacityAnimation };
     });

@@ -35,7 +35,6 @@ Use this map to route edits quickly and avoid broad, risky drift.
 - `Settings.jsx`
 - `ChatRoom.jsx`
 - `PostDetails.jsx`
-- `CreatePost.jsx`
 - `EditPost.jsx`
 - `UserProfile.jsx`
 - `FollowList.jsx`

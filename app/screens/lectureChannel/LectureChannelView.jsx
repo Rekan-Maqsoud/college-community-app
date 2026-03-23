@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AnimatedBackground from '../../components/AnimatedBackground';
 import DownloadManagerModal from './DownloadManagerModal';
@@ -116,10 +116,12 @@ const LectureChannelView = ({
           colors={colors}
           insets={insets}
           isManager={isManager}
+          isOwner={computed.isOwner}
           onOpenDownloads={() => setDownloadsModalOpen(true)}
           onOpenUploadComposer={() => setShowUploadComposer(true)}
           onOpenOrganizer={() => setOrganizerOpen(true)}
           onOpenSettings={() => actionState.setSettingsOpen(true)}
+          pendingJoinRequestsCount={Array.isArray(state.joinRequests) ? state.joinRequests.length : 0}
           t={t}
         />
 
