@@ -1,6 +1,7 @@
 import { ID, Permission, Role } from 'appwrite';
 import { account, storage, config } from '../database/config';
 import { MAX_FILE_UPLOAD_BYTES, validateUploadFile } from '../app/utils/fileUploadUtils';
+import telemetry from '../app/utils/telemetry';
 
 const normalizeUploadError = (responseData, status) => {
   const message = responseData?.message || `UPLOAD_FAILED_${status}`;
@@ -154,7 +155,7 @@ export const uploadFileToAppwrite = async ({
 
   const fileId = ID.unique();
 
-  console.log('[appwriteFileUpload] upload start', {
+    telemetry.recordEvent('appwrite_file_upload_start', {
     bucketId,
     fileName: file.name,
     mimeType: file.type || file.mimeType || 'application/octet-stream',
@@ -169,10 +170,10 @@ export const uploadFileToAppwrite = async ({
       uploadResult = await uploadWithSdk({ bucketId, fileId, file });
     } catch (sdkError) {
       sdkUploadError = sdkError;
-      console.warn('[appwriteFileUpload] sdk upload failed, falling back to fetch', {
+        telemetry.recordEvent('appwrite_file_upload_sdk_fallback', {
         bucketId,
         fileName: file.name,
-        message: sdkError?.message,
+          message: sdkError?.message || '',
       });
     }
 
@@ -205,7 +206,7 @@ export const uploadFileToAppwrite = async ({
     }
 
     const uploadedFileId = uploadResult?.$id || fileId;
-    console.log('[appwriteFileUpload] upload success', {
+      telemetry.recordEvent('appwrite_file_upload_success', {
       bucketId,
       fileId: uploadedFileId,
     });
@@ -217,10 +218,10 @@ export const uploadFileToAppwrite = async ({
         uploaderUserId,
       });
     } catch (permissionUpdateError) {
-      console.warn('[appwriteFileUpload] permission update skipped', {
+        telemetry.recordEvent('appwrite_file_upload_permission_update_skipped', {
         bucketId,
         fileId: uploadedFileId,
-        message: permissionUpdateError?.message,
+          message: permissionUpdateError?.message || '',
       });
     }
 
@@ -232,12 +233,12 @@ export const uploadFileToAppwrite = async ({
       name: file.name,
     };
   } catch (error) {
-    console.error('[appwriteFileUpload] upload failed', {
+      telemetry.recordEvent('appwrite_file_upload_failed', {
       bucketId,
       fileName: file.name,
-      code: error?.code,
-      status: error?.status,
-      message: error?.message,
+        code: error?.code || null,
+        status: error?.status || null,
+        message: error?.message || '',
     });
 
     if (isCreatePermissionError(error)) {

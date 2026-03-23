@@ -3,7 +3,7 @@ import safeStorage from '../utils/safeStorage';
 import { getLocales } from 'expo-localization';
 import * as Haptics from 'expo-haptics';
 import i18n, { SUPPORTED_LANGUAGES, isRTLLanguage } from '../../locales/i18n';
-import { Appearance, View, ActivityIndicator, StyleSheet } from 'react-native';
+import { Appearance } from 'react-native';
 import { setGlobalFontScale } from '../utils/responsive';
 import telemetry from '../utils/telemetry';
 
@@ -152,9 +152,26 @@ const normalizeChatSettings = (settings = {}) => {
 };
 
 export const AppSettingsProvider = ({ children }) => {
+  const getInitialThemePreference = () => {
+    const saved = safeStorage.getItemSync('themePreference');
+    if (saved === 'light' || saved === 'dark' || saved === 'system' || saved === 'scheduled') {
+      return saved;
+    }
+    return 'system';
+  };
+
+  const resolveInitialDarkMode = (preference) => {
+    if (preference === 'dark') return true;
+    if (preference === 'light') return false;
+    const systemColorScheme = Appearance.getColorScheme();
+    return systemColorScheme === 'dark';
+  };
+
+  const initialThemePreference = getInitialThemePreference();
+
   const [currentLanguage, setCurrentLanguage] = useState(i18n.resolvedLanguage || i18n.language || 'en');
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [themePreference, setThemePreference] = useState('system');
+  const [isDarkMode, setIsDarkMode] = useState(() => resolveInitialDarkMode(initialThemePreference));
+  const [themePreference, setThemePreference] = useState(initialThemePreference);
   const [isLoading, setIsLoading] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   
@@ -870,26 +887,9 @@ export const AppSettingsProvider = ({ children }) => {
     resetSettings,
   };
 
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
-    );
-  }
-
   return (
     <AppSettingsContext.Provider value={value}>
       {children}
     </AppSettingsContext.Provider>
   );
 };
-
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-});

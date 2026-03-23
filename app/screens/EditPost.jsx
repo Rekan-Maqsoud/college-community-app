@@ -1152,7 +1152,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize(14),
     fontWeight: '600',
   },
-  // Links section styles (matching CreatePost)
+  // Links section styles (matching Post composer)
   linksSection: {
     gap: spacing.xs,
   },

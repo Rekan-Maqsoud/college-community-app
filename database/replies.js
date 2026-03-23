@@ -4,6 +4,7 @@ import { repliesCacheManager } from '../app/utils/cacheManager';
 import { enforceRateLimit } from './securityGuards';
 import { getUserById } from './users';
 import { notifyPostReply, notifyReplyLike, notifyReplyReply } from './notifications';
+import telemetry from '../app/utils/telemetry';
 
 const getAuthenticatedUserId = async () => {
     const currentUser = await account.get();
@@ -36,7 +37,7 @@ const getChangedIds = (before = [], after = []) => {
 
 export const createReply = async (replyData) => {
     try {
-        console.log('[RepliesDB] createReply:start', {
+        telemetry.recordEvent('replies_create_start', {
             hasReplyData: !!replyData,
             postId: replyData?.postId || '',
             hasText: typeof replyData?.text === 'string' && replyData.text.trim().length > 0,
@@ -107,7 +108,7 @@ export const createReply = async (replyData) => {
             documentId: payload.postId,
         });
 
-        console.log('[RepliesDB] createReply:postFetched', {
+        telemetry.recordEvent('replies_create_post_fetched', {
             postId: payload.postId,
             postOwnerId: post?.userId || '',
             currentUserId,
@@ -121,7 +122,7 @@ export const createReply = async (replyData) => {
 
         const uniqueReplyPermissions = Array.from(new Set(replyPermissions));
 
-        console.log('[RepliesDB] createReply:permissions', {
+        telemetry.recordEvent('replies_create_permissions_prepared', {
             postId: payload.postId,
             currentUserId,
             permissions: uniqueReplyPermissions,
@@ -142,7 +143,7 @@ export const createReply = async (replyData) => {
             permissions: uniqueReplyPermissions,
         });
 
-        console.log('[RepliesDB] createReply:success', {
+        telemetry.recordEvent('replies_create_success', {
             postId: payload.postId,
             replyId: reply?.$id || '',
             parentReplyId: payload.parentReplyId || '',
@@ -203,7 +204,7 @@ export const createReply = async (replyData) => {
 
         return reply;
     } catch (error) {
-        console.error('[RepliesDB] createReply:error', {
+        telemetry.recordEvent('replies_create_failed', {
             postId: replyData?.postId || '',
             parentReplyId: replyData?.parentReplyId || '',
             errorMessage: error?.message || String(error || ''),

@@ -21,6 +21,7 @@ import { useUser } from '../../context/UserContext';
 import { signOut, deleteAccount } from '../../../database/auth';
 import { deleteUserPushToken } from '../../../database/users';
 import { cacheManager } from '../../utils/cacheManager';
+import telemetry from '../../utils/telemetry';
 import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing } from '../../utils/responsive';
 import useLayout from '../../hooks/useLayout';
@@ -132,7 +133,7 @@ const AccountSettings = ({ navigation }) => {
       setShowDeleteModal(false);
       navigation.replace('SignIn');
     } catch (error) {
-      console.warn('[delete-account][ui] failed', {
+      telemetry.recordEvent('account_settings_delete_account_failed', {
         code: error?.code ?? null,
         type: error?.type ?? null,
         message: error?.message ?? 'Unknown error',

@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { GiphyFetch } from '@giphy/js-fetch-api';
+import telemetry from '../app/utils/telemetry';
 
 const DEFAULT_GIPHY_API_KEY = process.env.EXPO_PUBLIC_GIPHY_API_KEY;
 const IOS_GIPHY_API_KEY = process.env.EXPO_PUBLIC_GIPHY_API_KEY_IOS;
@@ -8,7 +9,9 @@ const GIPHY_API_KEY = Platform.OS === 'ios'
   : DEFAULT_GIPHY_API_KEY;
 
 if (!GIPHY_API_KEY) {
-  console.warn('[GiphyService] Giphy API key is not set in .env');
+  telemetry.recordEvent('giphy_service_api_key_missing', {
+    platform: Platform.OS,
+  });
 }
 
 const gf = new GiphyFetch(GIPHY_API_KEY || '');

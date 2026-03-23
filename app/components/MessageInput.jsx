@@ -59,6 +59,7 @@ import {
   buildMentionSuggestions,
 } from './messageInput/helpers';
 import { getMessageInputActionItems } from './messageInput/actionItems';
+import telemetry from '../utils/telemetry';
 
 const MessageInput = ({
   onSend,
@@ -447,8 +448,8 @@ const MessageInput = ({
       setIsLockTargetActive(false);
       startRecordingTicker();
     } catch (error) {
-      console.warn('[MessageInput] voice recording start failed', {
-        message: error?.message,
+      telemetry.recordEvent('message_input_voice_recording_start_failed', {
+        message: error?.message || '',
       });
       resetRecordingState();
       await setAudioModeAsync({
@@ -1032,11 +1033,11 @@ const MessageInput = ({
       }
       await onSend(messageToSend, imageUrl);
     } catch (error) {
-      console.error('[MessageInput] send failed', {
+      telemetry.recordEvent('message_input_send_failed', {
         isFile: !!fileToSend,
-        code: error?.code,
-        status: error?.status,
-        message: error?.message,
+        code: error?.code || null,
+        status: error?.status || null,
+        message: error?.message || '',
       });
 
       setMessage(messageToSend);

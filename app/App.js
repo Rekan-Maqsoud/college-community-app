@@ -19,7 +19,6 @@ import { wp, normalize, spacing } from './utils/responsive';
 import { borderRadius, shadows } from './theme/designTokens';
 import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
 import { BlurView } from 'expo-blur';
-import realtimeDebugLogger from './utils/realtimeDebugLogger';
 import telemetry from './utils/telemetry';
 import { initCrashReporting, setCrashReportingUser } from './utils/crashReporting';
 import { REFRESH_TOPICS, publishRefreshEvent, subscribeToRefreshTopic } from './utils/dataRefreshBus';
@@ -77,62 +76,36 @@ import Notifications from './screens/Notifications';
 import LectureChannel from './screens/lectureChannel';
 import { NewChat, UserSearch, CreateGroup, GroupSettings, ForwardMessage, AddMembers } from './screens/chats';
 
-// Startup logs removed for clarity
-// console.log('[startup:app] module loaded', {  borderRadiusKeys: Object.keys(borderRadius || {}),
-// });
-
 initCrashReporting();
 
-const shouldIgnoreAppwriteServerError = (args) => {
-  if (!Array.isArray(args)) {
-    return false;
-  }
+if (!global.__COLLEGE_CONSOLE_CLEANUP__) {
+  global.__COLLEGE_CONSOLE_CLEANUP__ = true;
 
-  return args.some((arg) => {
-    if (!arg || typeof arg !== 'object') {
-      return false;
-    }
+  const formatConsoleMessage = (args = []) => {
+    return args
+      .slice(0, 3)
+      .map((arg) => {
+        if (typeof arg === 'string') {
+          return arg;
+        }
 
-    const message = typeof arg.message === 'string' ? arg.message.toLowerCase() : '';
-    return arg.code === 1008 && message.includes('server error');
-  });
-};
+        try {
+          return JSON.stringify(arg);
+        } catch (_error) {
+          return String(arg);
+        }
+      })
+      .join(' | ')
+      .slice(0, 400);
+  };
 
-const shouldSilenceRealtimeDisconnect = (args) => {
-  if (!Array.isArray(args)) {
-    return false;
-  }
-
-  return args.some((arg) => {
-    if (typeof arg === 'string') {
-      return arg.includes('Realtime got disconnected. Reconnect will be attempted in');
-    }
-
-    if (arg && typeof arg.message === 'string') {
-      return arg.message.includes('Realtime got disconnected. Reconnect will be attempted in');
-    }
-
-    return false;
-  });
-};
-
-if (__DEV__ && !global.__APPWRITE_SERVER_ERROR_FILTER__) {
-  global.__APPWRITE_SERVER_ERROR_FILTER__ = true;
-  const originalConsoleError = console.error;
-
+  console.log = () => {};
+  console.debug = () => {};
+  console.warn = () => {};
   console.error = (...args) => {
-    if (shouldIgnoreAppwriteServerError(args)) {
-      return;
-    }
-
-    if (shouldSilenceRealtimeDisconnect(args)) {
-      realtimeDebugLogger.warn('realtime_disconnect_notice', {
-        args,
-      });
-      return;
-    }
-
-    originalConsoleError.apply(console, args);
+    telemetry.recordEvent('runtime_console_error_suppressed', {
+      message: formatConsoleMessage(args),
+    });
   };
 }
 
@@ -159,10 +132,6 @@ const withActivityBoundary = (ScreenComponent, screenName) => {
         screen: screenName,
         renderCount: renderCountRef.current,
       });
-
-      // if (__DEV__) {
-      //   console.log(`[render] ${screenName} #${renderCountRef.current}`);
-      // }
     }, [screenName]);
 
     useEffect(() => {

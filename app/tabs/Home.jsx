@@ -52,6 +52,7 @@ import { scheduleLocalNotification } from '../../services/pushNotificationServic
 import useLayout from '../hooks/useLayout';
 import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
 import { REFRESH_TOPICS, subscribeToRefreshTopic } from '../utils/dataRefreshBus';
+import telemetry from '../utils/telemetry';
 
 const POSTS_PER_PAGE = 15;
 const AnimatedFlatList = Animated.createAnimatedComponent(FlashList);
@@ -823,7 +824,7 @@ const Home = ({ navigation, route }) => {
       setSubmittingReportReason(true);
       const result = await reportPost(post.$id, user.$id, reason);
       if (result?.moderationStatePersisted === false) {
-        console.warn('[Home] Report saved but moderation fields were not persisted on post document', {
+        telemetry.recordEvent('home_report_moderation_not_persisted', {
           postId: post.$id,
           reason,
           userId: user.$id,
@@ -841,11 +842,11 @@ const Home = ({ navigation, route }) => {
       }
     } catch (error) {
       const errorInfo = handleNetworkError(error);
-      console.error('[Home] Report submission failed', {
+      telemetry.recordEvent('home_report_submission_failed', {
         postId: post?.$id,
         reason,
         userId: user?.$id,
-        message: error?.message,
+        message: error?.message || '',
       });
       const message = error?.message === 'Users cannot report their own posts'
         ? t('post.cannotReportOwnPost')

@@ -27,6 +27,7 @@ import { borderRadius } from '../theme/designTokens';
 import { GlassModalCard } from './GlassComponents';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import telemetry from '../utils/telemetry';
 
 const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
   const { t, theme, isDarkMode } = useAppSettings();
@@ -65,7 +66,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
 
       setChats(uniqueChats);
     } catch (error) {
-      console.error('[SharePostToChat] chats:loadError', {
+      telemetry.recordEvent('share_post_to_chat_load_chats_failed', {
         userId: user?.$id || '',
         errorMessage: error?.message || String(error || ''),
       });
@@ -115,7 +116,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
     if (sending) return;
     const chatId = chat?.$id || chat?.id;
     if (!chatId) {
-      console.warn('[SharePostToChat] send:missingChatId', {
+      telemetry.recordEvent('share_post_to_chat_missing_chat_id', {
         rawChat: chat || null,
       });
       return;
@@ -147,7 +148,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
 
       onClose();
     } catch (error) {
-      console.error('[SharePostToChat] send:error', {
+      telemetry.recordEvent('share_post_to_chat_send_failed', {
         chatId,
         postId: postLinks.postId,
         errorMessage: error?.message || String(error || ''),

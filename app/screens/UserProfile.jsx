@@ -24,6 +24,7 @@ import { dismissPresentedNotificationsByTarget } from '../../services/pushNotifi
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
+import telemetry from '../utils/telemetry';
 import { useUserProfile } from '../hooks/useRealtimeSubscription';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -102,9 +103,9 @@ const UserProfile = ({ route, navigation }) => {
         return;
       }
     } catch (error) {
-      console.error('[UserProfile] QR share failed, falling back to text share', {
+      telemetry.recordEvent('user_profile_qr_share_failed', {
         userId,
-        message: error?.message,
+        message: error?.message || '',
       });
     }
 

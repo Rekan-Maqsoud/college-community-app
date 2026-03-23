@@ -19,6 +19,7 @@ import { getPostsByUser, togglePostLike, setQuestionResolvedStatus, deletePost }
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
+import telemetry from '../utils/telemetry';
 
 const Profile = ({ navigation, route }) => {
   const { t, theme, isDarkMode } = useAppSettings();
@@ -86,9 +87,9 @@ const Profile = ({ navigation, route }) => {
         return;
       }
     } catch (error) {
-      console.error('[Profile] QR share failed, falling back to text share', {
+      telemetry.recordEvent('profile_qr_share_failed', {
         userId: user?.$id,
-        message: error?.message,
+        message: error?.message || '',
       });
     }
 

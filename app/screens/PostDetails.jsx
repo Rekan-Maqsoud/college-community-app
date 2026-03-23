@@ -16,6 +16,7 @@ import * as ExpoImagePicker from 'expo-image-picker';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
+import telemetry from '../utils/telemetry';
 import { moderateScale, fontSize } from '../utils/responsive';
 import CustomAlert from '../components/CustomAlert';
 import { uploadImage } from '../../services/imgbbService';
@@ -444,7 +445,7 @@ const PostDetails = ({ navigation, route }) => {
 
 
     } catch (error) {
-      console.error('[PostDetails] addReply:error', {
+      telemetry.recordEvent('post_details_add_reply_failed', {
         postId: post?.$id || '',
         editingReplyId: editingReply?.$id || '',
         replyingToId: replyingTo?.$id || '',
@@ -517,7 +518,7 @@ const PostDetails = ({ navigation, route }) => {
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('common.delete'),
-          style: 'destructive',
+              telemetry.recordEvent('post_details_add_reply_failed', {
           onPress: async () => {
             try {
               triggerHaptic('warning');

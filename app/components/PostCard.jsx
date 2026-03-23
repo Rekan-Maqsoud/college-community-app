@@ -39,6 +39,7 @@ import {
   formatTimeAgo, 
   getDefaultAvatar 
 } from './postCard/styles';
+import telemetry from '../utils/telemetry';
 
 
 
@@ -277,7 +278,7 @@ const PostCard = ({
       });
 
     } catch (error) {
-      console.error('[PostCard] share:error', {
+      telemetry.recordEvent('post_card_share_failed', {
         postId: post?.$id || '',
         errorMessage: error?.message || String(error || ''),
         errorCode: error?.code || '',

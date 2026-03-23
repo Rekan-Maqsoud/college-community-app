@@ -1,6 +1,7 @@
 import { account, config } from '../config';
 import { uploadImage } from '../../services/imgbbService';
 import { uploadFileToAppwrite } from '../../services/appwriteFileUpload';
+import telemetry from '../../app/utils/telemetry';
 
 export const CHAT_TYPES = {
   STAGE_GROUP: 'stage_group',
@@ -86,12 +87,12 @@ export const uploadChatFile = async (file) => {
       bucketId: config.storageId,
     });
   } catch (error) {
-    console.error('[chats.uploadChatFile] failed', {
+      telemetry.recordEvent('chats_upload_chat_file_failed', {
       bucketId: config.storageId,
       fileName: file?.name,
-      code: error?.code,
-      status: error?.status,
-      message: error?.message,
+        code: error?.code || null,
+        status: error?.status || null,
+        message: error?.message || '',
     });
     throw error;
   }

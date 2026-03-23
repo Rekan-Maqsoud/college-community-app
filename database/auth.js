@@ -3,6 +3,7 @@ import { ID, Permission, Role, Query, OAuthProvider } from 'appwrite';
 import safeStorage from '../app/utils/safeStorage';
 import * as WebBrowser from 'expo-web-browser';
 import { userCacheManager } from '../app/utils/cacheManager';
+import telemetry from '../app/utils/telemetry';
 
 // Ensure WebBrowser redirects work properly
 WebBrowser.maybeCompleteAuthSession();
@@ -394,7 +395,7 @@ const parseOAuthCallbackParams = (callbackUrl = '') => {
 export const signInWithGoogle = async () => {
     try {
         const redirectUrl = getOAuthRedirectUrl();
-        console.log('[GoogleAuth] Starting OAuth flow', {
+        telemetry.recordEvent('google_auth_start', {
             redirectUrl,
             redirectUrlKind: redirectUrl?.startsWith('appwrite-callback-') ? 'appwrite-callback' : 'app-scheme',
             projectId: getAppwriteProjectId(),
@@ -418,7 +419,7 @@ export const signInWithGoogle = async () => {
             }
         );
 
-        console.log('[GoogleAuth] Browser session result', {
+        telemetry.recordEvent('google_auth_browser_session_result', {
             type: result?.type,
             hasUrl: Boolean(result?.url),
             urlPreview: result?.url ? String(result.url).slice(0, 120) : null,
@@ -427,7 +428,7 @@ export const signInWithGoogle = async () => {
         if (result.type === 'success' && result.url) {
             const { secret, userId, error } = parseOAuthCallbackParams(result.url);
 
-            console.log('[GoogleAuth] Parsed callback params', {
+            telemetry.recordEvent('google_auth_callback_parsed', {
                 hasSecret: Boolean(secret),
                 hasUserId: Boolean(userId),
                 hasError: Boolean(error),
@@ -436,28 +437,37 @@ export const signInWithGoogle = async () => {
             if (secret && userId) {
                 // Create a session using the token
                 await account.createSession({ userId, secret });
-                console.log('[GoogleAuth] Session created successfully');
+                telemetry.recordEvent('google_auth_session_created', {
+                    userId,
+                });
                 return { success: true };
             }
 
             // Check for error in URL parameters
             if (error) {
-                console.log('[GoogleAuth] OAuth provider returned error', { error });
+                telemetry.recordEvent('google_auth_provider_error', { error });
                 return { success: false, error: error };
             }
 
-            console.log('[GoogleAuth] OAuth callback missing required params');
+            telemetry.recordEvent('google_auth_callback_missing_params', {
+                hasSecret: Boolean(secret),
+                hasUserId: Boolean(userId),
+            });
         }
 
         if (result.type === 'cancel' || result.type === 'dismiss') {
-            console.log('[GoogleAuth] OAuth flow cancelled by user/app switch');
+            telemetry.recordEvent('google_auth_cancelled', {
+                type: result.type,
+            });
             return { success: false, cancelled: true };
         }
 
-        console.log('[GoogleAuth] OAuth flow ended without success');
+        telemetry.recordEvent('google_auth_unsuccessful', {
+            resultType: result?.type || 'unknown',
+        });
         return { success: false };
     } catch (error) {
-        console.log('[GoogleAuth] OAuth flow threw error', {
+        telemetry.recordEvent('google_auth_threw_error', {
             code: error?.code,
             type: error?.type,
             message: error?.message,
