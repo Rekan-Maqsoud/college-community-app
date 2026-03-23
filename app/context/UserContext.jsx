@@ -4,6 +4,9 @@ import { getCurrentUser, getCompleteUserData } from '../../database/auth';
 import { restoreBookmarksFromServer } from '../utils/bookmarkService';
 
 const UserContext = createContext();
+const USER_DATA_CACHE_KEY = 'userData';
+const USER_DATA_META_KEY = 'userDataMeta';
+const USER_CACHE_FRESHNESS_MS = 90 * 1000;
 
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -42,49 +45,111 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  const readCachedUserData = useCallback(async () => {
+    try {
+      const cachedData = await safeStorage.getItem(USER_DATA_CACHE_KEY);
+      return cachedData ? JSON.parse(cachedData) : null;
+    } catch (error) {
+      return null;
+    }
+  }, []);
+
+  const readCachedUserMeta = useCallback(async () => {
+    try {
+      const metaData = await safeStorage.getItem(USER_DATA_META_KEY);
+      return metaData ? JSON.parse(metaData) : null;
+    } catch (error) {
+      return null;
+    }
+  }, []);
+
+  const cacheUserData = useCallback(async (userData, accountId = null) => {
+    if (!userData) return;
+
+    await safeStorage.setItem(USER_DATA_CACHE_KEY, JSON.stringify(userData));
+    await safeStorage.setItem(
+      USER_DATA_META_KEY,
+      JSON.stringify({
+        fetchedAt: Date.now(),
+        accountId: accountId || userData.accountId || null,
+        userId: userData.$id || null,
+      })
+    );
+  }, []);
+
+  const mapCompleteUserData = useCallback((completeUserData, appwriteUser) => {
+    // Parse socialLinks from profileViews field (stored as JSON string)
+    const socialLinksData = parseProfileMetadata(completeUserData.profileViews);
+
+    return {
+      $id: completeUserData.$id,
+      accountId: appwriteUser.$id,
+      userId: completeUserData.userId || appwriteUser.$id,
+      email: completeUserData.email,
+      fullName: completeUserData.name,
+      bio: completeUserData.bio || '',
+      gender: completeUserData.gender || '',
+      profilePicture: completeUserData.profilePicture || '',
+      university: completeUserData.university || '',
+      college: completeUserData.major || '',
+      department: completeUserData.department || '',
+      stage: yearToStage(completeUserData.year),
+      role: normalizeRole(completeUserData.role),
+      postsCount: completeUserData.postsCount || 0,
+      followersCount: completeUserData.followersCount || 0,
+      followingCount: completeUserData.followingCount || 0,
+      isEmailVerified: completeUserData.emailVerification || false,
+      lastAcademicUpdate: completeUserData.lastAcademicUpdate || null,
+      socialLinks: socialLinksData.links || null,
+      socialLinksVisibility: socialLinksData.visibility || 'everyone',
+      academicChangesCount: socialLinksData.academicChangesCount || 0,
+      blockedUsers: completeUserData.blockedUsers || [],
+      chatBlockedUsers: completeUserData.chatBlockedUsers || [],
+    };
+  }, []);
+
+  const isCacheFreshForSession = useCallback((cached, meta, appwriteUserId) => {
+    if (!cached || !meta || !meta.fetchedAt || !appwriteUserId) {
+      return false;
+    }
+
+    const accountMatches =
+      meta.accountId === appwriteUserId ||
+      cached.accountId === appwriteUserId ||
+      cached.userId === appwriteUserId;
+
+    if (!accountMatches) {
+      return false;
+    }
+
+    return Date.now() - Number(meta.fetchedAt) <= USER_CACHE_FRESHNESS_MS;
+  }, []);
+
   const initializeUser = useCallback(async () => {
     try {
       setIsLoading(true);
-      
-          const cachedData = await safeStorage.getItem('userData');
-      const cached = cachedData ? JSON.parse(cachedData) : null;
+
+      const cached = await readCachedUserData();
+      const cachedMeta = await readCachedUserMeta();
+
+      if (cached) {
+        setUser(cached);
+      }
       
       const appwriteUser = await getCurrentUser();
       
       if (appwriteUser) {
+        if (isCacheFreshForSession(cached, cachedMeta, appwriteUser.$id)) {
+          restoreBookmarksFromServer(appwriteUser.$id).catch(() => {});
+          return;
+        }
+
         const completeUserData = await getCompleteUserData();
         
         if (completeUserData) {
-          // Parse socialLinks from profileViews field (stored as JSON string)
-          const socialLinksData = parseProfileMetadata(completeUserData.profileViews);
-          
-          const userData = {
-            $id: completeUserData.$id,
-            accountId: appwriteUser.$id,
-            userId: completeUserData.userId || appwriteUser.$id,
-            email: completeUserData.email,
-            fullName: completeUserData.name,
-            bio: completeUserData.bio || '',
-            gender: completeUserData.gender || '',
-            profilePicture: completeUserData.profilePicture || '',
-            university: completeUserData.university || '',
-            college: completeUserData.major || '',
-            department: completeUserData.department || '',
-            stage: yearToStage(completeUserData.year),
-            role: normalizeRole(completeUserData.role),
-            postsCount: completeUserData.postsCount || 0,
-            followersCount: completeUserData.followersCount || 0,
-            followingCount: completeUserData.followingCount || 0,
-            isEmailVerified: completeUserData.emailVerification || false,
-            lastAcademicUpdate: completeUserData.lastAcademicUpdate || null,
-            socialLinks: socialLinksData.links || null,
-            socialLinksVisibility: socialLinksData.visibility || 'everyone',
-            academicChangesCount: socialLinksData.academicChangesCount || 0,
-            blockedUsers: completeUserData.blockedUsers || [],
-            chatBlockedUsers: completeUserData.chatBlockedUsers || [],
-          };
-          
-              await safeStorage.setItem('userData', JSON.stringify(userData));
+          const userData = mapCompleteUserData(completeUserData, appwriteUser);
+
+          await cacheUserData(userData, appwriteUser.$id);
           setUser(userData);
           
           // Restore bookmarks from server in background (for fresh installs)
@@ -96,15 +161,16 @@ export const UserProvider = ({ children }) => {
         if (cached) {
           setUser(cached);
         } else {
-              await safeStorage.removeItem('userData');
+          await safeStorage.removeItem(USER_DATA_CACHE_KEY);
+          await safeStorage.removeItem(USER_DATA_META_KEY);
           setUser(null);
         }
       }
     } catch (error) {
       try {
-            const cachedData = await safeStorage.getItem('userData');
-        if (cachedData) {
-          setUser(JSON.parse(cachedData));
+        const cached = await readCachedUserData();
+        if (cached) {
+          setUser(cached);
         }
       } catch (cacheError) {
         // Cache fallback failed
@@ -113,53 +179,35 @@ export const UserProvider = ({ children }) => {
       setIsLoading(false);
       setSessionChecked(true);
     }
-  }, []);
+  }, [cacheUserData, isCacheFreshForSession, mapCompleteUserData, readCachedUserData, readCachedUserMeta]);
 
   useEffect(() => {
     initializeUser();
   }, [initializeUser]);
 
-  const loadUserData = async () => {
+  const loadUserData = async (options = {}) => {
     try {
-        const cachedData = await safeStorage.getItem('userData');
-      const cached = cachedData ? JSON.parse(cachedData) : null;
+      const force = options.force === true;
+      const cached = await readCachedUserData();
+      const cachedMeta = await readCachedUserMeta();
+
+      if (cached) {
+        setUser(cached);
+      }
       
       const appwriteUser = await getCurrentUser();
       
       if (appwriteUser) {
+        if (!force && isCacheFreshForSession(cached, cachedMeta, appwriteUser.$id)) {
+          return;
+        }
+
         const completeUserData = await getCompleteUserData();
         
         if (completeUserData) {
-          // Parse socialLinks from profileViews field (stored as JSON string)
-          const socialLinksData = parseProfileMetadata(completeUserData.profileViews);
-          
-          const userData = {
-            $id: completeUserData.$id,
-            accountId: appwriteUser.$id,
-            userId: completeUserData.userId || appwriteUser.$id,
-            email: completeUserData.email,
-            fullName: completeUserData.name,
-            bio: completeUserData.bio || '',
-            gender: completeUserData.gender || '',
-            profilePicture: completeUserData.profilePicture || '',
-            university: completeUserData.university || '',
-            college: completeUserData.major || '',
-            department: completeUserData.department || '',
-            stage: yearToStage(completeUserData.year),
-            role: normalizeRole(completeUserData.role),
-            postsCount: completeUserData.postsCount || 0,
-            followersCount: completeUserData.followersCount || 0,
-            followingCount: completeUserData.followingCount || 0,
-            isEmailVerified: completeUserData.emailVerification || false,
-            lastAcademicUpdate: completeUserData.lastAcademicUpdate || null,
-            socialLinks: socialLinksData.links || null,
-            socialLinksVisibility: socialLinksData.visibility || 'everyone',
-            academicChangesCount: socialLinksData.academicChangesCount || 0,
-            blockedUsers: completeUserData.blockedUsers || [],
-            chatBlockedUsers: completeUserData.chatBlockedUsers || [],
-          };
-          
-            await safeStorage.setItem('userData', JSON.stringify(userData));
+          const userData = mapCompleteUserData(completeUserData, appwriteUser);
+
+          await cacheUserData(userData, appwriteUser.$id);
           setUser(userData);
         }
       } else {
@@ -168,9 +216,9 @@ export const UserProvider = ({ children }) => {
         }
       }
     } catch (error) {
-        const cachedData = await safeStorage.getItem('userData');
-      if (cachedData) {
-        setUser(JSON.parse(cachedData));
+      const cached = await readCachedUserData();
+      if (cached) {
+        setUser(cached);
       }
     }
   };
@@ -252,7 +300,7 @@ export const UserProvider = ({ children }) => {
         ...updates,
       };
       
-          await safeStorage.setItem('userData', JSON.stringify(updatedData));
+      await cacheUserData(updatedData, parsedData?.accountId || updatedData?.accountId || null);
       setUser(updatedData);
       
       const appwriteUser = await getCurrentUser();
@@ -327,7 +375,8 @@ export const UserProvider = ({ children }) => {
 
   const clearUser = async () => {
     try {
-          await safeStorage.removeItem('userData');
+      await safeStorage.removeItem(USER_DATA_CACHE_KEY);
+      await safeStorage.removeItem(USER_DATA_META_KEY);
       setUser(null);
     } catch (error) {
       // Failed to clear user data from storage
@@ -336,7 +385,7 @@ export const UserProvider = ({ children }) => {
 
   const setUserData = async (userData) => {
     try {
-          await safeStorage.setItem('userData', JSON.stringify(userData));
+      await cacheUserData(userData, userData?.accountId || null);
       setUser(userData);
     } catch (error) {
       // Failed to store user data

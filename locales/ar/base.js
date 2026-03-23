@@ -313,7 +313,8 @@ export default {
     "gashaTechnicalInstitute": "معهد غاشا التقني",
     "paitaxtTechnicalInstitute": "معهد پایتەخت التقني",
     "rawanduzPrivateTechnicalInstitute": "معهد رواندوز الأهلي التقني",
-    "noblePrivateTechnicalInstitute": "معهد نوبل الأهلي التقني"
+    "noblePrivateTechnicalInstitute": "معهد نوبل الأهلي التقني",
+    "other": "أخرى"
   },
   "colleges": {
     "Enformatic": "الكلية التقنية للمعلوماتية والحاسوب",
@@ -454,7 +455,8 @@ export default {
     "departments": "الأقسام",
     "facultyOfEngineeringAndComputerScience": "كلية الهندسة وعلوم الحاسوب",
     "facultyOfManagementAndSocialSciences": "كلية الإدارة والعلوم الاجتماعية",
-    "facultyOfHealthSciences": "كلية العلوم الصحية"
+    "facultyOfHealthSciences": "كلية العلوم الصحية",
+    "other": "أخرى"
   },
   "stages": {
     "firstYear": "المرحلة 1",
@@ -965,6 +967,7 @@ export default {
     "optional": "(اختياري)",
     "hide": "إخفاء",
     "user": "مستخدم",
+    "other": "أخرى",
     "remove": "إزالة",
     "block": "حظر",
     "blockOptionsTitle": "خيارات الحظر",

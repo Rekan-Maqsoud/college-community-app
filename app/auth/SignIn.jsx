@@ -59,7 +59,7 @@ const SignIn = ({ navigation, route }) => {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [showEmailSuggestion, setShowEmailSuggestion] = useState(false);
   
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const { setUserData } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { formStyle } = useLayout();
@@ -350,7 +350,7 @@ const SignIn = ({ navigation, route }) => {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
           
-            <View style={styles.languageContainer}>
+            <View style={[styles.languageContainer, isRTL && styles.languageContainerRtl]}>
               <LanguageDropdown />
             </View>
 
@@ -387,19 +387,24 @@ const SignIn = ({ navigation, route }) => {
               disableBackgroundOverlay
             >
               <GlassInput focused={emailFocused}>
-                <View style={styles.inputWrapper}>
+                <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
                   <Ionicons 
                     name="mail-outline" 
                     size={moderateScale(22)} 
                     color={emailFocused ? theme.primary : theme.textSecondary} 
-                    style={styles.inputIcon}
+                    style={[styles.inputIcon, isRTL && styles.inputIconRtl]}
                   />
                   <TextInput
-                    style={[styles.input, { 
-                      color: theme.text,
-                      fontSize: fontSize(14),
-                      textAlign: 'left',
-                    }]}
+                    style={[
+                      styles.input,
+                      isRTL && styles.inputRtl,
+                      {
+                        color: theme.text,
+                        fontSize: fontSize(14),
+                        textAlign: isRTL ? 'right' : 'left',
+                        writingDirection: isRTL ? 'rtl' : 'ltr',
+                      },
+                    ]}
                     placeholder={t('auth.collegeEmail')}
                     placeholderTextColor={theme.input.placeholder}
                     value={email}
@@ -420,7 +425,7 @@ const SignIn = ({ navigation, route }) => {
                   {showEmailSuggestion && (
                     <TouchableOpacity 
                       onPress={applyEmailSuggestion}
-                      style={[styles.emailSuggestion, { backgroundColor: theme.primary }]}
+                      style={[styles.emailSuggestion, isRTL && styles.emailSuggestionRtl, { backgroundColor: theme.primary }]}
                       activeOpacity={0.7}
                     >
                       <Text style={styles.emailSuggestionText}>@epu.edu.iq</Text>
@@ -430,18 +435,24 @@ const SignIn = ({ navigation, route }) => {
               </GlassInput>
 
               <GlassInput focused={passwordFocused} style={{ marginTop: spacing.md }}>
-                <View style={styles.inputWrapper}>
+                <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
                   <Ionicons 
                     name="lock-closed-outline" 
                     size={moderateScale(22)} 
                     color={passwordFocused ? theme.primary : theme.textSecondary} 
-                    style={styles.inputIcon}
+                    style={[styles.inputIcon, isRTL && styles.inputIconRtl]}
                   />
                   <TextInput
-                    style={[styles.input, { 
-                      color: theme.text,
-                      fontSize: fontSize(14),
-                    }]}
+                    style={[
+                      styles.input,
+                      isRTL && styles.inputRtl,
+                      {
+                        color: theme.text,
+                        fontSize: fontSize(14),
+                        textAlign: isRTL ? 'right' : 'left',
+                        writingDirection: isRTL ? 'rtl' : 'ltr',
+                      },
+                    ]}
                     placeholder={t('auth.password')}
                     placeholderTextColor={theme.input.placeholder}
                     value={password}
@@ -458,7 +469,7 @@ const SignIn = ({ navigation, route }) => {
                   />
                   <TouchableOpacity 
                     onPress={() => setShowPassword(!showPassword)}
-                    style={styles.eyeIcon}
+                    style={[styles.eyeIcon, isRTL && styles.eyeIconRtl]}
                     activeOpacity={0.7}
                     hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                   >
@@ -592,6 +603,10 @@ const styles = StyleSheet.create({
     right: wp(5),
     zIndex: 1000,
   },
+  languageContainerRtl: {
+    right: 'auto',
+    left: wp(5),
+  },
   content: {
     flex: 1,
     alignItems: 'center',
@@ -635,21 +650,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: Platform.OS === 'ios' ? spacing.md : spacing.sm,
   },
+  inputWrapperRtl: {
+    flexDirection: 'row-reverse',
+  },
   inputIcon: {
     marginRight: spacing.sm,
+  },
+  inputIconRtl: {
+    marginRight: 0,
+    marginLeft: spacing.sm,
   },
   input: {
     flex: 1,
     fontWeight: '500',
-    minHeight: Platform.OS === 'ios' ? 22 : 40,
-    paddingVertical: 0,
+    minHeight: moderateScale(24),
+    paddingVertical: Platform.OS === 'ios' ? spacing.xs : 0,
+    includeFontPadding: false,
     textAlignVertical: 'center',
+  },
+  inputRtl: {
+    textAlign: 'right',
   },
   emailSuggestion: {
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.md,
     marginLeft: spacing.xs,
+  },
+  emailSuggestionRtl: {
+    marginLeft: 0,
+    marginRight: spacing.xs,
   },
   emailSuggestionText: {
     color: '#FFFFFF',
@@ -659,6 +689,10 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: spacing.xs,
     marginLeft: spacing.xs,
+  },
+  eyeIconRtl: {
+    marginLeft: 0,
+    marginRight: spacing.xs,
   },
   forgotPasswordButton: {
     alignSelf: 'flex-end',

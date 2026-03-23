@@ -393,6 +393,7 @@ export default {
     "pathologicalAnalyses": "التحاليل المرضية",
     "electricityAndMechanics": "الكهرباء والميكانيك",
     "agriculturalInstruction": "الإرشاد الزراعي",
-    "englishEducation": "تربية اللغة الإنجليزية"
+    "englishEducation": "تربية اللغة الإنجليزية",
+    "other": "أخرى"
   }
 };

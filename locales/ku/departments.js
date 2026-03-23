@@ -96,6 +96,7 @@ export default {
     "pediatricDentistry": "ددانی منداڵان",
     "oralPathology": "نەخۆشییەکانی دەم",
     "pharmaceuticalChemistry": "کیمیای دەرمانسازی",
+    "pharmacology": "زانستی دەرمان",
     "pharmaceutics": "دەرمانسازی",
     "clinicalPharmacy": "دەرمانسازی کلینیکی",
     "pharmacognosy": "زانستی دەرمانە سروشتییەکان",
@@ -392,6 +393,7 @@ export default {
     "pathologicalAnalyses": "شیکارییەکانی نەخۆشی‌ناسی",
     "electricityAndMechanics": "کارەبا و میکانیک",
     "agriculturalInstruction": "ڕێنمایی کشتوکاڵی",
-    "englishEducation": "پەروەردەی زمانی ئینگلیزی"
+    "englishEducation": "پەروەردەی زمانی ئینگلیزی",
+    "other": "تر"
   }
 };

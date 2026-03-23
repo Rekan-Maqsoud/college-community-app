@@ -313,7 +313,8 @@ export default {
     "gashaTechnicalInstitute": "پەیمانگای تەکنیکی گاشا",
     "paitaxtTechnicalInstitute": "پەیمانگای تەکنیکی پایتەخت",
     "rawanduzPrivateTechnicalInstitute": "پەیمانگای تەکنیکی تایبەتی ڕەواندوز",
-    "noblePrivateTechnicalInstitute": "پەیمانگای تەکنیکی تایبەتی نۆبڵ"
+    "noblePrivateTechnicalInstitute": "پەیمانگای تەکنیکی تایبەتی نۆبڵ",
+    "other": "تر"
   },
   "colleges": {
     "Enformatic": "کۆلێژی تەکنیکی زانیاری و کۆمپیوتەر",
@@ -454,7 +455,8 @@ export default {
     "departments": "بەشەکان",
     "facultyOfEngineeringAndComputerScience": "فاکەڵتی ئەندازیاری و زانستی کۆمپیوتەر",
     "facultyOfManagementAndSocialSciences": "فاکەڵتی کارگێڕی و زانستە کۆمەڵایەتییەکان",
-    "facultyOfHealthSciences": "فاکەڵتی زانستە تەندروستییەکان"
+    "facultyOfHealthSciences": "فاکەڵتی زانستە تەندروستییەکان",
+    "other": "تر"
   },
   "stages": {
     "firstYear": "قۆناغ 1",
@@ -964,6 +966,7 @@ export default {
     "networkError": "هەڵەی هێڵ. تکایە پەیوەندی ئینتەرنێتەکەت بپشکنە.",
     "optional": "(ئارەزوومەندانە)",
     "hide": "شاردنەوە",
+    "other": "تر",
     "user": "بەکارهێنەر",
     "remove": "لابردن",
     "block": "بلۆک",

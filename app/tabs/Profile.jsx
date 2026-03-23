@@ -29,7 +29,6 @@ const Profile = ({ navigation, route }) => {
   const { contentStyle } = useLayout();
   const { isUserRepresentative } = useRepDetection(user);
   const isMeRep = isUserRepresentative(user?.$id);
-  const [imageKey, setImageKey] = useState(Date.now());
   const [userPosts, setUserPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [postsError, setPostsError] = useState(null);
@@ -170,8 +169,6 @@ const Profile = ({ navigation, route }) => {
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      setImageKey(Date.now());
-      
       // Check if there's a post that needs to be refreshed
       const updatedPostId = route?.params?.updatedPostId;
       const updatedReplyCount = route?.params?.updatedReplyCount;
@@ -219,8 +216,7 @@ const Profile = ({ navigation, route }) => {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await refreshUser();
-      setImageKey(Date.now());
+      await refreshUser({ force: true });
       await loadUserPosts(false);
     } catch (error) {
     } finally {
@@ -585,9 +581,8 @@ const Profile = ({ navigation, route }) => {
           <LinearGradient colors={theme.gradient} style={styles.avatarBorder} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
             <View style={[styles.avatarInner, { backgroundColor: theme.background }]}>
               <Image 
-                source={{ uri: userProfile.avatar, cache: 'reload' }} 
+                source={{ uri: userProfile.avatar, cache: 'force-cache' }} 
                 style={styles.avatar}
-                key={`${userProfile.avatar}-${imageKey}`}
               />
             </View>
           </LinearGradient>

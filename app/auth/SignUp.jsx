@@ -84,13 +84,16 @@ const SignUp = ({ navigation, route }) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showEmailSuggestion, setShowEmailSuggestion] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [submitError, setSubmitError] = useState('');
+  const [hasBlurredNameField, setHasBlurredNameField] = useState(false);
   
   const [nameFocused, setNameFocused] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
   
-  const { t, theme } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const isCompactPhone = hp(100) < 700;
   const isWidePhone = !isTablet() && wp(100) > 430;
   const isLargeScreen = windowWidth >= 900;
@@ -276,6 +279,55 @@ const SignUp = ({ navigation, route }) => {
   const passwordStrength = getPasswordStrength(password);
   const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
 
+  const stepOneFieldKeys = ['fullName', 'email', 'age', 'password', 'confirmPassword'];
+  const stepTwoFieldKeys = [
+    'university',
+    'college',
+    'department',
+    'stage',
+    'customUniversityName',
+    'customCollegeName',
+    'customDepartmentName',
+    'customDepartmentYears',
+  ];
+
+  const clearSubmitError = () => setSubmitError('');
+
+  const clearFieldError = (field) => {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const clearFieldErrors = (fields) => {
+    setFieldErrors((prev) => {
+      let changed = false;
+      const next = { ...prev };
+
+      fields.forEach((field) => {
+        if (next[field]) {
+          delete next[field];
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  };
+
+  const setSingleFieldError = (field, message, stepNumber) => {
+    if (stepNumber && currentStep !== stepNumber) {
+      setCurrentStep(stepNumber);
+    }
+    setSubmitError('');
+    setFieldErrors((prev) => ({ ...prev, [field]: message }));
+  };
+
+  const getInputErrorStyle = (field) => (fieldErrors[field] ? styles.inputError : null);
+
   const getStrengthColor = () => {
     switch (passwordStrength) {
       case 'weak': return theme.danger;
@@ -295,136 +347,118 @@ const SignUp = ({ navigation, route }) => {
   };
 
   const validateForm = () => {
-    if (!fullName.trim()) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.fullNameRequired') });
+    const stepOneValid = validateStepOne();
+    if (!stepOneValid) {
       return false;
-    }
-    
-    if (fullName.trim().length < 2 || fullName.trim().length > 100) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.nameLengthError') });
-      return false;
-    }
-    
-    if (!email.trim() || !email.includes('@')) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.validEmailRequired') });
-      return false;
-    }
-    
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.validEmailRequired') });
-      return false;
-    }
-    
-    if (!age || parseInt(age) < 16 || parseInt(age) > 100) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.validAgeRequired') });
-      return false;
-    }
-    if (!university) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.universityRequired') });
-      return false;
-    }
-    if (!college) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.collegeRequired') });
-      return false;
-    }
-    if (!department) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.departmentRequired') });
-      return false;
-    }
-    if (isUniversityOther) {
-      if (String(customUniversityName || '').trim().length < 2) {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherUniversityNameRequired') });
-        return false;
-      }
-      if (String(customCollegeName || '').trim().length < 2) {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherCollegeNameRequired') });
-        return false;
-      }
-      if (String(customDepartmentName || '').trim().length < 2) {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherDepartmentNameRequired') });
-        return false;
-      }
-    } else if (isCollegeOther) {
-      if (String(customCollegeName || '').trim().length < 2) {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherCollegeNameRequired') });
-        return false;
-      }
-      if (String(customDepartmentName || '').trim().length < 2) {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherDepartmentNameRequired') });
-        return false;
-      }
-    } else if (isDepartmentOther) {
-      if (String(customDepartmentName || '').trim().length < 2) {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherDepartmentNameRequired') });
-        return false;
-      }
     }
 
-    if (hasAcademicOther && !customDepartmentYears) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherStudyYearsRequired') });
+    const stepTwoValid = validateStepTwo();
+    if (!stepTwoValid) {
       return false;
     }
-    if (!stage) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.stageRequired') });
-      return false;
-    }
-    
-    if (!oauthMode) {
-      if (password.length < 8) {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.passwordTooShort') });
-        return false;
-      }
-      if (passwordStrength === 'weak') {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.passwordGuideWeak') });
-        return false;
-      }
-      if (password !== confirmPassword) {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.passwordMismatch') });
-        return false;
-      }
-    }
+
+    clearSubmitError();
     return true;
   };
 
-  const validateStepOne = () => {
-    if (!fullName.trim()) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.fullNameRequired') });
-      return false;
+  const hasEmailPlusAlias = (emailValue) => {
+    const normalized = String(emailValue || '').trim();
+    if (!normalized.includes('@')) return false;
+    const localPart = normalized.split('@')[0] || '';
+    return localPart.includes('+');
+  };
+
+  const hasTwoNameParts = (nameValue) => String(nameValue || '').trim().split(/\s+/).filter(Boolean).length >= 2;
+
+  const hasUnsupportedNameCharacters = (nameValue) => /[^\p{L}\s]/u.test(String(nameValue || '').trim());
+
+  const validateFullName = (nameValue) => {
+    const normalizedName = String(nameValue || '').trim();
+
+    if (!normalizedName) {
+      return t('auth.fullNameRequired');
     }
 
-    if (fullName.trim().length < 2 || fullName.trim().length > 100) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.nameLengthError') });
+    if (normalizedName.length < 2 || normalizedName.length > 100) {
+      return t('auth.nameLengthError');
+    }
+
+    if (hasUnsupportedNameCharacters(normalizedName)) {
+      return t('auth.fullNameLettersOnly');
+    }
+
+    if (!hasTwoNameParts(normalizedName)) {
+      return t('auth.fullNameTwoWordsRequired');
+    }
+
+    return '';
+  };
+
+  const handleFullNameBlur = () => {
+    setNameFocused(false);
+    setHasBlurredNameField(true);
+
+    const normalizedName = String(fullName || '').trim();
+    if (!normalizedName) {
+      clearFieldError('fullName');
+      return;
+    }
+
+    if (!hasTwoNameParts(normalizedName)) {
+      setSingleFieldError('fullName', t('auth.fullNameTwoWordsRequired'), 1);
+      return;
+    }
+
+    if (hasUnsupportedNameCharacters(normalizedName)) {
+      setSingleFieldError('fullName', t('auth.fullNameLettersOnly'), 1);
+      return;
+    }
+
+    clearFieldError('fullName');
+  };
+
+  const validateStepOne = () => {
+    clearSubmitError();
+    clearFieldErrors(stepOneFieldKeys);
+
+    const fullNameError = validateFullName(fullName);
+    if (fullNameError) {
+      setSingleFieldError('fullName', fullNameError, 1);
       return false;
     }
 
     if (!email.trim() || !email.includes('@')) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.validEmailRequired') });
+      setSingleFieldError('email', t('auth.validEmailRequired'), 1);
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.validEmailRequired') });
+      setSingleFieldError('email', t('auth.validEmailRequired'), 1);
+      return false;
+    }
+
+    if (hasEmailPlusAlias(email)) {
+      setSingleFieldError('email', t('auth.emailPlusNotAllowed'), 1);
       return false;
     }
 
     if (!age || parseInt(age) < 16 || parseInt(age) > 100) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.validAgeRequired') });
+      setSingleFieldError('age', t('auth.validAgeRequired'), 1);
       return false;
     }
 
     if (!oauthMode) {
       if (password.length < 8) {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.passwordTooShort') });
+        setSingleFieldError('password', t('auth.passwordTooShort'), 1);
         return false;
       }
       if (passwordStrength === 'weak') {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.passwordGuideWeak') });
+        setSingleFieldError('password', t('auth.passwordGuideWeak'), 1);
         return false;
       }
       if (password !== confirmPassword) {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.passwordMismatch') });
+        setSingleFieldError('confirmPassword', t('auth.passwordMismatch'), 1);
         return false;
       }
     }
@@ -433,59 +467,63 @@ const SignUp = ({ navigation, route }) => {
   };
 
   const validateStepTwo = () => {
+    clearSubmitError();
+    clearFieldErrors(stepTwoFieldKeys);
+
     if (!university) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.universityRequired') });
+      setSingleFieldError('university', t('auth.universityRequired'), 2);
       return false;
     }
     if (!college) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.collegeRequired') });
+      setSingleFieldError('college', t('auth.collegeRequired'), 2);
       return false;
     }
     if (!department) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.departmentRequired') });
+      setSingleFieldError('department', t('auth.departmentRequired'), 2);
       return false;
     }
     if (isUniversityOther) {
       if (String(customUniversityName || '').trim().length < 2) {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherUniversityNameRequired') });
+        setSingleFieldError('customUniversityName', t('auth.otherUniversityNameRequired'), 2);
         return false;
       }
       if (String(customCollegeName || '').trim().length < 2) {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherCollegeNameRequired') });
+        setSingleFieldError('customCollegeName', t('auth.otherCollegeNameRequired'), 2);
         return false;
       }
       if (String(customDepartmentName || '').trim().length < 2) {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherDepartmentNameRequired') });
+        setSingleFieldError('customDepartmentName', t('auth.otherDepartmentNameRequired'), 2);
         return false;
       }
     } else if (isCollegeOther) {
       if (String(customCollegeName || '').trim().length < 2) {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherCollegeNameRequired') });
+        setSingleFieldError('customCollegeName', t('auth.otherCollegeNameRequired'), 2);
         return false;
       }
       if (String(customDepartmentName || '').trim().length < 2) {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherDepartmentNameRequired') });
+        setSingleFieldError('customDepartmentName', t('auth.otherDepartmentNameRequired'), 2);
         return false;
       }
     } else if (isDepartmentOther) {
       if (String(customDepartmentName || '').trim().length < 2) {
-        showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherDepartmentNameRequired') });
+        setSingleFieldError('customDepartmentName', t('auth.otherDepartmentNameRequired'), 2);
         return false;
       }
     }
 
     if (hasAcademicOther && !customDepartmentYears) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.otherStudyYearsRequired') });
+      setSingleFieldError('customDepartmentYears', t('auth.otherStudyYearsRequired'), 2);
       return false;
     }
     if (!stage) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.stageRequired') });
+      setSingleFieldError('stage', t('auth.stageRequired'), 2);
       return false;
     }
     return true;
   };
 
   const handleNextStep = () => {
+    clearSubmitError();
     if (currentStep === 1 && !validateStepOne()) return;
     if (currentStep === 2 && !validateStepTwo()) return;
     setCurrentStep(prev => Math.min(prev + 1, 3));
@@ -493,6 +531,7 @@ const SignUp = ({ navigation, route }) => {
 
   const promptExistingAccountSignIn = () => {
     setCurrentStep(1);
+    setSingleFieldError('email', t('auth.emailAlreadyExists'), 1);
     showAlert({
       type: 'warning',
       title: t('auth.emailAlreadyExists'),
@@ -512,6 +551,7 @@ const SignUp = ({ navigation, route }) => {
   };
 
   const handlePreviousStep = () => {
+    clearSubmitError();
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
@@ -561,6 +601,7 @@ const SignUp = ({ navigation, route }) => {
     });
 
     setIsLoading(true);
+    clearSubmitError();
     
     try {
       const stageYearMap = {
@@ -698,15 +739,42 @@ const SignUp = ({ navigation, route }) => {
         return;
       }
 
-      let errorMessage = t('auth.signUpError');
-
       if (error.message?.includes('Password')) {
-        errorMessage = t('auth.passwordRequirements');
-      } else if (error.message?.includes('educational email') || error.message?.includes('Only educational')) {
-        errorMessage = t('auth.educationalEmailRequired');
+        setSingleFieldError('password', t('auth.passwordRequirements'), 1);
+        return;
       }
-      
-      showAlert({ type: 'error', title: t('common.error'), message: errorMessage });
+
+      if (error.message?.includes('educational email') || error.message?.includes('Only educational')) {
+        setSingleFieldError('email', t('auth.educationalEmailRequired'), 1);
+        return;
+      }
+
+      if (error.message?.includes('name')) {
+        setSingleFieldError('fullName', error.message, 1);
+        return;
+      }
+
+      if (error.message?.includes('university')) {
+        setSingleFieldError('university', error.message, 2);
+        return;
+      }
+
+      if (error.message?.includes('college')) {
+        setSingleFieldError('college', error.message, 2);
+        return;
+      }
+
+      if (error.message?.includes('department')) {
+        setSingleFieldError('department', error.message, 2);
+        return;
+      }
+
+      if (error.message?.includes('stage')) {
+        setSingleFieldError('stage', error.message, 2);
+        return;
+      }
+
+      setSubmitError(error.message || t('auth.signUpError'));
     }
   };
 
@@ -800,11 +868,14 @@ const SignUp = ({ navigation, route }) => {
         translucent
       />
       
-      <View
-        style={[
-          styles.gradient,
-          { backgroundColor: theme.background },
-        ]}>
+      <LinearGradient
+        colors={isDarkMode
+          ? ['#1a1a2e', '#16213e', '#0f3460']
+          : ['#667eea', '#764ba2', '#f093fb']
+        }
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}>
       
       <AnimatedBackground particleCount={35} />
       
@@ -822,7 +893,7 @@ const SignUp = ({ navigation, route }) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
           
-          <View style={styles.languageContainer}>
+          <View style={[styles.languageContainer, isRTL && styles.languageContainerRtl]}>
             <LanguageDropdown />
           </View>
           
@@ -833,11 +904,11 @@ const SignUp = ({ navigation, route }) => {
               width: '100%',
             }}>
             
-            <View style={styles.headerContainer}>
-              <Text style={[styles.headerText, { fontSize: fontSize(isTabletDevice ? 32 : 24) }]}>
+            <View style={[styles.headerContainer, isRTL && styles.headerContainerRtl]}>
+              <Text style={[styles.headerText, isRTL && styles.headerTextRtl, { fontSize: fontSize(isTabletDevice ? 32 : 24) }]}>
                 {oauthMode ? t('auth.completeYourProfile') : t('auth.createAccount')}
               </Text>
-              <Text style={[styles.subHeaderText, { fontSize: fontSize(14) }]}>
+              <Text style={[styles.subHeaderText, isRTL && styles.subHeaderTextRtl, { fontSize: fontSize(14) }]}>
                 {oauthMode ? t('auth.finishSetup') : t('auth.joinCommunity')}
               </Text>
             </View>
@@ -883,25 +954,64 @@ const SignUp = ({ navigation, route }) => {
 
               {currentStep === 1 && (
                 <>
-                  <GlassInput focused={nameFocused}>
-                    <View style={styles.inputWrapper}>
+                  <GlassInput focused={nameFocused} style={getInputErrorStyle('fullName')}>
+                    <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
                       <Ionicons
                         name="person-outline"
                         size={moderateScale(20)}
                         color={nameFocused ? theme.primary : theme.textSecondary}
-                        style={styles.inputIcon}
+                        style={[styles.inputIcon, isRTL && styles.inputIconRtl]}
                       />
                       <TextInput
-                        style={[styles.input, {
-                          color: theme.text,
-                          fontSize: fontSize(15),
-                        }]}
+                        style={[
+                          styles.input,
+                          isRTL && styles.inputRtl,
+                          {
+                            color: theme.text,
+                            fontSize: fontSize(15),
+                            textAlign: isRTL ? 'right' : 'left',
+                            writingDirection: isRTL ? 'rtl' : 'ltr',
+                          },
+                        ]}
                         placeholder={t('auth.fullName')}
                         placeholderTextColor={theme.input.placeholder}
                         value={fullName}
-                        onChangeText={setFullName}
+                        onChangeText={(value) => {
+                          setFullName(value);
+                          if (!hasBlurredNameField) {
+                            clearSubmitError();
+                            return;
+                          }
+
+                          if (!String(value || '').trim()) {
+                            clearFieldError('fullName');
+                            clearSubmitError();
+                            return;
+                          }
+
+                          if (!hasTwoNameParts(value)) {
+                            setFieldErrors((prev) => ({
+                              ...prev,
+                              fullName: t('auth.fullNameTwoWordsRequired'),
+                            }));
+                            clearSubmitError();
+                            return;
+                          }
+
+                          if (hasUnsupportedNameCharacters(value)) {
+                            setFieldErrors((prev) => ({
+                              ...prev,
+                              fullName: t('auth.fullNameLettersOnly'),
+                            }));
+                            clearSubmitError();
+                            return;
+                          }
+
+                          clearFieldError('fullName');
+                          clearSubmitError();
+                        }}
                         onFocus={() => setNameFocused(true)}
-                        onBlur={() => setNameFocused(false)}
+                        onBlur={handleFullNameBlur}
                         autoCorrect={false}
                         contextMenuHidden={false}
                         selectTextOnFocus={false}
@@ -909,25 +1019,38 @@ const SignUp = ({ navigation, route }) => {
                       />
                     </View>
                   </GlassInput>
+                  {fieldErrors.fullName && (
+                    <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.fullName}</Text>
+                  )}
+                  <Text style={[styles.fieldGuideText, { color: theme.textSecondary }]}>{t('auth.fullNameGuide')}</Text>
 
-                  <GlassInput focused={emailFocused} style={{ marginTop: spacing.md }}>
-                    <View style={styles.inputWrapper}>
+                  <GlassInput focused={emailFocused} style={[{ marginTop: spacing.md }, getInputErrorStyle('email')]}>
+                    <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
                       <Ionicons
                         name="mail-outline"
                         size={moderateScale(20)}
                         color={emailFocused ? theme.primary : theme.textSecondary}
-                        style={styles.inputIcon}
+                        style={[styles.inputIcon, isRTL && styles.inputIconRtl]}
                       />
                       <TextInput
-                        style={[styles.input, {
-                          color: oauthMode ? theme.textSecondary : theme.text,
-                          fontSize: fontSize(15),
-                          textAlign: 'left',
-                        }]}
+                        style={[
+                          styles.input,
+                          isRTL && styles.inputRtl,
+                          {
+                            color: oauthMode ? theme.textSecondary : theme.text,
+                            fontSize: fontSize(15),
+                            textAlign: isRTL ? 'right' : 'left',
+                            writingDirection: isRTL ? 'rtl' : 'ltr',
+                          },
+                        ]}
                         placeholder={oauthMode ? t('auth.emailFromGoogle') : t('auth.collegeEmail')}
                         placeholderTextColor={theme.input.placeholder}
                         value={email}
-                        onChangeText={oauthMode ? null : handleEmailChange}
+                        onChangeText={oauthMode ? null : (value) => {
+                          handleEmailChange(value);
+                          clearFieldError('email');
+                          clearSubmitError();
+                        }}
                         onFocus={() => setEmailFocused(true)}
                         onBlur={() => {
                           setEmailFocused(false);
@@ -944,7 +1067,7 @@ const SignUp = ({ navigation, route }) => {
                       {!oauthMode && showEmailSuggestion && (
                         <TouchableOpacity
                           onPress={applyEmailSuggestion}
-                          style={[styles.emailSuggestion, { backgroundColor: theme.primary }]}
+                          style={[styles.emailSuggestion, isRTL && styles.emailSuggestionRtl, { backgroundColor: theme.primary }]}
                           activeOpacity={0.7}
                         >
                           <Text style={styles.emailSuggestionText}>{t('auth.epuEmailDomain')}</Text>
@@ -967,6 +1090,9 @@ const SignUp = ({ navigation, route }) => {
                       )}
                     </View>
                   </GlassInput>
+                  {fieldErrors.email && (
+                    <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.email}</Text>
+                  )}
 
                   {!oauthMode && email.length > 0 && !isEducationalEmail(email) && (
                     <Text style={[styles.emailWarning, { color: '#EF4444' }]}>
@@ -977,31 +1103,49 @@ const SignUp = ({ navigation, route }) => {
                   <SearchableDropdown
                     items={ageOptions}
                     value={age}
-                    onSelect={setAge}
+                    onSelect={(value) => {
+                      setAge(value);
+                      clearFieldError('age');
+                      clearSubmitError();
+                    }}
                     placeholder={t('auth.age')}
                     icon="calendar-outline"
                     style={{ marginTop: spacing.md }}
                   />
+                  {fieldErrors.age && (
+                    <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.age}</Text>
+                  )}
 
                   {!oauthMode && (
                     <>
-                      <GlassInput focused={passwordFocused} style={{ marginTop: spacing.md }}>
-                        <View style={styles.inputWrapper}>
+                      <GlassInput focused={passwordFocused} style={[{ marginTop: spacing.md }, getInputErrorStyle('password')]}>
+                        <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
                           <Ionicons
                             name="lock-closed-outline"
                             size={moderateScale(20)}
                             color={passwordFocused ? theme.primary : theme.textSecondary}
-                            style={styles.inputIcon}
+                            style={[styles.inputIcon, isRTL && styles.inputIconRtl]}
                           />
                           <TextInput
-                            style={[styles.input, {
-                              color: theme.text,
-                              fontSize: fontSize(15),
-                            }]}
+                            style={[
+                              styles.input,
+                              isRTL && styles.inputRtl,
+                              {
+                                color: theme.text,
+                                fontSize: fontSize(15),
+                                textAlign: isRTL ? 'right' : 'left',
+                                writingDirection: isRTL ? 'rtl' : 'ltr',
+                              },
+                            ]}
                             placeholder={t('auth.password')}
                             placeholderTextColor={theme.input.placeholder}
                             value={password}
-                            onChangeText={setPassword}
+                            onChangeText={(value) => {
+                              setPassword(value);
+                              clearFieldError('password');
+                              clearFieldError('confirmPassword');
+                              clearSubmitError();
+                            }}
                             onFocus={() => setPasswordFocused(true)}
                             onBlur={() => setPasswordFocused(false)}
                             secureTextEntry={!showPassword}
@@ -1013,7 +1157,7 @@ const SignUp = ({ navigation, route }) => {
                           />
                           <TouchableOpacity
                             onPress={() => setShowPassword(!showPassword)}
-                            style={styles.eyeIcon}
+                            style={[styles.eyeIcon, isRTL && styles.eyeIconRtl]}
                             activeOpacity={0.7}
                             hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                           >
@@ -1025,6 +1169,9 @@ const SignUp = ({ navigation, route }) => {
                           </TouchableOpacity>
                         </View>
                       </GlassInput>
+                      {fieldErrors.password && (
+                        <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.password}</Text>
+                      )}
 
                       {password.length > 0 && (
                         <View style={styles.passwordStrengthContainer}>
@@ -1053,23 +1200,33 @@ const SignUp = ({ navigation, route }) => {
                         </View>
                       )}
 
-                      <GlassInput focused={confirmPasswordFocused} style={{ marginTop: spacing.md }}>
-                        <View style={styles.inputWrapper}>
+                      <GlassInput focused={confirmPasswordFocused} style={[{ marginTop: spacing.md }, getInputErrorStyle('confirmPassword')]}>
+                        <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
                           <Ionicons
                             name="lock-closed-outline"
                             size={moderateScale(20)}
                             color={confirmPasswordFocused ? theme.primary : theme.textSecondary}
-                            style={styles.inputIcon}
+                            style={[styles.inputIcon, isRTL && styles.inputIconRtl]}
                           />
                           <TextInput
-                            style={[styles.input, {
-                              color: theme.text,
-                              fontSize: fontSize(15),
-                            }]}
+                            style={[
+                              styles.input,
+                              isRTL && styles.inputRtl,
+                              {
+                                color: theme.text,
+                                fontSize: fontSize(15),
+                                textAlign: isRTL ? 'right' : 'left',
+                                writingDirection: isRTL ? 'rtl' : 'ltr',
+                              },
+                            ]}
                             placeholder={t('auth.confirmPassword')}
                             placeholderTextColor={theme.input.placeholder}
                             value={confirmPassword}
-                            onChangeText={setConfirmPassword}
+                            onChangeText={(value) => {
+                              setConfirmPassword(value);
+                              clearFieldError('confirmPassword');
+                              clearSubmitError();
+                            }}
                             onFocus={() => setConfirmPasswordFocused(true)}
                             onBlur={() => setConfirmPasswordFocused(false)}
                             secureTextEntry={!showConfirmPassword}
@@ -1081,7 +1238,7 @@ const SignUp = ({ navigation, route }) => {
                           />
                           <TouchableOpacity
                             onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                            style={styles.eyeIcon}
+                            style={[styles.eyeIcon, isRTL && styles.eyeIconRtl]}
                             activeOpacity={0.7}
                             hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                           >
@@ -1096,11 +1253,14 @@ const SignUp = ({ navigation, route }) => {
                               name="checkmark-circle"
                               size={moderateScale(20)}
                               color={theme.success}
-                              style={styles.checkIcon}
+                              style={[styles.checkIcon, isRTL && styles.checkIconRtl]}
                             />
                           )}
                         </View>
                       </GlassInput>
+                      {fieldErrors.confirmPassword && (
+                        <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.confirmPassword}</Text>
+                      )}
 
                       {confirmPassword.length > 0 && !passwordsMatch && (
                         <Text style={[
@@ -1123,131 +1283,258 @@ const SignUp = ({ navigation, route }) => {
                   <SearchableDropdown
                     items={universitiesWithOther}
                     value={university}
-                    onSelect={setUniversity}
+                    onSelect={(value) => {
+                      setUniversity(value);
+                      clearFieldError('university');
+                      clearSubmitError();
+                    }}
                     placeholder={t('auth.selectUniversity')}
                     icon="school-outline"
                     style={{ marginTop: spacing.md }}
                   />
+                  {fieldErrors.university && (
+                    <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.university}</Text>
+                  )}
 
                   {!isUniversityOther && (
                     <SearchableDropdown
                       items={colleges}
                       value={college}
-                      onSelect={setCollege}
+                      onSelect={(value) => {
+                        setCollege(value);
+                        clearFieldError('college');
+                        clearSubmitError();
+                      }}
                       placeholder={t('auth.selectCollege')}
                       icon="book-outline"
                       disabled={!university}
                       style={{ marginTop: spacing.md }}
                     />
                   )}
+                  {fieldErrors.college && (
+                    <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.college}</Text>
+                  )}
 
                   {!isUniversityOther && !isCollegeOther && (
                     <SearchableDropdown
                       items={departments}
                       value={department}
-                      onSelect={setDepartment}
+                      onSelect={(value) => {
+                        setDepartment(value);
+                        clearFieldError('department');
+                        clearSubmitError();
+                      }}
                       placeholder={t('auth.selectDepartment')}
                       icon="school-outline"
                       disabled={!college}
                       style={{ marginTop: spacing.md }}
                     />
                   )}
+                  {fieldErrors.department && (
+                    <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.department}</Text>
+                  )}
 
                   <SearchableDropdown
                     items={stages}
                     value={stage}
-                    onSelect={setStage}
+                    onSelect={(value) => {
+                      setStage(value);
+                      clearFieldError('stage');
+                      clearSubmitError();
+                    }}
                     placeholder={t('auth.selectStage')}
                     icon="library-outline"
                     style={{ marginTop: spacing.md }}
                   />
+                  {fieldErrors.stage && (
+                    <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.stage}</Text>
+                  )}
 
                   {isUniversityOther && (
                     <>
-                      <GlassInput style={{ marginTop: spacing.md }}>
-                        <View style={styles.inputWrapper}>
-                          <Ionicons name="school-outline" size={moderateScale(20)} color={theme.textSecondary} style={styles.inputIcon} />
+                      <GlassInput style={[{ marginTop: spacing.md }, getInputErrorStyle('customUniversityName')]}>
+                        <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
+                          <Ionicons name="school-outline" size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
                           <TextInput
-                            style={[styles.input, { color: theme.text, fontSize: fontSize(15), minHeight: hp(6.2) }]}
+                            style={[
+                              styles.input,
+                              isRTL && styles.inputRtl,
+                              {
+                                color: theme.text,
+                                fontSize: fontSize(15),
+                                minHeight: hp(6.2),
+                                textAlign: isRTL ? 'right' : 'left',
+                                writingDirection: isRTL ? 'rtl' : 'ltr',
+                              },
+                            ]}
                             value={customUniversityName}
-                            onChangeText={setCustomUniversityName}
+                            onChangeText={(value) => {
+                              setCustomUniversityName(value);
+                              clearFieldError('customUniversityName');
+                              clearSubmitError();
+                            }}
                             placeholder={t('auth.otherUniversityNamePlaceholder')}
                             placeholderTextColor={theme.input.placeholder}
                             maxLength={120}
                           />
                         </View>
                       </GlassInput>
+                      {fieldErrors.customUniversityName && (
+                        <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.customUniversityName}</Text>
+                      )}
 
-                      <GlassInput style={{ marginTop: spacing.md }}>
-                        <View style={styles.inputWrapper}>
-                          <Ionicons name="book-outline" size={moderateScale(20)} color={theme.textSecondary} style={styles.inputIcon} />
+                      <GlassInput style={[{ marginTop: spacing.md }, getInputErrorStyle('customCollegeName')]}>
+                        <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
+                          <Ionicons name="book-outline" size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
                           <TextInput
-                            style={[styles.input, { color: theme.text, fontSize: fontSize(15), minHeight: hp(6.2) }]}
+                            style={[
+                              styles.input,
+                              isRTL && styles.inputRtl,
+                              {
+                                color: theme.text,
+                                fontSize: fontSize(15),
+                                minHeight: hp(6.2),
+                                textAlign: isRTL ? 'right' : 'left',
+                                writingDirection: isRTL ? 'rtl' : 'ltr',
+                              },
+                            ]}
                             value={customCollegeName}
-                            onChangeText={setCustomCollegeName}
+                            onChangeText={(value) => {
+                              setCustomCollegeName(value);
+                              clearFieldError('customCollegeName');
+                              clearSubmitError();
+                            }}
                             placeholder={t('auth.otherCollegeNamePlaceholder')}
                             placeholderTextColor={theme.input.placeholder}
                             maxLength={120}
                           />
                         </View>
                       </GlassInput>
+                      {fieldErrors.customCollegeName && (
+                        <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.customCollegeName}</Text>
+                      )}
 
-                      <GlassInput style={{ marginTop: spacing.md }}>
-                        <View style={styles.inputWrapper}>
-                          <Ionicons name="business-outline" size={moderateScale(20)} color={theme.textSecondary} style={styles.inputIcon} />
+                      <GlassInput style={[{ marginTop: spacing.md }, getInputErrorStyle('customDepartmentName')]}>
+                        <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
+                          <Ionicons name="business-outline" size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
                           <TextInput
-                            style={[styles.input, { color: theme.text, fontSize: fontSize(15), minHeight: hp(6.2) }]}
+                            style={[
+                              styles.input,
+                              isRTL && styles.inputRtl,
+                              {
+                                color: theme.text,
+                                fontSize: fontSize(15),
+                                minHeight: hp(6.2),
+                                textAlign: isRTL ? 'right' : 'left',
+                                writingDirection: isRTL ? 'rtl' : 'ltr',
+                              },
+                            ]}
                             value={customDepartmentName}
-                            onChangeText={setCustomDepartmentName}
+                            onChangeText={(value) => {
+                              setCustomDepartmentName(value);
+                              clearFieldError('customDepartmentName');
+                              clearSubmitError();
+                            }}
                             placeholder={t('auth.otherDepartmentNamePlaceholder')}
                             placeholderTextColor={theme.input.placeholder}
                             maxLength={120}
                           />
                         </View>
                       </GlassInput>
+                      {fieldErrors.customDepartmentName && (
+                        <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.customDepartmentName}</Text>
+                      )}
                     </>
                   )}
 
                   {!isUniversityOther && isCollegeOther && (
                     <>
-                      <GlassInput style={{ marginTop: spacing.md }}>
-                        <View style={styles.inputWrapper}>
-                          <Ionicons name="book-outline" size={moderateScale(20)} color={theme.textSecondary} style={styles.inputIcon} />
+                      <GlassInput style={[{ marginTop: spacing.md }, getInputErrorStyle('customCollegeName')]}>
+                        <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
+                          <Ionicons name="book-outline" size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
                           <TextInput
-                            style={[styles.input, { color: theme.text, fontSize: fontSize(15), minHeight: hp(6.2) }]}
+                            style={[
+                              styles.input,
+                              isRTL && styles.inputRtl,
+                              {
+                                color: theme.text,
+                                fontSize: fontSize(15),
+                                minHeight: hp(6.2),
+                                textAlign: isRTL ? 'right' : 'left',
+                                writingDirection: isRTL ? 'rtl' : 'ltr',
+                              },
+                            ]}
                             value={customCollegeName}
-                            onChangeText={setCustomCollegeName}
+                            onChangeText={(value) => {
+                              setCustomCollegeName(value);
+                              clearFieldError('customCollegeName');
+                              clearSubmitError();
+                            }}
                             placeholder={t('auth.otherCollegeNamePlaceholder')}
                             placeholderTextColor={theme.input.placeholder}
                             maxLength={120}
                           />
                         </View>
                       </GlassInput>
+                      {fieldErrors.customCollegeName && (
+                        <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.customCollegeName}</Text>
+                      )}
 
-                      <GlassInput style={{ marginTop: spacing.md }}>
-                        <View style={styles.inputWrapper}>
-                          <Ionicons name="business-outline" size={moderateScale(20)} color={theme.textSecondary} style={styles.inputIcon} />
+                      <GlassInput style={[{ marginTop: spacing.md }, getInputErrorStyle('customDepartmentName')]}>
+                        <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
+                          <Ionicons name="business-outline" size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
                           <TextInput
-                            style={[styles.input, { color: theme.text, fontSize: fontSize(15), minHeight: hp(6.2) }]}
+                            style={[
+                              styles.input,
+                              isRTL && styles.inputRtl,
+                              {
+                                color: theme.text,
+                                fontSize: fontSize(15),
+                                minHeight: hp(6.2),
+                                textAlign: isRTL ? 'right' : 'left',
+                                writingDirection: isRTL ? 'rtl' : 'ltr',
+                              },
+                            ]}
                             value={customDepartmentName}
-                            onChangeText={setCustomDepartmentName}
+                            onChangeText={(value) => {
+                              setCustomDepartmentName(value);
+                              clearFieldError('customDepartmentName');
+                              clearSubmitError();
+                            }}
                             placeholder={t('auth.otherDepartmentNamePlaceholder')}
                             placeholderTextColor={theme.input.placeholder}
                             maxLength={120}
                           />
                         </View>
                       </GlassInput>
+                      {fieldErrors.customDepartmentName && (
+                        <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.customDepartmentName}</Text>
+                      )}
                     </>
                   )}
 
                   {!isUniversityOther && !isCollegeOther && isDepartmentOther && (
-                    <GlassInput style={{ marginTop: spacing.md }}>
-                      <View style={styles.inputWrapper}>
-                        <Ionicons name="business-outline" size={moderateScale(20)} color={theme.textSecondary} style={styles.inputIcon} />
+                    <GlassInput style={[{ marginTop: spacing.md }, getInputErrorStyle('customDepartmentName')]}>
+                      <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
+                        <Ionicons name="business-outline" size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
                         <TextInput
-                          style={[styles.input, { color: theme.text, fontSize: fontSize(15), minHeight: hp(6.2) }]}
+                          style={[
+                            styles.input,
+                            isRTL && styles.inputRtl,
+                            {
+                              color: theme.text,
+                              fontSize: fontSize(15),
+                              minHeight: hp(6.2),
+                              textAlign: isRTL ? 'right' : 'left',
+                              writingDirection: isRTL ? 'rtl' : 'ltr',
+                            },
+                          ]}
                           value={customDepartmentName}
-                          onChangeText={setCustomDepartmentName}
+                          onChangeText={(value) => {
+                            setCustomDepartmentName(value);
+                            clearFieldError('customDepartmentName');
+                            clearSubmitError();
+                          }}
                           placeholder={t('auth.otherDepartmentNamePlaceholder')}
                           placeholderTextColor={theme.input.placeholder}
                           maxLength={120}
@@ -1255,16 +1542,26 @@ const SignUp = ({ navigation, route }) => {
                       </View>
                     </GlassInput>
                   )}
+                  {fieldErrors.customDepartmentName && (
+                    <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.customDepartmentName}</Text>
+                  )}
 
                   {hasAcademicOther && (
                     <SearchableDropdown
                       items={otherDepartmentYearsOptions}
                       value={customDepartmentYears}
-                      onSelect={setCustomDepartmentYears}
+                      onSelect={(value) => {
+                        setCustomDepartmentYears(value);
+                        clearFieldError('customDepartmentYears');
+                        clearSubmitError();
+                      }}
                       placeholder={t('auth.otherStudyYearsPlaceholder')}
                       icon="time-outline"
                       style={{ marginTop: spacing.md }}
                     />
+                  )}
+                  {fieldErrors.customDepartmentYears && (
+                    <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.customDepartmentYears}</Text>
                   )}
                 </>
               )}
@@ -1341,6 +1638,9 @@ const SignUp = ({ navigation, route }) => {
                 styles.navigationButtonsRow,
                 isCompactPhone && styles.navigationButtonsRowCompact,
               ]}>
+                {!!submitError && (
+                  <Text style={[styles.submitErrorText, { color: theme.danger }]}>{submitError}</Text>
+                )}
                 {currentStep > 1 && (
                   <TouchableOpacity
                     style={[
@@ -1404,9 +1704,10 @@ const SignUp = ({ navigation, route }) => {
               </View>
             </GlassContainer>
 
-            <View style={[styles.footer, isCompactPhone && styles.footerCompact]}>
+            <View style={[styles.footer, isCompactPhone && styles.footerCompact, isRTL && styles.footerRtl]}>
               <Text style={[
                 styles.footerText, 
+                isRTL && styles.footerTextRtl,
                 { fontSize: fontSize(15) }
               ]}>
                 {t('auth.alreadyHaveAccount')}
@@ -1417,6 +1718,7 @@ const SignUp = ({ navigation, route }) => {
               >
                 <Text style={[
                   styles.signInText, 
+                  isRTL && styles.footerTextRtl,
                   { 
                     color: '#FFFFFF',
                     fontSize: fontSize(15),
@@ -1431,7 +1733,7 @@ const SignUp = ({ navigation, route }) => {
           <View style={{ height: isCompactPhone ? hp(5) : hp(8) }} />
         </ScrollView>
       </KeyboardAvoidingView>
-      </View>
+      </LinearGradient>
       <CustomAlert
         visible={alertConfig.visible}
         type={alertConfig.type}
@@ -1469,11 +1771,18 @@ const styles = StyleSheet.create({
     right: wp(4),
     zIndex: 1000,
   },
+  languageContainerRtl: {
+    right: 'auto',
+    left: wp(4),
+  },
   headerContainer: {
     marginBottom: spacing.lg,
     maxWidth: isTablet() ? 700 : 560,
     alignSelf: 'center',
     width: '100%',
+  },
+  headerContainerRtl: {
+    alignItems: 'flex-end',
   },
   headerText: {
     fontWeight: 'bold',
@@ -1484,9 +1793,17 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
+  headerTextRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   subHeaderText: {
     opacity: 0.9,
     color: '#FFFFFF',
+  },
+  subHeaderTextRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   formContainer: {
     padding: isTablet() ? spacing.xxl : spacing.lg,
@@ -1546,21 +1863,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: Platform.OS === 'ios' ? spacing.md : spacing.sm,
   },
+  inputWrapperRtl: {
+    flexDirection: 'row-reverse',
+  },
   inputIcon: {
     marginRight: spacing.sm,
+  },
+  inputIconRtl: {
+    marginRight: 0,
+    marginLeft: spacing.sm,
   },
   input: {
     flex: 1,
     fontWeight: '500',
-    minHeight: Platform.OS === 'ios' ? 22 : 40,
-    paddingVertical: 0,
+    minHeight: moderateScale(24),
+    paddingVertical: Platform.OS === 'ios' ? spacing.xs : 0,
+    includeFontPadding: false,
     textAlignVertical: 'center',
+  },
+  inputRtl: {
+    textAlign: 'right',
   },
   emailSuggestion: {
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.md,
     marginLeft: spacing.xs,
+  },
+  emailSuggestionRtl: {
+    marginLeft: 0,
+    marginRight: spacing.xs,
   },
   emailSuggestionText: {
     color: '#FFFFFF',
@@ -1571,8 +1903,16 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
     marginLeft: spacing.xs,
   },
+  eyeIconRtl: {
+    marginLeft: 0,
+    marginRight: spacing.xs,
+  },
   checkIcon: {
     marginLeft: spacing.xs,
+  },
+  checkIconRtl: {
+    marginLeft: 0,
+    marginRight: spacing.xs,
   },
   passwordStrengthContainer: {
     marginTop: spacing.sm,
@@ -1594,6 +1934,23 @@ const styles = StyleSheet.create({
   errorText: {
     marginTop: spacing.sm,
     fontWeight: '500',
+  },
+  fieldErrorText: {
+    marginTop: spacing.xs,
+    marginLeft: spacing.sm,
+    fontSize: fontSize(12),
+    fontWeight: '600',
+  },
+  submitErrorText: {
+    width: '100%',
+    marginBottom: spacing.xs,
+    fontSize: fontSize(12),
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  inputError: {
+    borderColor: '#EF4444',
+    borderWidth: 1.5,
   },
   emailWarning: {
     marginTop: spacing.xs,
@@ -1706,9 +2063,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     paddingHorizontal: spacing.md,
   },
+  footerRtl: {
+    flexDirection: 'row-reverse',
+  },
   footerText: {
     color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
+  },
+  footerTextRtl: {
+    writingDirection: 'rtl',
+    textAlign: 'right',
   },
   signInText: {
     fontWeight: 'bold',

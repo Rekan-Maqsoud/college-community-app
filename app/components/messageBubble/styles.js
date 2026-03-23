@@ -100,6 +100,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(102, 126, 234, 0.5)',
   },
+  deletedMessageBubble: {
+    opacity: 0.55,
+  },
+  deletedMessageText: {
+    fontStyle: 'italic',
+  },
   pinnedIndicator: {
     flexDirection: 'row',
     alignItems: 'center',

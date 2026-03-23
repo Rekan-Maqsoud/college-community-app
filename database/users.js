@@ -3,6 +3,19 @@ import { ID, Query } from 'appwrite';
 import { userCacheManager } from '../app/utils/cacheManager';
 import { assertActorIdentity, enforceRateLimit } from './securityGuards';
 
+const DELETED_ACCOUNT_NAME = 'Deleted Account';
+
+const isDeletedOrUnavailableUser = (userDoc) => {
+    if (!userDoc || typeof userDoc !== 'object') {
+        return true;
+    }
+
+    const normalizedName = String(userDoc.name || userDoc.fullName || '').trim().toLowerCase();
+    const inactiveFlag = userDoc.isActive === false;
+
+    return normalizedName === DELETED_ACCOUNT_NAME.toLowerCase() || inactiveFlag;
+};
+
 const sanitizeSearchQuery = (query) => {
     if (typeof query !== 'string') return '';
     return query.trim().replace(/[<>"']/g, '').substring(0, 100);
@@ -311,6 +324,14 @@ export const followUser = async (followerId, followingId) => {
             getUserById(followingId),
         ]);
 
+        if (isDeletedOrUnavailableUser(follower)) {
+            throw new Error('Follower account is unavailable');
+        }
+
+        if (isDeletedOrUnavailableUser(following)) {
+            throw new Error('Cannot follow deleted account');
+        }
+
         // Check if already following
         const followerFollowing = follower.following || [];
         if (followerFollowing.includes(followingId)) {
@@ -441,7 +462,16 @@ export const isFollowing = async (followerId, followingId) => {
             return false;
         }
 
+        const followingUser = await getUserById(followingId);
+        if (isDeletedOrUnavailableUser(followingUser)) {
+            return false;
+        }
+
         const user = await getUserById(followerId);
+        if (isDeletedOrUnavailableUser(user)) {
+            return false;
+        }
+
         const following = user.following || [];
         return following.includes(followingId);
     } catch (error) {

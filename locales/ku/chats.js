@@ -18,6 +18,7 @@ export default {
     "emptySearchMessage": "بە ناو یان ئیمەیڵێکی تر بگەڕێ",
     "noMessages": "هێشتا هیچ نامەیەک نییە",
     "deletedChat": "گفتوگۆی سڕاوە",
+    "deletedMessage": "نامە لە هەژماری سڕاوە",
     "beFirstToMessage": "یەکەم کەس بە بۆ ناردنی نامە",
     "typeMessage": "نامەیەک بنووسە...",
     "mentionEveryone": "@هەمووان",
@@ -354,6 +355,24 @@ export default {
     "emojiCategoryNature": "سروشت",
     "emojiCategoryFood": "خواردن",
     "emojiCategoryActivity": "چالاکی",
-    "emojiCategorySymbols": "هێماکان"
+    "emojiCategorySymbols": "هێماکان",
+    "muteChat": "بێدەنگکردنی گفتوگۆ",
+    "muteUntilUnmuted": "تاوەکو خۆم دەنگی دەکەمەوە",
+    "muteAll": "بێدەنگکردنی هەموو ئاگادارکردنەوەکان",
+    "chatMuted": "گفتوگۆ بێدەنگ کرا",
+    "chatUnmuted": "دەنگی گفتوگۆ کرایەوە",
+    "pin": "پینکردن",
+    "unpin": "لابردنی پین",
+    "messagePinned": "نامە پینکرا",
+    "messageUnpinned": "پینی نامە لابرا",
+    "unpinError": "لابردنی پینی نامە سەرنەکەوت",
+    "bookmark": "پاشەکەوتکردن",
+    "unbookmark": "لابردنی پاشەکەوت",
+    "messageBookmarked": "نامە پاشەکەوت کرا",
+    "messageUnbookmarked": "پاشەکەوت لابرا",
+    "unbookmarkError": "لابردنی پاشەکەوت سەرنەکەوت",
+    "notificationSettings": "ڕێکخستنەکانی ئاگادارکردنەوە",
+    "notifyOnAllMessages": "ئاگادارکردنەوە لە هەموو نامەکان",
+    "notifyOnAllMessagesDesc": "ئاگادارکردنەوە وەربگرە بۆ هەموو نامەکان"
   }
 };

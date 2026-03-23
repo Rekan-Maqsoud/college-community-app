@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   ImageBackground,
   TextInput,
+  InteractionManager,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -202,8 +203,37 @@ const ChatRoom = ({ route, navigation }) => {
   const { user, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const isFocused = useIsFocused();
+  const [shouldRenderMessageInput, setShouldRenderMessageInput] = useState(false);
   const insets = useSafeAreaInsets();
   const { chatStyle } = useLayout();
+
+  useEffect(() => {
+    let isCancelled = false;
+    let timeoutId = null;
+    let interactionHandle = null;
+
+    if (!isFocused) {
+      setShouldRenderMessageInput(false);
+      return () => {};
+    }
+
+    interactionHandle = InteractionManager.runAfterInteractions(() => {
+      timeoutId = setTimeout(() => {
+        if (!isCancelled) {
+          setShouldRenderMessageInput(true);
+        }
+      }, 120);
+    });
+
+    return () => {
+      isCancelled = true;
+      setShouldRenderMessageInput(false);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      interactionHandle?.cancel?.();
+    };
+  }, [isFocused, chat?.$id]);
 
   const {
     messages,
@@ -1317,7 +1347,7 @@ const ChatRoom = ({ route, navigation }) => {
         </View>
       )}
 
-      {!selectionMode && !isBlockedChat && isFocused && (
+      {!selectionMode && !isBlockedChat && isFocused && shouldRenderMessageInput && (
       <MessageInput 
         key={`chat-input-${chat?.$id || 'unknown'}`}
         onSend={handleSendWithHaptic}
@@ -1338,7 +1368,7 @@ const ChatRoom = ({ route, navigation }) => {
       />
       )}
     </KeyboardAvoidingView>
-  ), [canMentionEveryone, canSend, cancelReply, chat.requiresRepresentative, chat.type, chatOnlyBlockedBannerStyle, chatStyle, copySelectionTextStyle, deleteSelectionTextStyle, excludedMentionUserIds, flatListRef, fullBlockedBannerStyle, groupMembers, handleBatchCopy, handleBatchDeleteForMe, handleListScroll, handleScrollToIndexFailed, handleSendWithHaptic, handleViewableItemsChanged, iBlockedThem, iChatBlockedThem, initialScrollIndex, insets.top, isBlockedChat, isChatOnlyBlocked, isFocused, isFullyBlockedChat, isNearBottom, keyExtractor, maintainVisibleContentPosition, memoizedMessages, pendingNewMessageCount, renderEmpty, renderEmptyOverlay, renderLoadingOverlay, renderMessage, renderSearchBar, representativeWarningBannerStyle, replyingTo, scrollToLatest, selectedMessageIds.length, selectedMessagesTextStyle, selectionMode, selectionToolbarStyle, showAlert, t, theme.card, theme.primary, theme.text, theme.textSecondary, toggleSelectionMode, userFriends, viewabilityConfig]);
+  ), [canMentionEveryone, canSend, cancelReply, chat.requiresRepresentative, chat.type, chatOnlyBlockedBannerStyle, chatStyle, copySelectionTextStyle, deleteSelectionTextStyle, excludedMentionUserIds, flatListRef, fullBlockedBannerStyle, groupMembers, handleBatchCopy, handleBatchDeleteForMe, handleListScroll, handleScrollToIndexFailed, handleSendWithHaptic, handleViewableItemsChanged, iBlockedThem, iChatBlockedThem, initialScrollIndex, insets.top, isBlockedChat, isChatOnlyBlocked, isFocused, isFullyBlockedChat, isNearBottom, keyExtractor, maintainVisibleContentPosition, memoizedMessages, pendingNewMessageCount, renderEmpty, renderEmptyOverlay, renderLoadingOverlay, renderMessage, renderSearchBar, representativeWarningBannerStyle, replyingTo, scrollToLatest, selectedMessageIds.length, selectedMessagesTextStyle, selectionMode, selectionToolbarStyle, shouldRenderMessageInput, showAlert, t, theme.card, theme.primary, theme.text, theme.textSecondary, toggleSelectionMode, userFriends, viewabilityConfig]);
 
   return (
     <View style={[styles.container, { backgroundColor: backgroundColors[0] || headerBackgroundColor }]}>

@@ -67,6 +67,7 @@ const CHAT_DOWNLOADS_SUB_FOLDER = 'Chat Files';
 const CHAT_DEVICE_DOWNLOADS_URI_KEY = 'chat_device_downloads_uri';
 const CHAT_DEVICE_APP_DOWNLOADS_URI_KEY = 'chat_device_app_downloads_uri';
 const CHAT_DEVICE_FILES_DOWNLOADS_URI_KEY = 'chat_device_files_downloads_uri';
+const DELETED_MESSAGE_MARKER = '[deleted_message]';
 
 // Enable LayoutAnimation for Android (skip in New Architecture where it's a no-op)
 if (
@@ -205,7 +206,10 @@ const MessageBubble = ({
   const isPoll = message.type === 'poll';
   const isFile = message.type === 'file';
   const isLectureAssetBanner = message.type === 'lecture_asset_banner';
-  const canReply = !!onReply && !isLectureAssetBanner;
+  const isDeletedAccountMessage =
+    message.type === 'deleted'
+    || String(message.content || '').trim() === DELETED_MESSAGE_MARKER;
+  const canReply = !!onReply && !isLectureAssetBanner && !isDeletedAccountMessage;
   const hasEncryptedFallbackText = !!message._isEncryptedUnavailable;
   const hasText = ((message.content && message.content.trim().length > 0 && !isVoice && !isFile) || hasEncryptedFallbackText);
   const isSticker = isGif && (() => {
@@ -966,6 +970,10 @@ const MessageBubble = ({
   }, [disposeVoicePlayer, message?.$id, resolveVoicePlaybackUri, selectionMode, showAlert, stopVoicePlayback, t, voiceData]);
 
   const handleLongPress = () => {
+    if (isDeletedAccountMessage) {
+      return;
+    }
+
     if (selectionMode && onToggleSelect) {
       onToggleSelect(message.$id);
       return;
@@ -974,6 +982,10 @@ const MessageBubble = ({
   };
 
   const handlePress = () => {
+    if (isDeletedAccountMessage) {
+      return;
+    }
+
     if (selectionMode && onToggleSelect) {
       onToggleSelect(message.$id);
     }
@@ -1027,6 +1039,21 @@ const MessageBubble = ({
   // Render message content with @everyone highlighting, link detection, and search highlighting
   const renderMessageContent = () => {
     if (!hasText) return null;
+
+    if (isDeletedAccountMessage) {
+      return (
+        <Text style={[
+          styles.messageText,
+          styles.deletedMessageText,
+          {
+            fontSize: fontSize(14),
+            color: isCurrentUser ? 'rgba(255,255,255,0.85)' : theme.textSecondary,
+          },
+        ]}>
+          {t('chats.deletedMessage')}
+        </Text>
+      );
+    }
     
     const content = hasEncryptedFallbackText
       ? t('chats.encryptedMessageUnavailable')
@@ -1199,12 +1226,12 @@ const MessageBubble = ({
   };
 
   const actionButtons = [
-    { icon: 'copy-outline', label: t('chats.copy'), action: onCopy, show: hasText && !isVoice && !isPoll && !isFile },
+    { icon: 'copy-outline', label: t('chats.copy'), action: onCopy, show: !isDeletedAccountMessage && hasText && !isVoice && !isPoll && !isFile },
     { icon: 'arrow-undo-outline', label: t('chats.reply'), action: onReply, show: canReply },
-    { icon: 'arrow-redo-outline', label: t('chats.forward'), action: onForward, show: true },
-    { icon: isPinned ? 'pin' : 'pin-outline', label: isPinned ? t('chats.unpin') : t('chats.pin'), action: isPinned ? onUnpin : onPin, show: onPin || onUnpin },
-    { icon: isBookmarked ? 'bookmark' : 'bookmark-outline', label: isBookmarked ? t('chats.unbookmark') : t('chats.bookmark'), action: isBookmarked ? onUnbookmark : onBookmark, show: onBookmark || onUnbookmark },
-    { icon: 'trash-outline', label: t('common.delete'), action: onDelete, show: isCurrentUser && onDelete, danger: true },
+    { icon: 'arrow-redo-outline', label: t('chats.forward'), action: onForward, show: !isDeletedAccountMessage },
+    { icon: isPinned ? 'pin' : 'pin-outline', label: isPinned ? t('chats.unpin') : t('chats.pin'), action: isPinned ? onUnpin : onPin, show: !isDeletedAccountMessage && (onPin || onUnpin) },
+    { icon: isBookmarked ? 'bookmark' : 'bookmark-outline', label: isBookmarked ? t('chats.unbookmark') : t('chats.bookmark'), action: isBookmarked ? onUnbookmark : onBookmark, show: !isDeletedAccountMessage && (onBookmark || onUnbookmark) },
+    { icon: 'trash-outline', label: t('common.delete'), action: onDelete, show: !isDeletedAccountMessage && isCurrentUser && onDelete, danger: true },
   ].filter(btn => btn.show);
 
   // Render bubble content (used by both gradient and solid bubbles)
@@ -1838,8 +1865,14 @@ const MessageBubble = ({
           <View style={styles.avatarContainer}>
             {showAvatar ? (
               <TouchableOpacity 
-                onPress={() => onAvatarPress && onAvatarPress(message.senderId)}
+                onPress={() => {
+                  if (isDeletedAccountMessage) {
+                    return;
+                  }
+                  onAvatarPress && onAvatarPress(message.senderId);
+                }}
                 activeOpacity={0.7}
+                disabled={isDeletedAccountMessage}
               >
                 <ProfilePicture 
                   uri={senderPhoto || message.senderPhoto}
@@ -1858,14 +1891,16 @@ const MessageBubble = ({
             { transform: [{ translateX }] },
             styles.bubbleWrapper,
             isLectureAssetBanner && styles.lectureBannerBubbleWrapper,
+            isDeletedAccountMessage && styles.deletedMessageBubble,
           ]}
           {...(canReply ? panResponder.panHandlers : {})}>
           {/* Render bubble with gradient or solid color based on chatSettings */}
           {isCurrentUser && !isLectureAssetBanner && chatSettings?.bubbleColor?.startsWith('gradient::') ? (
             <Pressable
-              onLongPress={handleLongPress}
-              onPress={handlePress}
-              delayLongPress={300}>
+              onLongPress={isDeletedAccountMessage ? undefined : handleLongPress}
+              onPress={isDeletedAccountMessage ? undefined : handlePress}
+              delayLongPress={300}
+              disabled={isDeletedAccountMessage}>
               {isSticker ? (
                 <View style={[styles.stickerBubble]}>
                   {renderBubbleContent()}
@@ -1888,9 +1923,10 @@ const MessageBubble = ({
             </Pressable>
           ) : (
             <Pressable
-              onLongPress={handleLongPress}
-              onPress={handlePress}
+              onLongPress={isDeletedAccountMessage ? undefined : handleLongPress}
+              onPress={isDeletedAccountMessage ? undefined : handlePress}
               delayLongPress={300}
+              disabled={isDeletedAccountMessage}
               style={[
                 isSticker ? styles.stickerBubble : (!isLectureAssetBanner ? styles.bubble : null),
                 !isSticker && (isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble),
@@ -1911,7 +1947,7 @@ const MessageBubble = ({
             </Pressable>
           )}
 
-          {showCornerReactionAdd && !isLectureAssetBanner && (
+          {showCornerReactionAdd && !isLectureAssetBanner && !isDeletedAccountMessage && (
             <TouchableOpacity
               style={styles.reactionAddCorner}
               onPress={() => setReactionPickerVisible(true)}
@@ -1923,7 +1959,7 @@ const MessageBubble = ({
         </Animated.View>
       </View>
 
-      {!isLectureAssetBanner && reactionEntries.length > 0 && (
+      {!isLectureAssetBanner && !isDeletedAccountMessage && reactionEntries.length > 0 && (
         <View style={[
           styles.reactionsRow,
           isCurrentUser ? styles.reactionsRowRight : styles.reactionsRowLeft,

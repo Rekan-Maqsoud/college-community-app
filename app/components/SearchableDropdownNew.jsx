@@ -30,7 +30,7 @@ const SearchableDropdownNew = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const normalizedItems = items.map(item => ({
@@ -73,12 +73,20 @@ const SearchableDropdownNew = ({
   };
 
   const selectorNode = (
-    <View style={[styles.selector, compact && styles.selectorCompact, !useGlass && styles.selectorPlain, selectorStyle]}>
+    <View
+      style={[
+        styles.selector,
+        compact && styles.selectorCompact,
+        isRTL && styles.selectorRtl,
+        !useGlass && styles.selectorPlain,
+        selectorStyle,
+      ]}
+    >
       <Ionicons
         name={icon || 'list-outline'}
         size={compact ? moderateScale(16) : moderateScale(20)}
         color={disabled ? theme.textSecondary : (selectedItem ? theme.primary : theme.textSecondary)}
-        style={styles.icon}
+        style={[styles.icon, isRTL && styles.iconRtl]}
       />
       <Text
         style={[
@@ -87,6 +95,8 @@ const SearchableDropdownNew = ({
             color: selectedItem ? theme.text : theme.input.placeholder,
             fontSize: compact ? fontSize(12) : fontSize(14),
             opacity: disabled ? 0.5 : 1,
+            textAlign: isRTL ? 'right' : 'left',
+            writingDirection: isRTL ? 'rtl' : 'ltr',
           }
         ]}
         numberOfLines={1}
@@ -136,8 +146,18 @@ const SearchableDropdownNew = ({
               ]}
             >
               
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: theme.text, fontSize: fontSize(18) }]}>
+              <View style={[styles.modalHeader, isRTL && styles.modalHeaderRtl]}>
+                <Text
+                  style={[
+                    styles.modalTitle,
+                    {
+                      color: theme.text,
+                      fontSize: fontSize(18),
+                      textAlign: isRTL ? 'right' : 'left',
+                      writingDirection: isRTL ? 'rtl' : 'ltr',
+                    },
+                  ]}
+                > 
                   {placeholder}
                 </Text>
                 <TouchableOpacity onPress={closeModal} activeOpacity={0.7}>
@@ -145,10 +165,24 @@ const SearchableDropdownNew = ({
                 </TouchableOpacity>
               </View>
 
-              <View style={[styles.searchBox, { backgroundColor: isDarkMode ? 'rgba(118, 118, 128, 0.24)' : 'rgba(118, 118, 128, 0.12)' }]}>
-                <Ionicons name="search-outline" size={moderateScale(20)} color={theme.textSecondary} style={styles.searchIcon} />
+              <View
+                style={[
+                  styles.searchBox,
+                  isRTL && styles.searchBoxRtl,
+                  { backgroundColor: isDarkMode ? 'rgba(118, 118, 128, 0.24)' : 'rgba(118, 118, 128, 0.12)' },
+                ]}
+              >
+                <Ionicons name="search-outline" size={moderateScale(20)} color={theme.textSecondary} style={[styles.searchIcon, isRTL && styles.searchIconRtl]} />
                 <TextInput
-                  style={[styles.searchInput, { color: theme.text, fontSize: fontSize(15) }]}
+                  style={[
+                    styles.searchInput,
+                    {
+                      color: theme.text,
+                      fontSize: fontSize(15),
+                      textAlign: isRTL ? 'right' : 'left',
+                      writingDirection: isRTL ? 'rtl' : 'ltr',
+                    },
+                  ]}
                   placeholder={t('common.search')}
                   placeholderTextColor={theme.input.placeholder}
                   value={searchText}
@@ -176,6 +210,7 @@ const SearchableDropdownNew = ({
                         key={item.key}
                         style={[
                           styles.item,
+                          isRTL && styles.itemRtl,
                           {
                             backgroundColor: isSelected
                               ? `${theme.primary}26`
@@ -194,6 +229,8 @@ const SearchableDropdownNew = ({
                               color: isSelected ? theme.primary : theme.text,
                               fontSize: fontSize(15),
                               fontWeight: isSelected ? '600' : '400',
+                              textAlign: isRTL ? 'right' : 'left',
+                              writingDirection: isRTL ? 'rtl' : 'ltr',
                             }
                           ]}
                         >
@@ -230,6 +267,9 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === 'ios' ? spacing.md + spacing.xs : spacing.sm + spacing.xs,
     minHeight: moderateScale(52),
   },
+  selectorRtl: {
+    flexDirection: 'row-reverse',
+  },
   selectorCompact: {
     paddingHorizontal: spacing.sm,
     paddingVertical: Platform.OS === 'ios' ? spacing.sm : spacing.xs,
@@ -243,6 +283,10 @@ const styles = StyleSheet.create({
   },
   icon: {
     marginRight: spacing.sm,
+  },
+  iconRtl: {
+    marginRight: 0,
+    marginLeft: spacing.sm,
   },
   selectedText: {
     flex: 1,
@@ -279,6 +323,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
+  modalHeaderRtl: {
+    flexDirection: 'row-reverse',
+  },
   modalTitle: {
     fontWeight: 'bold',
     flex: 1,
@@ -291,12 +338,22 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     marginBottom: spacing.md,
   },
+  searchBoxRtl: {
+    flexDirection: 'row-reverse',
+  },
   searchIcon: {
     marginRight: spacing.sm,
   },
+  searchIconRtl: {
+    marginRight: 0,
+    marginLeft: spacing.sm,
+  },
   searchInput: {
     flex: 1,
-    paddingVertical: spacing.xs,
+    minHeight: moderateScale(24),
+    paddingVertical: Platform.OS === 'ios' ? spacing.xs : 0,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
     fontWeight: '500',
   },
   scrollView: {
@@ -310,6 +367,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm + spacing.xs,
     borderRadius: borderRadius.sm,
     marginBottom: spacing.xs,
+  },
+  itemRtl: {
+    flexDirection: 'row-reverse',
   },
   itemText: {
     flex: 1,

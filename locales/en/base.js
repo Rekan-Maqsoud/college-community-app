@@ -313,7 +313,8 @@ export default {
     "gashaTechnicalInstitute": "Gasha Technical Institute",
     "paitaxtTechnicalInstitute": "Paitaxt Technical Institute",
     "rawanduzPrivateTechnicalInstitute": "Rawanduz Private Technical Institute",
-    "noblePrivateTechnicalInstitute": "Noble Private Technical Institute"
+    "noblePrivateTechnicalInstitute": "Noble Private Technical Institute",
+    "other": "Other"
   },
   "colleges": {
     "Enformatic": "Technical College of Informatics and Computer",
@@ -454,7 +455,8 @@ export default {
     "departments": "Departments",
     "facultyOfEngineeringAndComputerScience": "Faculty of Engineering and Computer Science",
     "facultyOfManagementAndSocialSciences": "Faculty of Management and Social Sciences",
-    "facultyOfHealthSciences": "Faculty of Health Sciences"
+    "facultyOfHealthSciences": "Faculty of Health Sciences",
+    "other": "Other"
   },
   "stages": {
     "firstYear": "Stage 1",
@@ -965,6 +967,7 @@ export default {
     "optional": "(optional)",
     "hide": "Hide",
     "user": "User",
+    "other": "Other",
     "remove": "Remove",
     "block": "Block",
     "blockOptionsTitle": "Block options",

@@ -393,6 +393,7 @@ export default {
     "pathologicalAnalyses": "Pathological Analyses",
     "electricityAndMechanics": "Electricity and Mechanics",
     "agriculturalInstruction": "Agricultural Instruction",
-    "englishEducation": "English Education"
+    "englishEducation": "English Education",
+    "other": "Other"
   }
 };

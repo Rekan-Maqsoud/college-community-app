@@ -3,6 +3,8 @@ import { Client, Account, Databases, Users, Query } from 'node-appwrite';
 const LIST_LIMIT = 100;
 const DELETED_ACCOUNT_NAME = 'Deleted Account';
 const DELETED_CHAT_MARKER = '[deleted_chat]';
+const DELETED_MESSAGE_MARKER = '[deleted_message]';
+const DELETED_MESSAGE_SENDER_ID = 'deleted_user';
 
 const json = (res, status, payload) => res.json(payload, status);
 
@@ -576,7 +578,20 @@ export default async ({ req, res, log, error }) => {
           affectedChatIds.add(chatId);
         }
 
-        await db.deleteDocument(databaseId, messagesCollectionId, message.$id);
+        await db.updateDocument(databaseId, messagesCollectionId, message.$id, {
+            senderId: DELETED_MESSAGE_SENDER_ID,
+            senderName: DELETED_ACCOUNT_NAME,
+            content: DELETED_MESSAGE_MARKER,
+            type: 'deleted',
+            images: [],
+            imageUrl: '',
+            replyToId: '',
+            replyToContent: '',
+            replyToSender: '',
+            mentionsAll: false,
+            mentions: [],
+            reactions: '{}',
+        });
         stats.messagesDeleted += 1;
       },
     });

@@ -18,6 +18,7 @@ export default {
     "emptySearchMessage": "حاول البحث باسم أو بريد إلكتروني مختلف",
     "noMessages": "لا توجد رسائل بعد",
     "deletedChat": "محادثة محذوفة",
+    "deletedMessage": "رسالة من حساب محذوف",
     "beFirstToMessage": "كن أول من يرسل رسالة",
     "typeMessage": "اكتب رسالة...",
     "mentionEveryone": "@الكل",
@@ -354,6 +355,24 @@ export default {
     "emojiCategoryNature": "الطبيعة",
     "emojiCategoryFood": "الطعام",
     "emojiCategoryActivity": "الأنشطة",
-    "emojiCategorySymbols": "الرموز"
+    "emojiCategorySymbols": "الرموز",
+    "muteChat": "كتم المحادثة",
+    "muteUntilUnmuted": "حتى أقوم بإلغاء الكتم",
+    "muteAll": "كتم جميع الإشعارات",
+    "chatMuted": "تم كتم المحادثة",
+    "chatUnmuted": "تم إلغاء كتم المحادثة",
+    "pin": "تثبيت",
+    "unpin": "إلغاء التثبيت",
+    "messagePinned": "تم تثبيت الرسالة",
+    "messageUnpinned": "تم إلغاء تثبيت الرسالة",
+    "unpinError": "فشل في إلغاء تثبيت الرسالة",
+    "bookmark": "حفظ",
+    "unbookmark": "إلغاء الحفظ",
+    "messageBookmarked": "تم حفظ الرسالة",
+    "messageUnbookmarked": "تم إزالة الحفظ",
+    "unbookmarkError": "فشل في إزالة الحفظ",
+    "notificationSettings": "إعدادات الإشعارات",
+    "notifyOnAllMessages": "الإشعار بجميع الرسائل",
+    "notifyOnAllMessagesDesc": "الحصول على إشعار لجميع الرسائل"
   }
 };
