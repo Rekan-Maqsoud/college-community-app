@@ -334,6 +334,7 @@ const GroupSettings = ({ navigation, route }) => {
         allowsMultipleSelection: false,
         maxImages: 1,
         quality: 'medium',
+        t,
       });
 
       if (!result || result.length === 0) {
@@ -369,6 +370,10 @@ const GroupSettings = ({ navigation, route }) => {
       
       showAlert({ type: 'success', title: t('common.success'), message: t('chats.groupPhotoUpdated') || 'Group photo updated' });
     } catch (error) {
+      if (error?.code === 'NSFW_IMAGE_BLOCKED' || error?.code === 'NSFW_SCAN_FAILED') {
+        return;
+      }
+
       const errorMessage = error?.message || t('chats.groupPhotoError') || 'Failed to update group photo';
       showAlert({ type: 'error', title: t('common.error'), message: errorMessage });
     } finally {

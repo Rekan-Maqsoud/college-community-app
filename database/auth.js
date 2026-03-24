@@ -4,6 +4,7 @@ import safeStorage from '../app/utils/safeStorage';
 import * as WebBrowser from 'expo-web-browser';
 import { userCacheManager } from '../app/utils/cacheManager';
 import telemetry from '../app/utils/telemetry';
+import { isEducationalEmail as isEducationalEmailRule } from '../app/constants/academicEmailDomains';
 
 // Ensure WebBrowser redirects work properly
 WebBrowser.maybeCompleteAuthSession();
@@ -21,67 +22,9 @@ const RESET_REQUEST_WINDOW = 15 * 60 * 1000; // 15 minutes
 const RESET_MAX_REQUESTS = 5;
 const RESET_REQUEST_COOLDOWN = 60 * 1000; // 60 seconds
 
-// List of blocked public email domains
-const BLOCKED_EMAIL_DOMAINS = [
-    'gmail.com',
-    'googlemail.com',
-    'hotmail.com',
-    'hotmail.co.uk',
-    'outlook.com',
-    'outlook.co.uk',
-    'live.com',
-    'msn.com',
-    'yahoo.com',
-    'yahoo.co.uk',
-    'yahoo.fr',
-    'ymail.com',
-    'aol.com',
-    'protonmail.com',
-    'proton.me',
-    'icloud.com',
-    'me.com',
-    'mac.com',
-    'mail.com',
-    'zoho.com',
-    'yandex.com',
-    'gmx.com',
-    'gmx.net',
-    'tutanota.com',
-    'fastmail.com',
-    'inbox.com',
-    'mail.ru',
-    'qq.com',
-    '163.com',
-    '126.com',
-    'sina.com',
-    'rediffmail.com',
-    'web.de',
-    'libero.it',
-    'virgilio.it',
-    'laposte.net',
-    'orange.fr',
-    'wanadoo.fr',
-    'free.fr',
-    't-online.de',
-    'arcor.de',
-    'rambler.ru',
-    'ukr.net',
-];
-
 // Check if email is from an educational institution
 export const isEducationalEmail = (email) => {
-    if (!email) return false;
-    const domain = email.toLowerCase().split('@')[1];
-    if (!domain) return false;
-
-    // Check if it's a blocked public email domain
-    if (BLOCKED_EMAIL_DOMAINS.includes(domain)) {
-        return false;
-    }
-
-    // If not a public email domain, allow it
-    // This allows educational domains like epu.edu.iq, university.edu, etc.
-    return true;
+    return isEducationalEmailRule(email);
 };
 
 export const initiateSignup = async (email, password, name, additionalData = {}) => {

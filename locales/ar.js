@@ -3,6 +3,7 @@ import auth from './ar/auth';
 import chats from './ar/chats';
 import settings from './ar/settings';
 import departments from './ar/departments';
+import moderation from './ar/moderation';
 
 export default {
   ...base,
@@ -10,4 +11,5 @@ export default {
   ...chats,
   ...settings,
   ...departments,
+  ...moderation,
 };

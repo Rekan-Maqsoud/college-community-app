@@ -20,6 +20,8 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { GlassContainer, GlassIconButton, GlassInput } from '../components/GlassComponents';
+import { ChatListSkeleton } from '../components/SkeletonLoader';
+import ModalBackdrop from '../components/ModalBackdrop';
 import LectureWindowSelector from '../components/LectureWindowSelector';
 import { getActorIdentityIds, getPrimaryActorId, matchesAnyActorIdentity } from '../utils/actorIdentity';
 import { canLinkLectureGroup } from '../utils/lectureAccess';
@@ -101,6 +103,8 @@ const CreateChannelModal = ({
   const [linkedGroupId, setLinkedGroupId] = useState('');
   const [nameFocused, setNameFocused] = useState(false);
   const [descriptionFocused, setDescriptionFocused] = useState(false);
+  const NAME_MAX_LENGTH = 50;
+  const DESCRIPTION_MAX_LENGTH = 300;
 
   const isNameValid = name.trim().length >= 2;
 
@@ -134,7 +138,7 @@ const CreateChannelModal = ({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}> 
         <BlurView intensity={34} tint="dark" style={styles.modalBackdropBlur} />
-        <View pointerEvents="none" style={styles.modalBackdropScrim} />
+        <View pointerEvents="none" style={[styles.modalBackdropScrim, { backgroundColor: colors.scrim || 'rgba(7, 12, 26, 0.40)' }]} />
         <GlassContainer borderRadius={borderRadius.xl} style={styles.createModalGlass}>
         <View style={[styles.modalCard, { backgroundColor: 'transparent', borderColor: `${colors.primary}33` }]}> 
           <View style={[styles.modalHeader, isRTL && styles.rowReverse]}>
@@ -165,8 +169,12 @@ const CreateChannelModal = ({
               placeholder={t('lectures.channelNamePlaceholder')}
               placeholderTextColor={colors.textSecondary}
               style={[styles.input, isRTL && styles.directionalInput, { color: colors.text }]}
+              maxLength={NAME_MAX_LENGTH}
             />
           </GlassInput>
+          <Text style={[styles.inputCounter, isRTL && styles.directionalText, { color: colors.textSecondary }]}>
+            {`${name.length}/${NAME_MAX_LENGTH}`}
+          </Text>
           {name.length > 0 && !isNameValid && (
             <Text style={styles.validationHint}>{t('lectures.nameMinLength')}</Text>
           )}
@@ -186,8 +194,12 @@ const CreateChannelModal = ({
                 isRTL && styles.directionalInput,
                 { color: colors.text },
               ]}
+              maxLength={DESCRIPTION_MAX_LENGTH}
             />
           </GlassInput>
+          <Text style={[styles.inputCounter, isRTL && styles.directionalText, { color: colors.textSecondary }]}>
+            {`${description.length}/${DESCRIPTION_MAX_LENGTH}`}
+          </Text>
 
           <Text style={[styles.sectionLabel, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('lectures.channelTypeLabel')}</Text>
           <View style={[styles.typeRow, isRTL && styles.rowReverse]}>
@@ -355,6 +367,7 @@ const Lecture = ({ navigation }) => {
   const [channelMenuTarget, setChannelMenuTarget] = useState(null);
   const [pinnedChannelIds, setPinnedChannelIds] = useState([]);
   const [joiningChannelId, setJoiningChannelId] = useState(null);
+  const [loadChannelsFailed, setLoadChannelsFailed] = useState(false);
   const lastRealtimeReloadAtRef = useRef(0);
   const realtimeReloadTimeoutRef = useRef(null);
   const loadChannelsInFlightRef = useRef(false);
@@ -574,6 +587,7 @@ const Lecture = ({ navigation }) => {
       setAllChannels(channels);
       setMyChannels(mine);
       setPendingChannelIds(pendingIds);
+      setLoadChannelsFailed(false);
       loadTrace.finish({
         success: true,
         meta: {
@@ -588,6 +602,7 @@ const Lecture = ({ navigation }) => {
         pendingCount: pendingIds.length,
       });
     } catch (error) {
+      setLoadChannelsFailed(true);
       loadTrace.finish({ success: false, error });
       logLectureTabError('loadChannels:error', error, {
         filter,
@@ -771,7 +786,7 @@ const Lecture = ({ navigation }) => {
                 {isPinned && <Ionicons name="pin" size={12} color={colors.primary} style={isRTL ? { marginLeft: spacing.xs } : { marginRight: spacing.xs }} />}
                 <Text style={[styles.channelName, isRTL && styles.directionalText, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
               </View>
-              <Text style={[styles.channelDescription, isRTL && styles.directionalText, { color: colors.textSecondary }]} numberOfLines={1}>
+              <Text style={[styles.channelDescription, isRTL && styles.directionalText, { color: colors.textSecondary }]} numberOfLines={2}>
                 {item.description || t('lectures.noDescription')}
               </Text>
             </View>
@@ -779,9 +794,9 @@ const Lecture = ({ navigation }) => {
 
           <View style={[styles.channelHeaderRight, isRTL && styles.rowReverse]}>
             {joined && (
-              <View style={[styles.statusBadge, { backgroundColor: '#10b98120' }]}>
-                <Ionicons name="checkmark-circle" size={12} color="#10b981" />
-                <Text style={[styles.statusBadgeText, isRTL && styles.directionalText, { color: '#10b981' }]}>{t('lectures.joined')}</Text>
+              <View style={[styles.statusBadge, { backgroundColor: `${colors.joined || '#10b981'}20` }]}>
+                <Ionicons name="checkmark-circle" size={12} color={colors.joined || '#10b981'} />
+                <Text style={[styles.statusBadgeText, isRTL && styles.directionalText, { color: colors.joined || '#10b981' }]}>{t('lectures.joined')}</Text>
               </View>
             )}
             {isPending && !joined && (
@@ -815,11 +830,11 @@ const Lecture = ({ navigation }) => {
               onPress={() => handleRequestJoin(item.$id)}
               disabled={isJoining}>
               {isJoining ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={colors.buttonText || '#FFFFFF'} />
               ) : (
                 <>
-                  <Ionicons name="enter-outline" size={14} color="#FFFFFF" />
-                  <Text style={[styles.joinBtnText, isRTL && styles.directionalText]}>{t('lectures.join')}</Text>
+                  <Ionicons name="enter-outline" size={14} color={colors.buttonText || '#FFFFFF'} />
+                  <Text style={[styles.joinBtnText, isRTL && styles.directionalText, { color: colors.buttonText || '#FFFFFF' }]}>{t('lectures.join')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -848,9 +863,9 @@ const Lecture = ({ navigation }) => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
       <LinearGradient
-        colors={isDarkMode
+        colors={colors.gradientBackground || (isDarkMode
           ? ['#1a1a2e', '#16213e', '#0f3460']
-          : ['#e3f2fd', '#bbdefb', '#90caf9']
+          : ['#e3f2fd', '#bbdefb', '#90caf9'])
         }
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
@@ -899,7 +914,7 @@ const Lecture = ({ navigation }) => {
               returnKeyType="search"
             />
             {search.length > 0 && (
-              <TouchableOpacity onPress={() => { setSearch(''); loadChannels({ showLoading: true, searchValue: '' }); }}>
+              <TouchableOpacity onPress={() => { setSearch(''); loadChannels({ showLoading: true, searchValue: '' }); }} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
                 <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
               </TouchableOpacity>
             )}
@@ -919,6 +934,7 @@ const Lecture = ({ navigation }) => {
           <Text style={[styles.suggestedTitle, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.suggestedChannels')}</Text>
           <FlashList
             horizontal
+            estimatedItemSize={wp(36)}
             showsHorizontalScrollIndicator={false}
             data={sortChannelsWithPins(suggestedChannels)}
             keyExtractor={(item) => item.$id}
@@ -944,9 +960,9 @@ const Lecture = ({ navigation }) => {
                       {t('lectures.membersCount').replace('{count}', String(item.membersCount || 0))}
                     </Text>
                     {sugJoined && (
-                      <View style={[styles.suggestedJoinedBadge, { backgroundColor: '#10b98115' }]}>
-                        <Ionicons name="checkmark-circle" size={10} color="#10b981" />
-                        <Text style={styles.suggestedJoinedText}>{t('lectures.joined')}</Text>
+                      <View style={[styles.suggestedJoinedBadge, { backgroundColor: `${colors.joined || '#10b981'}15` }]}>
+                        <Ionicons name="checkmark-circle" size={10} color={colors.joined || '#10b981'} />
+                        <Text style={[styles.suggestedJoinedText, { color: colors.joined || '#10b981' }]}>{t('lectures.joined')}</Text>
                       </View>
                     )}
                   </GlassContainer>
@@ -958,6 +974,7 @@ const Lecture = ({ navigation }) => {
       )}
 
       <FlashList
+        estimatedItemSize={130}
         style={styles.list}
         contentContainerStyle={[styles.listContent, { paddingBottom: spacing.xxl + insets.bottom }, contentStyle]}
         data={listData}
@@ -967,7 +984,7 @@ const Lecture = ({ navigation }) => {
         ListEmptyComponent={
           loading ? (
             <View style={styles.loadingWrap}>
-              <ActivityIndicator size="large" color={colors.primary} />
+              <ChatListSkeleton count={6} />
             </View>
           ) : (
             <View style={styles.emptyWrap}>
@@ -986,9 +1003,17 @@ const Lecture = ({ navigation }) => {
               <TouchableOpacity
                 style={[styles.emptyCreateBtn, { backgroundColor: colors.primary }]}
                 onPress={() => setCreateOpen(true)}>
-                <Ionicons name="add" size={16} color="#FFFFFF" />
-                <Text style={styles.emptyCreateBtnText}>{t('lectures.createChannel')}</Text>
+                <Ionicons name="add" size={16} color={colors.buttonText || '#FFFFFF'} />
+                <Text style={[styles.emptyCreateBtnText, { color: colors.buttonText || '#FFFFFF' }]}>{t('lectures.createChannel')}</Text>
               </TouchableOpacity>
+              {loadChannelsFailed && (
+                <TouchableOpacity
+                  style={[styles.emptyRetryBtn, { borderColor: colors.border, backgroundColor: colors.inputBackground || 'transparent' }]}
+                  onPress={() => loadChannels({ showLoading: true, searchValue: search })}>
+                  <Ionicons name="refresh" size={14} color={colors.text} />
+                  <Text style={[styles.emptyRetryBtnText, isRTL && styles.directionalText, { color: colors.text }]}>{t('common.retry')}</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )
         }
@@ -1012,12 +1037,13 @@ const Lecture = ({ navigation }) => {
         transparent
         animationType="fade"
         onRequestClose={() => setChannelMenuOpen(false)}>
-        <TouchableOpacity
-          activeOpacity={1}
-          style={[styles.menuBackdrop, { backgroundColor: colors.overlay }]}
+        <ModalBackdrop
+          style={styles.menuBackdrop}
+          overlayColor={colors.overlay}
+          scrimColor={colors.scrim || 'rgba(7, 12, 26, 0.38)'}
+          useBlur
+          blurIntensity={26}
           onPress={() => setChannelMenuOpen(false)}>
-          <BlurView intensity={26} tint="dark" style={styles.menuBackdropBlur} />
-          <View pointerEvents="none" style={styles.menuBackdropScrim} />
           <GlassContainer style={[styles.channelMenuCard]} padding={spacing.md}> 
             <View style={[styles.channelMenuHeader, isRTL && styles.rowReverse]}>
               <Ionicons
@@ -1038,7 +1064,9 @@ const Lecture = ({ navigation }) => {
                   if (channelMenuTarget) {
                     openChannel(channelMenuTarget);
                   }
-                }}>
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={t('lectures.openChannel')}>
                 <Ionicons name="enter-outline" size={16} color={colors.text} />
                 <Text style={[styles.channelMenuItemText, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.openChannel')}</Text>
               </TouchableOpacity>
@@ -1052,7 +1080,9 @@ const Lecture = ({ navigation }) => {
                 if (targetId) {
                   handleShareChannel(targetId);
                 }
-              }}>
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={t('lectures.share')}>
               <Ionicons name="share-social-outline" size={16} color={colors.text} />
               <Text style={[styles.channelMenuItemText, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.share')}</Text>
             </TouchableOpacity>
@@ -1065,7 +1095,9 @@ const Lecture = ({ navigation }) => {
                 if (targetId) {
                   await handleTogglePinChannel(targetId);
                 }
-              }}>
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={channelMenuTargetPinned ? t('lectures.unpinChannel') : t('lectures.pinChannel')}>
               <Ionicons name={channelMenuTargetPinned ? 'pin-outline' : 'pin'} size={16} color={colors.text} />
               <Text style={[styles.channelMenuItemText, isRTL && styles.directionalText, { color: colors.text }]}>
                 {channelMenuTargetPinned ? t('lectures.unpinChannel') : t('lectures.pinChannel')}
@@ -1079,7 +1111,9 @@ const Lecture = ({ navigation }) => {
                   const targetId = channelMenuTarget.$id;
                   setChannelMenuOpen(false);
                   handleRequestJoin(targetId);
-                }}>
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={t('lectures.join')}>
                 <Ionicons name="enter-outline" size={16} color={colors.primary} />
                 <Text style={[styles.channelMenuItemText, isRTL && styles.directionalText, { color: colors.primary }]}>{t('lectures.join')}</Text>
               </TouchableOpacity>
@@ -1087,12 +1121,14 @@ const Lecture = ({ navigation }) => {
 
             <TouchableOpacity
               style={[styles.channelMenuItem, isRTL && styles.rowReverse, { borderTopColor: colors.border }]}
-              onPress={() => setChannelMenuOpen(false)}>
+              onPress={() => setChannelMenuOpen(false)}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.cancel')}>
               <Ionicons name="close-outline" size={16} color={colors.textSecondary} />
               <Text style={[styles.channelMenuItemText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </GlassContainer>
-        </TouchableOpacity>
+        </ModalBackdrop>
       </Modal>
       </LinearGradient>
     </View>
@@ -1185,15 +1221,16 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    marginRight: spacing.sm,
+    marginEnd: spacing.sm,
     minWidth: wp(36),
+    maxWidth: wp(50),
     overflow: 'hidden',
   },
   suggestedCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    marginBottom: 2,
+    marginBottom: spacing.xs,
   },
   suggestedCardTitle: {
     fontSize: fontSize(12),
@@ -1202,15 +1239,15 @@ const styles = StyleSheet.create({
   },
   suggestedCardSub: {
     fontSize: fontSize(10),
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   suggestedJoinedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: spacing.xs,
     marginTop: spacing.xs,
     paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
+    paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
     alignSelf: 'flex-start',
   },
@@ -1272,9 +1309,9 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: spacing.xs,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingVertical: spacing.xs,
     borderRadius: borderRadius.round,
   },
   statusBadgeText: {
@@ -1292,7 +1329,7 @@ const styles = StyleSheet.create({
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
   },
   metaText: {
     fontSize: fontSize(11),
@@ -1315,12 +1352,11 @@ const styles = StyleSheet.create({
   joinBtnText: {
     fontSize: fontSize(12),
     fontWeight: '700',
-    color: '#FFFFFF',
   },
   loadingWrap: {
     paddingVertical: spacing.xxl,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'stretch',
   },
   emptyWrap: {
     paddingVertical: spacing.xxl,
@@ -1350,7 +1386,20 @@ const styles = StyleSheet.create({
   emptyCreateBtnText: {
     fontSize: fontSize(12),
     fontWeight: '700',
-    color: '#FFFFFF',
+  },
+  emptyRetryBtn: {
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+  },
+  emptyRetryBtnText: {
+    fontSize: fontSize(12),
+    fontWeight: '700',
   },
   modalBackdrop: {
     flex: 1,
@@ -1363,7 +1412,6 @@ const styles = StyleSheet.create({
   },
   modalBackdropScrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(7, 12, 26, 0.40)',
   },
   modalCard: {
     borderWidth: 1,
@@ -1402,6 +1450,12 @@ const styles = StyleSheet.create({
   validationHint: {
     fontSize: fontSize(10),
     color: '#ef4444',
+    marginTop: -spacing.xs,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  inputCounter: {
+    fontSize: fontSize(10),
     marginTop: -spacing.xs,
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.xs,
@@ -1486,7 +1540,7 @@ const styles = StyleSheet.create({
   },
   groupOptionHint: {
     fontSize: fontSize(11),
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   emptyGroupText: {
     fontSize: fontSize(11),
@@ -1523,7 +1577,6 @@ const styles = StyleSheet.create({
   },
   menuBackdropScrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(7, 12, 26, 0.38)',
   },
   channelMenuCard: {
     borderWidth: 1,

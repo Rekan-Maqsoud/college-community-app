@@ -67,18 +67,17 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
     onFeedChange(feedType);
   };
 
-  const buttonRatios = useMemo(() => [0.426, 0.273, 0.301], []);
-  const visualButtonRatios = useMemo(
-    () => (isRTL ? [...buttonRatios].reverse() : buttonRatios),
-    [buttonRatios, isRTL]
-  );
-  const buttonWidths = useMemo(() => (
-    visualButtonRatios.map(ratio => Math.max(0, containerWidth * ratio))
-  ), [visualButtonRatios, containerWidth]);
+  const buttonWidth = useMemo(() => {
+    if (containerWidth <= 0 || visualFeeds.length === 0) {
+      return 0;
+    }
+
+    return containerWidth / visualFeeds.length;
+  }, [containerWidth, visualFeeds.length]);
   
   const translateX = indicatorAnim.interpolate({
     inputRange: [0, 1, 2],
-    outputRange: [0, buttonWidths[0], buttonWidths[0] + buttonWidths[1]],
+    outputRange: [0, buttonWidth, buttonWidth * 2],
   });
 
   const textColor = (isSelected) => {
@@ -116,12 +115,12 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
             styles.indicator,
             {
               backgroundColor: theme.primary,
-              width: buttonWidths[selectedIndex] || 0,
+              width: buttonWidth || 0,
               transform: [{ translateX }],
             },
           ]}
         />
-        {visualFeeds.map((feed, index) => {
+        {visualFeeds.map((feed) => {
           const isSelected = selectedFeed === feed.type;
           
           return (
@@ -130,10 +129,13 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
               style={[
                 styles.feedButton,
                 isRTL && styles.feedButtonRtl,
-                { width: buttonWidths[index] },
+                { width: buttonWidth || `${100 / visualFeeds.length}%` },
               ]}
               onPress={() => handleFeedChange(feed.type)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={feed.label}
+              accessibilityState={{ selected: isSelected }}
             >
               <Ionicons
                 name={feed.icon}

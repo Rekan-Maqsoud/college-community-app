@@ -144,6 +144,7 @@ const CreateGroup = ({ navigation }) => {
         allowsMultipleSelection: false,
         maxImages: 1,
         quality: 'medium',
+        t,
       });
 
       if (!result || result.length === 0) {
@@ -163,6 +164,10 @@ const CreateGroup = ({ navigation }) => {
 
       setGroupPhoto(uploadResult.url);
     } catch (error) {
+      if (error?.code === 'NSFW_IMAGE_BLOCKED' || error?.code === 'NSFW_SCAN_FAILED') {
+        return;
+      }
+
       const errorMessage = error?.message || t('chats.groupPhotoError');
       showAlert({ type: 'error', title: t('common.error'), message: errorMessage });
     } finally {

@@ -1461,7 +1461,13 @@ const Chats = ({ navigation }) => {
               animationType="fade"
               onRequestClose={closeChatMenu}
             >
-              <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeChatMenu}>
+              <TouchableOpacity
+                style={styles.modalOverlay}
+                activeOpacity={1}
+                onPress={closeChatMenu}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.close')}
+              >
                 <GlassModalCard
                   style={[styles.menuCard]}
                   padding={16}
@@ -1471,7 +1477,12 @@ const Chats = ({ navigation }) => {
                   </Text>
 
                   {selectedChat?.type === 'private' && (
-                    <TouchableOpacity style={styles.menuItem} onPress={handleVisitSelectedProfile}>
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={handleVisitSelectedProfile}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('chats.visitProfile')}
+                    >
                       <Ionicons name="person-outline" size={moderateScale(18)} color={theme.primary} />
                       <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
                         {t('chats.visitProfile')}
@@ -1480,7 +1491,12 @@ const Chats = ({ navigation }) => {
                   )}
 
                   {selectedChat?.type === 'custom_group' && (
-                    <TouchableOpacity style={styles.menuItem} onPress={handleOpenGroupSettings}>
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={handleOpenGroupSettings}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('chats.groupSettings')}
+                    >
                       <Ionicons name="settings-outline" size={moderateScale(18)} color={theme.primary} />
                       <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
                         {t('chats.groupSettings')}
@@ -1488,7 +1504,12 @@ const Chats = ({ navigation }) => {
                     </TouchableOpacity>
                   )}
 
-                  <TouchableOpacity style={styles.menuItem} onPress={openMuteOptions}>
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={openMuteOptions}
+                    accessibilityRole="button"
+                    accessibilityLabel={muteStatusMap[selectedChat?.$id] ? t('chats.unmute') : t('chats.mute')}
+                  >
                     <Ionicons
                       name={muteStatusMap[selectedChat?.$id] ? 'notifications-outline' : 'notifications-off-outline'}
                       size={moderateScale(18)}
@@ -1506,6 +1527,8 @@ const Chats = ({ navigation }) => {
                       await handleArchiveChat(selectedChat, !isArchived);
                       closeChatMenu();
                     }}
+                    accessibilityRole="button"
+                    accessibilityLabel={archivedChatMap[selectedChat?.$id] ? t('chats.unarchive') : t('chats.archive')}
                   >
                     <Ionicons name="archive-outline" size={moderateScale(18)} color="#F59E0B" />
                     <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
@@ -1519,6 +1542,8 @@ const Chats = ({ navigation }) => {
                       setChatMenuVisible(false);
                       Alert.alert(t('common.info'), t('chats.searchComingSoon'));
                     }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('chats.searchInChat')}
                   >
                     <Ionicons name="search-outline" size={moderateScale(18)} color={theme.primary} />
                     <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
@@ -1526,7 +1551,12 @@ const Chats = ({ navigation }) => {
                     </Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity style={styles.menuItem} onPress={handleClearSelectedChat}>
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={handleClearSelectedChat}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('chats.clearChat')}
+                  >
                     <Ionicons name="trash-outline" size={moderateScale(18)} color={theme.primary} />
                     <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
                       {t('chats.clearChat')}
@@ -1534,7 +1564,12 @@ const Chats = ({ navigation }) => {
                   </TouchableOpacity>
 
                   {selectedChat?.type === 'private' && (
-                    <TouchableOpacity style={styles.menuItem} onPress={handleBlockSelectedUser}>
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={handleBlockSelectedUser}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('chats.blockUser')}
+                    >
                       <Ionicons name="ban-outline" size={moderateScale(18)} color="#EF4444" />
                       <Text style={[styles.menuItemText, { color: '#EF4444', fontSize: fontSize(14) }]}>
                         {t('chats.blockUser')}
@@ -1543,7 +1578,12 @@ const Chats = ({ navigation }) => {
                   )}
 
                   {selectedChat?.type === 'private' && (
-                    <TouchableOpacity style={styles.menuItem} onPress={handleDeleteSelectedConversation}>
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={handleDeleteSelectedConversation}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('chats.deleteConversation')}
+                    >
                       <Ionicons name="trash" size={moderateScale(18)} color="#EF4444" />
                       <Text style={[styles.menuItemText, { color: '#EF4444', fontSize: fontSize(14) }]}>
                         {t('chats.deleteConversation')}
@@ -1552,7 +1592,12 @@ const Chats = ({ navigation }) => {
                   )}
 
                   {selectedChat?.type !== 'private' && (
-                    <TouchableOpacity style={styles.menuItem} onPress={handleLeaveSelectedGroup}>
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={handleLeaveSelectedGroup}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('chats.leaveGroup')}
+                    >
                       <Ionicons name="exit-outline" size={moderateScale(18)} color="#EF4444" />
                       <Text style={[styles.menuItemText, { color: '#EF4444', fontSize: fontSize(14) }]}>
                         {t('chats.leaveGroup')}
@@ -1588,7 +1633,12 @@ const Chats = ({ navigation }) => {
                   </View>
 
                   {muteStatusMap[selectedChat?.$id] && (
-                    <TouchableOpacity style={styles.menuItem} onPress={handleChatUnmute}>
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={handleChatUnmute}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('chats.unmute')}
+                    >
                       <Ionicons name="notifications-outline" size={moderateScale(18)} color="#10B981" />
                       <Text style={[styles.menuItemText, { color: '#10B981', fontSize: fontSize(14) }]}>
                         {t('chats.unmute')}
@@ -1602,6 +1652,8 @@ const Chats = ({ navigation }) => {
                       selectedMuteState.activeOption === 'oneHour' && { backgroundColor: theme.primary + '12' },
                     ]}
                     onPress={() => handleChatMute(MUTE_DURATIONS.ONE_HOUR)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('chats.muteFor1Hour')}
                   >
                     <Ionicons name="time-outline" size={moderateScale(18)} color={theme.primary} />
                     <Text style={[
@@ -1619,6 +1671,8 @@ const Chats = ({ navigation }) => {
                       selectedMuteState.activeOption === 'eightHours' && { backgroundColor: theme.primary + '12' },
                     ]}
                     onPress={() => handleChatMute(MUTE_DURATIONS.EIGHT_HOURS)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('chats.muteFor8Hours')}
                   >
                     <Ionicons name="time-outline" size={moderateScale(18)} color={theme.primary} />
                     <Text style={[
@@ -1636,6 +1690,8 @@ const Chats = ({ navigation }) => {
                       selectedMuteState.activeOption === 'oneDay' && { backgroundColor: theme.primary + '12' },
                     ]}
                     onPress={() => handleChatMute(MUTE_DURATIONS.ONE_DAY)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('chats.muteFor1Day')}
                   >
                     <Ionicons name="today-outline" size={moderateScale(18)} color={theme.primary} />
                     <Text style={[
@@ -1653,6 +1709,8 @@ const Chats = ({ navigation }) => {
                       selectedMuteState.activeOption === 'oneWeek' && { backgroundColor: theme.primary + '12' },
                     ]}
                     onPress={() => handleChatMute(MUTE_DURATIONS.ONE_WEEK)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('chats.muteFor1Week')}
                   >
                     <Ionicons name="calendar-outline" size={moderateScale(18)} color={theme.primary} />
                     <Text style={[
@@ -1670,6 +1728,8 @@ const Chats = ({ navigation }) => {
                       selectedMuteState.activeOption === 'forever' && { backgroundColor: theme.primary + '12' },
                     ]}
                     onPress={() => handleChatMute(MUTE_DURATIONS.FOREVER)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('chats.muteForever')}
                   >
                     <Ionicons name="notifications-off-outline" size={moderateScale(18)} color="#F59E0B" />
                     <Text style={[
@@ -1681,7 +1741,12 @@ const Chats = ({ navigation }) => {
                     </Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity style={styles.modalCancelButton} onPress={closeMuteOptions}>
+                  <TouchableOpacity
+                    style={styles.modalCancelButton}
+                    onPress={closeMuteOptions}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.cancel')}
+                  >
                     <Text style={[styles.modalCancelText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
                       {t('common.cancel')}
                     </Text>

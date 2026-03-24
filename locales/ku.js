@@ -3,6 +3,7 @@ import auth from './ku/auth';
 import chats from './ku/chats';
 import settings from './ku/settings';
 import departments from './ku/departments';
+import moderation from './ku/moderation';
 
 export default {
   ...base,
@@ -10,4 +11,5 @@ export default {
   ...chats,
   ...settings,
   ...departments,
+  ...moderation,
 };

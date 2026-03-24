@@ -34,6 +34,7 @@ import {
   moderateScale,
 } from '../utils/responsive';
 import { pickAndCompressImages, takePictureAndCompress } from '../utils/imageCompression';
+import { enforceNsfwImagePolicy, isLikelyImageFile } from '../utils/nsfwImageFilter';
 import { uploadChatImage, uploadChatVoiceMessage, uploadChatFile } from '../../database/chats';
 import { createPollPayload } from '../utils/pollUtils';
 import { formatFileSize, getFilePreviewDescriptor } from '../utils/fileTypes';
@@ -689,12 +690,17 @@ const MessageInput = ({
         allowsMultipleSelection: false,
         maxImages: 1,
         quality: 'medium',
+        t,
       });
       if (result && result.length > 0) {
         setSelectedFile(null);
         setSelectedImage(result[0]);
       }
     } catch (error) {
+      if (error?.code === 'NSFW_IMAGE_BLOCKED' || error?.code === 'NSFW_SCAN_FAILED') {
+        return;
+      }
+
       if (error.translationKey === 'errors.galleryPermissionDenied') {
         showPermissionDeniedAlert('gallery');
       } else {
@@ -721,12 +727,16 @@ const MessageInput = ({
         }
       }
 
-      const result = await takePictureAndCompress({ quality: 'medium' });
+      const result = await takePictureAndCompress({ quality: 'medium', t });
       if (result) {
         setSelectedFile(null);
         setSelectedImage(result);
       }
     } catch (error) {
+      if (error?.code === 'NSFW_IMAGE_BLOCKED' || error?.code === 'NSFW_SCAN_FAILED') {
+        return;
+      }
+
       if (error.translationKey === 'errors.cameraPermissionDenied') {
         showPermissionDeniedAlert('camera');
       } else {
@@ -797,6 +807,13 @@ const MessageInput = ({
       const resolvedSize = await resolveSelectedFileSize(pickedFile);
       validateFileUploadSize(resolvedSize, MAX_FILE_UPLOAD_BYTES);
 
+      if (isLikelyImageFile({ mimeType: pickedFile.mimeType, fileName: pickedFile.name })) {
+        await enforceNsfwImagePolicy({
+          imageUri: pickedFile.uri,
+          t,
+        });
+      }
+
       setSelectedImage(null);
       setSelectedFile({
         uri: pickedFile.uri,
@@ -805,6 +822,10 @@ const MessageInput = ({
         mimeType: pickedFile.mimeType || 'application/octet-stream',
       });
     } catch (error) {
+      if (error?.code === 'NSFW_IMAGE_BLOCKED' || error?.code === 'NSFW_SCAN_FAILED') {
+        return;
+      }
+
       if (error?.code === 'FILE_TOO_LARGE') {
         triggerAlert(
           t('common.error'),

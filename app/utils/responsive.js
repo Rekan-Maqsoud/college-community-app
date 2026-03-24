@@ -86,6 +86,7 @@ export const fontSizeWithScale = (size, scale = 1) => {
 };
 
 export const spacing = {
+  xxs: moderateScale(2),
   xs: moderateScale(4),
   sm: moderateScale(8),
   md: moderateScale(16),

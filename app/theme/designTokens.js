@@ -22,6 +22,15 @@ export const lightTheme = {
   
   gradient: ['#007AFF', '#5856D6'],
   gradientLight: ['rgba(0, 122, 255, 0.15)', 'rgba(88, 86, 214, 0.15)'],
+  gradientBackground: ['#e3f2fd', '#bbdefb', '#90caf9'],
+  
+  // Semantic UI colors
+  buttonText: '#FFFFFF',
+  tag: '#8B5CF6',
+  link: '#3B82F6',
+  error: '#ef4444',
+  joined: '#10b981',
+  scrim: 'rgba(0, 0, 0, 0.40)',
   
   glass: {
     background: 'rgba(255, 255, 255, 0.4)',
@@ -73,6 +82,15 @@ export const darkTheme = {
   
   gradient: ['#0A84FF', '#5E5CE6'],
   gradientLight: ['rgba(10, 132, 255, 0.15)', 'rgba(94, 92, 230, 0.15)'],
+  gradientBackground: ['#1a1a2e', '#16213e', '#0f3460'],
+  
+  // Semantic UI colors
+  buttonText: '#FFFFFF',
+  tag: '#8B5CF6',
+  link: '#3B82F6',
+  error: '#ef4444',
+  joined: '#10b981',
+  scrim: 'rgba(7, 12, 26, 0.50)',
   
   glass: {
     background: 'rgba(28, 28, 30, 0.4)',

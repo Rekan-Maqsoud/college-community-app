@@ -207,8 +207,9 @@ const PostCard = ({
   const handleBookmark = async () => {
     if (actionLockRef.current.bookmarking) return;
     actionLockRef.current.bookmarking = true;
+    const postId = post.$id;
     try {
-      const newState = await togglePostBookmark(post.$id, user?.$id);
+      const newState = await togglePostBookmark(postId, user?.$id);
       setIsBookmarked(newState);
     } catch (error) {
       // Ignore bookmark errors
@@ -441,6 +442,9 @@ const PostCard = ({
               activeOpacity={0.8}
               onPress={() => handleVotePollOption(option.id)}
               disabled={pollSubmitting || (pollData.isQuiz && hasAnswered)}
+              accessibilityRole={pollData.allowMultiple ? 'checkbox' : 'radio'}
+              accessibilityState={{ checked: isSelected, disabled: pollSubmitting || (pollData.isQuiz && hasAnswered) }}
+              accessibilityLabel={option.text}
             >
               <View style={styles.pollOptionRow}>
                 <View style={styles.pollOptionLeft}>
@@ -537,6 +541,8 @@ const PostCard = ({
             source={{ uri: post.images[0] }}
             style={styles.singleImage}
             resizeMode="cover"
+            accessible
+            accessibilityLabel={t('post.imageAlt') || 'Post image'}
           />
         </TouchableOpacity>
       );
@@ -684,10 +690,18 @@ const PostCard = ({
             </View>
             {!compact && (
               <View style={[styles.typeBadgeInline, compact && styles.typeBadgeInlineCompact, { backgroundColor: isDarkMode ? `${postColor}10` : `${postColor}18` }]}>
-              <Ionicons name={postIcon} size={moderateScale(10)} color={postColor} />
-              <Text style={[styles.typeTextInline, { color: postColor }]}>
-                {t(`post.types.${post.postType}`)}
-              </Text>
+                <Ionicons name={postIcon} size={moderateScale(10)} color={postColor} />
+                <Text style={[styles.typeTextInline, { color: postColor }]}>
+                  {t(`post.types.${post.postType}`)}
+                </Text>
+              </View>
+            )}
+            {!compact && post.postType === 'question' && resolved && (
+              <View style={[styles.repostBadge, compact && styles.repostBadgeCompact, { backgroundColor: isDarkMode ? '#10B98122' : '#10B98118' }]}>
+                <Ionicons name="checkmark-circle" size={moderateScale(10)} color="#10B981" />
+                <Text style={[styles.repostText, { color: '#10B981' }]}>
+                  {t('post.resolved')}
+                </Text>
               </View>
             )}
             {post.isRepost === true && (
@@ -733,6 +747,9 @@ const PostCard = ({
             onPress={() => setIsExpanded(!isExpanded)}
             style={styles.seeMoreButton}
             activeOpacity={0.7}
+            hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={isExpanded ? t('common.seeLess') : t('common.seeMore')}
           >
             <Text style={[styles.seeMoreText, { color: theme.primary || '#3B82F6' }]}>
               {isExpanded ? t('common.seeLess') : t('common.seeMore')}
@@ -788,7 +805,7 @@ const PostCard = ({
 
       {/* Footer */}
       <View style={[styles.footer, { borderTopColor: theme.border }, compact && styles.footerCompact, isRTL && { flexDirection: 'row-reverse' }]}>
-        <View style={[styles.footerLeft, compact && styles.footerLeftCompact]}>
+        <View style={[styles.footerLeft, compact && styles.footerLeftCompact, isRTL && { flexDirection: 'row-reverse' }]}>
           <TouchableOpacity 
             style={[styles.actionButton, compact && styles.actionButtonCompact]}
             onPress={handleLikePress}
@@ -823,6 +840,8 @@ const PostCard = ({
             style={[styles.actionButton, compact && styles.actionButtonCompact]}
             onPress={onReply}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t('post.reply')}
           >
             <Ionicons name="chatbubble-outline" size={footerIconSize} color={theme.textSecondary} />
             <Text
@@ -840,6 +859,8 @@ const PostCard = ({
             style={[styles.actionButton, compact && styles.actionButtonCompact]}
             onPress={handleShare}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t('post.share')}
           >
             <Ionicons name="share-outline" size={footerIconSize} color={theme.textSecondary} />
           </TouchableOpacity>
@@ -848,6 +869,8 @@ const PostCard = ({
             style={[styles.actionButton, compact && styles.actionButtonCompact]}
             onPress={() => setShowShareToChat(true)}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t('post.sendToChat')}
           >
             <Ionicons name="send-outline" size={footerSmallIconSize} color={theme.textSecondary} />
           </TouchableOpacity>

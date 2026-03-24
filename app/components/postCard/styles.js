@@ -301,6 +301,8 @@ export const postCardStyles = StyleSheet.create({
   seeMoreButton: {
     marginTop: spacing.xs,
     marginBottom: moderateScale(3),
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
   seeMoreText: {
     fontSize: fontSize(12),

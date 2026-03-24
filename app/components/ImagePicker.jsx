@@ -43,12 +43,17 @@ const ImagePickerComponent = ({
         allowsMultipleSelection: true,
         maxImages: remainingSlots,
         quality: 'medium',
+        t,
       });
 
       if (result && result.length > 0) {
         onImagesChange([...images, ...result]);
       }
     } catch (error) {
+      if (error?.code === 'NSFW_IMAGE_BLOCKED' || error?.code === 'NSFW_SCAN_FAILED') {
+        return;
+      }
+
       showAlert(
         t('common.error'),
         error.message || t('post.imagePickError')
@@ -74,12 +79,17 @@ const ImagePickerComponent = ({
 
       const result = await takePictureAndCompress({
         quality: 'medium',
+        t,
       });
 
       if (result) {
         onImagesChange([...images, result]);
       }
     } catch (error) {
+      if (error?.code === 'NSFW_IMAGE_BLOCKED' || error?.code === 'NSFW_SCAN_FAILED') {
+        return;
+      }
+
       showAlert(
         t('common.error'),
         error.message || t('post.cameraError')

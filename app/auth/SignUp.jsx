@@ -25,6 +25,7 @@ import AnimatedBackground from '../components/AnimatedBackground';
 import { GlassContainer, GlassInput } from '../components/GlassComponents';
 import { getUniversityKeys, getCollegesForUniversity, getDepartmentsForCollege, getStagesForDepartment } from '../data/universitiesData';
 import { initiateSignup, isEducationalEmail, completeOAuthSignup, clearPendingOAuthSignup } from '../../database/auth';
+import { getAcademicDomainSuggestions, applyDomainToEmail, getUniversityKeyByEmailDomain } from '../constants/academicEmailDomains';
 import { createSuggestion } from '../../database/suggestions';
 import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
 import { 
@@ -83,7 +84,7 @@ const SignUp = ({ navigation, route }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showEmailSuggestion, setShowEmailSuggestion] = useState(false);
+  const [emailSuggestions, setEmailSuggestions] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
   const [hasBlurredNameField, setHasBlurredNameField] = useState(false);
@@ -102,6 +103,7 @@ const SignUp = ({ navigation, route }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const isInitialMount = useRef(true);
+  const universityKeyLookup = useRef(new Set(getUniversityKeys()));
   const hasAcademicOther = hasAcademicOtherSelection({ university, college, department });
   const isUniversityOther = university === ACADEMIC_OTHER_KEY;
   const isCollegeOther = college === ACADEMIC_OTHER_KEY;
@@ -141,31 +143,34 @@ const SignUp = ({ navigation, route }) => {
   // Handle email change and show suggestion when @ is typed
   const handleEmailChange = (text) => {
     setEmail(text);
-    // Show suggestion when user types @ but hasn't completed the domain
-    if (text.includes('@') && !text.includes('@epu.edu.iq') && !text.endsWith('.')) {
-      const atIndex = text.lastIndexOf('@');
-      const afterAt = text.substring(atIndex + 1);
-      // Show suggestion if the domain part is incomplete
-      if (afterAt.length === 0 || 'epu.edu.iq'.startsWith(afterAt.toLowerCase())) {
-        setShowEmailSuggestion(true);
-      } else {
-        setShowEmailSuggestion(false);
-      }
-    } else {
-      setShowEmailSuggestion(false);
+    setEmailSuggestions(getAcademicDomainSuggestions(text, 3));
+
+    const autoDetectedUniversity = getUniversityKeyByEmailDomain(text);
+    if (
+      autoDetectedUniversity &&
+      universityKeyLookup.current.has(autoDetectedUniversity) &&
+      autoDetectedUniversity !== university
+    ) {
+      setUniversity(autoDetectedUniversity);
+      clearFieldError('university');
     }
   };
 
   // Apply email suggestion
-  const applyEmailSuggestion = () => {
-    const atIndex = email.lastIndexOf('@');
-    if (atIndex !== -1) {
-      const beforeAt = email.substring(0, atIndex);
-      setEmail(beforeAt + '@epu.edu.iq');
-    } else {
-      setEmail(email + '@epu.edu.iq');
+  const applyEmailSuggestion = (domain) => {
+    const nextEmail = applyDomainToEmail(email, domain);
+    setEmail(nextEmail);
+    setEmailSuggestions([]);
+
+    const autoDetectedUniversity = getUniversityKeyByEmailDomain(domain);
+    if (
+      autoDetectedUniversity &&
+      universityKeyLookup.current.has(autoDetectedUniversity) &&
+      autoDetectedUniversity !== university
+    ) {
+      setUniversity(autoDetectedUniversity);
+      clearFieldError('university');
     }
-    setShowEmailSuggestion(false);
   };
 
   useEffect(() => {
@@ -460,6 +465,11 @@ const SignUp = ({ navigation, route }) => {
       return false;
     }
 
+    if (!isEducationalEmail(email.trim())) {
+      setSingleFieldError('email', t('auth.educationalEmailRequired'), 1);
+      return false;
+    }
+
     if (hasEmailPlusAlias(email)) {
       setSingleFieldError('email', t('auth.emailPlusNotAllowed'), 1);
       return false;
@@ -582,6 +592,7 @@ const SignUp = ({ navigation, route }) => {
       fullName.trim() !== '' &&
       email.trim() !== '' &&
       email.includes('@') &&
+      isEducationalEmail(email) &&
       age !== '' &&
       parseInt(age) >= 16 &&
       parseInt(age) <= 100 &&
@@ -1076,7 +1087,7 @@ const SignUp = ({ navigation, route }) => {
                         onFocus={() => setEmailFocused(true)}
                         onBlur={() => {
                           setEmailFocused(false);
-                          setTimeout(() => setShowEmailSuggestion(false), 200);
+                          setTimeout(() => setEmailSuggestions([]), 200);
                         }}
                         keyboardType="email-address"
                         autoCapitalize="none"
@@ -1086,15 +1097,6 @@ const SignUp = ({ navigation, route }) => {
                         selectTextOnFocus={false}
                         textContentType="emailAddress"
                       />
-                      {!oauthMode && showEmailSuggestion && (
-                        <TouchableOpacity
-                          onPress={applyEmailSuggestion}
-                          style={[styles.emailSuggestion, isRTL && styles.emailSuggestionRtl, { backgroundColor: theme.primary }]}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={styles.emailSuggestionText}>{t('auth.epuEmailDomain')}</Text>
-                        </TouchableOpacity>
-                      )}
                       {oauthMode ? (
                         <Ionicons
                           name="lock-closed"
@@ -1102,7 +1104,7 @@ const SignUp = ({ navigation, route }) => {
                           color={theme.textSecondary}
                         />
                       ) : (
-                        !showEmailSuggestion && email.length > 0 && (
+                        emailSuggestions.length === 0 && email.length > 0 && (
                           <Ionicons
                             name={isEducationalEmail(email) ? 'checkmark-circle' : 'close-circle'}
                             size={moderateScale(20)}
@@ -1112,6 +1114,20 @@ const SignUp = ({ navigation, route }) => {
                       )}
                     </View>
                   </GlassInput>
+                  {!oauthMode && emailSuggestions.length > 0 && (
+                    <View style={[styles.emailSuggestionsContainer, isRTL && styles.emailSuggestionsContainerRtl]}>
+                      {emailSuggestions.map((suggestion) => (
+                        <TouchableOpacity
+                          key={suggestion.domain}
+                          onPress={() => applyEmailSuggestion(suggestion.domain)}
+                          style={[styles.emailSuggestion, { backgroundColor: theme.primary }]}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.emailSuggestionText}>@{suggestion.domain}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
                   {fieldErrors.email && (
                     <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.email}</Text>
                   )}
@@ -1942,11 +1958,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.md,
-    marginLeft: spacing.xs,
+    marginTop: spacing.xs,
   },
-  emailSuggestionRtl: {
-    marginLeft: 0,
-    marginRight: spacing.xs,
+  emailSuggestionsContainer: {
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  emailSuggestionsContainerRtl: {
+    alignItems: 'flex-end',
   },
   emailSuggestionText: {
     color: '#FFFFFF',

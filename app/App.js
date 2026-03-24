@@ -22,6 +22,7 @@ import { BlurView } from 'expo-blur';
 import telemetry from './utils/telemetry';
 import { initCrashReporting, setCrashReportingUser } from './utils/crashReporting';
 import { REFRESH_TOPICS, publishRefreshEvent, subscribeToRefreshTopic } from './utils/dataRefreshBus';
+import { warmupNsfwModel } from './utils/nsfwImageFilter';
 import {
   computeReconnectDelayMs,
   isRealtimeSocketConnected,
@@ -1402,6 +1403,26 @@ const GlobalCustomAlert = () => {
   );
 };
 
+const NsfwModelWarmup = () => {
+  useEffect(() => {
+    const warmupTrace = telemetry.startTrace('nsfw_model_warmup');
+
+    warmupNsfwModel()
+      .then(() => {
+        telemetry.recordEvent('nsfw_model_warmup_ready');
+        warmupTrace.finish({ success: true });
+      })
+      .catch((error) => {
+        telemetry.recordEvent('nsfw_model_warmup_failed', {
+          message: error?.message || 'unknown',
+        });
+        warmupTrace.finish({ success: false, error });
+      });
+  }, []);
+
+  return null;
+};
+
 const AppNavigationRoot = ({ navigationRef, pendingRouteRef, coldStartTrace }) => {
   const { theme, isDarkMode } = useAppSettings();
   const navigationTheme = useMemo(() => {
@@ -1438,6 +1459,7 @@ const AppNavigationRoot = ({ navigationRef, pendingRouteRef, coldStartTrace }) =
       <RealtimeLifecycleManager />
       <CrashReportingUserSync />
       <LastSeenTracker />
+      <NsfwModelWarmup />
       <NotificationSetup navigationRef={navigationRef} />
       <DeepLinkHandler navigationRef={navigationRef} pendingRouteRef={pendingRouteRef} />
       <UpdatePrompt />

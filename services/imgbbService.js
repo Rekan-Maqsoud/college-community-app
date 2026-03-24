@@ -1,5 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { enforceNsfwImagePolicy } from '../app/utils/nsfwImageFilter';
 
 const IMGBB_UPLOAD_URL = 'https://api.imgbb.com/1/upload';
 
@@ -28,7 +29,7 @@ const normalizeHttpsUrl = (url) => {
   return url;
 };
 
-export const pickImage = async () => {
+export const pickImage = async ({ t } = {}) => {
   const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
   
   if (permissionResult.granted === false) {
@@ -43,6 +44,11 @@ export const pickImage = async () => {
   });
 
   if (!result.canceled && result.assets && result.assets.length > 0) {
+    await enforceNsfwImagePolicy({
+      imageUri: result.assets[0].uri,
+      t,
+    });
+
     return result.assets[0];
   }
 
@@ -107,9 +113,9 @@ export const uploadToImgbb = async (base64Image) => {
   }
 };
 
-export const uploadProfilePicture = async () => {
+export const uploadProfilePicture = async ({ t } = {}) => {
   try {
-    const pickedImage = await pickImage();
+    const pickedImage = await pickImage({ t });
     
     if (!pickedImage) {
       return null;
@@ -146,6 +152,8 @@ export const uploadPostImage = async () => {
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const imageUri = result.assets[0].uri;
+
+      await enforceNsfwImagePolicy({ imageUri });
       
       const compressedImage = await manipulateAsync(
         imageUri,

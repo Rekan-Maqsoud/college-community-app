@@ -23,6 +23,7 @@ import CustomAlert from '../components/CustomAlert';
 import AnimatedBackground from '../components/AnimatedBackground';
 import { GlassContainer, GlassInput } from '../components/GlassComponents';
 import { signIn, getCurrentUser, signOut, getCompleteUserData, signInWithGoogle, checkOAuthUserExists, storePendingOAuthSignup, isEducationalEmail } from '../../database/auth';
+import { getAcademicDomainSuggestions, applyDomainToEmail } from '../constants/academicEmailDomains';
 import { 
   wp, 
   hp, 
@@ -57,7 +58,7 @@ const SignIn = ({ navigation, route }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [showEmailSuggestion, setShowEmailSuggestion] = useState(false);
+  const [emailSuggestions, setEmailSuggestions] = useState([]);
   
   const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const { setUserData } = useUser();
@@ -71,31 +72,13 @@ const SignIn = ({ navigation, route }) => {
   // Handle email change and show suggestion when @ is typed
   const handleEmailChange = (text) => {
     setEmail(text);
-    // Show suggestion when user types @ but hasn't completed the domain
-    if (text.includes('@') && !text.includes('@epu.edu.iq') && !text.endsWith('.')) {
-      const atIndex = text.lastIndexOf('@');
-      const afterAt = text.substring(atIndex + 1);
-      // Show suggestion if the domain part is incomplete
-      if (afterAt.length === 0 || 'epu.edu.iq'.startsWith(afterAt.toLowerCase())) {
-        setShowEmailSuggestion(true);
-      } else {
-        setShowEmailSuggestion(false);
-      }
-    } else {
-      setShowEmailSuggestion(false);
-    }
+    setEmailSuggestions(getAcademicDomainSuggestions(text, 3));
   };
 
   // Apply email suggestion
-  const applyEmailSuggestion = () => {
-    const atIndex = email.lastIndexOf('@');
-    if (atIndex !== -1) {
-      const beforeAt = email.substring(0, atIndex);
-      setEmail(beforeAt + '@epu.edu.iq');
-    } else {
-      setEmail(email + '@epu.edu.iq');
-    }
-    setShowEmailSuggestion(false);
+  const applyEmailSuggestion = (domain) => {
+    setEmail(applyDomainToEmail(email, domain));
+    setEmailSuggestions([]);
   };
 
   useEffect(() => {
@@ -129,6 +112,11 @@ const SignIn = ({ navigation, route }) => {
 
     if (!email.includes('@')) {
       showAlert({ type: 'error', title: t('common.error'), message: t('auth.validEmailRequired') });
+      return;
+    }
+
+    if (!isEducationalEmail(email.trim())) {
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.educationalEmailRequired') });
       return;
     }
 
@@ -431,7 +419,7 @@ const SignIn = ({ navigation, route }) => {
                     onBlur={() => {
                       setEmailFocused(false);
                       // Hide suggestion on blur with a small delay
-                      setTimeout(() => setShowEmailSuggestion(false), 200);
+                      setTimeout(() => setEmailSuggestions([]), 200);
                     }}
                     keyboardType="email-address"
                     autoCapitalize="none"
@@ -440,17 +428,22 @@ const SignIn = ({ navigation, route }) => {
                     selectTextOnFocus={false}
                     textContentType="emailAddress"
                   />
-                  {showEmailSuggestion && (
-                    <TouchableOpacity 
-                      onPress={applyEmailSuggestion}
-                      style={[styles.emailSuggestion, isRTL && styles.emailSuggestionRtl, { backgroundColor: theme.primary }]}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.emailSuggestionText}>@epu.edu.iq</Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
               </GlassInput>
+              {emailSuggestions.length > 0 && (
+                <View style={[styles.emailSuggestionsContainer, isRTL && styles.emailSuggestionsContainerRtl]}>
+                  {emailSuggestions.map((suggestion) => (
+                    <TouchableOpacity
+                      key={suggestion.domain}
+                      onPress={() => applyEmailSuggestion(suggestion.domain)}
+                      style={[styles.emailSuggestion, { backgroundColor: theme.primary }]}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.emailSuggestionText}>@{suggestion.domain}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
 
               <GlassInput focused={passwordFocused} style={{ marginTop: spacing.md }}>
                 <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
@@ -693,11 +686,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.md,
-    marginLeft: spacing.xs,
+    marginTop: spacing.xs,
   },
-  emailSuggestionRtl: {
-    marginLeft: 0,
-    marginRight: spacing.xs,
+  emailSuggestionsContainer: {
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  emailSuggestionsContainerRtl: {
+    alignItems: 'flex-end',
   },
   emailSuggestionText: {
     color: '#FFFFFF',

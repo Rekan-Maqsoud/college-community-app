@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
+  Animated,
   View,
   Text,
   TextInput,
@@ -14,7 +15,8 @@ import {
   Modal,
   Switch,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { FlashList } from '@shopify/flash-list';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -29,6 +31,8 @@ import { uploadImage } from '../../services/imgbbService';
 import { createPost } from '../../database/posts';
 import { notifyFriendPost } from '../../database/notifications';
 import { compressImage } from '../utils/imageCompression';
+import { enforceNsfwImagePolicy } from '../utils/nsfwImageFilter';
+import { requestInAppStoreReview } from '../utils/inAppReview';
 import { createPollPayload } from '../utils/pollUtils';
 import {
   POST_TYPES,
@@ -41,6 +45,7 @@ import { fontSize as fontSizeUtil, spacing, moderateScale } from '../utils/respo
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
+import ModalBackdrop from '../components/ModalBackdrop';
 
 const STAGE_VALUE_MAP = {
   firstYear: 'stage_1',
@@ -94,11 +99,13 @@ const resolveStageSelection = (stageValue, availableOptions = []) => {
 
 const Post = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const appSettings = useAppSettings();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { user } = useUser();
   const { contentStyle } = useLayout();
   const successNavigationTimeoutRef = useRef(null);
+  const visibilityScaleAnim = useRef(new Animated.Value(1)).current;
 
   const theme = appSettings?.theme;
   const isDarkMode = appSettings?.isDarkMode;
@@ -131,17 +138,28 @@ const Post = () => {
   const [isQuizPoll, setIsQuizPoll] = useState(false);
   const [correctPollOptionId, setCorrectPollOptionId] = useState('');
   const [pollExplanation, setPollExplanation] = useState('');
+  const [validationState, setValidationState] = useState({
+    stage: false,
+    pollChoices: false,
+  });
+  const [verificationState, setVerificationState] = useState({
+    active: false,
+    current: 0,
+    total: 0,
+  });
   const isAcademicOtherUser = hasAcademicOtherSelection({
     university: user?.university,
     college: user?.college,
     department: user?.department,
   });
 
-  const postTypeOptions = [
+  const postTypeOptions = useMemo(() => [
     ...POST_TYPE_OPTIONS,
     { value: POST_TYPES.POLL, labelKey: 'post.types.poll' },
-  ];
+  ], []);
   const visibilityOptions = ['department', 'major', 'public'];
+  const MAX_LINKS_PER_POST = 5;
+  const isBusy = loading || verificationState.active;
 
   useEffect(() => {
     if (user?.stage && !stage) {
@@ -154,6 +172,23 @@ const Post = () => {
       clearTimeout(successNavigationTimeoutRef.current);
     }
   }, []);
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.spring(visibilityScaleAnim, {
+        toValue: 0.96,
+        useNativeDriver: true,
+        speed: 28,
+        bounciness: 6,
+      }),
+      Animated.spring(visibilityScaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 24,
+        bounciness: 8,
+      }),
+    ]).start();
+  }, [visibility, visibilityScaleAnim]);
 
   const stageOptions = getStageOptionsForDepartment(department || user?.department || '');
   const defaultStageValue = resolveStageSelection(user?.stage, stageOptions);
@@ -194,6 +229,10 @@ const Post = () => {
 
   const handlePickImages = async () => {
     try {
+      if (verificationState.active) {
+        return;
+      }
+
       if (images.length >= MAX_IMAGES_PER_POST) {
         showAlert({ type: 'warning', title: t('post.imageLimit'), message: t('post.maxImagesReached', { max: MAX_IMAGES_PER_POST }) });
         return;
@@ -213,8 +252,79 @@ const Post = () => {
       });
 
       if (!result.canceled && result.assets) {
+        const acceptedAssets = [];
+        let blockedCount = 0;
+        let unavailableCount = 0;
+
+        setVerificationState({
+          active: true,
+          current: 0,
+          total: result.assets.length,
+        });
+
+        console.log('[Post][NSFW] Selected assets for verification', {
+          count: result.assets.length,
+          uris: result.assets.map((asset) => String(asset?.uri || '').slice(0, 120)),
+        });
+
+        for (const [assetIndex, asset] of result.assets.entries()) {
+          setVerificationState((previousState) => ({
+            ...previousState,
+            current: assetIndex + 1,
+          }));
+
+          console.log('[Post][NSFW] Verifying selected image', {
+            imageUriPreview: String(asset?.uri || '').slice(0, 120),
+            mimeType: asset?.mimeType || null,
+            fileName: asset?.fileName || null,
+            width: asset?.width || null,
+            height: asset?.height || null,
+          });
+
+          try {
+            await enforceNsfwImagePolicy({
+              imageUri: asset.uri,
+              t,
+            });
+
+            acceptedAssets.push(asset);
+            console.log('[Post][NSFW] Image verification succeeded', {
+              imageUriPreview: String(asset?.uri || '').slice(0, 120),
+            });
+          } catch (verificationError) {
+            const errorCode = verificationError?.code || 'UNKNOWN';
+
+            if (errorCode === 'NSFW_IMAGE_BLOCKED') {
+              blockedCount += 1;
+            } else if (errorCode === 'NSFW_SCAN_FAILED') {
+              unavailableCount += 1;
+            } else {
+              unavailableCount += 1;
+            }
+
+            console.warn('[Post][NSFW] Image rejected during verification', {
+              code: errorCode,
+              message: verificationError?.message || 'unknown',
+              imageUriPreview: String(asset?.uri || '').slice(0, 120),
+            });
+          }
+        }
+
+        if (acceptedAssets.length === 0) {
+          if (blockedCount > 0 || unavailableCount > 0) {
+            showAlert({
+              type: 'warning',
+              title: t('moderation.nsfwRejectedSelectionTitle'),
+              message: t('moderation.nsfwRejectedSelectionMessage')
+                .replace('{blocked}', String(blockedCount))
+                .replace('{unavailable}', String(unavailableCount)),
+            });
+          }
+          return;
+        }
+
         const compressionResults = await Promise.all(
-          result.assets.map(async (asset) => {
+          acceptedAssets.map(async (asset) => {
             try {
               const compressed = await compressImage(asset.uri, { quality: 0.7 });
               if (compressed?.uri) {
@@ -235,10 +345,44 @@ const Post = () => {
             ? t('post.imageCompressionWarning', { count: failedCompressionCount })
             : ''
         );
+
+        if (blockedCount > 0 || unavailableCount > 0) {
+          showAlert({
+            type: 'warning',
+            title: t('moderation.nsfwPartialSelectionTitle'),
+            message: t('moderation.nsfwPartialSelectionMessage')
+              .replace('{accepted}', String(acceptedAssets.length))
+              .replace('{blocked}', String(blockedCount))
+              .replace('{unavailable}', String(unavailableCount)),
+          });
+        }
       }
     } catch (_error) {
+      console.error('[Post][NSFW] Image selection or verification failed', {
+        code: _error?.code || 'UNKNOWN',
+        message: _error?.message || 'unknown',
+        details: _error?.details || null,
+      });
+
+      if (_error?.code === 'NSFW_IMAGE_BLOCKED' || _error?.code === 'NSFW_SCAN_FAILED') {
+        if (__DEV__ && _error?.code === 'NSFW_SCAN_FAILED') {
+          showAlert({
+            type: 'error',
+            title: t('moderation.nsfwScanUnavailableTitle'),
+            message: `${t('moderation.nsfwScanUnavailableMessage')}\n\nDebug: ${_error?.details?.originalError || _error?.message || 'unknown'}`,
+          });
+        }
+        return;
+      }
+
       setImageCompressionWarning('');
       showAlert({ type: 'error', title: t('common.error'), message: t('post.imagePickError') });
+    } finally {
+      setVerificationState({
+        active: false,
+        current: 0,
+        total: 0,
+      });
     }
   };
 
@@ -247,6 +391,8 @@ const Post = () => {
   };
 
   const validateForm = () => {
+    setValidationState({ stage: false, pollChoices: false });
+
     // Post must have at least one of: topic, text, or images
     const hasTopic = topic.trim().length > 0;
     const hasText = text.trim().length > 0;
@@ -257,6 +403,7 @@ const Post = () => {
       return false;
     }
     if (!stage) {
+      setValidationState((prev) => ({ ...prev, stage: true }));
       showAlert({ type: 'error', title: t('common.error'), message: t('post.stageRequired') });
       return false;
     }
@@ -264,6 +411,7 @@ const Post = () => {
     if (postType === POST_TYPES.POLL) {
       const validChoices = pollChoices.map(choice => choice.trim()).filter(Boolean);
       if (validChoices.length < 2) {
+        setValidationState((prev) => ({ ...prev, pollChoices: true }));
         showAlert({ type: 'error', title: t('common.error'), message: t('post.poll.minChoicesError') });
         return false;
       }
@@ -283,6 +431,15 @@ const Post = () => {
       nextChoices[index] = value;
       return nextChoices;
     });
+
+    if (validationState.pollChoices) {
+      const nextChoices = [...pollChoices];
+      nextChoices[index] = value;
+      const validChoicesCount = nextChoices.map(choice => choice.trim()).filter(Boolean).length;
+      if (validChoicesCount >= 2) {
+        setValidationState((prev) => ({ ...prev, pollChoices: false }));
+      }
+    }
   };
 
   const handleAddPollChoice = () => {
@@ -389,12 +546,14 @@ const Post = () => {
 
       showAlert({ type: 'success', title: t('common.success'), message: t('post.postCreated') });
 
+      await requestInAppStoreReview();
+
       if (successNavigationTimeoutRef.current) {
         clearTimeout(successNavigationTimeoutRef.current);
       }
       successNavigationTimeoutRef.current = setTimeout(() => {
         navigation.navigate('Home', { newPostCreated: true });
-      }, 1600);
+      }, 2200);
       
       setTopic('');
       setText('');
@@ -428,7 +587,7 @@ const Post = () => {
   if (!appSettings) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={theme?.primary || '#007AFF'} />
       </View>
     );
   }
@@ -437,9 +596,9 @@ const Post = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       <LinearGradient
-        colors={isDarkMode
+        colors={theme.gradientBackground || (isDarkMode
           ? ['#1a1a2e', '#16213e', '#0f3460']
-          : ['#e3f2fd', '#bbdefb', '#90caf9']
+          : ['#e3f2fd', '#bbdefb', '#90caf9'])
         }
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
@@ -452,12 +611,14 @@ const Post = () => {
             <TouchableOpacity
               onPress={handleCreatePost}
               style={[styles.postButton, isRTL ? styles.postButtonRtl : styles.postButtonLtr, { backgroundColor: theme.primary }]}
-              disabled={loading}
+              disabled={isBusy}
+              accessibilityRole="button"
+              accessibilityLabel={t('post.post')}
             >
-              {loading ? (
-                <ActivityIndicator size="small" color="#fff" />
+              {isBusy ? (
+                <ActivityIndicator size="small" color={theme.buttonText || '#fff'} />
               ) : (
-                <Text style={styles.postButtonText}>{t('post.post')}</Text>
+                <Text style={[styles.postButtonText, { color: theme.buttonText || '#fff' }]}>{t('post.post')}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -483,7 +644,7 @@ const Post = () => {
                   onSelect={setPostType}
                   placeholder={t('post.postType')}
                   icon={POST_ICONS[postType] || 'list-outline'}
-                  disabled={loading}
+                  disabled={isBusy}
                   useGlass={false}
                   selectorStyle={{ backgroundColor: theme.input.background, borderColor: theme.input.border }}
                 />
@@ -499,10 +660,13 @@ const Post = () => {
                   onSelect={setStage}
                   placeholder={t('post.selectStage')}
                   icon="stats-chart-outline"
-                  disabled={loading}
+                  disabled={isBusy}
                   compact
                   useGlass={false}
-                  selectorStyle={{ backgroundColor: theme.input.background, borderColor: theme.input.border }}
+                  selectorStyle={{
+                    backgroundColor: theme.input.background,
+                    borderColor: validationState.stage ? (theme.error || theme.danger) : theme.input.border,
+                  }}
                 />
               </View>
 
@@ -510,24 +674,29 @@ const Post = () => {
                 <Text style={[styles.compactLabel, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
                   {t('post.visibility')}
                 </Text>
-                <TouchableOpacity
-                  style={[
-                    styles.compactToggle,
-                    isRTL && styles.rowReverse,
-                    { backgroundColor: theme.input.background, borderColor: theme.input.border }
-                  ]}
-                  onPress={cycleVisibility}
-                  disabled={loading}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="eye-outline" size={14} color={theme.primary} />
-                  <Text
-                    style={[styles.compactToggleText, isRTL && styles.directionalText, { color: theme.text }]}
-                    numberOfLines={1}
+                <Animated.View style={{ transform: [{ scale: visibilityScaleAnim }] }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.compactToggle,
+                      isRTL && styles.rowReverse,
+                      { backgroundColor: theme.input.background, borderColor: theme.input.border }
+                    ]}
+                    onPress={cycleVisibility}
+                    disabled={isBusy}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('post.visibility')}
+                    accessibilityHint={getVisibilityLabel()}
                   >
-                    {getVisibilityLabel()}
-                  </Text>
-                </TouchableOpacity>
+                    <Ionicons name="eye-outline" size={14} color={theme.primary} />
+                    <Text
+                      style={[styles.compactToggleText, isRTL && styles.directionalText, { color: theme.text }]}
+                      numberOfLines={1}
+                    >
+                      {getVisibilityLabel()}
+                    </Text>
+                  </TouchableOpacity>
+                </Animated.View>
               </View>
             </View>
             <Text style={[styles.helperText, styles.compactHelper, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
@@ -562,7 +731,7 @@ const Post = () => {
                 multiline
                 numberOfLines={1}
                 textAlignVertical="top"
-                editable={!loading}
+                editable={!isBusy}
                 onContentSizeChange={(event) => {
                   const nextHeight = Math.max(44, Math.min(96, event.nativeEvent.contentSize.height + 14));
                   setTopicInputHeight(nextHeight);
@@ -600,7 +769,7 @@ const Post = () => {
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
-                editable={!loading}
+                editable={!isBusy}
                 onContentSizeChange={(event) => {
                   const nextHeight = Math.max(128, Math.min(260, event.nativeEvent.contentSize.height + 14));
                   setTextInputHeight(nextHeight);
@@ -625,7 +794,9 @@ const Post = () => {
                       isRTL && styles.directionalInput,
                       {
                         backgroundColor: theme.input.background,
-                        borderColor: theme.input.border,
+                        borderColor: validationState.pollChoices && !choice.trim()
+                          ? (theme.error || theme.danger)
+                          : theme.input.border,
                         color: theme.text,
                       },
                     ]}
@@ -633,15 +804,27 @@ const Post = () => {
                     onChangeText={(value) => handlePollChoiceChange(index, value)}
                     placeholder={t('post.poll.choicePlaceholder').replace('{number}', String(index + 1))}
                     placeholderTextColor={theme.input.placeholder}
-                    editable={!loading}
+                    editable={!isBusy}
                     maxLength={120}
                   />
                   <TouchableOpacity
-                    style={[styles.pollChoiceRemoveButton, { borderColor: theme.input.border }]}
+                    style={[
+                      styles.pollChoiceRemoveButton,
+                      {
+                        borderColor: isBusy || pollChoices.length <= 2
+                          ? `${theme.input.border}AA`
+                          : `${theme.input.border}`,
+                      },
+                    ]}
                     onPress={() => handleRemovePollChoice(index)}
-                    disabled={loading || pollChoices.length <= 2}
+                    disabled={isBusy || pollChoices.length <= 2}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Ionicons name="trash-outline" size={18} color={theme.textSecondary} />
+                    <Ionicons
+                      name="trash-outline"
+                      size={18}
+                      color={isBusy || pollChoices.length <= 2 ? `${theme.textSecondary}AA` : theme.textSecondary}
+                    />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -649,7 +832,9 @@ const Post = () => {
               <TouchableOpacity
                 style={[styles.pollAddChoiceButton, { borderColor: theme.input.border, backgroundColor: theme.input.background }]}
                 onPress={handleAddPollChoice}
-                disabled={loading}
+                disabled={isBusy}
+                accessibilityRole="button"
+                accessibilityLabel={t('post.poll.addChoice')}
               >
                 <Ionicons name="add-circle-outline" size={18} color={theme.primary} />
                 <Text style={[styles.pollAddChoiceText, { color: theme.primary }]}>{t('post.poll.addChoice')}</Text>
@@ -662,6 +847,9 @@ const Post = () => {
                     setIsQuizPoll(false);
                     setCorrectPollOptionId('');
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('post.poll.modePoll')}
+                  accessibilityState={{ selected: !isQuizPoll }}
                 >
                   <Ionicons
                     name={!isQuizPoll ? 'checkbox' : 'square-outline'}
@@ -677,6 +865,9 @@ const Post = () => {
                     setIsQuizPoll(true);
                     setPollAllowMultiple(false);
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('post.poll.modeQuestion')}
+                  accessibilityState={{ selected: isQuizPoll }}
                 >
                   <Ionicons
                     name={isQuizPoll ? 'checkbox' : 'square-outline'}
@@ -696,9 +887,10 @@ const Post = () => {
                   <Switch
                     value={pollAllowMultiple && !isQuizPoll}
                     onValueChange={setPollAllowMultiple}
-                    disabled={loading || isQuizPoll}
+                    disabled={isBusy || isQuizPoll}
                     trackColor={{ false: theme.border, true: `${theme.primary}88` }}
                     thumbColor={pollAllowMultiple && !isQuizPoll ? theme.primary : '#f4f3f4'}
+                    accessibilityLabel={t('post.poll.multiAnswer')}
                   />
                 </View>
 
@@ -710,9 +902,10 @@ const Post = () => {
                   <Switch
                     value={pollShowVoters}
                     onValueChange={setPollShowVoters}
-                    disabled={loading}
+                    disabled={isBusy}
                     trackColor={{ false: theme.border, true: `${theme.primary}88` }}
                     thumbColor={pollShowVoters ? theme.primary : '#f4f3f4'}
+                    accessibilityLabel={t('post.poll.showVoters')}
                   />
                 </View>
               </View>
@@ -720,6 +913,11 @@ const Post = () => {
               {isQuizPoll && (
                 <View style={styles.pollCorrectAnswerWrap}>
                   <Text style={[styles.optionLabel, isRTL && styles.directionalText, { color: theme.textSecondary }]}>{t('post.poll.correctAnswerLabel')}</Text>
+                  {pollChoices.some((choice) => !choice.trim()) && (
+                    <Text style={[styles.helperText, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
+                      {t('post.poll.fillChoicesFirst')}
+                    </Text>
+                  )}
                   {pollChoices.map((choice, index) => {
                     const optionId = `opt_${index + 1}`;
                     const choiceLabel = choice.trim();
@@ -764,7 +962,7 @@ const Post = () => {
                     numberOfLines={3}
                     textAlignVertical="top"
                     maxLength={300}
-                    editable={!loading}
+                    editable={!isBusy}
                   />
                 </View>
               )}
@@ -774,9 +972,12 @@ const Post = () => {
           <View style={styles.section}>
             <View style={[styles.actionButtonsRow, isRTL && styles.rowReverse]}>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}
+                style={[styles.actionButton, isRTL && styles.rowReverse, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}
                 onPress={() => setShowTags(!showTags)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={t('post.tags')}
+                accessibilityState={{ expanded: showTags }}
               >
                 <Ionicons name="pricetag-outline" size={18} color={showTags ? theme.primary : theme.textSecondary} />
                 <Text style={[styles.actionButtonText, isRTL && styles.directionalText, { color: showTags ? theme.primary : theme.textSecondary }]}>
@@ -785,21 +986,26 @@ const Post = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}
+                style={[styles.actionButton, isRTL && styles.rowReverse, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}
                 onPress={() => setShowLinks(!showLinks)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={t('post.links')}
+                accessibilityState={{ expanded: showLinks }}
               >
                 <Ionicons name="link-outline" size={18} color={showLinks ? theme.primary : theme.textSecondary} />
                 <Text style={[styles.actionButtonText, isRTL && styles.directionalText, { color: showLinks ? theme.primary : theme.textSecondary }]}>
-                  {t('post.links')}
+                  {t('post.links')} {links.length > 0 && `(${links.length}/${MAX_LINKS_PER_POST})`}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}
+                style={[styles.actionButton, isRTL && styles.rowReverse, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}
                 onPress={handlePickImages}
-                disabled={loading || images.length >= MAX_IMAGES_PER_POST}
+                disabled={isBusy || images.length >= MAX_IMAGES_PER_POST}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={t('post.images')}
               >
                 <Ionicons name="images-outline" size={18} color={theme.textSecondary} />
                 <Text style={[styles.actionButtonText, isRTL && styles.directionalText, { color: theme.textSecondary }]}>
@@ -827,21 +1033,23 @@ const Post = () => {
 
           {showTags && (
             <View style={styles.section}>
-              <View style={styles.chipsContainer}>
-                {tags.map((tag, index) => (
-                  <View key={index} style={[styles.tagChip, { backgroundColor: isDarkMode ? 'rgba(139,92,246,0.2)' : 'rgba(139,92,246,0.1)' }]}>
-                    <Ionicons name="pricetag-outline" size={12} color="#8B5CF6" />
-                    <Text style={styles.tagChipText}>{tag}</Text>
-                    <TouchableOpacity
-                      onPress={() => setTags(tags.filter((_, i) => i !== index))}
-                      disabled={loading}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                      <Ionicons name="close" size={14} color="#6B7280" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
+              {tags.length > 0 && (
+                <View style={styles.chipsContainer}>
+                  {tags.map((tag, index) => (
+                    <View key={index} style={[styles.tagChip, { backgroundColor: isDarkMode ? `${theme.tag || '#8B5CF6'}33` : `${theme.tag || '#8B5CF6'}1A` }]}>
+                      <Ionicons name="pricetag-outline" size={12} color={theme.tag || '#8B5CF6'} />
+                      <Text style={[styles.tagChipText, { color: theme.tag || '#8B5CF6' }]}>{tag}</Text>
+                      <TouchableOpacity
+                        onPress={() => setTags(tags.filter((_, i) => i !== index))}
+                        disabled={isBusy}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Ionicons name="close" size={14} color="#6B7280" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
               <View style={styles.chipInputRow}>
                 <TextInput
                   style={[styles.chipInput, {
@@ -864,6 +1072,7 @@ const Post = () => {
                   placeholder={t('post.tagsPlaceholder')}
                   placeholderTextColor={theme.input.placeholder}
                   editable={!loading && tags.length < 10}
+                  editable={!isBusy && tags.length < 10}
                   blurOnSubmit={false}
                   autoCapitalize="none"
                   returnKeyType="done"
@@ -884,9 +1093,9 @@ const Post = () => {
                     }
                     setTagInput('');
                   }}
-                  disabled={loading || !tagInput.trim() || tags.length >= 10}
+                  disabled={isBusy || !tagInput.trim() || tags.length >= 10}
                 >
-                  <Ionicons name="add-circle" size={28} color="#8B5CF6" />
+                  <Ionicons name="add-circle" size={28} color={theme.tag || '#8B5CF6'} />
                 </TouchableOpacity>
               </View>
               <Text style={[styles.helperText, { color: theme.textSecondary }]}>
@@ -899,12 +1108,12 @@ const Post = () => {
             <View style={styles.section}>
               <View style={styles.linksChipsContainer}>
                 {links.map((link, index) => (
-                  <View key={index} style={[styles.linkChip, { backgroundColor: isDarkMode ? 'rgba(59,130,246,0.2)' : 'rgba(59,130,246,0.1)' }]}>
-                    <Ionicons name="link-outline" size={14} color="#3B82F6" />
-                    <Text style={styles.linkChipText} numberOfLines={1}>{link}</Text>
+                  <View key={index} style={[styles.linkChip, { backgroundColor: isDarkMode ? `${theme.link || '#3B82F6'}33` : `${theme.link || '#3B82F6'}1A` }]}>
+                    <Ionicons name="link-outline" size={14} color={theme.link || '#3B82F6'} />
+                    <Text style={[styles.linkChipText, { color: theme.link || '#3B82F6' }]} numberOfLines={1}>{link}</Text>
                     <TouchableOpacity
                       onPress={() => setLinks(links.filter((_, i) => i !== index))}
-                      disabled={loading}
+                      disabled={isBusy}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
                       <Ionicons name="close" size={16} color="#6B7280" />
@@ -923,7 +1132,7 @@ const Post = () => {
                   onChangeText={(text) => {
                     if (text.endsWith(' ')) {
                       const newLink = text.trim();
-                      if (newLink && !links.includes(newLink)) {
+                      if (newLink && !links.includes(newLink) && links.length < MAX_LINKS_PER_POST) {
                         setLinks([...links, newLink]);
                       }
                       setLinkInput('');
@@ -933,13 +1142,14 @@ const Post = () => {
                   }}
                   placeholder={t('post.linksPlaceholder')}
                   placeholderTextColor={theme.input.placeholder}
-                  editable={!loading}
+                  editable={!loading && links.length < MAX_LINKS_PER_POST}
+                  editable={!isBusy && links.length < MAX_LINKS_PER_POST}
                   autoCapitalize="none"
                   keyboardType="url"
                   blurOnSubmit={false}
                   onSubmitEditing={() => {
                     const newLink = linkInput.trim();
-                    if (newLink && !links.includes(newLink)) {
+                    if (newLink && !links.includes(newLink) && links.length < MAX_LINKS_PER_POST) {
                       setLinks([...links, newLink]);
                     }
                     setLinkInput('');
@@ -949,42 +1159,58 @@ const Post = () => {
                   style={[styles.addChipButton, { opacity: linkInput.trim() ? 1 : 0.5 }]}
                   onPress={() => {
                     const newLink = linkInput.trim();
-                    if (newLink && !links.includes(newLink)) {
+                    if (newLink && !links.includes(newLink) && links.length < MAX_LINKS_PER_POST) {
                       setLinks([...links, newLink]);
                     }
                     setLinkInput('');
                   }}
-                  disabled={loading || !linkInput.trim()}
+                  disabled={isBusy || !linkInput.trim() || links.length >= MAX_LINKS_PER_POST}
                 >
-                  <Ionicons name="add-circle" size={28} color="#3B82F6" />
+                  <Ionicons name="add-circle" size={28} color={theme.link || '#3B82F6'} />
                 </TouchableOpacity>
               </View>
               <Text style={[styles.helperText, { color: theme.textSecondary }]}>
-                {t('post.linksHelper')}
+                {`${t('post.linksHelper')} (${links.length}/${MAX_LINKS_PER_POST})`}
               </Text>
             </View>
           )}
 
           {images.length > 0 && (
             <View style={styles.section}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesContainer}>
-                {images.map((uri, index) => (
+              <FlashList
+                horizontal
+                estimatedItemSize={152}
+                showsHorizontalScrollIndicator={false}
+                style={styles.imagesContainer}
+                data={images}
+                keyExtractor={(_, index) => `post-image-${index}`}
+                renderItem={({ item: uri, index }) => (
                   <TouchableOpacity 
-                    key={index} 
                     style={styles.imageWrapper}
                     onPress={() => setSelectedImageIndex(index)}
                     activeOpacity={0.8}
                   >
-                    <Image source={{ uri }} style={styles.imagePreview} />
+                    <Image
+                      source={{ uri }}
+                      style={styles.imagePreview}
+                      accessible
+                      accessibilityLabel={t('post.imageAlt', { index: index + 1 })}
+                    />
                     <TouchableOpacity
-                      style={[styles.removeImageButton, { backgroundColor: theme.danger }]}
+                      style={[
+                        styles.removeImageButton,
+                        isRTL ? styles.removeImageButtonRtl : styles.removeImageButtonLtr,
+                        { backgroundColor: theme.danger },
+                      ]}
                       onPress={() => handleRemoveImage(index)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('common.remove')}
                     >
-                      <Ionicons name="close" size={18} color="#fff" />
+                      <Ionicons name="close" size={18} color={theme.buttonText || '#fff'} />
                     </TouchableOpacity>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
+                )}
+              />
             </View>
           )}
 
@@ -1001,9 +1227,10 @@ const Post = () => {
               <Switch
                 value={canOthersRepost}
                 onValueChange={setCanOthersRepost}
-                disabled={loading}
+                disabled={isBusy}
                 trackColor={{ false: theme.border, true: `${theme.primary}88` }}
                 thumbColor={canOthersRepost ? theme.primary : '#f4f3f4'}
+                accessibilityLabel={t('post.allowReposts')}
               />
             </View>
           </View>
@@ -1015,6 +1242,24 @@ const Post = () => {
         </KeyboardAvoidingView>
       </LinearGradient>
 
+      {verificationState.active && (
+        <View style={styles.verificationOverlay} pointerEvents="none">
+          <GlassContainer style={styles.verificationCard} borderRadius={borderRadius.lg}>
+            <View style={styles.verificationHeaderRow}>
+              <ActivityIndicator size="small" color={theme.primary} />
+              <Text style={[styles.verificationTitle, isRTL && styles.directionalText, { color: theme.text }]}> 
+                {t('moderation.nsfwVerifyingTitle')}
+              </Text>
+            </View>
+            <Text style={[styles.verificationMessage, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
+              {t('moderation.nsfwVerifyingMessage')
+                .replace('{current}', String(verificationState.current || 0))
+                .replace('{total}', String(verificationState.total || 0))}
+            </Text>
+          </GlassContainer>
+        </View>
+      )}
+
       <Modal
         visible={selectedImageIndex !== null}
         transparent={true}
@@ -1022,17 +1267,22 @@ const Post = () => {
         onRequestClose={() => setSelectedImageIndex(null)}
       >
         <View style={styles.modalContainer}>
-          <TouchableOpacity 
+          <ModalBackdrop
             style={styles.modalBackground}
-            activeOpacity={1}
+            overlayColor="transparent"
+            scrimColor={theme.scrim || theme.overlay}
             onPress={() => setSelectedImageIndex(null)}
           >
             <View style={styles.modalContent}>
               <TouchableOpacity
-                style={[styles.closeModalButton, { backgroundColor: theme.danger }]}
+                style={[
+                  styles.closeModalButton,
+                  isRTL ? styles.closeModalButtonRtl : styles.closeModalButtonLtr,
+                  { backgroundColor: theme.danger, top: insets.top + spacing.md },
+                ]}
                 onPress={() => setSelectedImageIndex(null)}
               >
-                <Ionicons name="close" size={24} color="#fff" />
+                <Ionicons name="close" size={24} color={theme.buttonText || '#fff'} />
               </TouchableOpacity>
               {selectedImageIndex !== null && (
                 <Image 
@@ -1042,7 +1292,7 @@ const Post = () => {
                 />
               )}
             </View>
-          </TouchableOpacity>
+          </ModalBackdrop>
         </View>
       </Modal>
       <CustomAlert
@@ -1071,37 +1321,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
   },
   headerGlass: {
-    marginHorizontal: 10,
-    marginTop: 8,
+    marginHorizontal: spacing.sm,
+    marginTop: spacing.sm,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: fontSizeUtil(22),
     fontWeight: '700',
   },
   rowReverse: {
     flexDirection: 'row-reverse',
   },
   postButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
-    minWidth: 70,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    minWidth: moderateScale(70),
     alignItems: 'center',
   },
   postButtonLtr: {
-    marginLeft: 12,
+    marginLeft: spacing.sm,
   },
   postButtonRtl: {
-    marginRight: 12,
+    marginRight: spacing.sm,
   },
   postButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    fontSize: fontSizeUtil(16),
     fontWeight: '600',
   },
   scrollView: {
@@ -1109,8 +1358,8 @@ const styles = StyleSheet.create({
   },
   formShell: {
     flex: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
   },
   formGlass: {
     flex: 1,
@@ -1160,12 +1409,12 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   compactHelper: {
-    marginTop: 6,
+    marginTop: spacing.sm,
   },
   sectionLabel: {
     fontSize: fontSizeUtil(13),
     fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: spacing.sm,
   },
   optional: {
     fontSize: fontSizeUtil(14),
@@ -1173,7 +1422,7 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: borderRadius.md,
     paddingHorizontal: 14,
     paddingVertical: 10,
     paddingBottom: 26,
@@ -1202,7 +1451,7 @@ const styles = StyleSheet.create({
   },
   textArea: {
     minHeight: 128,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     paddingBottom: 28,
     textAlignVertical: 'top',
   },
@@ -1218,32 +1467,32 @@ const styles = StyleSheet.create({
   chipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 8,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   tagChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+    gap: spacing.xs,
   },
   tagChipText: {
     fontSize: 13,
     color: '#8B5CF6',
   },
   linksChipsContainer: {
-    gap: 8,
-    marginBottom: 8,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   linkChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 8,
-    borderRadius: 8,
-    gap: 6,
+    borderRadius: borderRadius.sm,
+    gap: spacing.sm,
   },
   linkChipText: {
     flex: 1,
@@ -1253,7 +1502,7 @@ const styles = StyleSheet.create({
   chipInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   chipInput: {
     flex: 1,
@@ -1264,28 +1513,27 @@ const styles = StyleSheet.create({
     fontSize: fontSizeUtil(14),
   },
   addChipButton: {
-    padding: 4,
+    padding: spacing.xs,
   },
   imagesContainer: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   imageWrapper: {
     position: 'relative',
-    marginRight: 12,
+    marginEnd: spacing.md,
   },
   imagePreview: {
     width: 140,
     height: 140,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
   },
   removeImageButton: {
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: spacing.xs,
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: borderRadius.round,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -1294,14 +1542,20 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 5,
   },
+  removeImageButtonLtr: {
+    right: spacing.xs,
+  },
+  removeImageButtonRtl: {
+    left: spacing.xs,
+  },
   optionLabel: {
     fontSize: 12,
     fontWeight: '500',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   actionButtonsRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: spacing.sm,
   },
   inlineWarningBanner: {
     marginTop: spacing.sm,
@@ -1320,7 +1574,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   repostPermissionRow: {
-    marginBottom: 16,
+    marginBottom: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1385,14 +1639,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   pollModeRow: {
-    marginTop: 14,
+    marginTop: spacing.md,
     flexDirection: 'row',
-    gap: 18,
+    gap: spacing.lg,
   },
   pollModeItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   pollModeText: {
     fontSize: 14,
@@ -1400,13 +1654,13 @@ const styles = StyleSheet.create({
   },
   pollToggleRow: {
     marginTop: 12,
-    gap: 8,
+    gap: spacing.sm,
   },
   pollToggleItem: {
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1414,20 +1668,20 @@ const styles = StyleSheet.create({
   pollToggleLabelWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
   },
   pollToggleLabel: {
     fontSize: 13,
     fontWeight: '500',
   },
   pollCorrectAnswerWrap: {
-    marginTop: 12,
+    marginTop: spacing.md,
   },
   pollCorrectAnswerItem: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   pollCorrectAnswerText: {
     flex: 1,
@@ -1444,7 +1698,32 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+  },
+  verificationOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xl,
+  },
+  verificationCard: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  verificationHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  verificationTitle: {
+    fontSize: fontSizeUtil(14),
+    fontWeight: '700',
+  },
+  verificationMessage: {
+    marginTop: spacing.xs,
+    fontSize: fontSizeUtil(12),
+    fontWeight: '500',
   },
   modalBackground: {
     flex: 1,
@@ -1463,8 +1742,6 @@ const styles = StyleSheet.create({
   },
   closeModalButton: {
     position: 'absolute',
-    top: 50,
-    right: 20,
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -1476,6 +1753,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 4,
     elevation: 5,
+  },
+  closeModalButtonLtr: {
+    right: 20,
+  },
+  closeModalButtonRtl: {
+    left: 20,
   },
   bottomSpace: {
     height: 40,

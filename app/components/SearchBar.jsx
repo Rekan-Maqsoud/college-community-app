@@ -373,8 +373,8 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
       >
         <LinearGradient
           colors={isDarkMode
-            ? ['#1a1a2e', '#16213e', '#0f3460']
-            : ['#FFFEF7', '#FFF9E6', '#FFF4D6']
+            ? (theme.gradientBackground || ['#1a1a2e', '#16213e', '#0f3460'])
+            : (theme.gradientBackground || ['#e3f2fd', '#bbdefb', '#90caf9'])
           }
           style={styles.modalContainer}
           start={{ x: 0, y: 0 }}
@@ -386,7 +386,12 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
             translucent
           />
           <View style={[styles.searchHeader, isRTL && styles.searchHeaderRtl, { borderBottomColor: theme.border, paddingTop: insets.top + 10 }]}>
-            <TouchableOpacity onPress={handleCloseModal} style={[styles.backButton, isRTL && styles.backButtonRtl]}>
+            <TouchableOpacity
+              onPress={handleCloseModal}
+              style={[styles.backButton, isRTL ? styles.backButtonRtl : styles.backButtonLtr]}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back')}
+            >
               <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={moderateScale(24)} color={theme.text} />
             </TouchableOpacity>
             
@@ -423,7 +428,7 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
                 autoFocus
               />
               {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={handleClear} style={styles.clearButton}>
+                <TouchableOpacity onPress={handleClear} style={styles.clearButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
                   <Ionicons
                     name="close-circle"
                     size={moderateScale(20)}
@@ -543,6 +548,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: spacing.xs,
+  },
+  backButtonLtr: {
     marginRight: spacing.sm,
   },
   backButtonRtl: {

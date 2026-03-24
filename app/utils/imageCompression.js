@@ -1,5 +1,6 @@
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
+import { enforceNsfwImagePolicy } from './nsfwImageFilter';
 
 const COMPRESSION_QUALITY = {
   HIGH: 0.9,
@@ -133,6 +134,7 @@ export const pickAndCompressImages = async (options = {}) => {
       allowsMultipleSelection = true,
       maxImages = 10,
       quality = 'medium',
+      t,
     } = options;
 
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -161,6 +163,13 @@ export const pickAndCompressImages = async (options = {}) => {
       error.translationKey = 'errors.maxImagesExceeded';
       error.translationParams = { max: maxImages };
       throw error;
+    }
+
+    for (const selectedImage of selectedImages) {
+      await enforceNsfwImagePolicy({
+        imageUri: selectedImage.uri,
+        t,
+      });
     }
 
     // Compress images and get base64 for upload
@@ -193,7 +202,7 @@ export const pickAndCompressImages = async (options = {}) => {
 
 export const takePictureAndCompress = async (options = {}) => {
   try {
-    const { quality = 'medium' } = options;
+    const { quality = 'medium', t } = options;
 
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     
@@ -212,6 +221,11 @@ export const takePictureAndCompress = async (options = {}) => {
     if (result.canceled) {
       return null;
     }
+
+    await enforceNsfwImagePolicy({
+      imageUri: result.assets[0].uri,
+      t,
+    });
 
     // Compress and get base64 for upload
     const compressed = await manipulateAsync(

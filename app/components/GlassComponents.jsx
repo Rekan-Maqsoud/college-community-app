@@ -110,11 +110,11 @@ export const GlassCard = ({
   children,
   style,
   padding = 16,
+  borderRadius = 16,
   disableBackgroundOverlay = false,
 }) => {
   const context = useAppSettingsSafe();
   const isDarkMode = context?.isDarkMode || false;
-  const borderRadius = 16;
 
   if (!isLiquidGlassSupported) {
     return (

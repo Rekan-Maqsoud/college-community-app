@@ -437,7 +437,7 @@ const ProfileSettings = ({ navigation }) => {
   const handleUploadProfilePicture = async () => {
     try {
       setIsUploadingImage(true);
-      const result = await uploadProfilePicture();
+      const result = await uploadProfilePicture({ t });
       
       if (result) {
         const success = await updateProfilePicture(result.displayUrl, result.deleteUrl);
@@ -455,6 +455,10 @@ const ProfileSettings = ({ navigation }) => {
         }
       }
     } catch (error) {
+      if (error?.code === 'NSFW_IMAGE_BLOCKED' || error?.code === 'NSFW_SCAN_FAILED') {
+        return;
+      }
+
       showAlert({
         type: 'error',
         title: t('common.error'),

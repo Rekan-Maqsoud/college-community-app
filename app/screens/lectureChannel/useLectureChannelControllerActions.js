@@ -18,6 +18,7 @@ import {
 } from '../../../database/lectures';
 import { getUserById, searchUsers } from '../../../database/users';
 import { validateFileUploadSize } from '../../utils/fileUploadUtils';
+import { enforceNsfwImagePolicy, isLikelyImageFile } from '../../utils/nsfwImageFilter';
 import { deleteLectureChannelWithCleanup } from '../../../database/lectureCleanup';
 
 export const useLectureChannelControllerActions = ({
@@ -407,6 +408,13 @@ export const useLectureChannelControllerActions = ({
       const file = result.assets[0];
       validateFileUploadSize(file.size, 25 * 1024 * 1024);
 
+      if (isLikelyImageFile({ mimeType: file.mimeType, fileName: file.name })) {
+        await enforceNsfwImagePolicy({
+          imageUri: file.uri,
+          t,
+        });
+      }
+
       setSelectedFile({
         uri: file.uri,
         name: file.name,
@@ -422,6 +430,11 @@ export const useLectureChannelControllerActions = ({
         fileType: file.mimeType || 'application/octet-stream',
       });
     } catch (error) {
+      if (error?.code === 'NSFW_IMAGE_BLOCKED' || error?.code === 'NSFW_SCAN_FAILED') {
+        setUploadError('');
+        return;
+      }
+
       logLectureChannelError('pickFile:error', error, { channelId });
       setSelectedFile(null);
       setUploadError(error?.message || t('common.error'));

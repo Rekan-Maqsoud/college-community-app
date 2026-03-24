@@ -14,6 +14,7 @@ import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
 import RepBadge from '../components/RepBadge';
 import UnifiedEmptyState from '../components/UnifiedEmptyState';
+import ModalBackdrop from '../components/ModalBackdrop';
 import useRepDetection from '../hooks/useRepDetection';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { getPostsByUser, togglePostLike, setQuestionResolvedStatus, deletePost } from '../../database/posts';
@@ -229,12 +230,7 @@ const Profile = ({ navigation, route }) => {
     return unsubscribe;
   }, [navigation, route?.params?.updatedPost, route?.params?.updatedPostId, route?.params?.updatedReplyCount]);
 
-  // Posts are always visible, so load them when user is available
-  useEffect(() => {
-    if (!postsLoaded && user?.$id) {
-      loadUserPosts();
-    }
-  }, [postsLoaded, user?.$id, loadUserPosts]);
+  // Removed: duplicate useEffect for postsLoaded was consolidated above
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -249,6 +245,8 @@ const Profile = ({ navigation, route }) => {
 
   const handleLike = async (postId) => {
     if (!user?.$id) return;
+    
+    const previousPosts = [...userPosts];
     
     try {
       const result = await togglePostLike(postId, user.$id);
@@ -267,7 +265,8 @@ const Profile = ({ navigation, route }) => {
         )
       );
     } catch (error) {
-      // Failed to toggle like
+      setUserPosts(previousPosts);
+      showAlert({ type: 'error', title: t('common.error'), message: t('post.likeError') || error?.message });
     }
   };
 
@@ -283,7 +282,7 @@ const Profile = ({ navigation, route }) => {
         )
       );
     } catch (error) {
-      // Failed to mark as resolved
+      showAlert({ type: 'error', title: t('common.error'), message: t('post.resolveError') || error?.message });
     }
   };
 
@@ -337,7 +336,7 @@ const Profile = ({ navigation, route }) => {
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
         <LinearGradient 
-          colors={isDarkMode ? ['#1a1a2e', '#16213e', '#0f3460'] : ['#e3f2fd', '#bbdefb', '#90caf9']} 
+          colors={theme.gradientBackground || (isDarkMode ? ['#1a1a2e', '#16213e', '#0f3460'] : ['#e3f2fd', '#bbdefb', '#90caf9'])} 
           style={styles.gradient}
         >
           <View style={styles.loadingContainer}>
@@ -693,7 +692,7 @@ const Profile = ({ navigation, route }) => {
           <UnifiedEmptyState
             iconName="alert-circle-outline"
             title={t('error.title')}
-            description={postsError || t('errors.genericError')}
+            description={t('errors.postsLoadFailed') || postsError || t('errors.genericError')}
             actionLabel={t('common.retry')}
             actionIconName="refresh-outline"
             onAction={() => loadUserPosts(false)}
@@ -719,7 +718,7 @@ const Profile = ({ navigation, route }) => {
     <View style={styles.container}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       <AnimatedBackground particleCount={35} />
-      <LinearGradient colors={isDarkMode ? ['#1a1a2e', '#16213e', '#0f3460'] : ['#e3f2fd', '#bbdefb', '#90caf9']} style={styles.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+      <LinearGradient colors={theme.gradientBackground || (isDarkMode ? ['#1a1a2e', '#16213e', '#0f3460'] : ['#e3f2fd', '#bbdefb', '#90caf9'])} style={styles.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
         <FlashList
           data={userPosts || []}
           ListHeaderComponent={renderListHeader}
@@ -769,14 +768,20 @@ const Profile = ({ navigation, route }) => {
         transparent
         animationType="fade"
         onRequestClose={() => setShowQRModal(false)}>
-        <TouchableOpacity
+        <ModalBackdrop
           style={styles.qrModalOverlay}
-          activeOpacity={1}
+          overlayColor="transparent"
+          scrimColor={theme.scrim || 'rgba(0,0,0,0.45)'}
           onPress={() => setShowQRModal(false)}>
           <View style={[styles.qrModalContent, { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' }]}>
             <View style={[styles.qrModalHeader, isRTL && styles.qrModalHeaderRtl]}>
               <View style={styles.qrModalHeaderSpacer} />
-              <TouchableOpacity onPress={() => setShowQRModal(false)}>
+              <TouchableOpacity
+                onPress={() => setShowQRModal(false)}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.close')}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
                 <Ionicons name="close" size={moderateScale(24)} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -785,12 +790,14 @@ const Profile = ({ navigation, route }) => {
             </View>
             <TouchableOpacity
               style={[styles.shareButton, { backgroundColor: theme.primary }]}
-              onPress={handleShareQr}>
+              onPress={handleShareQr}
+              accessibilityRole="button"
+              accessibilityLabel={t('profile.shareProfile')}>
               <Ionicons name="share-outline" size={moderateScale(18)} color="#FFFFFF" />
               <Text style={styles.shareButtonText}>{t('profile.shareProfile')}</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </ModalBackdrop>
       </Modal>
       <CustomAlert
         visible={alertConfig.visible}
