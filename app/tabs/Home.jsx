@@ -65,6 +65,7 @@ const Home = ({ navigation, route }) => {
     t,
     theme,
     isDarkMode,
+    isRTL,
     compactMode,
     reduceMotion,
     motionProfile,
@@ -1083,6 +1084,7 @@ const Home = ({ navigation, route }) => {
           <Animated.View
             style={[
               styles.headerRow,
+              isRTL && styles.headerRowRtl,
               {
                 top: headerTop,
                 height: headerHeight,
@@ -1317,6 +1319,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
+  },
+  headerRowRtl: {
+    flexDirection: 'row-reverse',
   },
   searchIconButton: {
     justifyContent: 'center',

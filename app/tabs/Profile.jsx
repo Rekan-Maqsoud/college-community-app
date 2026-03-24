@@ -536,16 +536,25 @@ const Profile = ({ navigation, route }) => {
             {[
               { key: 'instagram', icon: 'logo-instagram', color: '#E4405F', prefix: 'https://instagram.com/' },
               { key: 'twitter', icon: 'logo-twitter', color: '#1DA1F2', prefix: 'https://twitter.com/' },
+              { key: 'facebook', icon: 'logo-facebook', color: '#1877F2', prefix: 'https://facebook.com/' },
               { key: 'linkedin', icon: 'logo-linkedin', color: '#0A66C2', prefix: '' },
               { key: 'github', icon: 'logo-github', color: isDarkMode ? '#FFFFFF' : '#333333', prefix: '' },
               { key: 'website', icon: 'globe-outline', color: theme.primary, prefix: '' },
             ].map(({ key, icon, color, prefix }) => {
               const value = user.socialLinks?.[key];
               if (!value) return null;
+              const displayValue = String(value)
+                .replace(/^https?:\/\//, '')
+                .replace(/^www\./, '')
+                .replace(/^@/, '');
               return (
                 <TouchableOpacity
                   key={key}
-                  style={[styles.socialLinkButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }]}
+                  style={[
+                    styles.socialLinkButton,
+                    isRTL && styles.socialLinkButtonRtl,
+                    { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' },
+                  ]}
                   onPress={() => {
                     let url = value;
                     if (!url.startsWith('http') && prefix) {
@@ -562,6 +571,12 @@ const Profile = ({ navigation, route }) => {
                     });
                   }}>
                   <Ionicons name={icon} size={moderateScale(22)} color={color} />
+                  <Text
+                    style={[styles.socialLinkText, isRTL && styles.socialLinkTextRtl, { color: theme.text }]}
+                    numberOfLines={1}
+                  >
+                    {displayValue}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -946,16 +961,29 @@ const styles = StyleSheet.create({
   }, 
   emptyText: { fontWeight: '500', textAlign: 'center' },
   socialLinksContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     gap: spacing.sm,
   },
   socialLinkButton: {
-    width: moderateScale(44),
-    height: moderateScale(44),
+    minHeight: moderateScale(44),
     borderRadius: borderRadius.md,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  socialLinkButtonRtl: {
+    flexDirection: 'row-reverse',
+  },
+  socialLinkText: {
+    flex: 1,
+    fontSize: fontSize(13),
+    fontWeight: '500',
+  },
+  socialLinkTextRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   qrModalOverlay: {
     flex: 1,

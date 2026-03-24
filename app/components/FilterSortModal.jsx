@@ -47,7 +47,7 @@ const FilterSortModal = ({
   selectedStage,
   onStageChange,
 }) => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL } = useAppSettings();
 
   const sortOptions = [
     { key: SORT_OPTIONS.NEWEST, label: t('sort.newest'), icon: 'time-outline' },
@@ -102,6 +102,7 @@ const FilterSortModal = ({
       key={option.key}
       style={[
         styles.optionItem,
+        isRTL && styles.optionItemRtl,
         isSelected && {
           backgroundColor: isDarkMode
             ? 'rgba(255, 255, 255, 0.12)'
@@ -111,16 +112,17 @@ const FilterSortModal = ({
       onPress={() => onSelect(option.key)}
       activeOpacity={0.7}
     >
-      <View style={styles.optionLeft}>
+      <View style={[styles.optionLeft, isRTL && styles.optionLeftRtl]}>
         <Ionicons
           name={option.icon}
           size={moderateScale(20)}
           color={isSelected ? theme.primary : theme.text}
-          style={styles.optionIcon}
+          style={[styles.optionIcon, isRTL && styles.optionIconRtl]}
         />
         <Text
           style={[
             styles.optionLabel,
+            isRTL && styles.optionLabelRtl,
             {
               color: isSelected ? theme.primary : theme.text,
               fontSize: fontSize(15),
@@ -161,10 +163,11 @@ const FilterSortModal = ({
             borderRadiusValue={borderRadius.lg}
             style={styles.modalCard}
           >
-            <View style={styles.modalHeader}>
+            <View style={[styles.modalHeader, isRTL && styles.modalHeaderRtl]}>
               <Text
                 style={[
                   styles.modalTitle,
+                  isRTL && styles.modalTitleRtl,
                   {
                     color: theme.text,
                     fontSize: fontSize(18),
@@ -175,7 +178,7 @@ const FilterSortModal = ({
               </Text>
               <TouchableOpacity
                 onPress={onClose}
-                style={styles.closeButton}
+                style={[styles.closeButton, isRTL && styles.closeButtonRtl]}
                 accessibilityRole="button"
                 accessibilityLabel={t('common.close')}
               >
@@ -197,6 +200,7 @@ const FilterSortModal = ({
               <Text
                 style={[
                   styles.sectionTitle,
+                  isRTL && styles.sectionTitleRtl,
                   { color: theme.textSecondary, fontSize: fontSize(13) },
                 ]}
               >
@@ -210,6 +214,7 @@ const FilterSortModal = ({
               <Text
                 style={[
                   styles.sectionTitle,
+                  isRTL && styles.sectionTitleRtl,
                   { color: theme.textSecondary, fontSize: fontSize(13), marginTop: spacing.lg },
                 ]}
               >
@@ -223,6 +228,7 @@ const FilterSortModal = ({
               <Text
                 style={[
                   styles.sectionTitle,
+                  isRTL && styles.sectionTitleRtl,
                   { color: theme.textSecondary, fontSize: fontSize(13), marginTop: spacing.lg },
                 ]}
               >
@@ -236,6 +242,7 @@ const FilterSortModal = ({
               <Text
                 style={[
                   styles.sectionTitle,
+                  isRTL && styles.sectionTitleRtl,
                   { color: theme.textSecondary, fontSize: fontSize(13), marginTop: spacing.lg },
                 ]}
               >
@@ -291,11 +298,21 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
   },
+  modalHeaderRtl: {
+    flexDirection: 'row-reverse',
+  },
   modalTitle: {
     fontWeight: '700',
   },
+  modalTitleRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   closeButton: {
     padding: spacing.xs,
+  },
+  closeButtonRtl: {
+    marginRight: spacing.sm,
   },
   optionsList: {
     paddingHorizontal: spacing.lg,
@@ -310,6 +327,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  sectionTitleRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -321,15 +342,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
   },
+  optionItemRtl: {
+    flexDirection: 'row-reverse',
+  },
   optionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  optionLeftRtl: {
+    flexDirection: 'row-reverse',
+  },
   optionIcon: {
     marginRight: spacing.sm,
   },
+  optionIconRtl: {
+    marginRight: 0,
+    marginLeft: spacing.sm,
+  },
   optionLabel: {
     fontWeight: '400',
+  },
+  optionLabelRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   selectedIndicator: {
     width: moderateScale(22),

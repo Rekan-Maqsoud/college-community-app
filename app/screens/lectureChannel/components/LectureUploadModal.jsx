@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, Tou
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { GlassContainer, GlassIconButton } from '../../../components/GlassComponents';
+import { useAppSettings } from '../../../context/AppSettingsContext';
 import { LECTURE_UPLOAD_TYPES } from '../../../../database/lectures';
 import styles from '../LectureChannelStyles';
 
@@ -28,6 +29,8 @@ const LectureUploadModal = ({
   uploading,
   youtubeUrl,
 }) => {
+  const { isRTL } = useAppSettings();
+
   if (!canUpload) {
     return null;
   }
@@ -43,8 +46,8 @@ const LectureUploadModal = ({
           keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
           <GlassContainer borderRadius={24} style={styles.uploadComposerGlass} disableBackgroundOverlay>
           <View style={[styles.modalCard, styles.uploadComposerCard, { backgroundColor: 'transparent', borderColor: `${colors.primary}33` }]}> 
-            <View style={styles.modalHeaderRow}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>{t('lectures.addUpload')}</Text>
+            <View style={[styles.modalHeaderRow, isRTL && styles.rowReverse]}>
+              <Text style={[styles.modalTitle, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.addUpload')}</Text>
               <GlassIconButton
                 size={34}
                 borderRadiusValue={17}
@@ -64,7 +67,7 @@ const LectureUploadModal = ({
                 onChangeText={setNewUploadTitle}
                 placeholder={t('lectures.uploadTitlePlaceholder')}
                 placeholderTextColor={colors.textSecondary}
-                style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+                style={[styles.input, isRTL && styles.directionalInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
               />
 
               <TextInput
@@ -73,10 +76,10 @@ const LectureUploadModal = ({
                 placeholder={t('lectures.uploadDescriptionPlaceholder')}
                 placeholderTextColor={colors.textSecondary}
                 multiline
-                style={[styles.input, styles.multiline, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+                style={[styles.input, styles.multiline, isRTL && styles.directionalInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
               />
 
-              <View style={styles.typeRow}>
+              <View style={[styles.typeRow, isRTL && styles.rowReverse]}>
                 {[LECTURE_UPLOAD_TYPES.FILE, LECTURE_UPLOAD_TYPES.YOUTUBE, LECTURE_UPLOAD_TYPES.LINK].map(type => (
                   <TouchableOpacity
                     key={type}
@@ -88,7 +91,7 @@ const LectureUploadModal = ({
                       },
                     ]}
                     onPress={() => setNewUploadType(type)}>
-                    <Text style={[styles.typeChipText, { color: newUploadType === type ? '#FFFFFF' : colors.text }]}>
+                    <Text style={[styles.typeChipText, isRTL && styles.directionalText, { color: newUploadType === type ? '#FFFFFF' : colors.text }]}>
                       {type === LECTURE_UPLOAD_TYPES.FILE ? t('lectures.file') : type === LECTURE_UPLOAD_TYPES.YOUTUBE ? t('lectures.youtube') : t('lectures.link')}
                     </Text>
                   </TouchableOpacity>
@@ -96,11 +99,11 @@ const LectureUploadModal = ({
               </View>
 
               {newUploadType === LECTURE_UPLOAD_TYPES.FILE && (
-                <View style={styles.fileRow}>
+                <View style={[styles.fileRow, isRTL && styles.rowReverse]}>
                   <TouchableOpacity style={[styles.smallBtn, { borderColor: colors.border }]} onPress={pickFile}>
-                    <Text style={[styles.smallBtnText, { color: colors.text }]}>{t('lectures.pickFile')}</Text>
+                    <Text style={[styles.smallBtnText, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.pickFile')}</Text>
                   </TouchableOpacity>
-                  <Text style={[styles.fileName, { color: colors.textSecondary }]} numberOfLines={1}>
+                  <Text style={[styles.fileName, isRTL && styles.directionalText, { color: colors.textSecondary }]} numberOfLines={1}>
                     {selectedFile?.name || t('lectures.noFileSelected')}
                   </Text>
                 </View>
@@ -112,7 +115,7 @@ const LectureUploadModal = ({
                   onChangeText={setYoutubeUrl}
                   placeholder={t('lectures.youtubePlaceholder')}
                   placeholderTextColor={colors.textSecondary}
-                  style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+                  style={[styles.input, isRTL && styles.directionalInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
                 />
               )}
 
@@ -122,7 +125,7 @@ const LectureUploadModal = ({
                   onChangeText={setExternalUrl}
                   placeholder={t('lectures.linkPlaceholder')}
                   placeholderTextColor={colors.textSecondary}
-                  style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+                  style={[styles.input, isRTL && styles.directionalInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
                 />
               )}
 
@@ -130,10 +133,10 @@ const LectureUploadModal = ({
                 style={[styles.uploadBtn, { backgroundColor: colors.primary, opacity: uploading ? 0.7 : 1 }]}
                 onPress={handleUpload}
                 disabled={uploading}>
-                <Text style={styles.uploadBtnText}>{uploading ? t('lectures.uploading') : t('lectures.upload')}</Text>
+                <Text style={[styles.uploadBtnText, isRTL && styles.directionalText]}>{uploading ? t('lectures.uploading') : t('lectures.upload')}</Text>
               </TouchableOpacity>
 
-              {!!uploadError && <Text style={[styles.uploadError, { color: colors.danger }]}>{uploadError}</Text>}
+              {!!uploadError && <Text style={[styles.uploadError, isRTL && styles.directionalText, { color: colors.danger }]}>{uploadError}</Text>}
             </ScrollView>
           </View>
           </GlassContainer>

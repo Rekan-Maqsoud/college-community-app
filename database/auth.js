@@ -402,6 +402,8 @@ export const signInWithGoogle = async () => {
             endpoint: config.endpoint,
         });
 
+        await clearCurrentSessionIfPresent();
+
         // Use createOAuth2Token for React Native - it returns userId and secret
         // that we use to create a session manually
         const authUrl = account.createOAuth2Token({
@@ -436,7 +438,7 @@ export const signInWithGoogle = async () => {
 
             if (secret && userId) {
                 // Create a session using the token
-                await account.createSession({ userId, secret });
+                await createSessionWithRecovery(() => account.createSession({ userId, secret }));
                 telemetry.recordEvent('google_auth_session_created', {
                     userId,
                 });
@@ -726,6 +728,40 @@ const sanitizeInput = (input) => {
     return input.trim().replace(/[<>"']/g, '');
 };
 
+const isSessionConflictError = (error) => {
+    const message = String(error?.message || '').toLowerCase();
+    const type = String(error?.type || '').toLowerCase();
+
+    return message.includes('session is active')
+        || message.includes('user already has an active session')
+        || message.includes('too many sessions')
+        || message.includes('maximum allowed sessions')
+        || type.includes('user_session_already_exists')
+        || type.includes('user_session_limit_exceeded');
+};
+
+const clearCurrentSessionIfPresent = async () => {
+    try {
+        await account.deleteSession({ sessionId: 'current' });
+        return true;
+    } catch (error) {
+        return false;
+    }
+};
+
+const createSessionWithRecovery = async (sessionFactory) => {
+    try {
+        return await sessionFactory();
+    } catch (error) {
+        if (!isSessionConflictError(error)) {
+            throw error;
+        }
+
+        await clearCurrentSessionIfPresent();
+        return sessionFactory();
+    }
+};
+
 const createUserDocument = async (userId, name, email, additionalData = {}) => {
     try {
         const sanitizedName = sanitizeInput(name);
@@ -802,10 +838,10 @@ export const signIn = async (email, password) => {
             throw new Error('Email and password are required');
         }
 
-        const session = await account.createEmailPasswordSession({
+        const session = await createSessionWithRecovery(() => account.createEmailPasswordSession({
             email: sanitizedEmail,
             password,
-        });
+        }));
         return session;
     } catch (error) {
         throw error;

@@ -15,14 +15,14 @@ import { borderRadius } from '../theme/designTokens';
 import { FEED_TYPES } from '../constants/feedCategories';
 
 const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }) => {
-  const { t, theme, isDarkMode, reduceMotion } = useAppSettings();
+  const { t, theme, isDarkMode, reduceMotion, isRTL } = useAppSettings();
   const indicatorAnim = useRef(new Animated.Value(0)).current;
   const [containerWidth, setContainerWidth] = useState(wp(60));
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 360;
 
 
-  const feeds = [
+  const feeds = useMemo(() => ([
     {
       type: FEED_TYPES.DEPARTMENT,
       icon: 'people-outline',
@@ -41,9 +41,10 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
       label: t('feed.public'),
       index: 2,
     },
-  ];
+  ]), [t]);
 
-  const selectedIndex = feeds.findIndex(feed => feed.type === selectedFeed);
+  const visualFeeds = useMemo(() => (isRTL ? [...feeds].reverse() : feeds), [feeds, isRTL]);
+  const selectedIndex = Math.max(0, visualFeeds.findIndex(feed => feed.type === selectedFeed));
 
   useEffect(() => {
     const animation = reduceMotion
@@ -67,9 +68,13 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
   };
 
   const buttonRatios = useMemo(() => [0.426, 0.273, 0.301], []);
+  const visualButtonRatios = useMemo(
+    () => (isRTL ? [...buttonRatios].reverse() : buttonRatios),
+    [buttonRatios, isRTL]
+  );
   const buttonWidths = useMemo(() => (
-    buttonRatios.map(ratio => Math.max(0, containerWidth * ratio))
-  ), [buttonRatios, containerWidth]);
+    visualButtonRatios.map(ratio => Math.max(0, containerWidth * ratio))
+  ), [visualButtonRatios, containerWidth]);
   
   const translateX = indicatorAnim.interpolate({
     inputRange: [0, 1, 2],
@@ -116,7 +121,7 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
             },
           ]}
         />
-        {feeds.map((feed, index) => {
+        {visualFeeds.map((feed, index) => {
           const isSelected = selectedFeed === feed.type;
           
           return (
@@ -124,6 +129,7 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
               key={feed.type}
               style={[
                 styles.feedButton,
+                isRTL && styles.feedButtonRtl,
                 { width: buttonWidths[index] },
               ]}
               onPress={() => handleFeedChange(feed.type)}
@@ -133,11 +139,12 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
                 name={feed.icon}
                 size={moderateScale(isSmallScreen ? 14 : 16)}
                 color={iconColor(isSelected)}
-                style={[styles.feedIcon, index === 0 && { marginLeft: 2 }]}
+                style={[styles.feedIcon, isRTL ? styles.feedIconRtl : styles.feedIconLtr]}
               />
               <Text
                 style={[
                   styles.feedLabel,
+                  isRTL && styles.feedLabelRtl,
                   {
                     color: textColor(isSelected),
                     fontSize: fontSize(isSmallScreen ? 9.5 : 10.5),
@@ -191,13 +198,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs * 0.7,
     gap: 3,
   },
+  feedButtonRtl: {
+    flexDirection: 'row-reverse',
+  },
   feedIcon: {
     marginTop: 1,
     zIndex: 2,
   },
+  feedIconLtr: {
+    marginLeft: 2,
+  },
+  feedIconRtl: {
+    marginRight: 2,
+  },
   feedLabel: {
     textAlign: 'center',
     zIndex: 2,
+  },
+  feedLabelRtl: {
+    writingDirection: 'rtl',
   },
 });
 

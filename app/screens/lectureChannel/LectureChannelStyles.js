@@ -198,6 +198,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
   },
+  rowReverse: {
+    flexDirection: 'row-reverse',
+  },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  directionalInput: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  toggleTextRtl: {
+    marginRight: 0,
+    marginLeft: spacing.sm,
+  },
+  requestUserInfoRtl: {
+    marginRight: 0,
+    marginLeft: spacing.sm,
+  },
+  managerRemoveButtonRtl: {
+    marginLeft: 0,
+    marginRight: 'auto',
+  },
   managerInput: {
     flex: 1,
     marginBottom: 0,
@@ -532,6 +555,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     padding: spacing.md,
     maxHeight: '86%',
+    overflow: 'hidden',
   },
   uploadComposerCard: {
     maxHeight: '94%',
@@ -539,6 +563,7 @@ const styles = StyleSheet.create({
   },
   uploadComposerGlass: {
     borderRadius: borderRadius.xl,
+    overflow: 'hidden',
   },
   uploadComposerScrollContent: {
     paddingBottom: spacing.lg,
@@ -555,6 +580,7 @@ const styles = StyleSheet.create({
   },
   settingsModalGlass: {
     borderRadius: borderRadius.xl,
+    overflow: 'hidden',
   },
   settingsGlassBlock: {
     marginBottom: spacing.xs,

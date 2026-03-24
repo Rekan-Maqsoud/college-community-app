@@ -38,7 +38,7 @@ import { uploadToImgbb } from '../../../services/imgbbService';
 import { FlashList } from '@shopify/flash-list';
 
 const CreateGroup = ({ navigation }) => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const { user: currentUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { contentStyle } = useLayout();
@@ -227,6 +227,7 @@ const CreateGroup = ({ navigation }) => {
         onPress={() => toggleUserSelection(item.$id)}
         style={[
           styles.userCard,
+          isRTL && styles.rowReverse,
           { 
             backgroundColor: isDarkMode 
               ? 'rgba(255, 255, 255, 0.08)' 
@@ -240,11 +241,11 @@ const CreateGroup = ({ navigation }) => {
           name={item.name}
           size={moderateScale(44)}
         />
-        <View style={styles.userInfo}>
-          <Text style={[styles.userName, { color: theme.text, fontSize: fontSize(14) }]} numberOfLines={1}>
+        <View style={[styles.userInfo, isRTL ? styles.userInfoRtl : styles.userInfoLtr]}>
+          <Text style={[styles.userName, isRTL && styles.directionalText, { color: theme.text, fontSize: fontSize(14) }]} numberOfLines={1}>
             {item.name}
           </Text>
-          <Text style={[styles.userDetails, { color: theme.textSecondary, fontSize: fontSize(11) }]} numberOfLines={1}>
+          <Text style={[styles.userDetails, isRTL && styles.directionalText, { color: theme.textSecondary, fontSize: fontSize(11) }]} numberOfLines={1}>
             {item.department}
           </Text>
         </View>
@@ -287,17 +288,17 @@ const CreateGroup = ({ navigation }) => {
             style={styles.keyboardAvoiding}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
-            <View style={styles.header}>
+            <View style={[styles.header, isRTL && styles.rowReverse]}>
               <TouchableOpacity 
                 style={styles.backButton}
                 onPress={() => navigation.goBack()}>
                 <Ionicons 
-                  name="arrow-back" 
+                  name={isRTL ? 'arrow-forward' : 'arrow-back'} 
                   size={moderateScale(24)} 
                   color={theme.text} 
                 />
               </TouchableOpacity>
-              <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(20) }]}>
+              <Text style={[styles.headerTitle, isRTL && styles.directionalText, { color: theme.text, fontSize: fontSize(20) }]}>
                 {t('chats.createGroup')}
               </Text>
               <View style={styles.placeholder} />
@@ -311,7 +312,7 @@ const CreateGroup = ({ navigation }) => {
             
             {/* Group Photo Section */}
             <View style={styles.formSection}>
-              <Text style={[styles.sectionTitle, { color: theme.text, fontSize: fontSize(14) }]}>
+              <Text style={[styles.sectionTitle, isRTL && styles.directionalText, { color: theme.text, fontSize: fontSize(14) }]}>
                 {t('chats.groupPhoto')}
               </Text>
               <View style={styles.photoSection}>
@@ -334,7 +335,7 @@ const CreateGroup = ({ navigation }) => {
                   ) : (
                     <View style={styles.photoPlaceholder}>
                       <Ionicons name="camera-outline" size={moderateScale(32)} color={theme.primary} />
-                      <Text style={[styles.photoText, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
+                      <Text style={[styles.photoText, isRTL && styles.directionalText, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
                         {t('chats.addGroupPhoto')}
                       </Text>
                     </View>
@@ -351,12 +352,12 @@ const CreateGroup = ({ navigation }) => {
             </View>
 
             <View style={styles.formSection}>
-              <Text style={[styles.sectionTitle, { color: theme.text, fontSize: fontSize(14) }]}>
+              <Text style={[styles.sectionTitle, isRTL && styles.directionalText, { color: theme.text, fontSize: fontSize(14) }]}>
                 {t('chats.groupName')}
               </Text>
               <GlassInput style={styles.inputContainer}>
                 <TextInput
-                  style={[styles.input, { color: theme.text, fontSize: fontSize(15) }]}
+                  style={[styles.input, isRTL && styles.inputRtl, { color: theme.text, fontSize: fontSize(15) }]}
                   placeholder={t('chats.groupNamePlaceholder')}
                   placeholderTextColor={theme.textSecondary}
                   value={groupName}
@@ -367,12 +368,12 @@ const CreateGroup = ({ navigation }) => {
             </View>
 
             <View style={styles.formSection}>
-              <Text style={[styles.sectionTitle, { color: theme.text, fontSize: fontSize(14) }]}>
+              <Text style={[styles.sectionTitle, isRTL && styles.directionalText, { color: theme.text, fontSize: fontSize(14) }]}>
                 {t('chats.groupDescription')}
               </Text>
               <GlassInput style={[styles.inputContainer, styles.textAreaContainer]}>
                 <TextInput
-                  style={[styles.input, styles.textArea, { color: theme.text, fontSize: fontSize(15) }]}
+                  style={[styles.input, styles.textArea, isRTL && styles.inputRtl, { color: theme.text, fontSize: fontSize(15) }]}
                   placeholder={t('chats.groupDescriptionPlaceholder')}
                   placeholderTextColor={theme.textSecondary}
                   value={description}
@@ -386,18 +387,18 @@ const CreateGroup = ({ navigation }) => {
 
             {/* Group Settings Section */}
             <View style={styles.formSection}>
-              <Text style={[styles.sectionTitle, { color: theme.text, fontSize: fontSize(14) }]}>
+              <Text style={[styles.sectionTitle, isRTL && styles.directionalText, { color: theme.text, fontSize: fontSize(14) }]}>
                 {t('chats.groupSettings')}
               </Text>
               
               {/* Only Admins Can Post */}
-              <GlassContainer style={styles.settingItem}
+              <GlassContainer style={[styles.settingItem, isRTL && styles.rowReverse]}
                 borderRadius={borderRadius.lg}>
-                <View style={styles.settingInfo}>
-                  <Text style={[styles.settingTitle, { color: theme.text, fontSize: fontSize(14) }]}>
+                <View style={[styles.settingInfo, isRTL && styles.settingInfoRtl]}>
+                  <Text style={[styles.settingTitle, isRTL && styles.directionalText, { color: theme.text, fontSize: fontSize(14) }]}>
                     {t('chats.onlyAdminsCanPost')}
                   </Text>
-                  <Text style={[styles.settingDescription, { color: theme.textSecondary, fontSize: fontSize(11) }]}>
+                  <Text style={[styles.settingDescription, isRTL && styles.directionalText, { color: theme.textSecondary, fontSize: fontSize(11) }]}>
                     {t('chats.onlyAdminsCanPostDesc')}
                   </Text>
                 </View>
@@ -410,13 +411,13 @@ const CreateGroup = ({ navigation }) => {
               </GlassContainer>
 
               {/* Allow Member Invites */}
-              <GlassContainer style={styles.settingItem}
+              <GlassContainer style={[styles.settingItem, isRTL && styles.rowReverse]}
                 borderRadius={borderRadius.lg}>
-                <View style={styles.settingInfo}>
-                  <Text style={[styles.settingTitle, { color: theme.text, fontSize: fontSize(14) }]}>
+                <View style={[styles.settingInfo, isRTL && styles.settingInfoRtl]}>
+                  <Text style={[styles.settingTitle, isRTL && styles.directionalText, { color: theme.text, fontSize: fontSize(14) }]}>
                     {t('chats.allowMemberInvites')}
                   </Text>
-                  <Text style={[styles.settingDescription, { color: theme.textSecondary, fontSize: fontSize(11) }]}>
+                  <Text style={[styles.settingDescription, isRTL && styles.directionalText, { color: theme.textSecondary, fontSize: fontSize(11) }]}>
                     {t('chats.allowMemberInvitesDesc')}
                   </Text>
                 </View>
@@ -429,13 +430,13 @@ const CreateGroup = ({ navigation }) => {
               </GlassContainer>
 
               {/* Only Admins Can @everyone */}
-              <GlassContainer style={styles.settingItem}
+              <GlassContainer style={[styles.settingItem, isRTL && styles.rowReverse]}
                 borderRadius={borderRadius.lg}>
-                <View style={styles.settingInfo}>
-                  <Text style={[styles.settingTitle, { color: theme.text, fontSize: fontSize(14) }]}>
+                <View style={[styles.settingInfo, isRTL && styles.settingInfoRtl]}>
+                  <Text style={[styles.settingTitle, isRTL && styles.directionalText, { color: theme.text, fontSize: fontSize(14) }]}>
                     {t('chats.onlyAdminsCanMention')}
                   </Text>
-                  <Text style={[styles.settingDescription, { color: theme.textSecondary, fontSize: fontSize(11) }]}>
+                  <Text style={[styles.settingDescription, isRTL && styles.directionalText, { color: theme.textSecondary, fontSize: fontSize(11) }]}>
                     {t('chats.onlyAdminsCanMentionDesc')}
                   </Text>
                 </View>
@@ -448,13 +449,13 @@ const CreateGroup = ({ navigation }) => {
               </GlassContainer>
 
               {/* Only Admins Can Pin */}
-              <GlassContainer style={styles.settingItem}
+              <GlassContainer style={[styles.settingItem, isRTL && styles.rowReverse]}
                 borderRadius={borderRadius.lg}>
-                <View style={styles.settingInfo}>
-                  <Text style={[styles.settingTitle, { color: theme.text, fontSize: fontSize(14) }]}>
+                <View style={[styles.settingInfo, isRTL && styles.settingInfoRtl]}>
+                  <Text style={[styles.settingTitle, isRTL && styles.directionalText, { color: theme.text, fontSize: fontSize(14) }]}>
                     {t('chats.onlyAdminsCanPin')}
                   </Text>
-                  <Text style={[styles.settingDescription, { color: theme.textSecondary, fontSize: fontSize(11) }]}>
+                  <Text style={[styles.settingDescription, isRTL && styles.directionalText, { color: theme.textSecondary, fontSize: fontSize(11) }]}>
                     {t('chats.onlyAdminsCanPinDesc')}
                   </Text>
                 </View>
@@ -468,8 +469,8 @@ const CreateGroup = ({ navigation }) => {
             </View>
 
             <View style={styles.formSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: theme.text, fontSize: fontSize(14) }]}>
+              <View style={[styles.sectionHeader, isRTL && styles.rowReverse]}>
+                <Text style={[styles.sectionTitle, isRTL && styles.directionalText, { color: theme.text, fontSize: fontSize(14) }]}>
                   {t('chats.selectMembers')}
                 </Text>
                 {selectedUsers.length > 0 && (
@@ -482,10 +483,10 @@ const CreateGroup = ({ navigation }) => {
               </View>
 
               {/* Search Bar */}
-              <GlassInput style={styles.searchContainer}>
+              <GlassInput style={[styles.searchContainer, isRTL && styles.rowReverse]}>
                 <Ionicons name="search" size={moderateScale(18)} color={theme.textSecondary} />
                 <TextInput
-                  style={[styles.searchInput, { color: theme.text, fontSize: fontSize(14) }]}
+                  style={[styles.searchInput, isRTL && styles.inputRtl, { color: theme.text, fontSize: fontSize(14) }]}
                   placeholder={t('chats.searchUsers')}
                   placeholderTextColor={theme.textSecondary}
                   value={searchQuery}
@@ -510,7 +511,7 @@ const CreateGroup = ({ navigation }) => {
                   </View>
                 ) : searchResults.length === 0 ? (
                   <View style={styles.emptyContainer}>
-                    <Text style={[styles.emptyText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
+                    <Text style={[styles.emptyText, isRTL && styles.directionalText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
                       {t('chats.emptySearchMessage')}
                     </Text>
                   </View>
@@ -528,7 +529,7 @@ const CreateGroup = ({ navigation }) => {
                 <>
                   {friends.length > 0 && (
                     <>
-                      <Text style={[styles.subSectionTitle, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
+                      <Text style={[styles.subSectionTitle, isRTL && styles.directionalText, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
                         {t('chats.friends')}
                       </Text>
                       <FlashList
@@ -543,7 +544,7 @@ const CreateGroup = ({ navigation }) => {
                   
                   {departmentUsers.length > 0 && (
                     <>
-                      <Text style={[styles.subSectionTitle, { color: theme.textSecondary, fontSize: fontSize(12), marginTop: spacing.md }]}>
+                      <Text style={[styles.subSectionTitle, isRTL && styles.directionalText, { color: theme.textSecondary, fontSize: fontSize(12), marginTop: spacing.md }]}>
                         {t('chats.departmentUsers')}
                       </Text>
                       <FlashList
@@ -558,7 +559,7 @@ const CreateGroup = ({ navigation }) => {
 
                   {friends.length === 0 && departmentUsers.length === 0 && (
                     <View style={styles.emptyContainer}>
-                      <Text style={[styles.emptyText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
+                      <Text style={[styles.emptyText, isRTL && styles.directionalText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
                         {t('chats.emptySearchMessage')}
                       </Text>
                     </View>
@@ -572,6 +573,7 @@ const CreateGroup = ({ navigation }) => {
               <TouchableOpacity
                 style={[
                   styles.createButton,
+                  isRTL && styles.rowReverse,
                   { 
                     backgroundColor: theme.primary,
                     opacity: (!groupName.trim() || selectedUsers.length === 0 || creating) ? 0.5 : 1,
@@ -584,7 +586,7 @@ const CreateGroup = ({ navigation }) => {
                 ) : (
                   <>
                     <Ionicons name="add" size={moderateScale(22)} color="#FFFFFF" />
-                    <Text style={[styles.createButtonText, { fontSize: fontSize(16) }]}>
+                    <Text style={[styles.createButtonText, isRTL && styles.directionalText, { fontSize: fontSize(16) }]}>
                       {t('chats.createGroupButton')}
                     </Text>
                   </>
@@ -665,6 +667,10 @@ const styles = StyleSheet.create({
   input: {
     fontWeight: '400',
   },
+  inputRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   textArea: {
     height: moderateScale(80),
     textAlignVertical: 'top',
@@ -705,7 +711,12 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     flex: 1,
+  },
+  userInfoLtr: {
     marginLeft: spacing.md,
+  },
+  userInfoRtl: {
+    marginRight: spacing.md,
   },
   userName: {
     fontWeight: '600',
@@ -805,6 +816,17 @@ const styles = StyleSheet.create({
   settingInfo: {
     flex: 1,
     marginRight: spacing.md,
+  },
+  settingInfoRtl: {
+    marginRight: 0,
+    marginLeft: spacing.md,
+  },
+  rowReverse: {
+    flexDirection: 'row-reverse',
+  },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   settingTitle: {
     fontWeight: '600',

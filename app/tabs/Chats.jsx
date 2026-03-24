@@ -1164,6 +1164,10 @@ const Chats = ({ navigation }) => {
   ];
 
   const selectedFilterIndex = Math.max(0, filterOptions.findIndex((option) => option.key === activeFilter));
+  const visibleFilterOptions = isRTL ? [...filterOptions].reverse() : filterOptions;
+  const selectedVisualFilterIndex = isRTL
+    ? (filterOptions.length - 1 - selectedFilterIndex)
+    : selectedFilterIndex;
   const filterTabWidth = filterContainerWidth > 0 ? (filterContainerWidth / filterOptions.length) : 0;
 
   useEffect(() => {
@@ -1172,20 +1176,20 @@ const Chats = ({ navigation }) => {
     }
 
     if (!hasMeasuredFilterContainerRef.current) {
-      filterIndicatorAnim.setValue(selectedFilterIndex);
+      filterIndicatorAnim.setValue(selectedVisualFilterIndex);
       hasMeasuredFilterContainerRef.current = true;
       return;
     }
 
     const animation = Animated.spring(filterIndicatorAnim, {
-      toValue: selectedFilterIndex,
+      toValue: selectedVisualFilterIndex,
       useNativeDriver: true,
       tension: 68,
       friction: 12,
     });
 
     animation.start();
-  }, [filterContainerWidth, filterIndicatorAnim, selectedFilterIndex]);
+  }, [filterContainerWidth, filterIndicatorAnim, selectedVisualFilterIndex]);
 
   const filterTranslateX = filterIndicatorAnim.interpolate({
     inputRange: [0, 1, 2, 3],
@@ -1314,7 +1318,7 @@ const Chats = ({ navigation }) => {
                 ]}
               />
             )}
-            {filterOptions.map((filter) => (
+            {visibleFilterOptions.map((filter) => (
               <TouchableOpacity
                 key={filter.key}
                 style={[styles.filterPill, { width: filterTabWidth || `${100 / filterOptions.length}%` }]}
@@ -1325,6 +1329,7 @@ const Chats = ({ navigation }) => {
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Text style={[
                   styles.filterPillText,
+                  isRTL && styles.directionalText,
                   {
                     color: activeFilter === filter.key ? '#FFFFFF' : (isDarkMode ? 'rgba(255,255,255,0.84)' : theme.textSecondary),
                     fontSize: fontSize(11),

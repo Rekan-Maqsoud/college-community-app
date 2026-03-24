@@ -3,6 +3,7 @@ import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'rea
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { GlassContainer, GlassIconButton } from '../../components/GlassComponents';
+import { useAppSettings } from '../../context/AppSettingsContext';
 import { spacing, fontSize, moderateScale, wp } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
 
@@ -39,6 +40,8 @@ const DownloadManagerModal = ({
   onOpenFile,
   onDeleteFile,
 }) => {
+  const { isRTL } = useAppSettings();
+
   return (
     <Modal
       visible={visible}
@@ -59,10 +62,10 @@ const DownloadManagerModal = ({
             { backgroundColor: 'transparent', borderColor: `${colors.primary}33` },
           ]}
         >
-          <View style={styles.headerRow}>
+          <View style={[styles.headerRow, isRTL && styles.rowReverse]}>
             <View>
-              <Text style={[styles.title, { color: colors.text }]}>{t('lectures.downloadsTitle')}</Text>
-              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('lectures.downloadsSubtitle')}</Text>
+              <Text style={[styles.title, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.downloadsTitle')}</Text>
+              <Text style={[styles.subtitle, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('lectures.downloadsSubtitle')}</Text>
             </View>
             <GlassIconButton size={30} borderRadiusValue={15} onPress={onClose} style={[styles.closeBtn, { borderColor: `${colors.primary}44` }]}> 
               <Ionicons name="close" size={18} color={colors.text} />
@@ -76,15 +79,15 @@ const DownloadManagerModal = ({
 
           {!!activeDownloads.length && (
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('lectures.currentDownloads')}</Text>
+              <Text style={[styles.sectionTitle, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.currentDownloads')}</Text>
               {activeDownloads.map((item) => (
                 <GlassContainer
                   key={item.assetId}
                   borderRadius={14}
                   style={[styles.rowCardGlass, styles.rowCard, { borderColor: `${colors.primary}33` }]}
                 >
-                  <View style={styles.rowTop}>
-                    <Text style={[styles.fileName, { color: colors.text }]} numberOfLines={1}>{item.fileName}</Text>
+                  <View style={[styles.rowTop, isRTL && styles.rowReverse]}>
+                    <Text style={[styles.fileName, isRTL && styles.directionalText, { color: colors.text }]} numberOfLines={1}>{item.fileName}</Text>
                     <Text style={[styles.percentText, { color: colors.primary }]}>{String(item.progress)}%</Text>
                   </View>
                   <View style={[styles.progressTrack, { backgroundColor: colors.border }]}> 
@@ -96,7 +99,7 @@ const DownloadManagerModal = ({
           )}
 
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('lectures.savedDownloads')}</Text>
+            <Text style={[styles.sectionTitle, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.savedDownloads')}</Text>
             <View style={styles.savedList}>
               {downloadedFiles.map((item) => (
                 <GlassContainer
@@ -104,38 +107,38 @@ const DownloadManagerModal = ({
                   borderRadius={14}
                   style={[styles.rowCardGlass, styles.rowCard, { borderColor: `${colors.primary}33` }]}
                 >
-                  <View style={styles.savedRowTop}>
+                  <View style={[styles.savedRowTop, isRTL && styles.rowReverse]}>
                     <View style={[styles.fileIconWrap, { backgroundColor: 'transparent', borderColor: colors.border }]}> 
                       <Ionicons name="document-outline" size={16} color={colors.primary} />
                     </View>
 
                     <View style={styles.savedInfoWrap}>
-                      <Text style={[styles.fileName, { color: colors.text }]} numberOfLines={2}>{item.name}</Text>
+                      <Text style={[styles.fileName, isRTL && styles.directionalText, { color: colors.text }]} numberOfLines={2}>{item.name}</Text>
 
-                      <View style={styles.savedMetaRow}>
-                        <View style={[styles.metaPill, { borderColor: colors.border }]}> 
+                      <View style={[styles.savedMetaRow, isRTL && styles.rowReverse]}>
+                        <View style={[styles.metaPill, isRTL && styles.rowReverse, { borderColor: colors.border }]}> 
                           <Ionicons name="download-outline" size={12} color={colors.textSecondary} />
-                          <Text style={[styles.metaText, { color: colors.textSecondary }]}>{formatBytesAsMb(item.size)} MB</Text>
+                          <Text style={[styles.metaText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{formatBytesAsMb(item.size)} MB</Text>
                         </View>
 
                         {!!item.modifiedAt && (
-                          <View style={[styles.metaPill, { borderColor: colors.border }]}> 
+                          <View style={[styles.metaPill, isRTL && styles.rowReverse, { borderColor: colors.border }]}> 
                             <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
-                            <Text style={[styles.metaText, { color: colors.textSecondary }]}>{formatSavedDate(item.modifiedAt)}</Text>
+                            <Text style={[styles.metaText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{formatSavedDate(item.modifiedAt)}</Text>
                           </View>
                         )}
                       </View>
                     </View>
                   </View>
 
-                  <View style={styles.actionsRow}>
-                    <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary, { borderColor: colors.border, backgroundColor: 'transparent' }]} onPress={() => onOpenFile(item.path, item.mimeType)}>
+                  <View style={[styles.actionsRow, isRTL && styles.rowReverse]}>
+                    <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary, isRTL && styles.rowReverse, { borderColor: colors.border, backgroundColor: 'transparent' }]} onPress={() => onOpenFile(item.path, item.mimeType)}>
                       <Ionicons name="open-outline" size={14} color={colors.text} />
-                      <Text style={[styles.actionText, { color: colors.text }]}>{t('lectures.openFile')}</Text>
+                      <Text style={[styles.actionText, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.openFile')}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDanger, { borderColor: colors.border }]} onPress={() => onDeleteFile(item.path)}>
+                    <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDanger, isRTL && styles.rowReverse, { borderColor: colors.border }]} onPress={() => onDeleteFile(item.path)}>
                       <Ionicons name="trash-outline" size={14} color={colors.danger} />
-                      <Text style={[styles.actionText, { color: colors.danger }]}>{t('common.delete')}</Text>
+                      <Text style={[styles.actionText, isRTL && styles.directionalText, { color: colors.danger }]}>{t('common.delete')}</Text>
                     </TouchableOpacity>
                   </View>
                 </GlassContainer>
@@ -143,7 +146,7 @@ const DownloadManagerModal = ({
               {downloadedFiles.length === 0 && (
                 <View style={styles.emptyWrap}>
                   <Ionicons name="download-outline" size={22} color={colors.textSecondary} />
-                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('lectures.noSavedDownloads')}</Text>
+                  <Text style={[styles.emptyText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('lectures.noSavedDownloads')}</Text>
                 </View>
               )}
             </View>
@@ -174,9 +177,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     padding: spacing.md,
     maxHeight: '85%',
+    overflow: 'hidden',
   },
   cardGlass: {
     borderRadius: borderRadius.xl,
+    overflow: 'hidden',
   },
   headerRow: {
     flexDirection: 'row',
@@ -322,6 +327,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: fontSize(12),
+  },
+  rowReverse: {
+    flexDirection: 'row-reverse',
+  },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });
 

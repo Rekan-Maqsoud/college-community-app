@@ -4,6 +4,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import ProfilePicture from '../../../components/ProfilePicture';
 import { GlassContainer, GlassIconButton } from '../../../components/GlassComponents';
+import { useAppSettings } from '../../../context/AppSettingsContext';
 import { moderateScale, spacing } from '../../../utils/responsive';
 import { CHAT_TYPES } from '../../../../database/chats';
 import { LECTURE_ACCESS_TYPES, LECTURE_CHANNEL_TYPES } from '../../../../database/lectures';
@@ -25,6 +26,8 @@ const LectureSettingsModal = ({
   t,
   userProfiles,
 }) => {
+  const { isRTL } = useAppSettings();
+
   const {
     handleApproveRequest,
     handleDeleteChannel,
@@ -63,7 +66,7 @@ const LectureSettingsModal = ({
     <GlassContainer borderRadius={14} style={styles.settingsGlassBlock}>
       <View style={[styles.statCard, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}> 
         <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
-        <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{label}</Text>
+        <Text style={[styles.statLabel, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{label}</Text>
       </View>
     </GlassContainer>
   );
@@ -75,8 +78,8 @@ const LectureSettingsModal = ({
         <View pointerEvents="none" style={styles.modalBackdropScrim} />
         <GlassContainer borderRadius={24} style={styles.settingsModalGlass} disableBackgroundOverlay>
         <View style={[styles.modalCard, { backgroundColor: 'transparent', borderColor: `${colors.primary}33` }]}> 
-          <View style={styles.modalHeaderRow}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>{t('lectures.settingsMenuTitle')}</Text>
+          <View style={[styles.modalHeaderRow, isRTL && styles.rowReverse]}>
+            <Text style={[styles.modalTitle, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.settingsMenuTitle')}</Text>
             <GlassIconButton
               size={32}
               borderRadiusValue={16}
@@ -89,9 +92,9 @@ const LectureSettingsModal = ({
           <ScrollView showsVerticalScrollIndicator={false}>
             <GlassContainer borderRadius={14} style={styles.settingsGlassBlock}>
               <TouchableOpacity
-                style={[styles.toggleRow, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
+                style={[styles.toggleRow, isRTL && styles.rowReverse, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
                 onPress={() => setShowSettingsStats(prev => !prev)}>
-                <Text style={[styles.toggleText, { color: colors.text }]}>{t('lectures.statsTitle')}</Text>
+                <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.statsTitle')}</Text>
                 <Ionicons name={showSettingsStats ? 'chevron-up' : 'chevron-down'} size={20} color={colors.primary} />
               </TouchableOpacity>
             </GlassContainer>
@@ -109,42 +112,42 @@ const LectureSettingsModal = ({
 
             <GlassContainer borderRadius={14} style={styles.settingsGlassBlock}>
               <TouchableOpacity
-                style={[styles.toggleRow, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
+                style={[styles.toggleRow, isRTL && styles.rowReverse, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
                 onPress={() => {
                   const nextVal = !settingsDraft.allowUploadsFromMembers;
                   setSettingsDraft(prev => ({ ...prev, allowUploadsFromMembers: nextVal }));
                   clearTimeout(autoSaveTimerRef.current);
                   autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ allowUploadsFromMembers: nextVal }), 600);
                 }}>
-                <Text style={[styles.toggleText, { color: colors.text }]}>{t('lectures.allowMemberUploads')}</Text>
+                <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.allowMemberUploads')}</Text>
                 <Ionicons name={settingsDraft.allowUploadsFromMembers ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
               </TouchableOpacity>
             </GlassContainer>
 
             <GlassContainer borderRadius={14} style={styles.settingsGlassBlock}>
               <TouchableOpacity
-                style={[styles.toggleRow, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
+                style={[styles.toggleRow, isRTL && styles.rowReverse, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
                 onPress={() => {
                   const nextVal = !settingsDraft.suggestToDepartment;
                   setSettingsDraft(prev => ({ ...prev, suggestToDepartment: nextVal }));
                   clearTimeout(autoSaveTimerRef.current);
                   autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ suggestToDepartment: nextVal }), 600);
                 }}>
-                <Text style={[styles.toggleText, { color: colors.text }]}>{t('lectures.suggestToDepartment')}</Text>
+                <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.suggestToDepartment')}</Text>
                 <Ionicons name={settingsDraft.suggestToDepartment ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
               </TouchableOpacity>
             </GlassContainer>
 
             <GlassContainer borderRadius={14} style={styles.settingsGlassBlock}>
               <TouchableOpacity
-                style={[styles.toggleRow, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
+                style={[styles.toggleRow, isRTL && styles.rowReverse, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
                 onPress={() => {
                   const nextVal = !settingsDraft.suggestToStage;
                   setSettingsDraft(prev => ({ ...prev, suggestToStage: nextVal }));
                   clearTimeout(autoSaveTimerRef.current);
                   autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ suggestToStage: nextVal }), 600);
                 }}>
-                <Text style={[styles.toggleText, { color: colors.text }]}>{t('lectures.suggestToStage')}</Text>
+                <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.suggestToStage')}</Text>
                 <Ionicons name={settingsDraft.suggestToStage ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
               </TouchableOpacity>
             </GlassContainer>
@@ -156,7 +159,7 @@ const LectureSettingsModal = ({
                   onChangeText={(value) => setSettingsDraft(prev => ({ ...prev, suggestedStage: value }))}
                   placeholder={t('lectures.suggestedStagePlaceholder')}
                   placeholderTextColor={colors.textSecondary}
-                  style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+                  style={[styles.input, isRTL && styles.directionalInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
                 />
 
                 <View style={styles.stageSuggestionWrap}>
@@ -178,7 +181,7 @@ const LectureSettingsModal = ({
                           clearTimeout(autoSaveTimerRef.current);
                           autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ suggestedStage: nextStage }), 600);
                         }}>
-                        <Text style={[styles.stageSuggestionChipText, { color: selected ? colors.primary : colors.textSecondary }]}> 
+                        <Text style={[styles.stageSuggestionChipText, isRTL && styles.directionalText, { color: selected ? colors.primary : colors.textSecondary }]}> 
                           {String(stageValue)}
                         </Text>
                       </TouchableOpacity>
@@ -189,15 +192,15 @@ const LectureSettingsModal = ({
             )}
 
             {(linkableGroups.length > 0 || !!connectedGroup) && (
-              <Text style={[styles.modalSectionTitle, { color: colors.text }]}>{t('lectures.linkedGroup')}</Text>
+              <Text style={[styles.modalSectionTitle, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.linkedGroup')}</Text>
             )}
 
             {connectedGroup ? (
               <GlassContainer borderRadius={14} style={styles.settingsGlassBlock}>
-              <View style={[styles.optionCard, { borderColor: `${colors.primary}66`, backgroundColor: 'transparent' }]}> 
+              <View style={[styles.optionCard, isRTL && styles.rowReverse, { borderColor: `${colors.primary}66`, backgroundColor: 'transparent' }]}> 
                 <View style={styles.optionMeta}>
-                  <Text style={[styles.optionText, { color: colors.text }]} numberOfLines={1}>{connectedGroup.name}</Text>
-                  <Text style={[styles.optionSubText, { color: colors.textSecondary }]} numberOfLines={1}>
+                  <Text style={[styles.optionText, isRTL && styles.directionalText, { color: colors.text }]} numberOfLines={1}>{connectedGroup.name}</Text>
+                  <Text style={[styles.optionSubText, isRTL && styles.directionalText, { color: colors.textSecondary }]} numberOfLines={1}>
                     {connectedGroup.type === CHAT_TYPES.STAGE_GROUP ? t('lectures.stageGroup') : t('lectures.customGroup')}
                   </Text>
                 </View>
@@ -207,27 +210,27 @@ const LectureSettingsModal = ({
                     clearTimeout(autoSaveTimerRef.current);
                     autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ linkedChatId: '' }), 400);
                   }}>
-                    <Text style={[styles.unlinkBtnText, { color: colors.text }]}>{t('lectures.disconnectGroup')}</Text>
+                    <Text style={[styles.unlinkBtnText, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.disconnectGroup')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
               </GlassContainer>
             ) : linkableGroups.length > 0 ? (
-              <Text style={[styles.infoText, { color: colors.textSecondary }]}>{t('lectures.noConnectedGroups')}</Text>
+              <Text style={[styles.infoText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('lectures.noConnectedGroups')}</Text>
             ) : null}
 
             {linkableGroups.length > 0 && (
               <TouchableOpacity
-                style={[styles.smallBtn, { borderColor: colors.border, alignSelf: 'flex-start', marginTop: spacing.xs }]}
+                style={[styles.smallBtn, { borderColor: colors.border, alignSelf: isRTL ? 'flex-end' : 'flex-start', marginTop: spacing.xs }]}
                 onPress={() => setShowGroupPicker(prev => !prev)}>
-                <Text style={[styles.smallBtnText, { color: colors.text }]}>{t('lectures.addGroup')}</Text>
+                <Text style={[styles.smallBtnText, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.addGroup')}</Text>
               </TouchableOpacity>
             )}
 
             {showGroupPicker && linkableGroups.map(group => (
               <GlassContainer key={group.$id} borderRadius={14} style={styles.settingsGlassBlock}>
                 <TouchableOpacity
-                  style={[styles.optionCard, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
+                  style={[styles.optionCard, isRTL && styles.rowReverse, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
                   onPress={() => {
                     setLinkedChatId(group.$id);
                     setShowGroupPicker(false);
@@ -235,8 +238,8 @@ const LectureSettingsModal = ({
                     autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ linkedChatId: group.$id }), 400);
                   }}>
                   <View style={styles.optionMeta}>
-                    <Text style={[styles.optionText, { color: colors.text }]} numberOfLines={1}>{group.name}</Text>
-                    <Text style={[styles.optionSubText, { color: colors.textSecondary }]} numberOfLines={1}>
+                    <Text style={[styles.optionText, isRTL && styles.directionalText, { color: colors.text }]} numberOfLines={1}>{group.name}</Text>
+                    <Text style={[styles.optionSubText, isRTL && styles.directionalText, { color: colors.textSecondary }]} numberOfLines={1}>
                       {group.type === CHAT_TYPES.STAGE_GROUP ? t('lectures.stageGroup') : t('lectures.customGroup')}
                     </Text>
                   </View>
@@ -244,8 +247,8 @@ const LectureSettingsModal = ({
               </GlassContainer>
             ))}
 
-            <Text style={[styles.modalSectionTitle, { color: colors.text }]}>{t('lectures.managers')}</Text>
-            <View style={styles.managerInputRow}>
+            <Text style={[styles.modalSectionTitle, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.managers')}</Text>
+            <View style={[styles.managerInputRow, isRTL && styles.rowReverse]}>
               <TextInput
                 value={managerUserId}
                 onChangeText={handleManagerInputChange}
@@ -254,6 +257,7 @@ const LectureSettingsModal = ({
                 style={[
                   styles.input,
                   styles.managerInput,
+                  isRTL && styles.directionalInput,
                   {
                     color: colors.text,
                     borderColor: colors.border,
@@ -282,38 +286,38 @@ const LectureSettingsModal = ({
                 {managerSuggestions.map((candidate) => (
                   <GlassContainer key={candidate.$id} borderRadius={14} style={styles.settingsGlassBlock}>
                     <TouchableOpacity
-                      style={[styles.optionCard, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
+                      style={[styles.optionCard, isRTL && styles.rowReverse, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
                       onPress={() => actions.confirmAddManager(candidate)}>
-                      <View style={styles.managerSuggestionLeft}>
+                      <View style={[styles.managerSuggestionLeft, isRTL && styles.rowReverse]}>
                         <ProfilePicture
                           uri={candidate?.profilePicture}
                           name={candidate?.name || candidate?.fullName}
                           size={moderateScale(28)}
                         />
                         <View style={styles.optionMeta}>
-                          <Text style={[styles.optionText, { color: colors.text }]} numberOfLines={1}>
+                          <Text style={[styles.optionText, isRTL && styles.directionalText, { color: colors.text }]} numberOfLines={1}>
                             {candidate?.name || candidate?.fullName || t('lectures.unknownUser')}
                           </Text>
                         </View>
                       </View>
-                      <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+                      <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={colors.textSecondary} />
                     </TouchableOpacity>
                   </GlassContainer>
                 ))}
               </View>
             )}
 
-            {searchingManagerSuggestions && <Text style={[styles.infoText, { color: colors.textSecondary }]}>{t('lectures.searchingManagers')}</Text>}
-            {!!managerError && <Text style={[styles.managerErrorText, { color: colors.danger }]}>{managerError}</Text>}
-            {!!managerStatus && <Text style={[styles.managerStatusText, { color: colors.success }]}>{managerStatus}</Text>}
+            {searchingManagerSuggestions && <Text style={[styles.infoText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('lectures.searchingManagers')}</Text>}
+            {!!managerError && <Text style={[styles.managerErrorText, isRTL && styles.directionalText, { color: colors.danger }]}>{managerError}</Text>}
+            {!!managerStatus && <Text style={[styles.managerStatusText, isRTL && styles.directionalText, { color: colors.success }]}>{managerStatus}</Text>}
 
             <View style={styles.nameListWrap}>
               {managers.map((managerId) => (
-                <View key={managerId} style={styles.managerIdentityRow}>
+                <View key={managerId} style={[styles.managerIdentityRow, isRTL && styles.rowReverse]}>
                   <ProfilePicture uri={userProfiles[managerId]?.profilePicture} name={resolveName(managerId)} size={moderateScale(24)} />
-                  <Text style={[styles.nameListText, { color: colors.textSecondary }]}>{resolveName(managerId)}</Text>
+                  <Text style={[styles.nameListText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{resolveName(managerId)}</Text>
                   {isOwner && String(managerId || '').trim() !== String(channel?.ownerId || '').trim() && (
-                    <TouchableOpacity style={[styles.managerRemoveButton, { borderColor: colors.border }]} onPress={() => handleRemoveManager(managerId)}>
+                    <TouchableOpacity style={[styles.managerRemoveButton, isRTL && styles.managerRemoveButtonRtl, { borderColor: colors.border }]} onPress={() => handleRemoveManager(managerId)}>
                       <Ionicons name="trash-outline" size={13} color={colors.danger} />
                     </TouchableOpacity>
                   )}
@@ -324,9 +328,9 @@ const LectureSettingsModal = ({
             {computed.isManager && channel?.channelType !== LECTURE_CHANNEL_TYPES.OFFICIAL && (
               <GlassContainer borderRadius={14} style={styles.settingsGlassBlock}>
                 <TouchableOpacity
-                  style={[styles.toggleRow, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
+                  style={[styles.toggleRow, isRTL && styles.rowReverse, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
                   onPress={handleToggleAccess}>
-                  <Text style={[styles.toggleText, { color: colors.text }]}>{t('lectures.approvalRequired')}</Text>
+                  <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.approvalRequired')}</Text>
                   <Ionicons name={channel?.accessType === LECTURE_ACCESS_TYPES.APPROVAL_REQUIRED ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
                 </TouchableOpacity>
               </GlassContainer>
@@ -335,27 +339,27 @@ const LectureSettingsModal = ({
             {!!membership && (
               <GlassContainer borderRadius={14} style={styles.settingsGlassBlock}>
                 <TouchableOpacity
-                  style={[styles.toggleRow, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
+                  style={[styles.toggleRow, isRTL && styles.rowReverse, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
                   onPress={handleToggleNotifications}>
-                  <Text style={[styles.toggleText, { color: colors.text }]}>{membership.notificationsEnabled ? t('lectures.notificationsOn') : t('lectures.notificationsOff')}</Text>
+                  <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl, isRTL && styles.directionalText, { color: colors.text }]}>{membership.notificationsEnabled ? t('lectures.notificationsOn') : t('lectures.notificationsOff')}</Text>
                   <Ionicons name={membership.notificationsEnabled ? 'notifications' : 'notifications-off-outline'} size={20} color={colors.primary} />
                 </TouchableOpacity>
               </GlassContainer>
             )}
 
-            <Text style={[styles.modalSectionTitle, { color: colors.text }]}>{t('lectures.joinRequests')}</Text>
+            <Text style={[styles.modalSectionTitle, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.joinRequests')}</Text>
             {joinRequests.length > 0 ? joinRequests.map((request) => (
               <GlassContainer key={request.$id} borderRadius={14} style={styles.settingsGlassBlock}>
-                <View style={[styles.requestRow, { borderBottomColor: `${colors.primary}33` }]}> 
-                  <View style={styles.requestUserInfo}>
+                <View style={[styles.requestRow, isRTL && styles.rowReverse, { borderBottomColor: `${colors.primary}33` }]}> 
+                  <View style={[styles.requestUserInfo, isRTL && styles.rowReverse, isRTL && styles.requestUserInfoRtl]}>
                     <ProfilePicture
                       uri={userProfiles[request.userId]?.profilePicture}
                       name={resolveName(request.userId)}
                       size={moderateScale(32)}
                     />
-                    <Text style={[styles.requestUser, { color: colors.text }]} numberOfLines={1}>{resolveName(request.userId)}</Text>
+                    <Text style={[styles.requestUser, isRTL && styles.directionalText, { color: colors.text }]} numberOfLines={1}>{resolveName(request.userId)}</Text>
                   </View>
-                  <View style={styles.requestBtns}>
+                  <View style={[styles.requestBtns, isRTL && styles.rowReverse]}>
                     <TouchableOpacity style={[styles.acceptBtn, { backgroundColor: colors.success }]} onPress={() => handleApproveRequest(request.$id, 'approved')}>
                       <Text style={styles.requestBtnText}>{t('lectures.accept')}</Text>
                     </TouchableOpacity>
@@ -366,13 +370,13 @@ const LectureSettingsModal = ({
                 </View>
               </GlassContainer>
             )) : (
-              <Text style={[styles.infoText, { color: colors.textSecondary }]}>{t('lectures.noPendingRequests')}</Text>
+              <Text style={[styles.infoText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('lectures.noPendingRequests')}</Text>
             )}
 
             {savingSettings && (
               <View style={styles.savingIndicator}>
                 <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={[styles.savingText, { color: colors.textSecondary }]}>{t('lectures.savingSettings')}</Text>
+                <Text style={[styles.savingText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('lectures.savingSettings')}</Text>
               </View>
             )}
 
@@ -382,7 +386,7 @@ const LectureSettingsModal = ({
                 onPress={handleDeleteChannel}
                 disabled={savingSettings}>
                 <Ionicons name="trash-outline" size={16} color={colors.danger} />
-                <Text style={[styles.deleteChannelButtonText, { color: colors.danger }]}>{t('lectures.deleteChannelAction')}</Text>
+                <Text style={[styles.deleteChannelButtonText, isRTL && styles.directionalText, { color: colors.danger }]}>{t('lectures.deleteChannelAction')}</Text>
               </TouchableOpacity>
             )}
           </ScrollView>

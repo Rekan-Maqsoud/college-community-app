@@ -43,7 +43,7 @@ import {
 import { castVote, getElectionResults } from '../../../database/repVotes';
 
 const RepVotingScreen = ({ navigation, route }) => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
@@ -375,23 +375,23 @@ const RepVotingScreen = ({ navigation, route }) => {
     <View style={styles.headerInfo}>
       {/* Election completed banner */}
       {!hasMinimumStudents && (
-        <View style={[styles.closedBanner, { backgroundColor: (theme.error || '#EF4444') + '15', borderColor: (theme.error || '#EF4444') + '40' }]}>
+        <View style={[styles.closedBanner, isRTL && styles.rowReverse, { backgroundColor: (theme.error || '#EF4444') + '15', borderColor: (theme.error || '#EF4444') + '40' }]}>
           <Ionicons name="alert-circle-outline" size={fontSize(16)} color={theme.error || '#EF4444'} />
-          <Text style={[styles.closedText, { color: theme.error || '#EF4444' }]}>
+          <Text style={[styles.closedText, isRTL && styles.directionalText, { color: theme.error || '#EF4444' }]}>
             {t('repVoting.minimumStudentsRequired').replace('{min}', String(MIN_STUDENTS_FOR_REP_ELECTION))}
           </Text>
         </View>
       )}
 
       {isCompleted && winner && (
-        <View style={[styles.winnerBanner, { backgroundColor: (theme.success || '#22C55E') + '15', borderColor: (theme.success || '#22C55E') + '40' }]}>
+        <View style={[styles.winnerBanner, isRTL && styles.rowReverse, { backgroundColor: (theme.success || '#22C55E') + '15', borderColor: (theme.success || '#22C55E') + '40' }]}>
           <Ionicons name="trophy" size={fontSize(22)} color={theme.success || '#22C55E'} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.winnerTitle, { color: theme.success || '#22C55E' }]}>
+            <Text style={[styles.winnerTitle, isRTL && styles.directionalText, { color: theme.success || '#22C55E' }]}>
               {t('repVoting.electionComplete')}
             </Text>
             {winnerName ? (
-              <Text style={[styles.winnerName, { color: theme.text }]}>
+              <Text style={[styles.winnerName, isRTL && styles.directionalText, { color: theme.text }]}>
                 {winnerName}
               </Text>
             ) : null}
@@ -401,13 +401,13 @@ const RepVotingScreen = ({ navigation, route }) => {
 
       {/* Tiebreaker banner */}
       {isInTiebreaker && (
-        <View style={[styles.tiebreakerBanner, { backgroundColor: (theme.warning || '#F59E0B') + '15', borderColor: (theme.warning || '#F59E0B') + '40' }]}>
+        <View style={[styles.tiebreakerBanner, isRTL && styles.rowReverse, { backgroundColor: (theme.warning || '#F59E0B') + '15', borderColor: (theme.warning || '#F59E0B') + '40' }]}>
           <Ionicons name="flash-outline" size={fontSize(20)} color={theme.warning || '#F59E0B'} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.tiebreakerTitle, { color: theme.warning || '#F59E0B' }]}>
+            <Text style={[styles.tiebreakerTitle, isRTL && styles.directionalText, { color: theme.warning || '#F59E0B' }]}>
               {t('repVoting.tiebreakerTitle')}
             </Text>
-            <Text style={[styles.tiebreakerDesc, { color: theme.textSecondary }]}>
+            <Text style={[styles.tiebreakerDesc, isRTL && styles.directionalText, { color: theme.textSecondary }]}>
               {t('repVoting.tiebreakerDescription')}
             </Text>
           </View>
@@ -416,18 +416,18 @@ const RepVotingScreen = ({ navigation, route }) => {
 
       {/* Active voting banner (not tiebreaker) */}
       {(isIdle || isActive) && !isInTiebreaker && (
-        <View style={[styles.activeBanner, { backgroundColor: theme.primary + '15', borderColor: theme.primary + '40' }]}>
+        <View style={[styles.activeBanner, isRTL && styles.rowReverse, { backgroundColor: theme.primary + '15', borderColor: theme.primary + '40' }]}>
           <Ionicons name="hand-left-outline" size={fontSize(18)} color={theme.primary} />
-          <Text style={[styles.activeBannerText, { color: theme.primary }]}>
+          <Text style={[styles.activeBannerText, isRTL && styles.directionalText, { color: theme.primary }]}>
             {t('repVoting.voteInstruction').replace('{seat}', String(currentSeat))}
           </Text>
         </View>
       )}
 
       {!isCompleted && results.totalVotes > 0 && winnerCountdownMs > 0 && (
-        <View style={[styles.cooldownBanner, { backgroundColor: countdownColor + '15', borderColor: countdownColor + '40' }]}>
+        <View style={[styles.cooldownBanner, isRTL && styles.rowReverse, { backgroundColor: countdownColor + '15', borderColor: countdownColor + '40' }]}>
           <Ionicons name="time-outline" size={fontSize(16)} color={countdownColor} />
-          <Text style={[styles.cooldownText, { color: countdownColor }]}>
+          <Text style={[styles.cooldownText, isRTL && styles.directionalText, { color: countdownColor }]}>
             {isInTiebreaker
               ? t('repVoting.tiebreakerCountdown').replace('{time}', formatRemaining(winnerCountdownMs))
               : t('repVoting.winnerCooldown').replace('{time}', formatRemaining(winnerCountdownMs))}
@@ -437,29 +437,29 @@ const RepVotingScreen = ({ navigation, route }) => {
 
       {/* Voting closed banner (timer expired but not yet finalized) */}
       {isVotingDisabled && !isCompleted && (
-        <View style={[styles.closedBanner, { backgroundColor: (theme.error || '#EF4444') + '15', borderColor: (theme.error || '#EF4444') + '40' }]}>
+        <View style={[styles.closedBanner, isRTL && styles.rowReverse, { backgroundColor: (theme.error || '#EF4444') + '15', borderColor: (theme.error || '#EF4444') + '40' }]}>
           <Ionicons name="lock-closed-outline" size={fontSize(16)} color={theme.error || '#EF4444'} />
-          <Text style={[styles.closedText, { color: theme.error || '#EF4444' }]}>
+          <Text style={[styles.closedText, isRTL && styles.directionalText, { color: theme.error || '#EF4444' }]}>
             {t('repVoting.votingClosed')}
           </Text>
         </View>
       )}
 
-      <View style={styles.statsRow}>
+      <View style={[styles.statsRow, isRTL && styles.rowReverse]}>
         <View style={[styles.statBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Text style={[styles.statNumber, { color: theme.text }]}>{students.length}</Text>
-          <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{t('repVoting.totalStudents')}</Text>
+          <Text style={[styles.statLabel, isRTL && styles.directionalTextCenter, { color: theme.textSecondary }]}>{t('repVoting.totalStudents')}</Text>
         </View>
         <View style={[styles.statBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Text style={[styles.statNumber, { color: theme.primary }]}>{results.totalVotes}</Text>
-          <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{t('repVoting.totalVotes')}</Text>
+          <Text style={[styles.statLabel, isRTL && styles.directionalTextCenter, { color: theme.textSecondary }]}>{t('repVoting.totalVotes')}</Text>
         </View>
       </View>
 
       {classReps.length > 0 && (
-        <View style={[styles.winnersBox, { backgroundColor: theme.primary + '15', borderColor: theme.primary + '40' }]}>
+        <View style={[styles.winnersBox, isRTL && styles.rowReverse, { backgroundColor: theme.primary + '15', borderColor: theme.primary + '40' }]}>
           <Ionicons name="trophy" size={fontSize(18)} color={theme.primary} />
-          <Text style={[styles.winnersText, { color: theme.primary }]}>
+          <Text style={[styles.winnersText, isRTL && styles.directionalText, { color: theme.primary }]}>
             {t('repVoting.currentReps')}: {classReps.length}/{MAX_REPS_PER_CLASS}
           </Text>
         </View>
@@ -474,7 +474,7 @@ const RepVotingScreen = ({ navigation, route }) => {
         return (
           <TouchableOpacity
             key={rep.userId}
-            style={[styles.currentRepCard, { backgroundColor: theme.card, borderColor: theme.primary + '40' }]}
+            style={[styles.currentRepCard, isRTL && styles.rowReverse, { backgroundColor: theme.card, borderColor: theme.primary + '40' }]}
             activeOpacity={0.7}
             onPress={() => {
               const targetUserId = String(rep.userId || '').trim();
@@ -485,39 +485,39 @@ const RepVotingScreen = ({ navigation, route }) => {
             }}
           >
             <ProfilePicture uri={repAvatar} name={repName} size={normalize(52)} />
-            <View style={styles.currentRepInfo}>
-              <Text style={[styles.currentRepName, { color: theme.text }]} numberOfLines={1}>
+            <View style={[styles.currentRepInfo, isRTL && styles.currentRepInfoRtl]}>
+              <Text style={[styles.currentRepName, isRTL && styles.directionalText, { color: theme.text }]} numberOfLines={1}>
                 {repName}
               </Text>
-              <View style={styles.currentRepBadgeRow}>
+              <View style={[styles.currentRepBadgeRow, isRTL && styles.rowReverse]}>
                 <RepBadge size="small" />
-                <Text style={[styles.currentRepSeat, { color: theme.textSecondary }]}>
+                <Text style={[styles.currentRepSeat, isRTL && styles.directionalText, { color: theme.textSecondary }]}>
                   {t('repVoting.repLabel')} #{rep.seatNumber || 1}
                 </Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={normalize(20)} color={theme.textSecondary} />
+            <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={normalize(20)} color={theme.textSecondary} />
           </TouchableOpacity>
         );
       })}
 
       {hasRepNoActiveElection && (
-        <Text style={[styles.noActiveVotingNote, { color: theme.textSecondary }]}>
+        <Text style={[styles.noActiveVotingNote, isRTL && styles.directionalText, { color: theme.textSecondary }]}>
           {t('repVoting.noActiveVoting')}
         </Text>
       )}
 
       {currentSeat > 1 && !hasRepNoActiveElection && (
-        <View style={[styles.seatBadge, { backgroundColor: theme.warning + '20', borderColor: theme.warning + '40' }]}>
+        <View style={[styles.seatBadge, isRTL && styles.rowReverse, { backgroundColor: theme.warning + '20', borderColor: theme.warning + '40' }]}>
           <Ionicons name="ribbon-outline" size={fontSize(16)} color={theme.warning} />
-          <Text style={[styles.seatBadgeText, { color: theme.warning }]}>
+          <Text style={[styles.seatBadgeText, isRTL && styles.directionalText, { color: theme.warning }]}>
             {t('repVoting.electingSeat').replace('{seat}', String(currentSeat))}
           </Text>
         </View>
       )}
 
       {!hasRepNoActiveElection && (
-        <Text style={[styles.listTitle, { color: theme.text }]}>
+        <Text style={[styles.listTitle, isRTL && styles.directionalText, { color: theme.text }]}>
           {t('repVoting.classStudents')}
         </Text>
       )}
@@ -528,7 +528,7 @@ const RepVotingScreen = ({ navigation, route }) => {
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Ionicons name="people-outline" size={normalize(48)} color={theme.textSecondary} />
-      <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+      <Text style={[styles.emptyText, isRTL && styles.directionalTextCenter, { color: theme.textSecondary }]}>
         {t('repVoting.noStudents')}
       </Text>
     </View>
@@ -558,11 +558,11 @@ const RepVotingScreen = ({ navigation, route }) => {
       />
 
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+      <View style={[styles.header, isRTL && styles.rowReverse, { paddingTop: insets.top + spacing.sm }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={normalize(22)} color={theme.text} />
+          <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={normalize(22)} color={theme.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>{t('repVoting.title')}</Text>
+        <Text style={[styles.headerTitle, isRTL && styles.directionalTextCenter, { color: theme.text }]}>{t('repVoting.title')}</Text>
         <TouchableOpacity
           onPress={() => setMenuVisible(true)}
           style={styles.backBtn}
@@ -574,11 +574,11 @@ const RepVotingScreen = ({ navigation, route }) => {
 
       {/* Menu Modal */}
       <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
-        <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={() => setMenuVisible(false)}>
+        <TouchableOpacity style={[styles.menuOverlay, isRTL && styles.menuOverlayRtl]} activeOpacity={1} onPress={() => setMenuVisible(false)}>
           <View style={[styles.menuContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <TouchableOpacity
               disabled={!canRequestReselectionWithClassSize}
-              style={[styles.menuItem, !canRequestReselectionWithClassSize && styles.menuItemDisabled]}
+              style={[styles.menuItem, isRTL && styles.rowReverse, !canRequestReselectionWithClassSize && styles.menuItemDisabled]}
               onPress={() => {
                 if (!canRequestReselectionWithClassSize) return;
                 setMenuVisible(false);
@@ -593,6 +593,7 @@ const RepVotingScreen = ({ navigation, route }) => {
               <Text
                 style={[
                   styles.menuItemText,
+                  isRTL && styles.directionalText,
                   { color: canRequestReselectionWithClassSize ? theme.text : theme.textSecondary },
                 ]}
               >
@@ -602,7 +603,7 @@ const RepVotingScreen = ({ navigation, route }) => {
 
             <TouchableOpacity
               disabled={!canElectNextRep}
-              style={[styles.menuItem, !canElectNextRep && styles.menuItemDisabled]}
+              style={[styles.menuItem, isRTL && styles.rowReverse, !canElectNextRep && styles.menuItemDisabled]}
               onPress={() => {
                 if (!canElectNextRep) return;
                 handleRequestNextRep();
@@ -616,6 +617,7 @@ const RepVotingScreen = ({ navigation, route }) => {
               <Text
                 style={[
                   styles.menuItemText,
+                  isRTL && styles.directionalText,
                   { color: canElectNextRep ? theme.primary : theme.textSecondary },
                 ]}
               >
@@ -627,9 +629,9 @@ const RepVotingScreen = ({ navigation, route }) => {
 
             {/* Max reps reached label */}
             {classReps.length >= MAX_REPS_PER_CLASS && (
-              <View style={styles.menuItem}>
+              <View style={[styles.menuItem, isRTL && styles.rowReverse]}>
                 <Ionicons name="checkmark-done-circle" size={normalize(20)} color={theme.textSecondary} />
-                <Text style={[styles.menuItemText, { color: theme.textSecondary }]}>
+                <Text style={[styles.menuItemText, isRTL && styles.directionalText, { color: theme.textSecondary }]}>
                   {t('repVoting.maxRepsReached')}
                 </Text>
               </View>
@@ -820,6 +822,11 @@ const styles = StyleSheet.create({
     paddingTop: hp(12),
     paddingRight: wp(4),
   },
+  menuOverlayRtl: {
+    alignItems: 'flex-start',
+    paddingRight: 0,
+    paddingLeft: wp(4),
+  },
   menuContainer: {
     minWidth: wp(60),
     borderRadius: borderRadius.lg,
@@ -904,6 +911,10 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: spacing.sm,
   },
+  currentRepInfoRtl: {
+    marginLeft: 0,
+    marginRight: spacing.sm,
+  },
   currentRepName: {
     fontSize: normalize(16),
     fontWeight: '700',
@@ -924,6 +935,17 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     marginBottom: spacing.md,
     lineHeight: normalize(18),
+  },
+  rowReverse: {
+    flexDirection: 'row-reverse',
+  },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  directionalTextCenter: {
+    textAlign: 'center',
+    writingDirection: 'rtl',
   },
 });
 

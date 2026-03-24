@@ -3,6 +3,7 @@ import { Modal, View, Text, TouchableOpacity, TextInput,  StyleSheet, KeyboardAv
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { GlassContainer, GlassIconButton } from '../../components/GlassComponents';
+import { useAppSettings } from '../../context/AppSettingsContext';
 import { spacing, fontSize, wp, moderateScale } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
 import { FlashList } from '@shopify/flash-list';
@@ -25,6 +26,7 @@ const AdminOrganizerModal = ({
   assetOrder = [],
   onSave,
 }) => {
+  const { isRTL } = useAppSettings();
   const [folderName, setFolderName] = useState('');
   const [draftFolders, setDraftFolders] = useState(Array.isArray(folders) ? folders : []);
   const [draftMap, setDraftMap] = useState({ ...(assetFolderMap || {}) });
@@ -133,24 +135,24 @@ const AdminOrganizerModal = ({
         <View pointerEvents="none" style={styles.backdropScrim} />
         <GlassContainer borderRadius={24} style={styles.cardGlass} disableBackgroundOverlay>
         <View style={[styles.card, { backgroundColor: 'transparent', borderColor: `${colors.primary}33` }]}> 
-          <View style={styles.headerRow}>
-            <Text style={[styles.title, { color: colors.text }]}>{t('lectures.organizeAssets')}</Text>
+          <View style={[styles.headerRow, isRTL && styles.rowReverse]}>
+            <Text style={[styles.title, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.organizeAssets')}</Text>
             <GlassIconButton size={30} borderRadiusValue={15} onPress={onClose} style={[styles.iconBtn, { borderColor: `${colors.primary}44` }]}> 
               <Ionicons name="close" size={18} color={colors.text} />
             </GlassIconButton>
           </View>
 
-          <View style={styles.newFolderRow}>
+          <View style={[styles.newFolderRow, isRTL && styles.rowReverse]}>
             <TextInput
               value={folderName}
               onChangeText={setFolderName}
               placeholder={t('lectures.folderNamePlaceholder')}
               placeholderTextColor={colors.textSecondary}
-              style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+              style={[styles.input, isRTL && styles.directionalInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
             />
-            <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={addFolder}>
+            <TouchableOpacity style={[styles.addBtn, isRTL && styles.rowReverse, { backgroundColor: colors.primary }]} onPress={addFolder}>
               <Ionicons name="add" size={16} color="#FFFFFF" />
-              <Text style={styles.addBtnText}>{t('lectures.createFolder')}</Text>
+              <Text style={[styles.addBtnText, isRTL && styles.directionalText]}>{t('lectures.createFolder')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -163,7 +165,7 @@ const AdminOrganizerModal = ({
               renderItem={({ item }) => (
                 <GlassContainer borderRadius={999} style={styles.folderChipGlass}>
                   <View style={[styles.folderChip, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}> 
-                    <Text style={[styles.folderChipText, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+                    <Text style={[styles.folderChipText, isRTL && styles.directionalText, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
                     <TouchableOpacity onPress={() => removeFolder(item.id)}>
                       <Ionicons name="close" size={14} color={colors.textSecondary} />
                     </TouchableOpacity>
@@ -171,7 +173,7 @@ const AdminOrganizerModal = ({
                 </GlassContainer>
               )}
               ListEmptyComponent={
-                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('lectures.noFoldersYet')}</Text>
+                <Text style={[styles.emptyText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('lectures.noFoldersYet')}</Text>
               }
             />
           </View>
@@ -183,16 +185,16 @@ const AdminOrganizerModal = ({
               const folderId = draftMap[item.$id] || '';
               return (
                 <GlassContainer borderRadius={14} style={styles.assetRowGlass}> 
-                  <View style={[styles.assetRow, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}> 
+                  <View style={[styles.assetRow, isRTL && styles.rowReverse, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}> 
                     <View style={styles.assetMeta}>
-                      <Text style={[styles.assetTitle, { color: colors.text }]} numberOfLines={1}>{item.title}</Text>
-                      <TouchableOpacity style={[styles.folderAssignBtn, { borderColor: colors.border }]} onPress={() => cycleAssetFolder(item.$id)}>
+                      <Text style={[styles.assetTitle, isRTL && styles.directionalText, { color: colors.text }]} numberOfLines={1}>{item.title}</Text>
+                      <TouchableOpacity style={[styles.folderAssignBtn, isRTL && styles.rowReverse, { borderColor: colors.border }]} onPress={() => cycleAssetFolder(item.$id)}>
                         <Ionicons name="folder-open-outline" size={14} color={colors.primary} />
-                        <Text style={[styles.folderAssignText, { color: colors.primary }]}>{resolveFolderName(folderId)}</Text>
+                        <Text style={[styles.folderAssignText, isRTL && styles.directionalText, { color: colors.primary }]}>{resolveFolderName(folderId)}</Text>
                       </TouchableOpacity>
                     </View>
 
-                    <View style={styles.rowActions}>
+                    <View style={[styles.rowActions, isRTL && styles.rowReverse]}>
                       <TouchableOpacity disabled={index === 0} style={[styles.iconBtn, { borderColor: colors.border, opacity: index === 0 ? 0.4 : 1 }]} onPress={() => moveAsset(item.$id, 'up')}>
                         <Ionicons name="chevron-up" size={16} color={colors.text} />
                       </TouchableOpacity>
@@ -210,7 +212,7 @@ const AdminOrganizerModal = ({
             style={[styles.saveBtn, { backgroundColor: colors.primary }]}
             onPress={() => onSave({ folders: draftFolders, assetFolderMap: draftMap, assetOrder: draftOrder })}
           >
-            <Text style={styles.saveBtnText}>{t('lectures.saveOrganization')}</Text>
+            <Text style={[styles.saveBtnText, isRTL && styles.directionalText]}>{t('lectures.saveOrganization')}</Text>
           </TouchableOpacity>
         </View>
         </GlassContainer>
@@ -238,9 +240,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     padding: spacing.md,
     maxHeight: '88%',
+    overflow: 'hidden',
   },
   cardGlass: {
     borderRadius: borderRadius.xl,
+    overflow: 'hidden',
   },
   headerRow: {
     flexDirection: 'row',
@@ -365,6 +369,17 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: fontSize(12),
     fontWeight: '700',
+  },
+  rowReverse: {
+    flexDirection: 'row-reverse',
+  },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  directionalInput: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });
 

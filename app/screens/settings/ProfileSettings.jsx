@@ -77,9 +77,26 @@ const normalizeAcademicSnapshot = (data = {}) => ({
 const normalizeSocialLinks = (links = {}) => ({
   instagram: links?.instagram || '',
   twitter: links?.twitter || '',
+  facebook: links?.facebook || '',
   linkedin: links?.linkedin || '',
   github: links?.github || '',
   website: links?.website || '',
+});
+
+const buildProfileData = (source = {}) => ({
+  fullName: source.fullName || '',
+  email: source.email || '',
+  university: source.university || '',
+  college: source.college || '',
+  department: source.department || '',
+  stage: normalizeStageKey(source.stage),
+  bio: source.bio || '',
+  gender: source.gender || '',
+  profilePicture: source.profilePicture || '',
+  lastAcademicUpdate: source.lastAcademicUpdate || null,
+  academicChangesCount: Number(source.academicChangesCount) || 0,
+  socialLinks: normalizeSocialLinks(source.socialLinks),
+  socialLinksVisibility: source.socialLinksVisibility || 'everyone',
 });
 
 
@@ -98,6 +115,7 @@ const ProfileSettings = ({ navigation }) => {
   const bioInputRef = useRef(null);
   const autoSaveTimeoutRef = useRef(null);
   const hasHydratedProfileRef = useRef(false);
+  const pendingAuthoritativeHydrationRef = useRef(false);
   
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -106,27 +124,7 @@ const ProfileSettings = ({ navigation }) => {
   const [canEditAcademic, setCanEditAcademic] = useState(true);
   const [cooldownInfo, setCooldownInfo] = useState(null);
   
-  const [profileData, setProfileData] = useState({
-    fullName: '',
-    email: '',
-    university: '',
-    college: '',
-    department: '',
-    stage: '',
-    bio: '',
-    gender: '',
-    profilePicture: '',
-    lastAcademicUpdate: null,
-    academicChangesCount: 0,
-    socialLinks: {
-      instagram: '',
-      twitter: '',
-      linkedin: '',
-      github: '',
-      website: '',
-    },
-    socialLinksVisibility: 'everyone',
-  });
+  const [profileData, setProfileData] = useState(() => buildProfileData());
 
   const [initialLoadDone, setInitialLoadDone] = useState(false);
 
@@ -208,65 +206,70 @@ const ProfileSettings = ({ navigation }) => {
   }, [profileData.academicChangesCount, profileData.lastAcademicUpdate]);
 
   useEffect(() => {
-    if (!initialLoadDone) {
-      loadUserProfile();
-      setInitialLoadDone(true);
-    }
-  }, [initialLoadDone, loadUserProfile]);
-
-  useEffect(() => {
     if (initialLoadDone) {
       checkAcademicCooldown();
     }
   }, [profileData.lastAcademicUpdate, initialLoadDone, checkAcademicCooldown]);
 
+  const markProfileDraftChanged = useCallback(() => {
+    pendingAuthoritativeHydrationRef.current = false;
+  }, []);
+
+  const updateProfileDraft = useCallback((updater) => {
+    markProfileDraftChanged();
+    setProfileData(updater);
+  }, [markProfileDraftChanged]);
+
+  const hydrateProfileData = useCallback((source, options = {}) => {
+    if (!source) {
+      return;
+    }
+
+    pendingAuthoritativeHydrationRef.current = options.awaitAuthoritativeUser === true;
+    hasHydratedProfileRef.current = true;
+    setProfileData(buildProfileData(source));
+  }, []);
+
+  const hasUnsavedProfileChanges = hasAcademicChanges || hasNonAcademicChanges;
+
   const loadUserProfile = useCallback(async () => {
-    setIsLoading(true);
     try {
       if (user) {
-        setProfileData({
-          fullName: user.fullName || '',
-          email: user.email || '',
-          university: user.university || '',
-          college: user.college || '',
-          department: user.department || '',
-          stage: normalizeStageKey(user.stage),
-          bio: user.bio || '',
-          gender: user.gender || '',
-          profilePicture: user.profilePicture || '',
-          lastAcademicUpdate: user.lastAcademicUpdate || null,
-          academicChangesCount: Number(user.academicChangesCount) || 0,
-          socialLinks: user.socialLinks || { instagram: '', twitter: '', linkedin: '', github: '', website: '' },
-          socialLinksVisibility: user.socialLinksVisibility || 'everyone',
-        });
-        hasHydratedProfileRef.current = true;
-      } else {
-        const userData = await safeStorage.getItem('userData');
-        if (userData) {
-          const parsedData = JSON.parse(userData);
-          setProfileData({
-            fullName: parsedData.fullName || '',
-            email: parsedData.email || '',
-            university: parsedData.university || '',
-            college: parsedData.college || '',
-            department: parsedData.department || '',
-            stage: normalizeStageKey(parsedData.stage),
-            bio: parsedData.bio || '',
-            gender: parsedData.gender || '',
-            profilePicture: parsedData.profilePicture || '',
-            lastAcademicUpdate: parsedData.lastAcademicUpdate || null,
-            academicChangesCount: Number(parsedData.academicChangesCount) || 0,
-            socialLinks: parsedData.socialLinks || { instagram: '', twitter: '', linkedin: '', github: '', website: '' },
-            socialLinksVisibility: parsedData.socialLinksVisibility || 'everyone',
-          });
-          hasHydratedProfileRef.current = true;
+        const shouldHydrateFromUser = !hasHydratedProfileRef.current
+          || pendingAuthoritativeHydrationRef.current
+          || !hasUnsavedProfileChanges;
+
+        if (shouldHydrateFromUser) {
+          hydrateProfileData(user, { awaitAuthoritativeUser: false });
         }
+
+        return;
+      }
+
+      if (hasHydratedProfileRef.current) {
+        return;
+      }
+
+      setIsLoading(true);
+      const userData = await safeStorage.getItem('userData');
+      if (userData) {
+        const parsedData = JSON.parse(userData);
+        hydrateProfileData(parsedData, { awaitAuthoritativeUser: true });
       }
     } catch (error) {
     } finally {
-      setIsLoading(false);
+      if (!user) {
+        setIsLoading(false);
+      }
     }
-  }, [user]);
+  }, [hasUnsavedProfileChanges, hydrateProfileData, user]);
+
+  useEffect(() => {
+    loadUserProfile();
+    if (!initialLoadDone) {
+      setInitialLoadDone(true);
+    }
+  }, [initialLoadDone, loadUserProfile]);
 
   const saveProfileChanges = async () => {
     setIsSaving(true);
@@ -440,7 +443,7 @@ const ProfileSettings = ({ navigation }) => {
         const success = await updateProfilePicture(result.displayUrl, result.deleteUrl);
         
         if (success) {
-          setProfileData({ ...profileData, profilePicture: result.displayUrl });
+          updateProfileDraft(prev => ({ ...prev, profilePicture: result.displayUrl }));
           await refreshUser();
           // Sync profile picture across notifications
           syncUserProfilePicture(user.$id, result.displayUrl).catch(() => {});
@@ -465,7 +468,7 @@ const ProfileSettings = ({ navigation }) => {
   };
 
   const handleUniversityChange = (value) => {
-    setProfileData(prev => ({
+    updateProfileDraft(prev => ({
       ...prev,
       university: value,
       college: '',
@@ -475,7 +478,7 @@ const ProfileSettings = ({ navigation }) => {
   };
 
   const handleCollegeChange = (value) => {
-    setProfileData(prev => ({
+    updateProfileDraft(prev => ({
       ...prev,
       college: value,
       department: '',
@@ -484,7 +487,7 @@ const ProfileSettings = ({ navigation }) => {
   };
 
   const handleDepartmentChange = (value) => {
-    setProfileData(prev => ({
+    updateProfileDraft(prev => ({
       ...prev,
       department: value,
       stage: '',
@@ -492,26 +495,26 @@ const ProfileSettings = ({ navigation }) => {
   };
 
   const handleStageChange = (value) => {
-    setProfileData(prev => ({
+    updateProfileDraft(prev => ({
       ...prev,
       stage: value,
     }));
   };
 
   const handleBioChange = (text) => {
-    setProfileData(prev => ({ ...prev, bio: text }));
+    updateProfileDraft(prev => ({ ...prev, bio: text }));
   };
 
   const handleGenderChange = (value) => {
-    setProfileData(prev => ({ ...prev, gender: value }));
+    updateProfileDraft(prev => ({ ...prev, gender: value }));
   };
 
   const handleSocialLinksVisibilityChange = (value) => {
-    setProfileData(prev => ({ ...prev, socialLinksVisibility: value }));
+    updateProfileDraft(prev => ({ ...prev, socialLinksVisibility: value }));
   };
 
   const handleSocialLinkChange = (platform, text) => {
-    setProfileData(prev => ({
+    updateProfileDraft(prev => ({
       ...prev,
       socialLinks: {
         ...prev.socialLinks,
@@ -521,7 +524,7 @@ const ProfileSettings = ({ navigation }) => {
   };
 
   const handleFullNameChange = (text) => {
-    setProfileData(prev => ({ ...prev, fullName: text }));
+    updateProfileDraft(prev => ({ ...prev, fullName: text }));
   };
 
   const universityOptions = useMemo(() => {
@@ -580,13 +583,14 @@ const ProfileSettings = ({ navigation }) => {
 
   const socialLinksConfig = useMemo(() => {
     return [
-      { key: 'instagram', icon: 'logo-instagram', placeholder: '@username', color: '#E4405F' },
-      { key: 'twitter', icon: 'logo-twitter', placeholder: '@username', color: '#1DA1F2' },
-      { key: 'linkedin', icon: 'logo-linkedin', placeholder: 'linkedin.com/in/username', color: '#0A66C2' },
-      { key: 'github', icon: 'logo-github', placeholder: 'github.com/username', color: isDarkMode ? '#FFFFFF' : '#333333' },
-      { key: 'website', icon: 'globe-outline', placeholder: 'https://yourwebsite.com', color: theme.primary },
+      { key: 'instagram', icon: 'logo-instagram', placeholder: t('settings.socialPlaceholderInstagram'), color: '#E4405F' },
+      { key: 'twitter', icon: 'logo-twitter', placeholder: t('settings.socialPlaceholderTwitter'), color: '#1DA1F2' },
+      { key: 'facebook', icon: 'logo-facebook', placeholder: t('settings.socialPlaceholderFacebook'), color: '#1877F2' },
+      { key: 'linkedin', icon: 'logo-linkedin', placeholder: t('settings.socialPlaceholderLinkedin'), color: '#0A66C2' },
+      { key: 'github', icon: 'logo-github', placeholder: t('settings.socialPlaceholderGithub'), color: isDarkMode ? '#FFFFFF' : '#333333' },
+      { key: 'website', icon: 'globe-outline', placeholder: t('settings.socialPlaceholderWebsite'), color: theme.primary },
     ];
-  }, [isDarkMode, theme.primary]);
+  }, [isDarkMode, t, theme.primary]);
 
   const departmentOptions = useMemo(() => {
     if (!profileData.university || !profileData.college) return [];
@@ -934,7 +938,7 @@ const ProfileSettings = ({ navigation }) => {
           <View style={[styles.fixedButtonContainer, isRTL && styles.rowReverse, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)', borderTopColor: theme.border }]}>
             <TouchableOpacity
               onPress={() => {
-                setProfileData(prev => ({
+                updateProfileDraft(prev => ({
                   ...prev,
                   university: user?.university || '',
                   college: user?.college || '',

@@ -236,7 +236,7 @@ const formatNotificationTime = (dateString, t) => {
   return date.toLocaleDateString();
 };
 
-const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurnOff, theme, isDarkMode, t, index }) => {
+const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurnOff, theme, isDarkMode, isRTL, t, index }) => {
   const [menuVisible, setMenuVisible] = useState(false);
 
   if (!notification || !notification.$id || !notification.type) {
@@ -324,10 +324,10 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
         accessibilityRole="button"
         accessibilityLabel={`${senderName} ${message}`}
       >
-        <View style={styles.notificationContent}>
-          <View style={[styles.notificationAccent, { backgroundColor: icon.color }]} />
+        <View style={[styles.notificationContent, isRTL && styles.notificationContentRtl]}>
+          <View style={[styles.notificationAccent, isRTL && styles.notificationAccentRtl, { backgroundColor: icon.color }]} />
 
-          <View style={styles.avatarContainer}>
+          <View style={[styles.avatarContainer, isRTL && styles.avatarContainerRtl]}>
             <ProfilePicture
               uri={notification.senderProfilePicture}
               name={notification.senderName}
@@ -336,6 +336,7 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
             <View
               style={[
                 styles.iconBadge,
+                isRTL && styles.iconBadgeRtl,
                 { backgroundColor: icon.color, borderColor: iconBadgeBorder },
               ]}
             >
@@ -347,6 +348,7 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
             <Text
               style={[
                 styles.notificationText,
+                isRTL && styles.notificationTextRtl,
                 { color: theme.text },
                 isUnread && { fontWeight: '500' },
               ]}
@@ -358,13 +360,13 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
             </Text>
             {postPreview ? (
               <Text
-                style={[styles.previewText, { color: theme.textSecondary }]}
+                style={[styles.previewText, isRTL && styles.previewTextRtl, { color: theme.textSecondary }]}
                 numberOfLines={1}
               >
                 &ldquo;{postPreview}&rdquo;
               </Text>
             ) : null}
-            <View style={styles.timeRow}>
+            <View style={[styles.timeRow, isRTL && styles.timeRowRtl]}>
               <Ionicons name="sparkles-outline" size={moderateScale(10)} color={icon.color} />
               <Text style={[styles.timeText, { color: theme.textSecondary }]}>
                 {timestamp}
@@ -372,7 +374,7 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
             </View>
           </View>
 
-          <View style={styles.rightSection}>
+          <View style={[styles.rightSection, isRTL && styles.rightSectionRtl]}>
             {isUnread && (
               <View style={[styles.unreadDot, { backgroundColor: icon.color }]} />
             )}
@@ -395,27 +397,27 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
             { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF', borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }
           ]}>
             <TouchableOpacity
-              style={styles.notifMenuItem}
+              style={[styles.notifMenuItem, isRTL && styles.notifMenuItemRtl]}
               onPress={() => {
                 setMenuVisible(false);
                 onDelete && onDelete(notification);
               }}
             >
               <Ionicons name="trash-outline" size={moderateScale(15)} color="#EF4444" />
-              <Text style={[styles.notifMenuText, { color: '#EF4444' }]}>
+              <Text style={[styles.notifMenuText, isRTL && styles.notifMenuTextRtl, { color: '#EF4444' }]}>
                 {t('notifications.removeNotification') || 'Remove this notification'}
               </Text>
             </TouchableOpacity>
             <View style={[styles.notifMenuDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]} />
             <TouchableOpacity
-              style={styles.notifMenuItem}
+              style={[styles.notifMenuItem, isRTL && styles.notifMenuItemRtl]}
               onPress={() => {
                 setMenuVisible(false);
                 onTurnOff && onTurnOff(notification);
               }}
             >
               <Ionicons name="notifications-off-outline" size={moderateScale(15)} color={theme.textSecondary} />
-              <Text style={[styles.notifMenuText, { color: theme.text }]}>
+              <Text style={[styles.notifMenuText, isRTL && styles.notifMenuTextRtl, { color: theme.text }]}>
                 {t('notifications.turnOffLikeThis') || 'Turn off notifications like this'}
               </Text>
             </TouchableOpacity>
@@ -427,7 +429,7 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
 };
 
 // Grouped notification item for multiple likes/replies on same post
-const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }) => {
+const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, isRTL, t, index }) => {
   const icon = getNotificationIcon(group.type);
   const count = group.totalCount || group.notifications.length;
   const cardBackground = group.hasUnread
@@ -507,16 +509,16 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
         onPress={() => onPress(group)}
         activeOpacity={0.7}
       >
-        <View style={styles.notificationContent}>
-          <View style={[styles.notificationAccent, { backgroundColor: icon.color }]} />
+        <View style={[styles.notificationContent, isRTL && styles.notificationContentRtl]}>
+          <View style={[styles.notificationAccent, isRTL && styles.notificationAccentRtl, { backgroundColor: icon.color }]} />
 
-          <View style={styles.groupedAvatarContainer}>
+          <View style={[styles.groupedAvatarContainer, isRTL && styles.groupedAvatarContainerRtl]}>
             {visibleUsers.map((notif, avatarIdx) => (
               <View 
                 key={notif.$id} 
                 style={[
                   styles.stackedAvatar,
-                  { left: avatarIdx * 12, zIndex: 3 - avatarIdx }
+                  isRTL ? { right: avatarIdx * 12, zIndex: 3 - avatarIdx } : { left: avatarIdx * 12, zIndex: 3 - avatarIdx }
                 ]}
               >
                 <ProfilePicture
@@ -530,8 +532,8 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
               <View
                 style={[
                   styles.avatarOverflowBadge,
+                  isRTL ? { right: visibleUsers.length * 12 } : { left: visibleUsers.length * 12 },
                   {
-                    left: visibleUsers.length * 12,
                     backgroundColor: isDarkMode ? 'rgba(15,23,42,0.92)' : 'rgba(255,255,255,0.98)',
                     borderColor: cardBorder,
                   },
@@ -543,6 +545,7 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
             <View
               style={[
                 styles.groupIconBadge,
+                isRTL && styles.groupIconBadgeRtl,
                 { backgroundColor: icon.color, borderColor: iconBadgeBorder },
               ]}
             >
@@ -551,10 +554,11 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
           </View>
 
           <View style={styles.textContainer}>
-            <View style={styles.topRow}>
+            <View style={[styles.topRow, isRTL && styles.topRowRtl]}>
               <Text
                 style={[
                   styles.notificationText,
+                  isRTL && styles.notificationTextRtl,
                   { color: theme.text },
                 ]}
                 numberOfLines={1}
@@ -563,7 +567,7 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
                 {' '}
                 <Text style={{ color: theme.textSecondary }}>{message.action}</Text>
               </Text>
-              <View style={styles.timeRow}>
+              <View style={[styles.timeRow, isRTL && styles.timeRowRtl]}>
                 <Ionicons name="sparkles-outline" size={moderateScale(10)} color={icon.color} />
                 <Text style={[styles.timeText, { color: theme.textSecondary }]}>
                   {formatNotificationTime(group.latestTimestamp, t)}
@@ -572,7 +576,7 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
             </View>
             {group.postPreview && (
               <Text
-                style={[styles.previewText, { color: theme.textSecondary }]}
+                style={[styles.previewText, isRTL && styles.previewTextRtl, { color: theme.textSecondary }]}
                 numberOfLines={1}
               >
                 {group.postPreview}
@@ -591,7 +595,7 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
 };
 
 const Notifications = ({ navigation }) => {
-  const { t, theme, isDarkMode, triggerHaptic } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL, triggerHaptic } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
@@ -1059,18 +1063,18 @@ const Notifications = ({ navigation }) => {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <View style={[styles.header, isRTL && styles.headerRtl, { paddingTop: insets.top + spacing.sm }]}>
           <TouchableOpacity
-            style={styles.backButton}
+            style={[styles.backButton, isRTL && styles.backButtonRtl]}
             onPress={() => navigation.goBack()}
             accessibilityRole="button"
             accessibilityLabel={t('common.goBack')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.text} />
+            <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={moderateScale(24)} color={theme.text} />
           </TouchableOpacity>
           
-          <Text style={[styles.headerTitle, { color: theme.text }]}>
+          <Text style={[styles.headerTitle, isRTL && styles.headerTitleRtl, { color: theme.text }]}>
             {t('notifications.title') || 'Notifications'}
           </Text>
           
@@ -1104,23 +1108,23 @@ const Notifications = ({ navigation }) => {
         </View>
 
         {(notifications.length > 0 || unreadCount > 0) && (
-          <View style={styles.summaryRow}>
-            <View style={[styles.summaryChip, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.88)', borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)' }]}>
+          <View style={[styles.summaryRow, isRTL && styles.summaryRowRtl]}>
+            <View style={[styles.summaryChip, isRTL && styles.summaryChipRtl, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.88)', borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)' }]}>
               <View style={[styles.summaryIconWrap, { backgroundColor: `${theme.primary}18` }]}>
                 <Ionicons name="mail-unread-outline" size={moderateScale(14)} color={theme.primary} />
               </View>
               <View>
-                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>{t('notifications.markAllRead')}</Text>
-                <Text style={[styles.summaryValue, { color: theme.text }]}>{unreadCount}</Text>
+                <Text style={[styles.summaryLabel, isRTL && styles.summaryTextRtl, { color: theme.textSecondary }]}>{t('notifications.markAllRead')}</Text>
+                <Text style={[styles.summaryValue, isRTL && styles.summaryTextRtl, { color: theme.text }]}>{unreadCount}</Text>
               </View>
             </View>
-            <View style={[styles.summaryChip, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.88)', borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)' }]}>
+            <View style={[styles.summaryChip, isRTL && styles.summaryChipRtl, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.88)', borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)' }]}>
               <View style={[styles.summaryIconWrap, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)' }]}>
                 <Ionicons name="notifications-outline" size={moderateScale(14)} color={theme.textSecondary} />
               </View>
               <View>
-                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>{t('notifications.title')}</Text>
-                <Text style={[styles.summaryValue, { color: theme.text }]}>{notifications.length}</Text>
+                <Text style={[styles.summaryLabel, isRTL && styles.summaryTextRtl, { color: theme.textSecondary }]}>{t('notifications.title')}</Text>
+                <Text style={[styles.summaryValue, isRTL && styles.summaryTextRtl, { color: theme.text }]}>{notifications.length}</Text>
               </View>
             </View>
           </View>
@@ -1142,6 +1146,7 @@ const Notifications = ({ navigation }) => {
                     onPress={handleGroupPress}
                     theme={theme}
                     isDarkMode={isDarkMode}
+                    isRTL={isRTL}
                     t={t}
                     index={index}
                   />
@@ -1156,6 +1161,7 @@ const Notifications = ({ navigation }) => {
                   onTurnOff={handleTurnOffNotificationType}
                   theme={theme}
                   isDarkMode={isDarkMode}
+                  isRTL={isRTL}
                   t={t}
                   index={index}
                 />
@@ -1220,15 +1226,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
   },
+  headerRtl: {
+    flexDirection: 'row-reverse',
+  },
   backButton: {
     width: moderateScale(40),
     height: moderateScale(40),
     justifyContent: 'center',
     alignItems: 'flex-start',
   },
+  backButtonRtl: {
+    alignItems: 'flex-end',
+  },
   headerTitle: {
     fontSize: fontSize(17),
     fontWeight: '700',
+  },
+  headerTitleRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   markAllButton: {
     paddingVertical: spacing.xs,
@@ -1258,6 +1274,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
   },
+  summaryRowRtl: {
+    flexDirection: 'row-reverse',
+  },
   summaryChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1267,6 +1286,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
     flex: 1,
+  },
+  summaryChipRtl: {
+    flexDirection: 'row-reverse',
+  },
+  summaryTextRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   summaryIconWrap: {
     width: moderateScale(28),
@@ -1300,16 +1326,27 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     marginRight: spacing.sm,
   },
+  notificationAccentRtl: {
+    marginRight: 0,
+    marginLeft: spacing.sm,
+  },
   notificationItem: {
   },
   notificationContent: {
     flexDirection: 'row',
     alignItems: 'stretch',
   },
+  notificationContentRtl: {
+    flexDirection: 'row-reverse',
+  },
   avatarContainer: {
     position: 'relative',
     marginRight: spacing.sm,
     overflow: 'visible',
+  },
+  avatarContainerRtl: {
+    marginRight: 0,
+    marginLeft: spacing.sm,
   },
   groupedAvatarContainer: {
     position: 'relative',
@@ -1317,6 +1354,10 @@ const styles = StyleSheet.create({
     height: moderateScale(32),
     marginRight: spacing.sm,
     overflow: 'visible',
+  },
+  groupedAvatarContainerRtl: {
+    marginRight: 0,
+    marginLeft: spacing.sm,
   },
   stackedAvatar: {
     position: 'absolute',
@@ -1351,6 +1392,10 @@ const styles = StyleSheet.create({
     zIndex: 10,
     elevation: 3,
   },
+  groupIconBadgeRtl: {
+    left: 'auto',
+    right: moderateScale(30),
+  },
   iconBadge: {
     position: 'absolute',
     bottom: -2,
@@ -1365,6 +1410,10 @@ const styles = StyleSheet.create({
     zIndex: 10,
     elevation: 3,
   },
+  iconBadgeRtl: {
+    right: 'auto',
+    left: -2,
+  },
   textContainer: {
     flex: 1,
   },
@@ -1374,10 +1423,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.xs,
   },
+  topRowRtl: {
+    flexDirection: 'row-reverse',
+  },
   notificationText: {
     fontSize: fontSize(13),
     lineHeight: fontSize(18),
     flex: 1,
+  },
+  notificationTextRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   senderName: {
     fontWeight: '600',
@@ -1391,6 +1447,10 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     backgroundColor: 'rgba(127,127,127,0.08)',
   },
+  previewTextRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1402,6 +1462,10 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.pill || 999,
     backgroundColor: 'rgba(127,127,127,0.08)',
   },
+  timeRowRtl: {
+    flexDirection: 'row-reverse',
+    alignSelf: 'flex-end',
+  },
   timeText: {
     fontSize: fontSize(10),
   },
@@ -1410,6 +1474,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     marginLeft: spacing.xs,
+  },
+  rightSectionRtl: {
+    marginLeft: 0,
+    marginRight: spacing.xs,
   },
   unreadDot: {
     width: moderateScale(8),
@@ -1471,6 +1539,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     gap: spacing.sm,
   },
+  notifMenuItemRtl: {
+    flexDirection: 'row-reverse',
+  },
   notifMenuDivider: {
     height: StyleSheet.hairlineWidth,
     marginHorizontal: spacing.md,
@@ -1479,6 +1550,11 @@ const styles = StyleSheet.create({
   notifMenuText: {
     fontSize: fontSize(13),
     fontWeight: '500',
+  },
+  notifMenuTextRtl: {
+    flex: 1,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });
 

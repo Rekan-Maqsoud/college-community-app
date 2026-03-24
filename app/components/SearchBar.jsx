@@ -34,7 +34,7 @@ const SEARCH_FILTERS = {
 };
 
 const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, ref) => {
-  const { t, theme, isDarkMode, reduceMotion } = useAppSettings();
+  const { t, theme, isDarkMode, reduceMotion, isRTL } = useAppSettings();
   const { user: currentUser } = useUser();
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,7 +62,8 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
     { key: SEARCH_FILTERS.HASHTAGS, label: t('search.hashtags') || 'Tags', icon: 'pricetag-outline' },
   ];
 
-  const selectedFilterIndex = Math.max(0, filterTabs.findIndex((tab) => tab.key === activeFilter));
+  const visualFilterTabs = isRTL ? [...filterTabs].reverse() : filterTabs;
+  const selectedFilterIndex = Math.max(0, visualFilterTabs.findIndex((tab) => tab.key === activeFilter));
   const filterTabWidth = filterContainerWidth > 0 ? (filterContainerWidth / filterTabs.length) : 0;
 
   useEffect(() => {
@@ -288,14 +289,14 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
         renderItem={({ item }) => {
           if (item.type === 'header') {
             return (
-              <View style={styles.sectionHeaderContainer}>
+              <View style={[styles.sectionHeaderContainer, isRTL && styles.sectionHeaderContainerRtl]}>
                 <Ionicons
                   name={item.icon}
                   size={moderateScale(16)}
                   color={theme.primary}
-                  style={styles.sectionHeaderIcon}
+                  style={[styles.sectionHeaderIcon, isRTL && styles.sectionHeaderIconRtl]}
                 />
-                <Text style={[styles.sectionHeader, { color: theme.text }]}>
+                <Text style={[styles.sectionHeader, isRTL && styles.sectionHeaderRtl, { color: theme.text }]}>
                   {item.title}
                 </Text>
               </View>
@@ -350,14 +351,14 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
             />
           </GlassIconButton>
         ) : (
-          <GlassContainer borderRadius={borderRadius.lg} style={styles.searchButton}>
+          <GlassContainer borderRadius={borderRadius.lg} style={[styles.searchButton, isRTL && styles.searchButtonRtl]}>
             <Ionicons
               name="search-outline"
               size={moderateScale(20)}
               color={theme.textSecondary}
-              style={styles.searchIcon}
+              style={[styles.searchIcon, isRTL && styles.searchIconRtl]}
             />
-            <Text style={[styles.searchButtonText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
+            <Text style={[styles.searchButtonText, isRTL && styles.searchButtonTextRtl, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
               {t('search.placeholder')}
             </Text>
           </GlassContainer>
@@ -384,14 +385,15 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
             backgroundColor="transparent"
             translucent
           />
-          <View style={[styles.searchHeader, { borderBottomColor: theme.border, paddingTop: insets.top + 10 }]}>
-            <TouchableOpacity onPress={handleCloseModal} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.text} />
+          <View style={[styles.searchHeader, isRTL && styles.searchHeaderRtl, { borderBottomColor: theme.border, paddingTop: insets.top + 10 }]}>
+            <TouchableOpacity onPress={handleCloseModal} style={[styles.backButton, isRTL && styles.backButtonRtl]}>
+              <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={moderateScale(24)} color={theme.text} />
             </TouchableOpacity>
             
             <GlassInput
               style={[
                 styles.searchInputContainer,
+                isRTL && styles.searchInputContainerRtl,
                 { paddingHorizontal: spacing.md }
               ]}
               focused={searchQuery.length > 0}
@@ -400,12 +402,13 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
                 name="search-outline"
                 size={moderateScale(20)}
                 color={isDarkMode ? theme.text : theme.textSecondary}
-                style={styles.searchIcon}
+                style={[styles.searchIcon, isRTL && styles.searchIconRtl]}
               />
               <TextInput
                 ref={searchInputRef}
                 style={[
                   styles.searchInput,
+                  isRTL && styles.searchInputRtl,
                   {
                     color: theme.text,
                     fontSize: fontSize(16),
@@ -452,7 +455,7 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
                   },
                 ]}
               />
-              {filterTabs.map((filter, index) => {
+              {visualFilterTabs.map((filter) => {
                 const isActive = activeFilter === filter.key;
 
                 return (
@@ -460,17 +463,18 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
                     key={filter.key}
                     onPress={() => handleFilterChange(filter.key)}
                     activeOpacity={0.7}
-                    style={[styles.filterTab, { width: filterTabWidth || `${100 / filterTabs.length}%` }]}
+                    style={[styles.filterTab, isRTL && styles.filterTabRtl, { width: filterTabWidth || `${100 / filterTabs.length}%` }]}
                   >
                     <Ionicons
                       name={isActive ? filter.icon.replace('-outline', '') : filter.icon}
                       size={moderateScale(14)}
                       color={isActive ? '#FFFFFF' : (isDarkMode ? 'rgba(255,255,255,0.84)' : theme.textSecondary)}
-                      style={[styles.filterTabIcon, index === 0 && { marginLeft: 2 }]}
+                      style={[styles.filterTabIcon, isRTL ? styles.filterTabIconRtl : styles.filterTabIconLtr]}
                     />
                     <Text
                       style={[
                         styles.filterTabText,
+                        isRTL && styles.filterTabTextRtl,
                         {
                           color: isActive ? '#FFFFFF' : (isDarkMode ? 'rgba(255,255,255,0.84)' : theme.textSecondary),
                           fontWeight: isActive ? '700' : '600',
@@ -514,8 +518,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
+  searchButtonRtl: {
+    flexDirection: 'row-reverse',
+  },
   searchButtonText: {
     flex: 1,
+  },
+  searchButtonTextRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   modalContainer: {
     flex: 1,
@@ -527,9 +538,16 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     borderBottomWidth: 0,
   },
+  searchHeaderRtl: {
+    flexDirection: 'row-reverse',
+  },
   backButton: {
     padding: spacing.xs,
     marginRight: spacing.sm,
+  },
+  backButtonRtl: {
+    marginRight: 0,
+    marginLeft: spacing.sm,
   },
   filterTabsContainer: {
     marginHorizontal: spacing.md,
@@ -565,11 +583,23 @@ const styles = StyleSheet.create({
     zIndex: 2,
     paddingHorizontal: spacing.xs,
   },
+  filterTabRtl: {
+    flexDirection: 'row-reverse',
+  },
   filterTabIcon: {
     marginTop: 1,
   },
+  filterTabIconLtr: {
+    marginLeft: 2,
+  },
+  filterTabIconRtl: {
+    marginRight: 2,
+  },
   filterTabText: {
     fontSize: fontSize(10.5),
+  },
+  filterTabTextRtl: {
+    writingDirection: 'rtl',
   },
   divider: {
     height: 1,
@@ -583,12 +613,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
   },
+  searchInputContainerRtl: {
+    flexDirection: 'row-reverse',
+  },
   searchInput: {
     flex: 1,
     paddingVertical: spacing.xs,
   },
+  searchInputRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   searchIcon: {
     marginRight: spacing.sm,
+  },
+  searchIconRtl: {
+    marginRight: 0,
+    marginLeft: spacing.sm,
   },
   clearButton: {
     padding: spacing.xs,
@@ -627,12 +668,23 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
+  sectionHeaderContainerRtl: {
+    flexDirection: 'row-reverse',
+  },
   sectionHeaderIcon: {
     marginRight: spacing.xs,
+  },
+  sectionHeaderIconRtl: {
+    marginRight: 0,
+    marginLeft: spacing.xs,
   },
   sectionHeader: {
     fontWeight: '600',
     fontSize: fontSize(16),
+  },
+  sectionHeaderRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   resultItem: {
     marginBottom: spacing.sm,

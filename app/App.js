@@ -228,7 +228,7 @@ const AnimatedTabIcon = ({ focused, iconName, color, size }) => {
 };
 
 const TabNavigator = () => {
-  const { t, theme, isDarkMode, loadUserChatSettings } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL, loadUserChatSettings } = useAppSettings();
   const { user } = useUser();
   const insets = useSafeAreaInsets();
   const [unreadCount, setUnreadCount] = useState(0);
@@ -313,9 +313,51 @@ const TabNavigator = () => {
       appStateSubscription?.remove();
     };
   }, [scheduleUnreadSync]);
+
+  const tabScreens = [
+    {
+      name: 'Home',
+      component: HomeWithActivity,
+      options: { title: t('tabs.home') },
+    },
+    {
+      name: 'Chats',
+      component: ChatsWithActivity,
+      options: {
+        title: t('tabs.chats'),
+        tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined,
+        tabBarBadgeStyle: {
+          backgroundColor: '#EF4444',
+          fontSize: 10,
+          fontWeight: '600',
+          minWidth: 18,
+          height: 18,
+        },
+      },
+    },
+    {
+      name: 'Post',
+      component: PostWithActivity,
+      options: {
+        title: t('tabs.post'),
+        tabBarIconStyle: { marginTop: -4 },
+      },
+    },
+    {
+      name: 'Lecture',
+      component: LectureWithActivity,
+      options: { title: t('tabs.lecture') },
+    },
+    {
+      name: 'Profile',
+      component: ProfileWithActivity,
+      options: { title: t('tabs.profile') },
+    },
+  ];
   
   return (
     <Tab.Navigator
+      initialRouteName="Home"
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
@@ -344,6 +386,7 @@ const TabNavigator = () => {
           paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 20) : Math.max(insets.bottom, 10),
           paddingTop: 8,
           position: 'absolute',
+          flexDirection: isRTL ? 'row-reverse' : 'row',
         },
         tabBarBackground: () => (
           isLiquidGlassSupported ? (
@@ -364,6 +407,7 @@ const TabNavigator = () => {
           fontSize: 11,
           fontWeight: '700',
           letterSpacing: 0.2,
+          writingDirection: isRTL ? 'rtl' : 'ltr',
         },
         sceneStyle: {
           backgroundColor: theme.background,
@@ -371,44 +415,14 @@ const TabNavigator = () => {
         headerShown: false,
       })}
     >
-      <Tab.Screen 
-        name="Home" 
-        component={HomeWithActivity} 
-        options={{ title: t('tabs.home') }}
-      />
-      <Tab.Screen 
-        name="Chats" 
-        component={ChatsWithActivity} 
-        options={{ 
-          title: t('tabs.chats'),
-          tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined,
-          tabBarBadgeStyle: {
-            backgroundColor: '#EF4444',
-            fontSize: 10,
-            fontWeight: '600',
-            minWidth: 18,
-            height: 18,
-          },
-        }}
-      />
-      <Tab.Screen 
-        name="Post" 
-        component={PostWithActivity} 
-        options={{ 
-          title: t('tabs.post'),
-          tabBarIconStyle: { marginTop: -4 }
-        }}
-      />
-      <Tab.Screen 
-        name="Lecture" 
-        component={LectureWithActivity} 
-        options={{ title: t('tabs.lecture') }}
-      />
-      <Tab.Screen 
-        name="Profile" 
-        component={ProfileWithActivity} 
-        options={{ title: t('tabs.profile') }}
-      />
+      {tabScreens.map((screen) => (
+        <Tab.Screen
+          key={screen.name}
+          name={screen.name}
+          component={screen.component}
+          options={screen.options}
+        />
+      ))}
     </Tab.Navigator>
   );
 };

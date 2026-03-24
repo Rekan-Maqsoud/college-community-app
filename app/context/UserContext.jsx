@@ -292,15 +292,20 @@ export const UserProvider = ({ children }) => {
 
   const updateUser = async (updates) => {
     try {
-          const currentData = await safeStorage.getItem('userData');
+      const currentData = await safeStorage.getItem(USER_DATA_CACHE_KEY);
       const parsedData = currentData ? JSON.parse(currentData) : {};
+      const freshestUserData = user && typeof user === 'object' ? user : {};
       
       const updatedData = {
         ...parsedData,
+        ...freshestUserData,
         ...updates,
       };
       
-      await cacheUserData(updatedData, parsedData?.accountId || updatedData?.accountId || null);
+      await cacheUserData(
+        updatedData,
+        freshestUserData?.accountId || parsedData?.accountId || updatedData?.accountId || null,
+      );
       setUser(updatedData);
       
       const appwriteUser = await getCurrentUser();

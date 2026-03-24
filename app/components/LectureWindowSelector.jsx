@@ -19,7 +19,7 @@ const LECTURE_WINDOWS = {
 };
 
 const LectureWindowSelector = ({ selectedWindow, onWindowChange, height = moderateScale(44) }) => {
-  const { t, theme, isDarkMode, reduceMotion } = useAppSettings();
+  const { t, theme, isDarkMode, reduceMotion, isRTL } = useAppSettings();
   const indicatorAnim = useRef(new Animated.Value(0)).current;
   const [containerWidth, setContainerWidth] = useState(wp(92));
   const { width } = useWindowDimensions();
@@ -41,23 +41,25 @@ const LectureWindowSelector = ({ selectedWindow, onWindowChange, height = modera
   ];
 
   const selectedIndex = Math.max(0, windows.findIndex(w => w.type === selectedWindow));
+  const visibleWindows = isRTL ? [...windows].reverse() : windows;
+  const selectedVisualIndex = isRTL ? (windows.length - 1 - selectedIndex) : selectedIndex;
 
   useEffect(() => {
     const animation = reduceMotion
       ? Animated.timing(indicatorAnim, {
-          toValue: selectedIndex,
+          toValue: selectedVisualIndex,
           duration: 100,
           useNativeDriver: true,
         })
       : Animated.spring(indicatorAnim, {
-          toValue: selectedIndex,
+          toValue: selectedVisualIndex,
           useNativeDriver: true,
           tension: 68,
           friction: 12,
         });
 
     animation.start();
-  }, [indicatorAnim, reduceMotion, selectedIndex]);
+  }, [indicatorAnim, reduceMotion, selectedVisualIndex]);
 
   const buttonWidths = useMemo(() => [containerWidth / 2, containerWidth / 2], [containerWidth]);
   
@@ -101,12 +103,12 @@ const LectureWindowSelector = ({ selectedWindow, onWindowChange, height = modera
             styles.indicator,
             {
               backgroundColor: theme.primary,
-              width: buttonWidths[selectedIndex] || 0,
+              width: buttonWidths[selectedVisualIndex] || 0,
               transform: [{ translateX }],
             },
           ]}
         />
-        {windows.map((w, index) => {
+        {visibleWindows.map((w, index) => {
           const isSelected = selectedWindow === w.type;
           
           return (
@@ -123,11 +125,16 @@ const LectureWindowSelector = ({ selectedWindow, onWindowChange, height = modera
                 name={w.icon}
                 size={moderateScale(isSmallScreen ? 14 : 16)}
                 color={iconColor(isSelected)}
-                style={[styles.feedIcon, index === 0 && { marginLeft: 2 }]}
+                style={[
+                  styles.feedIcon,
+                  isRTL ? styles.feedIconRtl : styles.feedIconLtr,
+                  index === 0 && (isRTL ? { marginRight: 2 } : { marginLeft: 2 }),
+                ]}
               />
               <Text
                 style={[
                   styles.feedLabel,
+                  isRTL && styles.feedLabelRtl,
                   {
                     color: textColor(isSelected),
                     fontSize: fontSize(isSmallScreen ? 11 : 13),
@@ -190,9 +197,18 @@ const styles = StyleSheet.create({
     marginTop: 1,
     zIndex: 2,
   },
+  feedIconLtr: {
+    marginRight: 0,
+  },
+  feedIconRtl: {
+    marginLeft: 0,
+  },
   feedLabel: {
     textAlign: 'center',
     zIndex: 2,
+  },
+  feedLabelRtl: {
+    writingDirection: 'rtl',
   },
 });
 

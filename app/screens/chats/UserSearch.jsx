@@ -30,7 +30,7 @@ import { borderRadius } from '../../theme/designTokens';
 import { FlashList } from '@shopify/flash-list';
 
 const UserSearch = ({ navigation }) => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const { user: currentUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const [searchQuery, setSearchQuery] = useState('');
@@ -136,6 +136,7 @@ const UserSearch = ({ navigation }) => {
       disabled={startingChat === item.$id}
       style={[
         styles.userCard,
+        isRTL && styles.userCardRtl,
         { 
           backgroundColor: cardBackground,
           borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
@@ -146,11 +147,11 @@ const UserSearch = ({ navigation }) => {
         name={item.name}
         size={moderateScale(44)}
       />
-      <View style={styles.userInfo}>
+      <View style={[styles.userInfo, isRTL && styles.userInfoRtl]}>
         <Text style={[styles.userName, { color: theme.text, fontSize: fontSize(15) }]} numberOfLines={1}>
           {item.name}
         </Text>
-        <Text style={[styles.userDetails, { color: theme.textSecondary, fontSize: fontSize(12) }]} numberOfLines={1}>
+        <Text style={[styles.userDetails, isRTL && styles.userDetailsRtl, { color: theme.textSecondary, fontSize: fontSize(12) }]} numberOfLines={1}>
           {item.department ? `${item.department}` : item.email}
         </Text>
       </View>
@@ -235,17 +236,17 @@ const UserSearch = ({ navigation }) => {
         <AnimatedBackground particleCount={15} />
         
         <SafeAreaView style={styles.safeArea}>
-          <View style={styles.header}>
+          <View style={[styles.header, isRTL && styles.headerRtl]}>
             <TouchableOpacity 
               style={styles.backButton}
               onPress={() => navigation.goBack()}>
               <Ionicons 
-                name="arrow-back" 
+                name={isRTL ? 'arrow-forward' : 'arrow-back'} 
                 size={moderateScale(24)} 
                 color={theme.text} 
               />
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(20) }]}>
+            <Text style={[styles.headerTitle, isRTL && styles.headerTitleRtl, { color: theme.text, fontSize: fontSize(20) }]}>
               {t('chats.searchUsers')}
             </Text>
             <View style={styles.placeholder} />
@@ -254,6 +255,7 @@ const UserSearch = ({ navigation }) => {
           <View style={styles.searchContainer}>
             <View style={[
               styles.searchInputContainer,
+              isRTL && styles.searchInputContainerRtl,
               { 
                 backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
                 borderColor: isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
@@ -263,10 +265,10 @@ const UserSearch = ({ navigation }) => {
                 name="search" 
                 size={moderateScale(20)} 
                 color={theme.textSecondary}
-                style={styles.searchIcon}
+                style={[styles.searchIcon, isRTL && styles.searchIconRtl]}
               />
               <TextInput
-                style={[styles.searchInput, { color: theme.text, fontSize: fontSize(15) }]}
+                style={[styles.searchInput, isRTL && styles.searchInputRtl, { color: theme.text, fontSize: fontSize(15) }]}
                 placeholder={t('chats.searchPlaceholder')}
                 placeholderTextColor={theme.textSecondary}
                 value={searchQuery}
@@ -304,7 +306,7 @@ const UserSearch = ({ navigation }) => {
               contentContainerStyle={styles.listContent}
               ListEmptyComponent={renderEmpty}
               ListHeaderComponent={showFriendsLabel ? (
-                <Text style={[styles.sectionLabel, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
+                <Text style={[styles.sectionLabel, isRTL && styles.sectionLabelRtl, { color: theme.textSecondary, fontSize: fontSize(12) }]}>
                   {t('chats.friends')}
                 </Text>
               ) : null}
@@ -342,6 +344,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
   },
+  headerRtl: {
+    flexDirection: 'row-reverse',
+  },
   backButton: {
     width: moderateScale(40),
     height: moderateScale(40),
@@ -351,6 +356,10 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontWeight: '700',
+  },
+  headerTitleRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   placeholder: {
     width: moderateScale(40),
@@ -367,12 +376,23 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     borderWidth: 1,
   },
+  searchInputContainerRtl: {
+    flexDirection: 'row-reverse',
+  },
   searchIcon: {
     marginRight: spacing.sm,
+  },
+  searchIconRtl: {
+    marginRight: 0,
+    marginLeft: spacing.sm,
   },
   searchInput: {
     flex: 1,
     fontWeight: '400',
+  },
+  searchInputRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   listContent: {
     paddingHorizontal: spacing.md,
@@ -387,9 +407,17 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     borderWidth: 1,
   },
+  userCardRtl: {
+    flexDirection: 'row-reverse',
+  },
   userInfo: {
     flex: 1,
     marginLeft: spacing.md,
+  },
+  userInfoRtl: {
+    marginLeft: 0,
+    marginRight: spacing.md,
+    alignItems: 'flex-end',
   },
   userName: {
     fontWeight: '600',
@@ -397,6 +425,10 @@ const styles = StyleSheet.create({
   },
   userDetails: {
     fontWeight: '400',
+  },
+  userDetailsRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   messageButton: {
     width: moderateScale(40),
@@ -441,6 +473,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.xs,
+  },
+  sectionLabelRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });
 

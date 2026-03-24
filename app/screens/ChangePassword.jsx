@@ -28,6 +28,7 @@ import { borderRadius } from '../theme/designTokens';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import CustomAlert from '../components/CustomAlert';
 import useLayout from '../hooks/useLayout';
+import { getSettingsHeaderGradient } from './settings/settingsTheme';
 
 const ChangePassword = ({ navigation }) => {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -42,12 +43,10 @@ const ChangePassword = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(false);
   const discardConfirmedRef = useRef(false);
   
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { formStyle } = useLayout();
-  const backgroundGradientColors = isDarkMode
-    ? [theme.background, theme.backgroundSecondary, theme.gradient[0]]
-    : [theme.gradientLight[0], theme.gradientLight[1], theme.backgroundSecondary];
+  const headerGradientColors = getSettingsHeaderGradient('AccountSettings', { theme, isDarkMode });
 
   const getPasswordStrength = (pwd) => {
     if (!pwd || pwd.length < 8) return 'weak';
@@ -222,19 +221,14 @@ const ChangePassword = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}> 
       <StatusBar 
-        barStyle="light-content"
+        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor="transparent"
         translucent
       />
-      
-      <LinearGradient
-        colors={backgroundGradientColors}
-        style={styles.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}>
-        
+      <LinearGradient colors={headerGradientColors} style={styles.headerGradient} />
+
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardAvoidingView}>
@@ -245,21 +239,21 @@ const ChangePassword = ({ navigation }) => {
             keyboardShouldPersistTaps="handled">
             
             <TouchableOpacity 
-              style={styles.backButton}
+              style={[styles.backButton, { backgroundColor: theme.card }]}
               onPress={() => confirmDiscardChanges(() => navigation.goBack())}
               activeOpacity={0.7}>
               <Ionicons 
-                name="arrow-back" 
+                name={isRTL ? 'arrow-forward' : 'arrow-back'} 
                 size={moderateScale(24)} 
-                color="#FFFFFF" 
+                color={theme.text} 
               />
             </TouchableOpacity>
 
             <View style={styles.headerContainer}>
-              <Text style={[styles.headerText, { fontSize: fontSize(28) }]}>
+              <Text style={[styles.headerText, isRTL && styles.directionalText, { color: theme.text, fontSize: fontSize(28) }]}>
                 {t('settings.changePassword') || 'Change Password'}
               </Text>
-              <Text style={[styles.subHeaderText, { fontSize: fontSize(15) }]}>
+              <Text style={[styles.subHeaderText, isRTL && styles.directionalText, { color: theme.textSecondary, fontSize: fontSize(15) }]}>
                 {t('settings.changePasswordDesc') || 'Update your account password'}
               </Text>
             </View>
@@ -271,15 +265,15 @@ const ChangePassword = ({ navigation }) => {
               disableBackgroundOverlay
             >
               <GlassInput focused={currentPasswordFocused}>
-                <View style={styles.inputWrapper}>
+                <View style={[styles.inputWrapper, isRTL && styles.rowReverse]}>
                   <Ionicons 
                     name="lock-closed-outline" 
                     size={moderateScale(20)} 
                     color={currentPasswordFocused ? theme.primary : theme.textSecondary} 
-                    style={styles.inputIcon}
+                    style={[styles.inputIcon, isRTL && styles.inputIconRtl]}
                   />
                   <TextInput
-                    style={[styles.input, { 
+                    style={[styles.input, isRTL && styles.inputRtl, { 
                       color: theme.text,
                       fontSize: fontSize(15),
                     }]}
@@ -295,7 +289,7 @@ const ChangePassword = ({ navigation }) => {
                   />
                   <TouchableOpacity 
                     onPress={() => setShowCurrentPassword(!showCurrentPassword)}
-                    style={styles.eyeIcon}
+                    style={[styles.eyeIcon, isRTL && styles.eyeIconRtl]}
                     activeOpacity={0.7}
                   >
                     <Ionicons 
@@ -308,15 +302,15 @@ const ChangePassword = ({ navigation }) => {
               </GlassInput>
 
               <GlassInput focused={newPasswordFocused} style={{ marginTop: spacing.md }}>
-                <View style={styles.inputWrapper}>
+                <View style={[styles.inputWrapper, isRTL && styles.rowReverse]}>
                   <Ionicons 
                     name="key-outline" 
                     size={moderateScale(20)} 
                     color={newPasswordFocused ? theme.primary : theme.textSecondary} 
-                    style={styles.inputIcon}
+                    style={[styles.inputIcon, isRTL && styles.inputIconRtl]}
                   />
                   <TextInput
-                    style={[styles.input, { 
+                    style={[styles.input, isRTL && styles.inputRtl, { 
                       color: theme.text,
                       fontSize: fontSize(15),
                     }]}
@@ -332,7 +326,7 @@ const ChangePassword = ({ navigation }) => {
                   />
                   <TouchableOpacity 
                     onPress={() => setShowNewPassword(!showNewPassword)}
-                    style={styles.eyeIcon}
+                    style={[styles.eyeIcon, isRTL && styles.eyeIconRtl]}
                     activeOpacity={0.7}
                   >
                     <Ionicons 
@@ -348,6 +342,7 @@ const ChangePassword = ({ navigation }) => {
                 <Text
                   style={[
                     styles.passwordRequirementsTitle,
+                    isRTL && styles.directionalText,
                     {
                       color: theme.textSecondary,
                       fontSize: fontSize(12),
@@ -356,7 +351,7 @@ const ChangePassword = ({ navigation }) => {
                   {t('auth.passwordRequirements')}
                 </Text>
                 {passwordRequirementItems.map((requirement) => (
-                  <View key={requirement.key} style={styles.passwordRequirementRow}>
+                  <View key={requirement.key} style={[styles.passwordRequirementRow, isRTL && styles.rowReverse]}>
                     <Ionicons
                       name={requirement.met ? 'checkmark-circle' : 'ellipse-outline'}
                       size={moderateScale(16)}
@@ -365,6 +360,7 @@ const ChangePassword = ({ navigation }) => {
                     <Text
                       style={[
                         styles.passwordRequirementText,
+                        isRTL && styles.directionalText,
                         {
                           color: requirement.met ? theme.success : theme.textSecondary,
                           fontSize: fontSize(12),
@@ -392,6 +388,7 @@ const ChangePassword = ({ navigation }) => {
                   <Text 
                     style={[
                       styles.strengthText,
+                      isRTL && styles.directionalText,
                       { 
                         color: getStrengthColor(),
                         fontSize: fontSize(12),
@@ -403,15 +400,15 @@ const ChangePassword = ({ navigation }) => {
               )}
 
               <GlassInput focused={confirmPasswordFocused} style={{ marginTop: spacing.md }}>
-                <View style={styles.inputWrapper}>
+                <View style={[styles.inputWrapper, isRTL && styles.rowReverse]}>
                   <Ionicons 
                     name="checkmark-circle-outline" 
                     size={moderateScale(20)} 
                     color={confirmPasswordFocused ? theme.primary : theme.textSecondary} 
-                    style={styles.inputIcon}
+                    style={[styles.inputIcon, isRTL && styles.inputIconRtl]}
                   />
                   <TextInput
-                    style={[styles.input, { 
+                    style={[styles.input, isRTL && styles.inputRtl, { 
                       color: theme.text,
                       fontSize: fontSize(15),
                     }]}
@@ -427,7 +424,7 @@ const ChangePassword = ({ navigation }) => {
                   />
                   <TouchableOpacity 
                     onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                    style={styles.eyeIcon}
+                    style={[styles.eyeIcon, isRTL && styles.eyeIconRtl]}
                     activeOpacity={0.7}
                   >
                     <Ionicons 
@@ -441,7 +438,7 @@ const ChangePassword = ({ navigation }) => {
                       name="checkmark-circle" 
                       size={moderateScale(20)} 
                       color={theme.success} 
-                      style={styles.checkIcon}
+                      style={[styles.checkIcon, isRTL && styles.checkIconRtl]}
                     />
                   )}
                 </View>
@@ -450,6 +447,7 @@ const ChangePassword = ({ navigation }) => {
               {confirmPassword.length > 0 && !passwordsMatch && (
                 <Text style={[
                   styles.errorText, 
+                  isRTL && styles.directionalText,
                   { 
                     color: theme.danger,
                     fontSize: fontSize(12),
@@ -460,39 +458,40 @@ const ChangePassword = ({ navigation }) => {
               )}
 
               <TouchableOpacity
-                style={styles.changePasswordButton}
+                style={[
+                  styles.changePasswordButton,
+                  isRTL && styles.rowReverse,
+                  {
+                    backgroundColor: isFormValid() ? theme.primary : theme.border,
+                    opacity: isLoading ? 0.8 : 1,
+                  },
+                ]}
                 onPress={handleChangePassword}
                 disabled={isLoading || !isFormValid()}
                 activeOpacity={0.85}>
-                <LinearGradient
-                  colors={!isFormValid() ? ['#999', '#666'] : theme.gradient}
-                  style={styles.buttonGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}>
-                  {isLoading ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  ) : (
-                    <>
-                      <Text style={[
-                        styles.buttonText,
-                        { fontSize: fontSize(17), opacity: !isFormValid() ? 0.6 : 1 }
-                      ]}>
-                        {t('settings.updatePassword') || 'Update Password'}
-                      </Text>
-                      <Ionicons 
-                        name="checkmark" 
-                        size={moderateScale(20)} 
-                        color="#FFFFFF" 
-                        style={[styles.buttonIcon, { opacity: !isFormValid() ? 0.6 : 1 }]}
-                      />
-                    </>
-                  )}
-                </LinearGradient>
+                {isLoading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Text style={[
+                      styles.buttonText,
+                      isRTL && styles.directionalText,
+                      { fontSize: fontSize(17), opacity: !isFormValid() ? 0.6 : 1 }
+                    ]}>
+                      {t('settings.updatePassword') || 'Update Password'}
+                    </Text>
+                    <Ionicons 
+                      name="checkmark" 
+                      size={moderateScale(20)} 
+                      color="#FFFFFF" 
+                      style={[styles.buttonIcon, isRTL && styles.buttonIconRtl, { opacity: !isFormValid() ? 0.6 : 1 }]}
+                    />
+                  </>
+                )}
               </TouchableOpacity>
             </GlassContainer>
           </ScrollView>
         </KeyboardAvoidingView>
-      </LinearGradient>
       <CustomAlert
         visible={alertConfig.visible}
         type={alertConfig.type}
@@ -512,8 +511,12 @@ const styles = StyleSheet.create({
   keyboardAvoidingView: {
     flex: 1,
   },
-  gradient: {
-    flex: 1,
+  headerGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: hp(20),
   },
   scrollContent: {
     flexGrow: 1,
@@ -537,14 +540,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: spacing.xs,
     letterSpacing: 0.5,
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   subHeaderText: {
     opacity: 0.9,
-    color: '#FFFFFF',
   },
   formContainer: {
     padding: spacing.lg,
@@ -558,16 +556,32 @@ const styles = StyleSheet.create({
   inputIcon: {
     marginRight: spacing.sm,
   },
+  inputIconRtl: {
+    marginRight: 0,
+    marginLeft: spacing.sm,
+  },
   input: {
     flex: 1,
     fontWeight: '500',
+  },
+  inputRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   eyeIcon: {
     padding: spacing.xs,
     marginLeft: spacing.xs,
   },
+  eyeIconRtl: {
+    marginLeft: 0,
+    marginRight: spacing.xs,
+  },
   checkIcon: {
     marginLeft: spacing.xs,
+  },
+  checkIconRtl: {
+    marginLeft: 0,
+    marginRight: spacing.xs,
   },
   passwordStrengthContainer: {
     marginTop: spacing.sm,
@@ -608,10 +622,7 @@ const styles = StyleSheet.create({
   },
   changePasswordButton: {
     borderRadius: borderRadius.lg,
-    overflow: 'hidden',
     marginTop: spacing.lg,
-  },
-  buttonGradient: {
     paddingVertical: spacing.md + spacing.xs,
     alignItems: 'center',
     justifyContent: 'center',
@@ -625,6 +636,17 @@ const styles = StyleSheet.create({
   },
   buttonIcon: {
     marginLeft: spacing.xs,
+  },
+  buttonIconRtl: {
+    marginLeft: 0,
+    marginRight: spacing.xs,
+  },
+  rowReverse: {
+    flexDirection: 'row-reverse',
+  },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });
 
