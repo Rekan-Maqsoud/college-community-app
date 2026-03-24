@@ -9,7 +9,19 @@ import { borderRadius } from '../theme/designTokens';
 /**
  * Card showing a candidate in the voting screen with their vote count.
  */
-const VoteCard = ({ candidate, voteCount, isVotedByMe, isLeading, disabled, isTiebreakerCandidate: _isTiebreakerCandidate, onVote, colors, t }) => {
+const VoteCard = ({
+  candidate,
+  voteCount,
+  isVotedByMe,
+  isLeading,
+  disabled,
+  isCurrentRep = false,
+  currentRepLabel = '',
+  isTiebreakerCandidate: _isTiebreakerCandidate,
+  onVote,
+  colors,
+  t,
+}) => {
   const name = candidate?.name || candidate?.fullName || '';
   const avatar = candidate?.profilePicture || '';
   const department = candidate?.department || '';
@@ -45,6 +57,13 @@ const VoteCard = ({ candidate, voteCount, isVotedByMe, isLeading, disabled, isTi
             <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
               {name}
             </Text>
+            {isCurrentRep && currentRepLabel ? (
+              <View style={[styles.currentRepBadge, { backgroundColor: (colors.warning || '#F59E0B') + '20', borderColor: (colors.warning || '#F59E0B') + '45' }]}>
+                <Text style={[styles.currentRepBadgeText, { color: colors.warning || '#F59E0B' }]} numberOfLines={1}>
+                  {currentRepLabel}
+                </Text>
+              </View>
+            ) : null}
             {isLeading && voteCount > 0 && (
               <View style={[styles.leadingBadge, { backgroundColor: colors.success || '#22C55E' }]}>
                 <Ionicons name="trophy" size={10} color="#FFFFFF" />
@@ -108,6 +127,17 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: normalize(11),
     marginTop: 2,
+  },
+  currentRepBadge: {
+    borderRadius: normalize(10),
+    borderWidth: 1,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    maxWidth: '60%',
+  },
+  currentRepBadgeText: {
+    fontSize: normalize(9),
+    fontWeight: '700',
   },
   leadingBadge: {
     width: normalize(18),

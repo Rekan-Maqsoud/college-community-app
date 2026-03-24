@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { View, Animated, StyleSheet, Dimensions, Easing } from 'react-native';
 import { useAppSettingsSafe } from '../context/AppSettingsContext';
 
@@ -39,7 +39,7 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
   useEffect(() => {
     let timeoutIds = [];
 
-    const animations = particles.map((particle, index) => {
+    const animations = particles.map((particle) => {
       // Much slower, consistent snow fall (e.g., 20s to 45s to cross screen vertically)
       const duration = reduceMotion
         ? 35000 + Math.random() * 15000

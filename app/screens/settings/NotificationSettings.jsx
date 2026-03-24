@@ -8,20 +8,24 @@ import {
   Switch,
   Modal,
   TextInput,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../../components/GlassComponents';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../../context/AppSettingsContext';
-import { borderRadius, shadows } from '../../theme/designTokens';
-import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { borderRadius } from '../../theme/designTokens';
+import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useLayout from '../../hooks/useLayout';
+import { getSettingsHeaderGradient } from './settingsTheme';
 const NotificationSettings = ({ navigation }) => {
   const { contentStyle } = useLayout();
   const {
     t,
     theme,
     isDarkMode,
+    isRTL,
     notificationsEnabled,
     toggleNotifications,
     notificationSettings,
@@ -34,6 +38,9 @@ const NotificationSettings = ({ navigation }) => {
   const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [timePickerType, setTimePickerType] = useState('start');
   const [tempTime, setTempTime] = useState('');
+  const backIconName = Platform.OS === 'ios'
+    ? (isRTL ? 'chevron-forward' : 'chevron-back')
+    : (isRTL ? 'arrow-forward' : 'arrow-back');
 
   const openTimePicker = (type) => {
     setTimePickerType(type);
@@ -57,18 +64,15 @@ const NotificationSettings = ({ navigation }) => {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <LinearGradient
-        colors={isDarkMode
-          ? ['rgba(52, 199, 89, 0.24)', 'rgba(52, 199, 89, 0.08)', 'transparent']
-          : ['rgba(52, 199, 89, 0.2)', 'rgba(52, 199, 89, 0.04)', 'transparent']
-        }
+        colors={getSettingsHeaderGradient('NotificationSettings', { theme, isDarkMode })}
         style={styles.headerGradient}
       />
 
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+      <View style={[styles.header, isRTL && styles.rowReverse, { paddingTop: insets.top + spacing.sm }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}>
-          <Ionicons name="arrow-back" size={moderateScale(22)} color={theme.text} />
+          <Ionicons name={backIconName} size={moderateScale(22)} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>
@@ -84,22 +88,23 @@ const NotificationSettings = ({ navigation }) => {
         contentContainerStyle={[styles.scrollContent, contentStyle]}>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.generalNotifications') || 'General'}
           </Text>
           <GlassCard>
-            <View style={styles.settingItem}>
+            <View style={[styles.settingItem, isRTL && styles.rowReverse]}>
               <View style={[
                 styles.iconContainer,
+                isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                 { backgroundColor: isDarkMode ? 'rgba(52, 199, 89, 0.15)' : 'rgba(52, 199, 89, 0.1)' },
               ]}>
                 <Ionicons name="notifications-outline" size={moderateScale(18)} color="#34C759" />
               </View>
               <View style={styles.settingContent}>
-                <Text style={[styles.settingTitle, { color: theme.text }]}>
+                <Text style={[styles.settingTitle, { color: theme.text }, isRTL && styles.directionalText]}>
                   {t('settings.enableNotifications')}
                 </Text>
-                <Text style={[styles.settingDescription, { color: theme.textSecondary }]}>
+                <Text style={[styles.settingDescription, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                   {t('settings.notificationDesc')}
                 </Text>
               </View>
@@ -118,22 +123,23 @@ const NotificationSettings = ({ navigation }) => {
           <>
             {/* Quiet Hours Section */}
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+              <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                 {t('settings.quietHours') || 'Quiet Hours'}
               </Text>
               <GlassCard>
-                <View style={styles.settingItem}>
+                <View style={[styles.settingItem, isRTL && styles.rowReverse]}>
                   <View style={[
                     styles.iconContainer,
+                    isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                     { backgroundColor: isDarkMode ? 'rgba(175, 82, 222, 0.15)' : 'rgba(175, 82, 222, 0.1)' },
                   ]}>
                     <Ionicons name="moon-outline" size={moderateScale(18)} color="#AF52DE" />
                   </View>
                   <View style={styles.settingContent}>
-                    <Text style={[styles.settingTitle, { color: theme.text }]}>
+                    <Text style={[styles.settingTitle, { color: theme.text }, isRTL && styles.directionalText]}>
                       {t('settings.enableQuietHours') || 'Enable Quiet Hours'}
                     </Text>
-                    <Text style={[styles.settingDescription, { color: theme.textSecondary }]}>
+                    <Text style={[styles.settingDescription, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                       {t('settings.quietHoursDesc') || 'Disable notifications during set hours'}
                     </Text>
                   </View>
@@ -149,13 +155,13 @@ const NotificationSettings = ({ navigation }) => {
                 {quietHours.enabled && (
                   <>
                     <View style={[styles.divider, { backgroundColor: theme.border }]} />
-                    <View style={styles.scheduleRow}>
+                    <View style={[styles.scheduleRow, isRTL && styles.rowReverse]}>
                       <View style={styles.scheduleItem}>
-                        <Text style={[styles.scheduleLabel, { color: theme.textSecondary }]}>
+                        <Text style={[styles.scheduleLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                           {t('settings.quietStart') || 'Start'}
                         </Text>
                         <TouchableOpacity
-                          style={[styles.timeButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }]}
+                          style={[styles.timeButton, isRTL && styles.rowReverse, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }]}
                           onPress={() => openTimePicker('start')}>
                           <Ionicons name="time-outline" size={moderateScale(16)} color="#AF52DE" />
                           <Text style={[styles.timeText, { color: theme.text }]}>
@@ -164,11 +170,11 @@ const NotificationSettings = ({ navigation }) => {
                         </TouchableOpacity>
                       </View>
                       <View style={styles.scheduleItem}>
-                        <Text style={[styles.scheduleLabel, { color: theme.textSecondary }]}>
+                        <Text style={[styles.scheduleLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                           {t('settings.quietEnd') || 'End'}
                         </Text>
                         <TouchableOpacity
-                          style={[styles.timeButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }]}
+                          style={[styles.timeButton, isRTL && styles.rowReverse, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }]}
                           onPress={() => openTimePicker('end')}>
                           <Ionicons name="time-outline" size={moderateScale(16)} color="#AF52DE" />
                           <Text style={[styles.timeText, { color: theme.text }]}>
@@ -183,22 +189,23 @@ const NotificationSettings = ({ navigation }) => {
             </View>
 
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+              <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                 {t('settings.notificationCategories') || 'Categories'}
               </Text>
               <GlassCard>
-              <View style={styles.settingItem}>
+              <View style={[styles.settingItem, isRTL && styles.rowReverse]}>
                 <View style={[
                   styles.iconContainer,
+                  isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                   { backgroundColor: isDarkMode ? 'rgba(10, 132, 255, 0.15)' : 'rgba(10, 132, 255, 0.1)' },
                 ]}>
                   <Ionicons name="chatbubble-outline" size={moderateScale(18)} color="#0A84FF" />
                 </View>
                 <View style={styles.settingContent}>
-                  <Text style={[styles.settingTitle, { color: theme.text }]}>
+                  <Text style={[styles.settingTitle, { color: theme.text }, isRTL && styles.directionalText]}>
                     {t('settings.directChatNotifications') || 'Direct Chats'}
                   </Text>
-                  <Text style={[styles.settingDescription, { color: theme.textSecondary }]}>
+                  <Text style={[styles.settingDescription, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                     {t('settings.directChatNotificationsDesc') || 'Notifications for private messages'}
                   </Text>
                 </View>
@@ -213,18 +220,19 @@ const NotificationSettings = ({ navigation }) => {
               
               <View style={[styles.divider, { backgroundColor: theme.border }]} />
               
-              <View style={styles.settingItem}>
+              <View style={[styles.settingItem, isRTL && styles.rowReverse]}>
                 <View style={[
                   styles.iconContainer,
+                  isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                   { backgroundColor: isDarkMode ? 'rgba(255, 159, 10, 0.15)' : 'rgba(255, 159, 10, 0.1)' },
                 ]}>
                   <Ionicons name="people-outline" size={moderateScale(18)} color="#FF9F0A" />
                 </View>
                 <View style={styles.settingContent}>
-                  <Text style={[styles.settingTitle, { color: theme.text }]}>
+                  <Text style={[styles.settingTitle, { color: theme.text }, isRTL && styles.directionalText]}>
                     {t('settings.groupChatNotifications') || 'Group Chats'}
                   </Text>
-                  <Text style={[styles.settingDescription, { color: theme.textSecondary }]}>
+                  <Text style={[styles.settingDescription, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                     {t('settings.groupChatNotificationsDesc') || 'Notifications for group messages'}
                   </Text>
                 </View>
@@ -239,18 +247,19 @@ const NotificationSettings = ({ navigation }) => {
               
               <View style={[styles.divider, { backgroundColor: theme.border }]} />
               
-              <View style={styles.settingItem}>
+              <View style={[styles.settingItem, isRTL && styles.rowReverse]}>
                 <View style={[
                   styles.iconContainer,
+                  isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                   { backgroundColor: isDarkMode ? 'rgba(191, 90, 242, 0.15)' : 'rgba(191, 90, 242, 0.1)' },
                 ]}>
                   <Ionicons name="heart-outline" size={moderateScale(18)} color="#BF5AF2" />
                 </View>
                 <View style={styles.settingContent}>
-                  <Text style={[styles.settingTitle, { color: theme.text }]}>
+                  <Text style={[styles.settingTitle, { color: theme.text }, isRTL && styles.directionalText]}>
                     {t('settings.friendPostNotifications') || 'Friend Posts'}
                   </Text>
-                  <Text style={[styles.settingDescription, { color: theme.textSecondary }]}>
+                  <Text style={[styles.settingDescription, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                     {t('settings.friendPostNotificationsDesc') || 'Notifications when friends post'}
                   </Text>
                 </View>
@@ -265,18 +274,19 @@ const NotificationSettings = ({ navigation }) => {
               
               <View style={[styles.divider, { backgroundColor: theme.border }]} />
               
-              <View style={styles.settingItem}>
+              <View style={[styles.settingItem, isRTL && styles.rowReverse]}>
                 <View style={[
                   styles.iconContainer,
+                  isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                   { backgroundColor: isDarkMode ? 'rgba(255, 59, 48, 0.15)' : 'rgba(255, 59, 48, 0.1)' },
                 ]}>
                   <Ionicons name="heart" size={moderateScale(18)} color="#FF3B30" />
                 </View>
                 <View style={styles.settingContent}>
-                  <Text style={[styles.settingTitle, { color: theme.text }]}>
+                  <Text style={[styles.settingTitle, { color: theme.text }, isRTL && styles.directionalText]}>
                     {t('settings.postLikeNotifications') || 'Post Likes'}
                   </Text>
-                  <Text style={[styles.settingDescription, { color: theme.textSecondary }]}>
+                  <Text style={[styles.settingDescription, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                     {t('settings.postLikeNotificationsDesc') || 'When someone likes your post'}
                   </Text>
                 </View>
@@ -291,18 +301,19 @@ const NotificationSettings = ({ navigation }) => {
               
               <View style={[styles.divider, { backgroundColor: theme.border }]} />
               
-              <View style={styles.settingItem}>
+              <View style={[styles.settingItem, isRTL && styles.rowReverse]}>
                 <View style={[
                   styles.iconContainer,
+                  isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                   { backgroundColor: isDarkMode ? 'rgba(0, 122, 255, 0.15)' : 'rgba(0, 122, 255, 0.1)' },
                 ]}>
                   <Ionicons name="chatbubbles-outline" size={moderateScale(18)} color="#007AFF" />
                 </View>
                 <View style={styles.settingContent}>
-                  <Text style={[styles.settingTitle, { color: theme.text }]}>
+                  <Text style={[styles.settingTitle, { color: theme.text }, isRTL && styles.directionalText]}>
                     {t('settings.postReplyNotifications') || 'Post Replies'}
                   </Text>
-                  <Text style={[styles.settingDescription, { color: theme.textSecondary }]}>
+                  <Text style={[styles.settingDescription, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                     {t('settings.postReplyNotificationsDesc') || 'When someone replies to your post'}
                   </Text>
                 </View>
@@ -317,18 +328,19 @@ const NotificationSettings = ({ navigation }) => {
               
               <View style={[styles.divider, { backgroundColor: theme.border }]} />
               
-              <View style={styles.settingItem}>
+              <View style={[styles.settingItem, isRTL && styles.rowReverse]}>
                 <View style={[
                   styles.iconContainer,
+                  isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                   { backgroundColor: isDarkMode ? 'rgba(88, 86, 214, 0.15)' : 'rgba(88, 86, 214, 0.1)' },
                 ]}>
                   <Ionicons name="at" size={moderateScale(18)} color="#5856D6" />
                 </View>
                 <View style={styles.settingContent}>
-                  <Text style={[styles.settingTitle, { color: theme.text }]}>
+                  <Text style={[styles.settingTitle, { color: theme.text }, isRTL && styles.directionalText]}>
                     {t('settings.mentionNotifications') || 'Mentions'}
                   </Text>
-                  <Text style={[styles.settingDescription, { color: theme.textSecondary }]}>
+                  <Text style={[styles.settingDescription, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                     {t('settings.mentionNotificationsDesc') || 'When someone mentions you'}
                   </Text>
                 </View>
@@ -345,9 +357,9 @@ const NotificationSettings = ({ navigation }) => {
           </>
         )}
 
-        <View style={styles.infoBox}>
+        <View style={[styles.infoBox, isRTL && styles.rowReverse]}>
           <Ionicons name="information-circle-outline" size={moderateScale(18)} color={theme.textSecondary} />
-          <Text style={[styles.infoText, { color: theme.textSecondary }]}>
+          <Text style={[styles.infoText, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.notificationInfo') || 'More notification preferences will be available in future updates'}
           </Text>
         </View>
@@ -366,10 +378,10 @@ const NotificationSettings = ({ navigation }) => {
           activeOpacity={1}
           onPress={() => setTimePickerVisible(false)}>
           <View style={[styles.timePickerModal, { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' }]}>
-            <Text style={[styles.timePickerTitle, { color: theme.text }]}>
+            <Text style={[styles.timePickerTitle, { color: theme.text }, isRTL && styles.directionalText]}>
               {t('settings.setTime') || 'Set Time'}
             </Text>
-            <Text style={[styles.timePickerSubtitle, { color: theme.textSecondary }]}>
+            <Text style={[styles.timePickerSubtitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
               {t('settings.enterTime') || 'Enter time (HH:MM)'}
             </Text>
             <TextInput
@@ -389,7 +401,7 @@ const NotificationSettings = ({ navigation }) => {
               maxLength={5}
               autoFocus
             />
-            <View style={styles.timePickerButtons}>
+            <View style={[styles.timePickerButtons, isRTL && styles.rowReverse]}>
               <TouchableOpacity
                 style={[styles.timePickerButton, { backgroundColor: 'transparent' }]}
                 onPress={() => setTimePickerVisible(false)}>
@@ -428,6 +440,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: wp(5),
     paddingBottom: spacing.md,
+  },
+  rowReverse: {
+    flexDirection: 'row-reverse',
   },
   backButton: {
     width: moderateScale(40),
@@ -476,7 +491,12 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  iconContainerLtr: {
     marginRight: spacing.md,
+  },
+  iconContainerRtl: {
+    marginLeft: spacing.md,
   },
   settingContent: {
     flex: 1,
@@ -574,6 +594,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: spacing.md,
     width: '100%',
+  },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   timePickerButton: {
     paddingVertical: spacing.sm,

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   Pressable,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../../components/GlassComponents';
@@ -20,6 +21,7 @@ import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useLayout from '../../hooks/useLayout';
 import { getReactionDefaults, updateReactionDefaults, updateReactionDefaultsForAllChats, DEFAULT_REACTION_SET, MAX_REACTION_DEFAULTS } from '../../../database/userChatSettings';
+import { getSettingsHeaderGradient } from './settingsTheme';
 
 const MIN_BUBBLE_RADIUS = 4;
 const MAX_BUBBLE_RADIUS = 28;
@@ -171,6 +173,7 @@ const ChatSettings = ({ navigation, route }) => {
     t,
     theme,
     isDarkMode,
+    isRTL,
     chatSettings,
     updateChatSetting,
   } = useAppSettings();
@@ -184,6 +187,9 @@ const ChatSettings = ({ navigation, route }) => {
   const [savingReactions, setSavingReactions] = useState(false);
   const [reactionSectionY, setReactionSectionY] = useState(null);
   const [selectedEmojiCategory, setSelectedEmojiCategory] = useState(REACTION_EMOJI_CATEGORIES[0].key);
+  const backIconName = Platform.OS === 'ios'
+    ? (isRTL ? 'chevron-forward' : 'chevron-back')
+    : (isRTL ? 'arrow-forward' : 'arrow-back');
 
   const [selectedBackground, setSelectedBackground] = useState(chatSettings.backgroundImage);
 
@@ -332,13 +338,15 @@ const ChatSettings = ({ navigation, route }) => {
   const renderPreviewBubbles = () => (
     <>
       {/* Received message bubble */}
-      <View style={[styles.previewBubbleWrapper, { alignSelf: 'flex-start' }]}>
+      <View style={[styles.previewBubbleWrapper, { alignSelf: isRTL ? 'flex-end' : 'flex-start' }]}>
         <View style={[
           styles.previewBubble,
           { 
             backgroundColor: 'rgba(255,255,255,0.15)',
-              borderRadius: getPreviewBubbleRadius(),
-            borderBottomLeftRadius: spacing.xs / 2,
+            borderRadius: getPreviewBubbleRadius(),
+            ...(isRTL
+              ? { borderBottomRightRadius: spacing.xs / 2 }
+              : { borderBottomLeftRadius: spacing.xs / 2 }),
           }
         ]}>
           <Text style={[styles.previewText, { color: '#FFFFFF' }]}>
@@ -349,7 +357,7 @@ const ChatSettings = ({ navigation, route }) => {
       </View>
       
       {/* Sent message bubble - with current settings */}
-      <View style={[styles.previewBubbleWrapper, { alignSelf: 'flex-end' }]}>
+      <View style={[styles.previewBubbleWrapper, { alignSelf: isRTL ? 'flex-start' : 'flex-end' }]}>
         {chatSettings.bubbleColor?.startsWith('gradient::') ? (
           <LinearGradient
             colors={chatSettings.bubbleColor.replace('gradient::', '').split(',')}
@@ -357,7 +365,9 @@ const ChatSettings = ({ navigation, route }) => {
               styles.previewBubble,
               { 
                 borderRadius: getPreviewBubbleRadius(),
-                borderBottomRightRadius: spacing.xs / 2,
+                ...(isRTL
+                  ? { borderBottomLeftRadius: spacing.xs / 2 }
+                  : { borderBottomRightRadius: spacing.xs / 2 }),
               }
             ]}
             start={{ x: 0, y: 0 }}
@@ -374,7 +384,9 @@ const ChatSettings = ({ navigation, route }) => {
             { 
               backgroundColor: chatSettings.bubbleColor || '#667eea',
               borderRadius: getPreviewBubbleRadius(),
-              borderBottomRightRadius: spacing.xs / 2,
+              ...(isRTL
+                ? { borderBottomLeftRadius: spacing.xs / 2 }
+                : { borderBottomRightRadius: spacing.xs / 2 }),
             }
           ]}>
             <Text style={[styles.previewText, { color: '#FFFFFF' }]}>
@@ -390,18 +402,15 @@ const ChatSettings = ({ navigation, route }) => {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <LinearGradient
-        colors={isDarkMode
-          ? ['rgba(102, 126, 234, 0.24)', 'rgba(102, 126, 234, 0.08)', 'transparent']
-          : ['rgba(102, 126, 234, 0.2)', 'rgba(102, 126, 234, 0.04)', 'transparent']
-        }
+        colors={getSettingsHeaderGradient('ChatSettings', { theme, isDarkMode })}
         style={styles.headerGradient}
       />
 
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+      <View style={[styles.header, isRTL && styles.rowReverse, { paddingTop: insets.top + spacing.sm }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}>
-          <Ionicons name="arrow-back" size={moderateScale(22)} color={theme.text} />
+          <Ionicons name={backIconName} size={moderateScale(22)} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>
@@ -412,7 +421,7 @@ const ChatSettings = ({ navigation, route }) => {
       </View>
 
       <View style={styles.previewHeaderSection}>
-        <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+        <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
           {t('settings.bubbleSettings') || 'Bubble Settings'}
         </Text>
 
@@ -455,12 +464,12 @@ const ChatSettings = ({ navigation, route }) => {
 
         {/* Bubble Roundness */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.bubbleRoundness') || 'Bubble Roundness'}
           </Text>
           <GlassCard>
             <View style={styles.sliderSection}>
-              <View style={styles.stepperRow}>
+              <View style={[styles.stepperRow, isRTL && styles.rowReverse]}>
                 <TouchableOpacity
                   style={[styles.stepperButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}
                   onPress={() => {
@@ -502,7 +511,7 @@ const ChatSettings = ({ navigation, route }) => {
 
         {/* Bubble Color */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.solidColors') || 'Solid Colors'}
           </Text>
           <GlassCard>
@@ -527,7 +536,7 @@ const ChatSettings = ({ navigation, route }) => {
 
         {/* Gradient Bubble Colors */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.gradientColors') || 'Gradient Colors'}
           </Text>
           <GlassCard>
@@ -559,7 +568,7 @@ const ChatSettings = ({ navigation, route }) => {
 
         {/* Chat Background */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.chatBackground') || 'Chat Background'}
           </Text>
           <GlassCard>
@@ -567,60 +576,64 @@ const ChatSettings = ({ navigation, route }) => {
               {BACKGROUND_PRESETS.map((bg) => (
                 <TouchableOpacity
                   key={bg.key || 'default'}
-                  style={[
-                    styles.backgroundOption,
-                    selectedBackground === bg.key && styles.backgroundOptionSelected,
-                    selectedBackground === bg.key && { borderColor: theme.primary },
-                  ]}
+                  style={styles.backgroundOption}
                   onPress={() => handleBackgroundChange(bg.key)}>
-                  {bg.colors ? (
-                    <LinearGradient
-                      colors={bg.colors}
-                      style={styles.backgroundPreview}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                    >
-                      <Text style={[styles.bgLabel, { fontSize: responsiveFontSize(8) }]} numberOfLines={1}>
-                        {t(bg.labelKey)}
-                      </Text>
-                    </LinearGradient>
-                  ) : bg.pattern ? (
-                    <View style={[styles.backgroundPreview, { backgroundColor: bg.baseColor }]}>
-                      {bg.pattern === 'dots' && (
-                        <View style={styles.patternDotsContainer}>
-                          {[...Array(12)].map((_, i) => (
-                            <View key={i} style={styles.patternDot} />
-                          ))}
-                        </View>
-                      )}
-                      {bg.pattern === 'grid' && (
-                        <View style={styles.patternGridContainer}>
-                          {[...Array(9)].map((_, i) => (
-                            <View key={i} style={styles.patternGridCell} />
-                          ))}
-                        </View>
-                      )}
-                      {bg.pattern === 'waves' && (
-                        <View style={styles.patternWavesContainer}>
-                          <View style={[styles.patternWave, { top: '20%' }]} />
-                          <View style={[styles.patternWave, { top: '50%' }]} />
-                          <View style={[styles.patternWave, { top: '80%' }]} />
-                        </View>
-                      )}
-                      <Text style={[styles.bgLabel, { fontSize: responsiveFontSize(8) }]} numberOfLines={1}>
-                        {t(bg.labelKey)}
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={[
-                      styles.backgroundPreview,
-                      { backgroundColor: isDarkMode ? '#1a1a2e' : '#f5f5f5' }
-                    ]}>
-                      <Text style={[styles.defaultLabel, { color: theme.textSecondary, fontSize: responsiveFontSize(10) }]}>
-                        {t('common.default') || 'Default'}
-                      </Text>
-                    </View>
-                  )}
+                  <View
+                    style={[
+                      styles.backgroundPreviewFrame,
+                      selectedBackground === bg.key && styles.backgroundOptionSelected,
+                      selectedBackground === bg.key && { borderColor: theme.primary },
+                    ]}
+                  >
+                    {bg.colors ? (
+                      <LinearGradient
+                        colors={bg.colors}
+                        style={styles.backgroundPreview}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      />
+                    ) : bg.pattern ? (
+                      <View style={[styles.backgroundPreview, { backgroundColor: bg.baseColor }]}>
+                        {bg.pattern === 'dots' && (
+                          <View style={styles.patternDotsContainer}>
+                            {[...Array(12)].map((_, i) => (
+                              <View key={i} style={styles.patternDot} />
+                            ))}
+                          </View>
+                        )}
+                        {bg.pattern === 'grid' && (
+                          <View style={styles.patternGridContainer}>
+                            {[...Array(9)].map((_, i) => (
+                              <View key={i} style={styles.patternGridCell} />
+                            ))}
+                          </View>
+                        )}
+                        {bg.pattern === 'waves' && (
+                          <View style={styles.patternWavesContainer}>
+                            <View style={[styles.patternWave, { top: '20%' }]} />
+                            <View style={[styles.patternWave, { top: '50%' }]} />
+                            <View style={[styles.patternWave, { top: '80%' }]} />
+                          </View>
+                        )}
+                      </View>
+                    ) : (
+                      <View
+                        style={[
+                          styles.backgroundPreview,
+                          { backgroundColor: isDarkMode ? '#1a1a2e' : '#f5f5f5' },
+                        ]}
+                      />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.backgroundOptionLabel,
+                      { color: selectedBackground === bg.key ? theme.primary : theme.text },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {bg.key ? t(bg.labelKey) : t('settings.defaultBackground')}
+                  </Text>
                 </TouchableOpacity>
               ))}
               
@@ -628,27 +641,46 @@ const ChatSettings = ({ navigation, route }) => {
               <TouchableOpacity
                 style={[
                   styles.backgroundOption,
-                  selectedBackground && !BACKGROUND_PRESETS.find(b => b.key === selectedBackground) && styles.backgroundOptionSelected,
                 ]}
                 onPress={pickCustomBackground}>
-                {selectedBackground && !BACKGROUND_PRESETS.find(b => b.key === selectedBackground) ? (
-                  <Image 
-                    source={{ uri: selectedBackground }} 
-                    style={styles.backgroundPreview}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={[
-                    styles.backgroundPreview,
-                    styles.customBackgroundOption,
-                    { borderColor: theme.border }
-                  ]}>
-                    <Ionicons name="add" size={moderateScale(24)} color={theme.textSecondary} />
-                    <Text style={[styles.customLabel, { color: theme.textSecondary, fontSize: responsiveFontSize(10) }]}>
-                      {t('settings.custom') || 'Custom'}
-                    </Text>
-                  </View>
-                )}
+                <View
+                  style={[
+                    styles.backgroundPreviewFrame,
+                    selectedBackground && !BACKGROUND_PRESETS.find(b => b.key === selectedBackground) && styles.backgroundOptionSelected,
+                    selectedBackground && !BACKGROUND_PRESETS.find(b => b.key === selectedBackground) && { borderColor: theme.primary },
+                  ]}
+                >
+                  {selectedBackground && !BACKGROUND_PRESETS.find(b => b.key === selectedBackground) ? (
+                    <Image 
+                      source={{ uri: selectedBackground }} 
+                      style={styles.backgroundPreview}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.backgroundPreview,
+                        styles.customBackgroundOption,
+                        { borderColor: theme.border },
+                      ]}
+                    >
+                      <Ionicons name="add" size={moderateScale(24)} color={theme.textSecondary} />
+                    </View>
+                  )}
+                </View>
+                <Text
+                  style={[
+                    styles.backgroundOptionLabel,
+                    {
+                      color: selectedBackground && !BACKGROUND_PRESETS.find(b => b.key === selectedBackground)
+                        ? theme.primary
+                        : theme.text,
+                    },
+                  ]}
+                  numberOfLines={2}
+                >
+                  {t('settings.customBackground')}
+                </Text>
               </TouchableOpacity>
             </View>
           </GlassCard>
@@ -659,21 +691,21 @@ const ChatSettings = ({ navigation, route }) => {
             style={styles.section}
             onLayout={(event) => setReactionSectionY(event.nativeEvent.layout.y)}
           >
-            <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+            <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
               {t('chats.reactionDefaultsTitle')}
             </Text>
             <GlassCard>
-              <Text style={[styles.reactionSubtitle, { color: theme.textSecondary }]}>
+              <Text style={[styles.reactionSubtitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                 {t('chats.dragToReorderReactions')}
               </Text>
 
-              <Text style={[styles.reactionCountText, { color: theme.textSecondary }]}>
+              <Text style={[styles.reactionCountText, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                 {t('chats.reactionDefaultsCount')
                   .replace('{count}', String(reactionDraftList.length))
                   .replace('{max}', String(MAX_REACTION_DEFAULTS))}
               </Text>
 
-              <View style={styles.reactionActionsRow}>
+              <View style={[styles.reactionActionsRow, isRTL && styles.rowReverse]}>
                 <TouchableOpacity
                   style={[
                     styles.reactionApplyButton,
@@ -718,7 +750,10 @@ const ChatSettings = ({ navigation, route }) => {
                 keyExtractor={(item, index) => `${item}-${index}`}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.reactionDefaultsRow}
+                contentContainerStyle={[
+                  styles.reactionDefaultsRow,
+                  isRTL ? styles.reactionDefaultsRowRtl : styles.reactionDefaultsRowLtr,
+                ]}
                 onDragEnd={handleReactionDragEnd}
                 renderItem={({ item, drag, isActive }) => (
                   <ScaleDecorator>
@@ -727,6 +762,7 @@ const ChatSettings = ({ navigation, route }) => {
                       delayLongPress={150}
                       style={[
                         styles.reactionDefaultChip,
+                        isRTL && styles.rowReverse,
                         { borderColor: isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)' },
                         isActive && styles.reactionDefaultChipActive,
                       ]}
@@ -744,7 +780,7 @@ const ChatSettings = ({ navigation, route }) => {
               />
 
               {reactionDraftList.length >= MAX_REACTION_DEFAULTS && (
-                <Text style={[styles.reactionLimitText, { color: theme.textSecondary }]}>
+                <Text style={[styles.reactionLimitText, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                   {t('chats.reactionDefaultsMaxReached', { max: MAX_REACTION_DEFAULTS })}
                 </Text>
               )}
@@ -752,7 +788,7 @@ const ChatSettings = ({ navigation, route }) => {
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.emojiCategoryTabs}
+                contentContainerStyle={[styles.emojiCategoryTabs, isRTL && styles.rowReverse]}
               >
                 {REACTION_EMOJI_CATEGORIES.map((category) => {
                   const isSelected = selectedEmojiCategory === category.key;
@@ -761,6 +797,7 @@ const ChatSettings = ({ navigation, route }) => {
                       key={category.key}
                       style={[
                         styles.emojiCategoryTab,
+                        isRTL && styles.rowReverse,
                         {
                           borderColor: isSelected ? theme.primary : (isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'),
                           backgroundColor: isSelected
@@ -772,7 +809,7 @@ const ChatSettings = ({ navigation, route }) => {
                       activeOpacity={0.8}
                     >
                       <Ionicons
-                        name={category.icon}
+                        name={category.key === 'gestures' ? (isRTL ? 'hand-right-outline' : 'hand-left-outline') : category.icon}
                         size={moderateScale(14)}
                         color={isSelected ? theme.primary : theme.textSecondary}
                       />
@@ -817,7 +854,7 @@ const ChatSettings = ({ navigation, route }) => {
                 })}
               </View>
 
-              <Text style={[styles.reactionScopeHint, { color: theme.textSecondary }]}>
+              <Text style={[styles.reactionScopeHint, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                 {t('chats.reactionDefaultsScopeHint')}
               </Text>
             </GlassCard>
@@ -846,6 +883,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: wp(5),
     paddingBottom: spacing.md,
+  },
+  rowReverse: {
+    flexDirection: 'row-reverse',
   },
   backButton: {
     width: moderateScale(40),
@@ -894,8 +934,13 @@ const styles = StyleSheet.create({
   reactionDefaultsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
-    paddingRight: spacing.md,
     marginBottom: spacing.sm,
+  },
+  reactionDefaultsRowLtr: {
+    paddingRight: spacing.md,
+  },
+  reactionDefaultsRowRtl: {
+    paddingLeft: spacing.md,
   },
   reactionDefaultChip: {
     flexDirection: 'row',
@@ -974,6 +1019,10 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize(11),
     marginTop: spacing.sm,
   },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   glassCard: {
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
@@ -1049,28 +1098,30 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   backgroundOption: {
-    width: moderateScale(70),
-    height: moderateScale(100),
+    width: moderateScale(78),
+    gap: spacing.xs,
+  },
+  backgroundOptionSelected: {
+    borderWidth: 2,
+  },
+  backgroundPreviewFrame: {
+    width: '100%',
+    height: moderateScale(82),
     borderRadius: borderRadius.md,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  backgroundOptionSelected: {
-    borderWidth: 2,
-  },
   backgroundPreview: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: spacing.xs,
   },
-  bgLabel: {
-    color: '#FFFFFF',
+  backgroundOptionLabel: {
+    minHeight: moderateScale(30),
+    textAlign: 'center',
+    fontSize: responsiveFontSize(10),
     fontWeight: '600',
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   defaultLabel: {
     fontWeight: '500',
@@ -1079,10 +1130,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderStyle: 'dashed',
     justifyContent: 'center',
-  },
-  customLabel: {
-    marginTop: spacing.xs / 2,
-    fontWeight: '500',
   },
   // Pattern styles
   patternDotsContainer: {

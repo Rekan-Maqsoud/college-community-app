@@ -132,7 +132,7 @@ const withActivityBoundary = (ScreenComponent, screenName) => {
         screen: screenName,
         renderCount: renderCountRef.current,
       });
-    }, [screenName]);
+    }, []);
 
     useEffect(() => {
       if (isFocused) {
@@ -416,7 +416,7 @@ const TabNavigator = () => {
 const TabNavigatorWithActivity = withActivityBoundary(TabNavigator, 'MainTabs');
 
 const MainStack = () => {
-  const { theme, isDarkMode } = useAppSettings();
+  const { theme } = useAppSettings();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -798,14 +798,14 @@ const UpdatePrompt = () => {
 
   const toastBackgroundColor = (() => {
     if (toastKind === 'downloaded') {
-      return isDarkMode ? 'rgba(22, 163, 74, 0.18)' : 'rgba(22, 163, 74, 0.08)';
+      return isDarkMode ? 'rgba(12, 37, 20, 0.97)' : 'rgba(240, 253, 244, 0.98)';
     }
 
     if (toastKind === 'error') {
-      return isDarkMode ? 'rgba(220, 38, 38, 0.2)' : 'rgba(220, 38, 38, 0.08)';
+      return isDarkMode ? 'rgba(40, 13, 13, 0.97)' : 'rgba(254, 242, 242, 0.98)';
     }
 
-    return theme.card || theme.backgroundSecondary;
+    return isDarkMode ? 'rgba(28, 28, 40, 0.97)' : 'rgba(255, 255, 255, 0.97)';
   })();
 
   if (!isVisible || !Updates.isEnabled) {

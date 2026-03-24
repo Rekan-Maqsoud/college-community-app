@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { useTranslation } from '../hooks/useTranslation';
-import { GlassContainer, GlassIconButton } from '../components/GlassComponents';
+import { GlassContainer, GlassIconButton, GlassInput } from '../components/GlassComponents';
 import LectureWindowSelector from '../components/LectureWindowSelector';
 import { getActorIdentityIds, getPrimaryActorId, matchesAnyActorIdentity } from '../utils/actorIdentity';
 import { canLinkLectureGroup } from '../utils/lectureAccess';
@@ -92,12 +92,15 @@ const CreateChannelModal = ({
   groups,
   canCreateOfficial,
   canLinkGroups,
+  isRTL,
 }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [channelType, setChannelType] = useState(LECTURE_CHANNEL_TYPES.COMMUNITY);
   const [needsApproval, setNeedsApproval] = useState(false);
   const [linkedGroupId, setLinkedGroupId] = useState('');
+  const [nameFocused, setNameFocused] = useState(false);
+  const [descriptionFocused, setDescriptionFocused] = useState(false);
 
   const isNameValid = name.trim().length >= 2;
 
@@ -134,10 +137,10 @@ const CreateChannelModal = ({
         <View pointerEvents="none" style={styles.modalBackdropScrim} />
         <GlassContainer borderRadius={borderRadius.xl} style={styles.createModalGlass}>
         <View style={[styles.modalCard, { backgroundColor: 'transparent', borderColor: `${colors.primary}33` }]}> 
-          <View style={styles.modalHeader}>
-            <View style={styles.modalHeaderLeft}>
+          <View style={[styles.modalHeader, isRTL && styles.rowReverse]}>
+            <View style={[styles.modalHeaderLeft, isRTL && styles.rowReverse]}>
               <Ionicons name="school-outline" size={20} color={colors.primary} />
-              <Text style={[styles.modalTitle, { color: colors.text }]}>{t('lectures.createChannel')}</Text>
+              <Text style={[styles.modalTitle, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.createChannel')}</Text>
             </View>
             <GlassIconButton
               size={32}
@@ -148,32 +151,46 @@ const CreateChannelModal = ({
             </GlassIconButton>
           </View>
 
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder={t('lectures.channelNamePlaceholder')}
-            placeholderTextColor={colors.textSecondary}
-            style={[styles.input, { color: colors.text, borderColor: isNameValid || !name ? colors.border : '#ef4444', backgroundColor: colors.inputBackground }]}
-          />
+          <GlassInput
+            focused={nameFocused}
+            style={[
+              styles.inputGlass,
+              !isNameValid && name.length > 0 ? styles.inputGlassError : null,
+            ]}>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              onFocus={() => setNameFocused(true)}
+              onBlur={() => setNameFocused(false)}
+              placeholder={t('lectures.channelNamePlaceholder')}
+              placeholderTextColor={colors.textSecondary}
+              style={[styles.input, isRTL && styles.directionalInput, { color: colors.text }]}
+            />
+          </GlassInput>
           {name.length > 0 && !isNameValid && (
             <Text style={styles.validationHint}>{t('lectures.nameMinLength')}</Text>
           )}
 
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder={t('lectures.channelDescriptionPlaceholder')}
-            placeholderTextColor={colors.textSecondary}
-            multiline
-            style={[
-              styles.input,
-              styles.multilineInput,
-              { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground },
-            ]}
-          />
+          <GlassInput focused={descriptionFocused} style={styles.inputGlass}>
+            <TextInput
+              value={description}
+              onChangeText={setDescription}
+              onFocus={() => setDescriptionFocused(true)}
+              onBlur={() => setDescriptionFocused(false)}
+              placeholder={t('lectures.channelDescriptionPlaceholder')}
+              placeholderTextColor={colors.textSecondary}
+              multiline
+              style={[
+                styles.input,
+                styles.multilineInput,
+                isRTL && styles.directionalInput,
+                { color: colors.text },
+              ]}
+            />
+          </GlassInput>
 
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('lectures.channelTypeLabel')}</Text>
-          <View style={styles.typeRow}>
+          <Text style={[styles.sectionLabel, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('lectures.channelTypeLabel')}</Text>
+          <View style={[styles.typeRow, isRTL && styles.rowReverse]}>
             <TouchableOpacity
               style={[
                 styles.chip,
@@ -195,7 +212,7 @@ const CreateChannelModal = ({
                     ? (channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? '#FFFFFF' : colors.text)
                     : colors.textSecondary}
                 />
-                <Text style={[styles.chipText, { color: canCreateOfficial
+                <Text style={[styles.chipText, isRTL && styles.directionalText, { color: canCreateOfficial
                     ? (channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? '#FFFFFF' : colors.text)
                     : colors.textSecondary }]}> 
                   {t('lectures.official')}
@@ -212,22 +229,22 @@ const CreateChannelModal = ({
               ]}
               onPress={() => setChannelType(LECTURE_CHANNEL_TYPES.COMMUNITY)}>
               <Ionicons name="people-outline" size={14} color={channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? '#FFFFFF' : colors.text} />
-              <Text style={[styles.chipText, { color: channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? '#FFFFFF' : colors.text }]}> 
+              <Text style={[styles.chipText, isRTL && styles.directionalText, { color: channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? '#FFFFFF' : colors.text }]}> 
                 {t('lectures.community')}
               </Text>
             </TouchableOpacity>
           </View>
 
           {!canCreateOfficial && (
-            <Text style={[styles.officialHint, { color: colors.textSecondary, fontStyle: 'italic' }]}>{t('lectures.officialHintForStudents')}</Text>
+            <Text style={[styles.officialHint, isRTL && styles.directionalText, { color: colors.textSecondary, fontStyle: 'italic' }]}>{t('lectures.officialHintForStudents')}</Text>
           )}
 
           {channelType === LECTURE_CHANNEL_TYPES.COMMUNITY && (
             <GlassContainer borderRadius={borderRadius.md} style={styles.createModalOptionGlass}>
               <TouchableOpacity
-                style={[styles.toggleRow, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
+                style={[styles.toggleRow, isRTL && styles.rowReverse, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
                 onPress={() => setNeedsApproval(prev => !prev)}>
-                <Text style={[styles.toggleText, { color: colors.text }]}>{t('lectures.requireApproval')}</Text>
+                <Text style={[styles.toggleText, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.requireApproval')}</Text>
                 <Ionicons name={needsApproval ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
               </TouchableOpacity>
             </GlassContainer>
@@ -235,19 +252,20 @@ const CreateChannelModal = ({
 
           {canLinkGroups && (
             <>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('lectures.chooseLinkedGroup')}</Text>
+              <Text style={[styles.sectionTitle, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.chooseLinkedGroup')}</Text>
 
               <GlassContainer borderRadius={borderRadius.md} style={styles.createModalOptionGlass}>
                 <TouchableOpacity
                   style={[
                     styles.groupOption,
+                    isRTL && styles.rowReverse,
                     {
                       borderColor: linkedGroupId ? `${colors.primary}33` : colors.primary,
                       backgroundColor: 'transparent',
                     },
                   ]}
                   onPress={() => setLinkedGroupId('')}>
-                  <Text style={[styles.groupOptionText, { color: colors.text }]}>{t('lectures.noLink')}</Text>
+                  <Text style={[styles.groupOptionText, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.noLink')}</Text>
                   {!linkedGroupId && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
                 </TouchableOpacity>
               </GlassContainer>
@@ -257,6 +275,7 @@ const CreateChannelModal = ({
                   <TouchableOpacity
                     style={[
                       styles.groupOption,
+                      isRTL && styles.rowReverse,
                       {
                         borderColor: linkedGroupId === group.$id ? colors.primary : `${colors.primary}33`,
                         backgroundColor: 'transparent',
@@ -264,8 +283,8 @@ const CreateChannelModal = ({
                     ]}
                     onPress={() => setLinkedGroupId(group.$id)}>
                     <View style={styles.groupOptionMeta}>
-                      <Text style={[styles.groupOptionText, { color: colors.text }]} numberOfLines={1}>{group.name}</Text>
-                      <Text style={[styles.groupOptionHint, { color: colors.textSecondary }]} numberOfLines={1}>
+                      <Text style={[styles.groupOptionText, isRTL && styles.directionalText, { color: colors.text }]} numberOfLines={1}>{group.name}</Text>
+                      <Text style={[styles.groupOptionHint, isRTL && styles.directionalText, { color: colors.textSecondary }]} numberOfLines={1}>
                         {group.type === CHAT_TYPES.STAGE_GROUP ? t('lectures.stageGroup') : t('lectures.customGroup')}
                       </Text>
                     </View>
@@ -275,14 +294,14 @@ const CreateChannelModal = ({
               ))}
 
               {groups.length === 0 && (
-                <Text style={[styles.emptyGroupText, { color: colors.textSecondary }]}>{t('lectures.noEligibleGroups')}</Text>
+                <Text style={[styles.emptyGroupText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('lectures.noEligibleGroups')}</Text>
               )}
             </>
           )}
 
-          <View style={styles.modalButtons}>
+          <View style={[styles.modalButtons, isRTL && styles.rowReverse]}>
             <TouchableOpacity style={[styles.modalBtn, { borderColor: colors.border }]} onPress={onClose}>
-              <Text style={[styles.modalBtnText, { color: colors.textSecondary }]}>{t('common.cancel')}</Text>
+              <Text style={[styles.modalBtnText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -298,7 +317,7 @@ const CreateChannelModal = ({
               {creating ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={[styles.modalBtnText, { color: isNameValid ? '#FFFFFF' : colors.textSecondary }]}> 
+                <Text style={[styles.modalBtnText, isRTL && styles.directionalText, { color: isNameValid ? '#FFFFFF' : colors.textSecondary }]}> 
                   {t('lectures.create')}
                 </Text>
               )}
@@ -313,7 +332,7 @@ const CreateChannelModal = ({
 
 const Lecture = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { colors, isDarkMode } = useAppSettings();
+  const { colors, isDarkMode, isRTL } = useAppSettings();
   const { user } = useUser();
   const { t } = useTranslation();
   const { contentStyle } = useLayout();
@@ -435,7 +454,7 @@ const Lecture = ({ navigation }) => {
       logLectureTabError('loadAvailableGroups:error', error, { userId: primaryActorId });
       setAvailableGroups([]);
     }
-  }, [actorIdentityIds, primaryActorId]);
+  }, [actorIdentityIds, logLectureTabError, primaryActorId]);
 
   const loadRepresentativeAccess = useCallback(async () => {
     if (!primaryActorId || !user?.department || !user?.stage) {
@@ -455,7 +474,7 @@ const Lecture = ({ navigation }) => {
       });
       setIsClassRepresentative(false);
     }
-  }, [actorIdentityIds, primaryActorId, user?.department, user?.stage]);
+  }, [actorIdentityIds, logLectureTabError, primaryActorId, user?.department, user?.stage]);
 
   const loadPinnedChannels = useCallback(async () => {
     if (!primaryActorId) {
@@ -477,7 +496,7 @@ const Lecture = ({ navigation }) => {
       });
       setPinnedChannelIds([]);
     }
-  }, [primaryActorId]);
+  }, [logLectureTab, logLectureTabError, primaryActorId]);
 
   const persistPinnedChannels = useCallback(async (nextIds = []) => {
     if (!primaryActorId) {
@@ -501,7 +520,7 @@ const Lecture = ({ navigation }) => {
         pinnedCount: normalized.length,
       });
     }
-  }, [pinnedChannelIds, primaryActorId]);
+  }, [logLectureTab, logLectureTabError, pinnedChannelIds, primaryActorId]);
 
   const handleTogglePinChannel = useCallback(async (channelId) => {
     if (!channelId) {
@@ -592,7 +611,7 @@ const Lecture = ({ navigation }) => {
     loadAvailableGroups();
     loadPinnedChannels();
     loadRepresentativeAccess();
-  }, [loadAvailableGroups, loadPinnedChannels, loadRepresentativeAccess, primaryActorId]);
+  }, [loadAvailableGroups, loadChannels, loadPinnedChannels, loadRepresentativeAccess, logLectureTab, primaryActorId]);
 
   const handleLectureRealtimeChange = useCallback(() => {
     const now = Date.now();
@@ -738,8 +757,8 @@ const Lecture = ({ navigation }) => {
         <GlassContainer
           borderRadius={borderRadius.lg}
           style={[styles.channelCard]}>
-        <View style={styles.channelHeader}>
-          <View style={styles.channelHeaderLeft}>
+        <View style={[styles.channelHeader, isRTL && styles.rowReverse]}>
+          <View style={[styles.channelHeaderLeft, isRTL && styles.rowReverse]}>
             <View style={[styles.channelIcon, { backgroundColor: isOfficial ? `${colors.primary}20` : `${colors.textSecondary}15` }]}>
               <Ionicons
                 name={isOfficial ? 'school' : 'people'}
@@ -748,49 +767,49 @@ const Lecture = ({ navigation }) => {
               />
             </View>
             <View style={styles.channelTitleWrap}>
-              <View style={styles.channelNameRow}>
-                {isPinned && <Ionicons name="pin" size={12} color={colors.primary} style={{ marginRight: spacing.xs }} />}
-                <Text style={[styles.channelName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+              <View style={[styles.channelNameRow, isRTL && styles.rowReverse]}>
+                {isPinned && <Ionicons name="pin" size={12} color={colors.primary} style={isRTL ? { marginLeft: spacing.xs } : { marginRight: spacing.xs }} />}
+                <Text style={[styles.channelName, isRTL && styles.directionalText, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
               </View>
-              <Text style={[styles.channelDescription, { color: colors.textSecondary }]} numberOfLines={1}>
+              <Text style={[styles.channelDescription, isRTL && styles.directionalText, { color: colors.textSecondary }]} numberOfLines={1}>
                 {item.description || t('lectures.noDescription')}
               </Text>
             </View>
           </View>
 
-          <View style={styles.channelHeaderRight}>
+          <View style={[styles.channelHeaderRight, isRTL && styles.rowReverse]}>
             {joined && (
               <View style={[styles.statusBadge, { backgroundColor: '#10b98120' }]}>
                 <Ionicons name="checkmark-circle" size={12} color="#10b981" />
-                <Text style={[styles.statusBadgeText, { color: '#10b981' }]}>{t('lectures.joined')}</Text>
+                <Text style={[styles.statusBadgeText, isRTL && styles.directionalText, { color: '#10b981' }]}>{t('lectures.joined')}</Text>
               </View>
             )}
             {isPending && !joined && (
               <View style={[styles.statusBadge, { backgroundColor: '#f59e0b20' }]}>
                 <Ionicons name="time-outline" size={12} color="#f59e0b" />
-                <Text style={[styles.statusBadgeText, { color: '#f59e0b' }]}>{t('lectures.pending')}</Text>
+                <Text style={[styles.statusBadgeText, isRTL && styles.directionalText, { color: '#f59e0b' }]}>{t('lectures.pending')}</Text>
               </View>
             )}
           </View>
         </View>
 
-        <View style={styles.channelMetaRow}>
-          <View style={styles.metaItem}>
+        <View style={[styles.channelMetaRow, isRTL && styles.rowReverse]}>
+          <View style={[styles.metaItem, isRTL && styles.rowReverse]}>
             <Ionicons name={isOfficial ? 'shield-checkmark-outline' : 'lock-open-outline'} size={12} color={colors.textSecondary} />
-            <Text style={[styles.metaText, { color: colors.textSecondary }]}> 
+            <Text style={[styles.metaText, isRTL && styles.directionalText, { color: colors.textSecondary }]}> 
               {channelAccessLabel(item)}
             </Text>
           </View>
-          <View style={styles.metaItem}>
+          <View style={[styles.metaItem, isRTL && styles.rowReverse]}>
             <Ionicons name="people-outline" size={12} color={colors.textSecondary} />
-            <Text style={[styles.metaText, { color: colors.textSecondary }]}> 
+            <Text style={[styles.metaText, isRTL && styles.directionalText, { color: colors.textSecondary }]}> 
               {t('lectures.membersCount').replace('{count}', String(item.membersCount || 0))}
             </Text>
           </View>
         </View>
 
         {!joined && !isPending && (
-          <View style={styles.cardActions}>
+          <View style={[styles.cardActions, isRTL && styles.rowReverse]}>
             <TouchableOpacity
               style={[styles.joinBtn, { backgroundColor: colors.primary }]}
               onPress={() => handleRequestJoin(item.$id)}
@@ -800,7 +819,7 @@ const Lecture = ({ navigation }) => {
               ) : (
                 <>
                   <Ionicons name="enter-outline" size={14} color="#FFFFFF" />
-                  <Text style={styles.joinBtnText}>{t('lectures.join')}</Text>
+                  <Text style={[styles.joinBtnText, isRTL && styles.directionalText]}>{t('lectures.join')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -842,9 +861,9 @@ const Lecture = ({ navigation }) => {
         translucent
       />
 
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm, borderBottomColor: colors.border }]}> 
-        <Text style={[styles.screenTitle, { color: colors.text }]}>{t('lectures.title')}</Text>
-        <View style={styles.headerActions}>
+      <View style={[styles.header, isRTL && styles.rowReverse, { paddingTop: insets.top + spacing.sm, borderBottomColor: colors.border }]}> 
+        <Text style={[styles.screenTitle, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.title')}</Text>
+        <View style={[styles.headerActions, isRTL && styles.rowReverse]}>
           <GlassIconButton
             size={moderateScale(36)}
             borderRadiusValue={moderateScale(12)}
@@ -867,7 +886,7 @@ const Lecture = ({ navigation }) => {
 
       {searchVisible && (
         <View style={styles.searchWrap}>
-          <GlassContainer borderRadius={borderRadius.lg} style={[styles.searchInputWrap]}>
+          <GlassContainer borderRadius={borderRadius.lg} style={[styles.searchInputWrap, isRTL && styles.rowReverse]}>
             <Ionicons name="search-outline" size={16} color={colors.textSecondary} />
             <TextInput
               value={search}
@@ -875,7 +894,7 @@ const Lecture = ({ navigation }) => {
               onSubmitEditing={() => loadChannels({ showLoading: true, searchValue: search })}
               placeholder={t('lectures.searchPlaceholder')}
               placeholderTextColor={colors.textSecondary}
-              style={[styles.searchInput, { color: colors.text }]}
+              style={[styles.searchInput, isRTL && styles.directionalInput, { color: colors.text }]}
               autoFocus
               returnKeyType="search"
             />
@@ -897,7 +916,7 @@ const Lecture = ({ navigation }) => {
 
       {suggestedChannels.length > 0 && !searchVisible && (
         <View style={styles.suggestedWrap}>
-          <Text style={[styles.suggestedTitle, { color: colors.text }]}>{t('lectures.suggestedChannels')}</Text>
+          <Text style={[styles.suggestedTitle, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.suggestedChannels')}</Text>
           <FlashList
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -985,6 +1004,7 @@ const Lecture = ({ navigation }) => {
         groups={availableGroups}
         canCreateOfficial={canCreateOfficial}
         canLinkGroups={canLinkGroups}
+        isRTL={isRTL}
       />
 
       <Modal
@@ -999,20 +1019,20 @@ const Lecture = ({ navigation }) => {
           <BlurView intensity={26} tint="dark" style={styles.menuBackdropBlur} />
           <View pointerEvents="none" style={styles.menuBackdropScrim} />
           <GlassContainer style={[styles.channelMenuCard]} padding={spacing.md}> 
-            <View style={styles.channelMenuHeader}>
+            <View style={[styles.channelMenuHeader, isRTL && styles.rowReverse]}>
               <Ionicons
                 name={channelMenuTarget?.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? 'school' : 'people'}
                 size={18}
                 color={colors.primary}
               />
-              <Text style={[styles.channelMenuTitle, { color: colors.text }]} numberOfLines={1}>
+              <Text style={[styles.channelMenuTitle, isRTL && styles.directionalText, { color: colors.text }]} numberOfLines={1}>
                 {channelMenuTarget?.name || t('lectures.channel')}
               </Text>
             </View>
 
             {channelMenuTargetJoined && (
               <TouchableOpacity
-                style={[styles.channelMenuItem, { borderTopColor: colors.border }]}
+                style={[styles.channelMenuItem, isRTL && styles.rowReverse, { borderTopColor: colors.border }]}
                 onPress={() => {
                   setChannelMenuOpen(false);
                   if (channelMenuTarget) {
@@ -1020,12 +1040,12 @@ const Lecture = ({ navigation }) => {
                   }
                 }}>
                 <Ionicons name="enter-outline" size={16} color={colors.text} />
-                <Text style={[styles.channelMenuItemText, { color: colors.text }]}>{t('lectures.openChannel')}</Text>
+                <Text style={[styles.channelMenuItemText, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.openChannel')}</Text>
               </TouchableOpacity>
             )}
 
             <TouchableOpacity
-              style={[styles.channelMenuItem, { borderTopColor: colors.border }]}
+              style={[styles.channelMenuItem, isRTL && styles.rowReverse, { borderTopColor: colors.border }]}
               onPress={() => {
                 const targetId = channelMenuTarget?.$id || '';
                 setChannelMenuOpen(false);
@@ -1034,11 +1054,11 @@ const Lecture = ({ navigation }) => {
                 }
               }}>
               <Ionicons name="share-social-outline" size={16} color={colors.text} />
-              <Text style={[styles.channelMenuItemText, { color: colors.text }]}>{t('lectures.share')}</Text>
+              <Text style={[styles.channelMenuItemText, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.share')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.channelMenuItem, { borderTopColor: colors.border }]}
+              style={[styles.channelMenuItem, isRTL && styles.rowReverse, { borderTopColor: colors.border }]}
               onPress={async () => {
                 const targetId = channelMenuTarget?.$id || '';
                 setChannelMenuOpen(false);
@@ -1047,29 +1067,29 @@ const Lecture = ({ navigation }) => {
                 }
               }}>
               <Ionicons name={channelMenuTargetPinned ? 'pin-outline' : 'pin'} size={16} color={colors.text} />
-              <Text style={[styles.channelMenuItemText, { color: colors.text }]}>
+              <Text style={[styles.channelMenuItemText, isRTL && styles.directionalText, { color: colors.text }]}>
                 {channelMenuTargetPinned ? t('lectures.unpinChannel') : t('lectures.pinChannel')}
               </Text>
             </TouchableOpacity>
 
             {!channelMenuTargetJoined && !!channelMenuTarget?.$id && !pendingChannelIdSet.has(channelMenuTarget?.$id) && (
               <TouchableOpacity
-                style={[styles.channelMenuItem, { borderTopColor: colors.border }]}
+                style={[styles.channelMenuItem, isRTL && styles.rowReverse, { borderTopColor: colors.border }]}
                 onPress={() => {
                   const targetId = channelMenuTarget.$id;
                   setChannelMenuOpen(false);
                   handleRequestJoin(targetId);
                 }}>
                 <Ionicons name="enter-outline" size={16} color={colors.primary} />
-                <Text style={[styles.channelMenuItemText, { color: colors.primary }]}>{t('lectures.join')}</Text>
+                <Text style={[styles.channelMenuItemText, isRTL && styles.directionalText, { color: colors.primary }]}>{t('lectures.join')}</Text>
               </TouchableOpacity>
             )}
 
             <TouchableOpacity
-              style={[styles.channelMenuItem, { borderTopColor: colors.border }]}
+              style={[styles.channelMenuItem, isRTL && styles.rowReverse, { borderTopColor: colors.border }]}
               onPress={() => setChannelMenuOpen(false)}>
               <Ionicons name="close-outline" size={16} color={colors.textSecondary} />
-              <Text style={[styles.channelMenuItemText, { color: colors.textSecondary }]}>{t('common.cancel')}</Text>
+              <Text style={[styles.channelMenuItemText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </GlassContainer>
         </TouchableOpacity>
@@ -1102,6 +1122,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  rowReverse: {
+    flexDirection: 'row-reverse',
   },
   headerIconBtn: {
     width: moderateScale(34),
@@ -1383,12 +1406,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.xs,
   },
+  inputGlass: {
+    marginBottom: spacing.sm,
+  },
+  inputGlassError: {
+    borderColor: '#ef4444',
+  },
   input: {
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    marginBottom: spacing.sm,
     fontSize: fontSize(12),
   },
   multilineInput: {
@@ -1527,6 +1553,14 @@ const styles = StyleSheet.create({
   channelMenuItemText: {
     fontSize: fontSize(13),
     fontWeight: '600',
+  },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  directionalInput: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });
 

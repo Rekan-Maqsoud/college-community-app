@@ -37,6 +37,7 @@ const ChatListItem = ({
 }) => {
   const { theme, isDarkMode, t, showActivityStatus } = useAppSettings();
   const translateX = useRef(new Animated.Value(0)).current;
+  const archiveActionLabel = swipeActionLabel || t('chats.archive');
   const archiveActionOpacity = translateX.interpolate({
     inputRange: [-ARCHIVE_SWIPE_TRIGGER, -12, 0],
     outputRange: [1, 0, 0],
@@ -56,6 +57,15 @@ const ChatListItem = ({
       friction: 11,
     }).start();
   }, [translateX]);
+
+  const handleAccessibilityAction = useCallback(
+    (event) => {
+      if (event?.nativeEvent?.actionName === 'archive') {
+        onArchive?.();
+      }
+    },
+    [onArchive]
+  );
 
   const panResponder = useRef(
     PanResponder.create({
@@ -235,7 +245,7 @@ const ChatListItem = ({
         >
           <Ionicons name="archive-outline" size={moderateScale(14)} color="#F59E0B" />
           <Text style={[styles.archiveText, { color: '#F59E0B', fontSize: fontSize(10) }]}>
-            {swipeActionLabel || t('chats.archive')}
+            {archiveActionLabel}
           </Text>
         </Animated.View>
       )}
@@ -258,6 +268,9 @@ const ChatListItem = ({
           delayLongPress={180}
           activeOpacity={0.7}
           style={styles.touchContent}
+          accessibilityRole="button"
+          accessibilityActions={onArchive ? [{ name: 'archive', label: archiveActionLabel }] : undefined}
+          onAccessibilityAction={onArchive ? handleAccessibilityAction : undefined}
         >
       
       {isPrivateChat && chat.otherUser ? (

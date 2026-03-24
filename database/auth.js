@@ -737,7 +737,7 @@ const createUserDocument = async (userId, name, email, additionalData = {}) => {
         }
 
         const basePayload = {
-            userID: userId,
+            userId: userId,
             name: sanitizedName,
             email: sanitizedEmail,
             bio: '',

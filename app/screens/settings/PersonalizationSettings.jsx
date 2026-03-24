@@ -7,18 +7,30 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../../components/GlassComponents';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../../context/AppSettingsContext';
-import { borderRadius, shadows } from '../../theme/designTokens';
+import { borderRadius } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useLayout from '../../hooks/useLayout';
+import { getSettingsHeaderGradient } from './settingsTheme';
 
 const MIN_FONT_PERCENT = 85;
 const MAX_FONT_PERCENT = 130;
+const ACCENT_COLOR_OPTIONS = [
+  { color: null, labelKey: 'settings.colorDefault' },
+  { color: '#007AFF', labelKey: 'settings.colorBlue' },
+  { color: '#34C759', labelKey: 'settings.colorGreen' },
+  { color: '#FF9500', labelKey: 'settings.colorOrange' },
+  { color: '#FF3B30', labelKey: 'settings.colorRed' },
+  { color: '#AF52DE', labelKey: 'settings.colorPurple' },
+  { color: '#FF2D55', labelKey: 'settings.colorPink' },
+  { color: '#5AC8FA', labelKey: 'settings.colorCyan' },
+];
 
 const PersonalizationSettings = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -27,6 +39,7 @@ const PersonalizationSettings = ({ navigation }) => {
     t,
     theme,
     isDarkMode,
+    isRTL,
     themePreference,
     setThemeMode,
     currentLanguage,
@@ -52,6 +65,16 @@ const PersonalizationSettings = ({ navigation }) => {
   const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [timePickerType, setTimePickerType] = useState('start'); // 'start' or 'end'
   const [tempTime, setTempTime] = useState('');
+  const backIconName = Platform.OS === 'ios'
+    ? (isRTL ? 'chevron-forward' : 'chevron-back')
+    : (isRTL ? 'arrow-forward' : 'arrow-back');
+  const getToggleTranslateX = (enabled) => {
+    if (!enabled) {
+      return 0;
+    }
+
+    return isRTL ? -20 : 20;
+  };
 
   useEffect(() => {
     setSliderFontPercent(Math.round(fontScale * 100));
@@ -94,18 +117,15 @@ const PersonalizationSettings = ({ navigation }) => {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <LinearGradient
-        colors={isDarkMode
-          ? ['rgba(255, 149, 0, 0.24)', 'rgba(255, 149, 0, 0.08)', 'transparent']
-          : ['rgba(255, 149, 0, 0.2)', 'rgba(255, 149, 0, 0.04)', 'transparent']
-        }
+        colors={getSettingsHeaderGradient('PersonalizationSettings', { theme, isDarkMode })}
         style={styles.headerGradient}
       />
 
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+      <View style={[styles.header, isRTL && styles.rowReverse, { paddingTop: insets.top + spacing.sm }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}>
-          <Ionicons name="arrow-back" size={moderateScale(22)} color={theme.text} />
+          <Ionicons name={backIconName} size={moderateScale(22)} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>
@@ -121,18 +141,19 @@ const PersonalizationSettings = ({ navigation }) => {
         contentContainerStyle={[styles.scrollContent, contentStyle]}>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.appearance')}
           </Text>
           <GlassCard>
             {themeOptions.map((option, index) => (
               <View key={option.value}>
                 <TouchableOpacity
-                  style={styles.optionItem}
+                  style={[styles.optionItem, isRTL && styles.rowReverse]}
                   onPress={() => setThemeMode(option.value)}
                   activeOpacity={0.7}>
                   <View style={[
                     styles.iconContainer,
+                    isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                     {
                       backgroundColor: themePreference === option.value
                         ? isDarkMode ? 'rgba(10, 132, 255, 0.2)' : 'rgba(0, 122, 255, 0.15)'
@@ -147,6 +168,7 @@ const PersonalizationSettings = ({ navigation }) => {
                   </View>
                   <Text style={[
                     styles.optionLabel,
+                    isRTL && styles.directionalText,
                     { color: themePreference === option.value ? theme.text : theme.textSecondary },
                   ]}>
                     {option.label}
@@ -156,7 +178,7 @@ const PersonalizationSettings = ({ navigation }) => {
                   )}
                 </TouchableOpacity>
                 {index < themeOptions.length - 1 && (
-                  <View style={[styles.divider, { backgroundColor: theme.border }]} />
+                  <View style={[styles.divider, isRTL ? styles.dividerRtl : styles.dividerLtr, { backgroundColor: theme.border }]} />
                 )}
               </View>
             ))}
@@ -165,24 +187,24 @@ const PersonalizationSettings = ({ navigation }) => {
           {themePreference === 'scheduled' && (
             <View style={{ marginTop: spacing.sm }}>
               <GlassCard>
-                <View style={styles.scheduleRow}>
+                <View style={[styles.scheduleRow, isRTL && styles.rowReverse]}>
                   <View style={styles.scheduleItem}>
-                    <Text style={[styles.scheduleLabel, { color: theme.textSecondary }]}>
+                    <Text style={[styles.scheduleLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                       {t('settings.darkModeStart') || 'Dark mode starts'}
                     </Text>
                     <TouchableOpacity
-                      style={[styles.timeButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
+                      style={[styles.timeButton, isRTL && styles.rowReverse, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
                       onPress={() => openTimePicker('start')}>
                       <Ionicons name="moon-outline" size={moderateScale(16)} color={theme.primary} />
                       <Text style={[styles.timeText, { color: theme.text }]}>{darkModeSchedule.startTime}</Text>
                     </TouchableOpacity>
                   </View>
                   <View style={styles.scheduleItem}>
-                    <Text style={[styles.scheduleLabel, { color: theme.textSecondary }]}>
+                    <Text style={[styles.scheduleLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                       {t('settings.darkModeEnd') || 'Dark mode ends'}
                     </Text>
                     <TouchableOpacity
-                      style={[styles.timeButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
+                      style={[styles.timeButton, isRTL && styles.rowReverse, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
                       onPress={() => openTimePicker('end')}>
                       <Ionicons name="sunny-outline" size={moderateScale(16)} color={theme.primary} />
                       <Text style={[styles.timeText, { color: theme.text }]}>{darkModeSchedule.endTime}</Text>
@@ -190,7 +212,7 @@ const PersonalizationSettings = ({ navigation }) => {
                   </View>
                 </View>
               </GlassCard>
-              <Text style={[styles.sectionNote, { color: theme.textSecondary }]}>
+              <Text style={[styles.sectionNote, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                 {t('settings.scheduleNote') || 'Dark mode will automatically switch based on these times'}
               </Text>
             </View>
@@ -199,62 +221,73 @@ const PersonalizationSettings = ({ navigation }) => {
 
         {/* Accent Color Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.accentColor') || 'Accent Color'}
           </Text>
           <GlassCard>
             <View style={styles.colorPickerContainer}>
-              {[
-                { color: null, labelKey: 'settings.colorDefault' },
-                { color: '#007AFF', labelKey: 'settings.colorBlue' },
-                { color: '#34C759', labelKey: 'settings.colorGreen' },
-                { color: '#FF9500', labelKey: 'settings.colorOrange' },
-                { color: '#FF3B30', labelKey: 'settings.colorRed' },
-                { color: '#AF52DE', labelKey: 'settings.colorPurple' },
-                { color: '#FF2D55', labelKey: 'settings.colorPink' },
-                { color: '#5AC8FA', labelKey: 'settings.colorCyan' },
-              ].map((item) => (
-                <TouchableOpacity
-                  key={item.color || 'default'}
-                  style={[
-                    styles.colorOption,
-                    {
-                      backgroundColor: item.color || (isDarkMode ? '#0A84FF' : '#007AFF'),
-                      borderWidth: (accentColor === item.color || (!accentColor && !item.color)) ? 3 : 0,
-                      borderColor: '#FFFFFF',
-                    },
-                  ]}
-                  onPress={() => updateAccentColor(item.color)}
-                  activeOpacity={0.7}
-                >
-                  {(accentColor === item.color || (!accentColor && !item.color)) && (
-                    <Ionicons name="checkmark" size={moderateScale(18)} color="#FFFFFF" />
-                  )}
-                </TouchableOpacity>
-              ))}
+              {ACCENT_COLOR_OPTIONS.map((item) => {
+                const isSelected = accentColor === item.color || (!accentColor && !item.color);
+
+                return (
+                  <TouchableOpacity
+                    key={item.color || 'default'}
+                    style={styles.colorOptionCard}
+                    onPress={() => updateAccentColor(item.color)}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={t(item.labelKey)}
+                    accessibilityState={{ selected: isSelected }}
+                  >
+                    <View
+                      style={[
+                        styles.colorOption,
+                        {
+                          backgroundColor: item.color || (isDarkMode ? '#0A84FF' : '#007AFF'),
+                          borderWidth: isSelected ? 3 : 0,
+                          borderColor: '#FFFFFF',
+                        },
+                      ]}
+                    >
+                      {isSelected ? (
+                        <Ionicons name="checkmark" size={moderateScale(18)} color="#FFFFFF" />
+                      ) : null}
+                    </View>
+                    <Text
+                      style={[
+                        styles.colorOptionLabel,
+                        { color: isSelected ? theme.primary : theme.textSecondary },
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {t(item.labelKey)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </GlassCard>
-          <Text style={[styles.sectionNote, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionNote, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.accentColorNote') || 'Customize the app primary color'}
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.language')}
           </Text>
           <GlassCard>
             {languages.map((lang, index) => (
               <View key={lang.code}>
                 <TouchableOpacity
-                  style={styles.optionItem}
+                  style={[styles.optionItem, isRTL && styles.rowReverse]}
                   onPress={() => changeLanguage(lang.code)}
                   activeOpacity={0.7}>
-                  <View style={styles.languageInfo}>
-                    <Text style={[styles.languageNative, { color: theme.text }]}>
+                  <View style={[styles.languageInfo, isRTL ? styles.languageInfoRtl : styles.languageInfoLtr]}>
+                    <Text style={[styles.languageNative, { color: theme.text }, isRTL && styles.directionalText]}>
                       {lang.nativeName}
                     </Text>
-                    <Text style={[styles.languageName, { color: theme.textSecondary }]}>
+                    <Text style={[styles.languageName, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                       {lang.name}
                     </Text>
                   </View>
@@ -263,7 +296,7 @@ const PersonalizationSettings = ({ navigation }) => {
                   )}
                 </TouchableOpacity>
                 {index < languages.length - 1 && (
-                  <View style={[styles.divider, { backgroundColor: theme.border }]} />
+                  <View style={[styles.divider, isRTL ? styles.dividerRtl : styles.dividerLtr, { backgroundColor: theme.border }]} />
                 )}
               </View>
             ))}
@@ -271,12 +304,12 @@ const PersonalizationSettings = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.fontSize') || 'Font Size'}
           </Text>
           <GlassCard>
             <View style={styles.fontSliderContainer}>
-              <View style={styles.stepperRow}>
+              <View style={[styles.stepperRow, isRTL && styles.rowReverse]}>
                 <TouchableOpacity
                   style={[styles.stepperButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}
                   onPress={() => {
@@ -294,7 +327,7 @@ const PersonalizationSettings = ({ navigation }) => {
                   <Text style={[styles.stepperValue, { color: theme.primary }]}>
                     {sliderFontPercent}%
                   </Text>
-                  <Text style={[styles.stepperLabel, { color: theme.textSecondary }]}>
+                  <Text style={[styles.stepperLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                     {t('settings.fontSize') || 'Font Size'}
                   </Text>
                 </View>
@@ -335,25 +368,26 @@ const PersonalizationSettings = ({ navigation }) => {
               </View>
             </View>
           </GlassCard>
-          <Text style={[styles.sectionNote, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionNote, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.fontSizeNote') || 'Adjusts text size throughout the app'}
           </Text>
-          <Text style={[styles.sectionNote, { color: '#FF3B30', marginTop: spacing.xs }]}>
+          <Text style={[styles.sectionNote, { color: '#FF3B30', marginTop: spacing.xs }, isRTL && styles.directionalText]}>
             {t('settings.fontSizeRestartNote') || 'Note: Font size changes may require restarting the app to take full effect.'}
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.accessibility') || 'Accessibility'}
           </Text>
           <GlassCard>
             <TouchableOpacity
-              style={styles.optionItem}
+              style={[styles.optionItem, isRTL && styles.rowReverse]}
               onPress={() => updateReduceMotion(!reduceMotion)}
               activeOpacity={0.7}>
               <View style={[
                 styles.iconContainer,
+                isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                 {
                   backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
                 },
@@ -368,10 +402,11 @@ const PersonalizationSettings = ({ navigation }) => {
                 <Text style={[
                   styles.optionLabel,
                   { color: theme.text },
+                  isRTL && styles.directionalText,
                 ]}>
                   {t('settings.reduceMotion') || 'Reduce Motion'}
                 </Text>
-                <Text style={[styles.optionNote, { color: theme.textSecondary }]}>
+                <Text style={[styles.optionNote, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                   {t('settings.reduceMotionNote') || 'Disable animations'}
                 </Text>
               </View>
@@ -384,19 +419,20 @@ const PersonalizationSettings = ({ navigation }) => {
                 <View style={[
                   styles.toggleKnob,
                   { 
-                    transform: [{ translateX: reduceMotion ? 20 : 0 }],
+                    transform: [{ translateX: getToggleTranslateX(reduceMotion) }],
                     backgroundColor: '#FFFFFF',
                   }
                 ]} />
               </View>
             </TouchableOpacity>
-            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <View style={[styles.divider, isRTL ? styles.dividerRtl : styles.dividerLtr, { backgroundColor: theme.border }]} />
             <TouchableOpacity
-              style={styles.optionItem}
+              style={[styles.optionItem, isRTL && styles.rowReverse]}
               onPress={() => updateHapticEnabled(!hapticEnabled)}
               activeOpacity={0.7}>
               <View style={[
                 styles.iconContainer,
+                isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                 {
                   backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
                 },
@@ -411,10 +447,11 @@ const PersonalizationSettings = ({ navigation }) => {
                 <Text style={[
                   styles.optionLabel,
                   { color: theme.text },
+                  isRTL && styles.directionalText,
                 ]}>
                   {t('settings.hapticFeedback') || 'Haptic Feedback'}
                 </Text>
-                <Text style={[styles.optionNote, { color: theme.textSecondary }]}>
+                <Text style={[styles.optionNote, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                   {t('settings.hapticFeedbackNote') || 'Vibration on interactions'}
                 </Text>
               </View>
@@ -427,19 +464,20 @@ const PersonalizationSettings = ({ navigation }) => {
                 <View style={[
                   styles.toggleKnob,
                   { 
-                    transform: [{ translateX: hapticEnabled ? 20 : 0 }],
+                    transform: [{ translateX: getToggleTranslateX(hapticEnabled) }],
                     backgroundColor: '#FFFFFF',
                   }
                 ]} />
               </View>
             </TouchableOpacity>
-            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <View style={[styles.divider, isRTL ? styles.dividerRtl : styles.dividerLtr, { backgroundColor: theme.border }]} />
             <TouchableOpacity
-              style={styles.optionItem}
+              style={[styles.optionItem, isRTL && styles.rowReverse]}
               onPress={() => updateCompactMode(!compactMode)}
               activeOpacity={0.7}>
               <View style={[
                 styles.iconContainer,
+                isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                 {
                   backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
                 },
@@ -454,10 +492,11 @@ const PersonalizationSettings = ({ navigation }) => {
                 <Text style={[
                   styles.optionLabel,
                   { color: theme.text },
+                  isRTL && styles.directionalText,
                 ]}>
                   {t('settings.compactMode') || 'Compact Mode'}
                 </Text>
-                <Text style={[styles.optionNote, { color: theme.textSecondary }]}>
+                <Text style={[styles.optionNote, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                   {t('settings.compactModeNote') || 'Show more posts with smaller cards'}
                 </Text>
               </View>
@@ -470,19 +509,20 @@ const PersonalizationSettings = ({ navigation }) => {
                 <View style={[
                   styles.toggleKnob,
                   { 
-                    transform: [{ translateX: compactMode ? 20 : 0 }],
+                    transform: [{ translateX: getToggleTranslateX(compactMode) }],
                     backgroundColor: '#FFFFFF',
                   }
                 ]} />
               </View>
             </TouchableOpacity>
-            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <View style={[styles.divider, isRTL ? styles.dividerRtl : styles.dividerLtr, { backgroundColor: theme.border }]} />
             <TouchableOpacity
-              style={styles.optionItem}
+              style={[styles.optionItem, isRTL && styles.rowReverse]}
               onPress={() => updateDataSaverMode(!dataSaverMode)}
               activeOpacity={0.7}>
               <View style={[
                 styles.iconContainer,
+                isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                 {
                   backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
                 },
@@ -497,10 +537,11 @@ const PersonalizationSettings = ({ navigation }) => {
                 <Text style={[
                   styles.optionLabel,
                   { color: theme.text },
+                  isRTL && styles.directionalText,
                 ]}>
                   {t('settings.dataSaverMode') || 'Data Saver Mode'}
                 </Text>
-                <Text style={[styles.optionNote, { color: theme.textSecondary }]}>
+                <Text style={[styles.optionNote, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                   {t('settings.dataSaverModeNote') || 'Reduce data usage by loading lower quality images'}
                 </Text>
               </View>
@@ -513,7 +554,7 @@ const PersonalizationSettings = ({ navigation }) => {
                 <View style={[
                   styles.toggleKnob,
                   { 
-                    transform: [{ translateX: dataSaverMode ? 20 : 0 }],
+                    transform: [{ translateX: getToggleTranslateX(dataSaverMode) }],
                     backgroundColor: '#FFFFFF',
                   }
                 ]} />
@@ -523,16 +564,17 @@ const PersonalizationSettings = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.privacy') || 'Privacy'}
           </Text>
           <GlassCard>
             <TouchableOpacity
-              style={styles.optionItem}
+              style={[styles.optionItem, isRTL && styles.rowReverse]}
               onPress={() => updateShowActivityStatus(!showActivityStatus)}
               activeOpacity={0.7}>
               <View style={[
                 styles.iconContainer,
+                isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                 {
                   backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
                 },
@@ -547,10 +589,11 @@ const PersonalizationSettings = ({ navigation }) => {
                 <Text style={[
                   styles.optionLabel,
                   { color: theme.text },
+                  isRTL && styles.directionalText,
                 ]}>
                   {t('settings.showActivityStatus') || 'Show Activity Status'}
                 </Text>
-                <Text style={[styles.optionNote, { color: theme.textSecondary }]}>
+                <Text style={[styles.optionNote, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                   {t('settings.showActivityStatusNote') || 'Let others see when you\'re online'}
                 </Text>
               </View>
@@ -563,14 +606,14 @@ const PersonalizationSettings = ({ navigation }) => {
                 <View style={[
                   styles.toggleKnob,
                   { 
-                    transform: [{ translateX: showActivityStatus ? 20 : 0 }],
+                    transform: [{ translateX: getToggleTranslateX(showActivityStatus) }],
                     backgroundColor: '#FFFFFF',
                   }
                 ]} />
               </View>
             </TouchableOpacity>
           </GlassCard>
-          <Text style={[styles.sectionNote, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionNote, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.activityStatusDisclaimer') || 'If disabled, you won\'t see others\' activity status either'}
           </Text>
         </View>
@@ -612,7 +655,7 @@ const PersonalizationSettings = ({ navigation }) => {
               maxLength={5}
               autoFocus
             />
-            <View style={styles.timePickerButtons}>
+            <View style={[styles.timePickerButtons, isRTL && styles.rowReverse]}>
               <TouchableOpacity
                 style={[styles.timePickerButton, { backgroundColor: 'transparent' }]}
                 onPress={() => setTimePickerVisible(false)}>
@@ -651,6 +694,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: wp(5),
     paddingBottom: spacing.md,
+  },
+  rowReverse: {
+    flexDirection: 'row-reverse',
   },
   backButton: {
     width: moderateScale(40),
@@ -703,7 +749,12 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  iconContainerLtr: {
     marginRight: spacing.md,
+  },
+  iconContainerRtl: {
+    marginLeft: spacing.md,
   },
   optionLabel: {
     flex: 1,
@@ -712,7 +763,12 @@ const styles = StyleSheet.create({
   },
   languageInfo: {
     flex: 1,
+  },
+  languageInfoLtr: {
     marginLeft: spacing.md,
+  },
+  languageInfoRtl: {
+    marginRight: spacing.md,
   },
   languageNative: {
     fontSize: responsiveFontSize(16),
@@ -724,8 +780,13 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    marginLeft: spacing.md + moderateScale(36) + spacing.md,
     opacity: 0.3,
+  },
+  dividerLtr: {
+    marginLeft: spacing.md + moderateScale(36) + spacing.md,
+  },
+  dividerRtl: {
+    marginRight: spacing.md + moderateScale(36) + spacing.md,
   },
   sectionNote: {
     fontSize: responsiveFontSize(12),
@@ -738,6 +799,10 @@ const styles = StyleSheet.create({
   optionNote: {
     fontSize: responsiveFontSize(11),
     marginTop: 2,
+  },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   toggle: {
     width: moderateScale(50),
@@ -835,6 +900,11 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     justifyContent: 'center',
   },
+  colorOptionCard: {
+    width: moderateScale(72),
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   colorOption: {
     width: moderateScale(44),
     height: moderateScale(44),
@@ -846,6 +916,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 3,
+  },
+  colorOptionLabel: {
+    minHeight: moderateScale(28),
+    textAlign: 'center',
+    fontSize: responsiveFontSize(11),
+    fontWeight: '600',
   },
   fontSliderContainer: {
     paddingHorizontal: spacing.md,

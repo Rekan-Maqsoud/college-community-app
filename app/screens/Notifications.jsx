@@ -38,6 +38,7 @@ import PostViewModal from '../components/PostViewModal';
 import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
 import * as ExpoNotifications from 'expo-notifications';
 import { REFRESH_TOPICS, subscribeToRefreshTopic } from '../utils/dataRefreshBus';
+import { getGroupedNotificationAvatarState } from '../utils/notificationUiHelpers';
 
 const NOTIFICATION_TYPES = {
   POST_LIKE: 'post_like',
@@ -436,23 +437,10 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
     ? `${icon.color}55`
     : (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)');
   const iconBadgeBorder = isDarkMode ? 'rgba(16,18,27,0.88)' : 'rgba(255,255,255,0.95)';
-  // Get unique users (avoid showing same user twice)
-  const uniqueUsers = [];
-  const seenIds = new Set();
-  for (const notif of group.notifications) {
-    if (!notif?.senderId || notif.senderId === 'system') {
-      continue;
-    }
-
-    if (!seenIds.has(notif.senderId)) {
-      seenIds.add(notif.senderId);
-      uniqueUsers.push(notif);
-    }
-    if (uniqueUsers.length >= 3) break;
-  }
+  const { uniqueUsers, visibleUsers, overflowCount } = getGroupedNotificationAvatarState(group.notifications);
   
   const getGroupMessage = () => {
-    const uniqueCount = seenIds.size;
+    const uniqueCount = uniqueUsers.length;
     const firstName = group.notifications[0]?.senderName?.split(' ')[0] || '';
 
     const summaryAction = (() => {
@@ -523,7 +511,7 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
           <View style={[styles.notificationAccent, { backgroundColor: icon.color }]} />
 
           <View style={styles.groupedAvatarContainer}>
-            {uniqueUsers.slice(0, 3).map((notif, avatarIdx) => (
+            {visibleUsers.map((notif, avatarIdx) => (
               <View 
                 key={notif.$id} 
                 style={[
@@ -538,6 +526,20 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, t, index }
                 />
               </View>
             ))}
+            {overflowCount > 0 ? (
+              <View
+                style={[
+                  styles.avatarOverflowBadge,
+                  {
+                    left: visibleUsers.length * 12,
+                    backgroundColor: isDarkMode ? 'rgba(15,23,42,0.92)' : 'rgba(255,255,255,0.98)',
+                    borderColor: cardBorder,
+                  },
+                ]}
+              >
+                <Text style={[styles.avatarOverflowText, { color: theme.text }]}>+{overflowCount}</Text>
+              </View>
+            ) : null}
             <View
               style={[
                 styles.groupIconBadge,
@@ -602,6 +604,7 @@ const Notifications = ({ navigation }) => {
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
   const [postModalVisible, setPostModalVisible] = useState(false);
@@ -649,6 +652,9 @@ const Notifications = ({ navigation }) => {
     const { forceNetwork = false } = options;
 
     const currentPage = reset ? 0 : page;
+    if (reset) {
+      setLoadError(null);
+    }
     
     try {
       const fetchedNotifications = await getNotifications(user.$id, 20, currentPage * 20, {
@@ -679,8 +685,9 @@ const Notifications = ({ navigation }) => {
       }
       
       setHasMore((fetchedNotifications?.length || 0) === 20);
+      setLoadError(null);
     } catch (error) {
-      // Handle error - set empty array on error
+      setLoadError(error?.message || t('errors.genericError'));
       if (reset) {
         setNotifications([]);
       }
@@ -688,7 +695,7 @@ const Notifications = ({ navigation }) => {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [user?.$id, page, sanitizeNotification, mergeNotification]);
+  }, [user?.$id, page, sanitizeNotification, mergeNotification, t]);
 
   // Handle real-time notification updates
   const handleNewNotification = useCallback((newNotification) => {
@@ -1023,14 +1030,22 @@ const Notifications = ({ navigation }) => {
   };
 
   const renderEmptyState = () => (
-    <UnifiedEmptyState
-      iconName="notifications-outline"
-      title={t('notifications.noNotifications')}
-      description={t('notifications.noNotificationsDesc')}
-      actionLabel={t('common.retry')}
-      actionIconName="refresh-outline"
-      onAction={handleRefresh}
-    />
+    loadError ? (
+      <UnifiedEmptyState
+        iconName="alert-circle-outline"
+        title={t('error.title')}
+        description={loadError}
+        actionLabel={t('common.retry')}
+        actionIconName="refresh-outline"
+        onAction={handleRefresh}
+      />
+    ) : (
+      <UnifiedEmptyState
+        iconName="notifications-outline"
+        title={t('notifications.noNotifications')}
+        description={t('notifications.noNotificationsDesc')}
+      />
+    )
   );
 
   return (
@@ -1306,6 +1321,21 @@ const styles = StyleSheet.create({
   stackedAvatar: {
     position: 'absolute',
     top: 0,
+  },
+  avatarOverflowBadge: {
+    position: 'absolute',
+    top: moderateScale(2),
+    width: moderateScale(28),
+    height: moderateScale(28),
+    borderRadius: moderateScale(14),
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    zIndex: 1,
+  },
+  avatarOverflowText: {
+    fontSize: fontSize(10),
+    fontWeight: '700',
   },
   groupIconBadge: {
     position: 'absolute',

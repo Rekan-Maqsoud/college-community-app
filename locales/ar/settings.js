@@ -135,6 +135,8 @@ export default {
     "passwordChanged": "تم تغيير كلمة المرور بنجاح!",
     "changePasswordError": "فشل تغيير كلمة المرور. حاول مرة أخرى.",
     "currentPasswordIncorrect": "كلمة المرور الحالية غير صحيحة",
+    "discardPasswordChangesTitle": "تجاهل تغييرات كلمة المرور؟",
+    "discardPasswordChangesMessage": "لديك تغييرات غير محفوظة على كلمة المرور. هل أنت متأكد من مغادرة هذه الشاشة؟",
     "accountSettings": "إعدادات الحساب",
     "accountDesc": "كلمة المرور والأمان وإجراءات الحساب",
     "security": "الأمان",

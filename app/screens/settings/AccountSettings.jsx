@@ -25,6 +25,7 @@ import telemetry from '../../utils/telemetry';
 import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing } from '../../utils/responsive';
 import useLayout from '../../hooks/useLayout';
+import { getSettingsHeaderGradient } from './settingsTheme';
 
 const AccountSettings = ({ navigation }) => {
   const { t, theme, isDarkMode, isRTL, resetSettings } = useAppSettings();
@@ -36,6 +37,9 @@ const AccountSettings = ({ navigation }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
+  const backIconName = Platform.OS === 'ios'
+    ? (isRTL ? 'chevron-forward' : 'chevron-back')
+    : (isRTL ? 'arrow-forward' : 'arrow-back');
 
   const handleClearCache = () => {
     showAlert({
@@ -50,9 +54,17 @@ const AccountSettings = ({ navigation }) => {
             setIsClearingCache(true);
             try {
               await cacheManager.clear();
-              showAlert(t('common.success'), t('settings.cacheCleared') || 'Cache cleared successfully!', 'success');
+              showAlert({
+                type: 'success',
+                title: t('common.success'),
+                message: t('settings.cacheCleared') || 'Cache cleared successfully!',
+              });
             } catch (error) {
-              showAlert(t('common.error'), t('settings.clearCacheError') || 'Failed to clear cache', 'error');
+              showAlert({
+                type: 'error',
+                title: t('common.error'),
+                message: t('settings.clearCacheError') || 'Failed to clear cache',
+              });
             } finally {
               setIsClearingCache(false);
             }
@@ -98,7 +110,11 @@ const AccountSettings = ({ navigation }) => {
               await clearUser();
               navigation.replace('SignIn');
             } catch (error) {
-              showAlert(t('common.error'), t('settings.logoutError'), 'error');
+              showAlert({
+                type: 'error',
+                title: t('common.error'),
+                message: t('settings.logoutError'),
+              });
             }
           },
           style: 'destructive',
@@ -169,11 +185,12 @@ const AccountSettings = ({ navigation }) => {
 
   const SettingItem = ({ icon, title, description, onPress, danger, iconColor }) => (
     <TouchableOpacity
-      style={styles.settingItem}
+      style={[styles.settingItem, isRTL && styles.rowReverse]}
       onPress={onPress}
       activeOpacity={0.7}>
       <View style={[
         styles.iconContainer,
+        isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
         {
           backgroundColor: danger
             ? isDarkMode ? 'rgba(255, 69, 58, 0.15)' : 'rgba(255, 59, 48, 0.1)'
@@ -187,17 +204,17 @@ const AccountSettings = ({ navigation }) => {
         />
       </View>
       <View style={styles.settingContent}>
-        <Text style={[styles.settingTitle, { color: danger ? theme.danger : theme.text }]}>
+        <Text style={[styles.settingTitle, { color: danger ? theme.danger : theme.text }, isRTL && styles.directionalText]}>
           {title}
         </Text>
         {description && (
-          <Text style={[styles.settingDescription, { color: theme.textSecondary }]}>
+          <Text style={[styles.settingDescription, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {description}
           </Text>
         )}
       </View>
       <Ionicons
-        name="chevron-forward"
+        name={isRTL ? 'chevron-back' : 'chevron-forward'}
         size={20}
         color={theme.textSecondary}
       />
@@ -207,18 +224,15 @@ const AccountSettings = ({ navigation }) => {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <LinearGradient
-        colors={isDarkMode
-          ? ['rgba(255, 59, 48, 0.24)', 'rgba(255, 59, 48, 0.08)', 'transparent']
-          : ['rgba(255, 59, 48, 0.2)', 'rgba(255, 59, 48, 0.04)', 'transparent']
-        }
+        colors={getSettingsHeaderGradient('AccountSettings', { theme, isDarkMode })}
         style={styles.headerGradient}
       />
 
-      <View style={styles.header}>
+      <View style={[styles.header, isRTL && styles.rowReverse]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+          <Ionicons name={backIconName} size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>
@@ -234,7 +248,7 @@ const AccountSettings = ({ navigation }) => {
         contentContainerStyle={[styles.scrollContent, contentStyle]}>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.security') || 'Security'}
           </Text>
           <GlassCard>
@@ -249,7 +263,7 @@ const AccountSettings = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.storage') || 'Storage'}
           </Text>
           <GlassCard>
@@ -264,7 +278,7 @@ const AccountSettings = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.dangerZone') || 'Danger Zone'}
           </Text>
           <GlassCard>
@@ -275,7 +289,7 @@ const AccountSettings = ({ navigation }) => {
               description={t('settings.resetDesc')}
               onPress={handleResetSettings}
             />
-            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <View style={[styles.divider, isRTL ? styles.dividerRtl : styles.dividerLtr, { backgroundColor: theme.border }]} />
             <SettingItem
               icon="log-out-outline"
               title={t('settings.logout')}
@@ -283,7 +297,7 @@ const AccountSettings = ({ navigation }) => {
               onPress={handleLogout}
               danger
             />
-            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <View style={[styles.divider, isRTL ? styles.dividerRtl : styles.dividerLtr, { backgroundColor: theme.border }]} />
             <SettingItem
               icon="trash-outline"
               title={t('settings.deleteAccount')}
@@ -294,15 +308,15 @@ const AccountSettings = ({ navigation }) => {
           </GlassCard>
         </View>
 
-        <View style={styles.warningBox}>
+        <View style={[styles.warningBox, isRTL && styles.rowReverse]}>
           <Ionicons name="warning-outline" size={20} color="#FF9500" />
-          <Text style={[styles.warningText, { color: theme.textSecondary }]}>
+          <Text style={[styles.warningText, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.warningText') || 'Resetting settings will restore all preferences to default. Logging out will sign you out of your account.'}
           </Text>
         </View>
 
         <View style={styles.versionContainer}>
-          <Text style={[styles.versionText, { color: theme.textTertiary }]}>
+          <Text style={[styles.versionText, { color: theme.textTertiary }, isRTL && styles.directionalText]}>
             {t('settings.appVersion') || 'App Version'} {Constants.expoConfig?.version || '1.0.0'}
           </Text>
         </View>
@@ -482,6 +496,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(5),
     paddingBottom: spacing.md,
   },
+  rowReverse: {
+    flexDirection: 'row-reverse',
+  },
   backButton: {
     width: 40,
     height: 40,
@@ -529,7 +546,12 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  iconContainerLtr: {
     marginRight: spacing.md,
+  },
+  iconContainerRtl: {
+    marginLeft: spacing.md,
   },
   settingContent: {
     flex: 1,
@@ -544,8 +566,13 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    marginLeft: spacing.md + 36 + spacing.md,
     opacity: 0.3,
+  },
+  dividerLtr: {
+    marginLeft: spacing.md + 36 + spacing.md,
+  },
+  dividerRtl: {
+    marginRight: spacing.md + 36 + spacing.md,
   },
   warningBox: {
     flexDirection: 'row',
@@ -560,6 +587,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: responsiveFontSize(13),
     lineHeight: responsiveFontSize(18),
+  },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   versionContainer: {
     alignItems: 'center',

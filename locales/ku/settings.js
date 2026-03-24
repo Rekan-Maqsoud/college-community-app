@@ -135,6 +135,8 @@ export default {
     "passwordChanged": "وشەی نهێنی بە سەرکەوتوویی گۆڕدرا!",
     "changePasswordError": "گۆڕینی وشەی نهێنی سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە.",
     "currentPasswordIncorrect": "وشەی نهێنی ئێستا هەڵەیە",
+    "discardPasswordChangesTitle": "گۆڕانکارییەکانی وشەی نهێنی بسڕدرێنەوە؟",
+    "discardPasswordChangesMessage": "گۆڕانکاریی وشەی نهێنی پاشەکەوت نەکراوت هەیە. دڵنیایت لەم شاشەیە دەرچیت؟",
     "accountSettings": "ڕێکخستنەکانی ئەکاونت",
     "accountDesc": "وشەی نهێنی، پاراستن و کردارەکانی ئەکاونت",
     "security": "پاراستن",

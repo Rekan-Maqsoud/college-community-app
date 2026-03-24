@@ -135,6 +135,8 @@ export default {
     "passwordChanged": "Password changed successfully!",
     "changePasswordError": "Failed to change password. Please try again.",
     "currentPasswordIncorrect": "Current password is incorrect",
+    "discardPasswordChangesTitle": "Discard password changes?",
+    "discardPasswordChangesMessage": "You have unsaved password changes. Are you sure you want to leave this screen?",
     "accountSettings": "Account Settings",
     "accountDesc": "Password, security, and account actions",
     "security": "Security",

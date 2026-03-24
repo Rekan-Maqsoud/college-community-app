@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StatusBar,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,17 +14,25 @@ import { useUser } from '../context/UserContext';
 import { getFollowers, getFollowing, followUser, unfollowUser, isFollowing as checkIsFollowing } from '../../database/users';
 import { notifyFollow } from '../../database/notifications';
 import UserCard from '../components/UserCard';
+import UnifiedEmptyState from '../components/UnifiedEmptyState';
 import { GlassContainer } from '../components/GlassComponents';
 import AnimatedBackground from '../components/AnimatedBackground';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { resolveFollowTabCount } from '../utils/uiUxAuditHelpers';
 import useLayout from '../hooks/useLayout';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const FollowList = ({ route, navigation }) => {
-  const { userId, initialTab = 'followers', userName } = route.params || {};
-  const { t, theme, isDarkMode } = useAppSettings();
+  const {
+    userId,
+    initialTab = 'followers',
+    userName,
+    followersCount,
+    followingCount,
+  } = route.params || {};
+  const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const { user: currentUser } = useUser();
   const { contentStyle } = useLayout();
   const insets = useSafeAreaInsets();
@@ -33,12 +40,14 @@ const FollowList = ({ route, navigation }) => {
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [followingStatus, setFollowingStatus] = useState({});
   const [followLoading, setFollowLoading] = useState({});
 
   const loadData = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const [followersList, followingList] = await Promise.all([
         getFollowers(userId),
@@ -69,11 +78,11 @@ const FollowList = ({ route, navigation }) => {
         setFollowingStatus(statusMap);
       }
     } catch (error) {
-      // Failed to load
+      setLoadError(error?.message || t('errors.genericError'));
     } finally {
       setLoading(false);
     }
-  }, [userId, currentUser?.$id]);
+  }, [userId, currentUser?.$id, t]);
 
   useEffect(() => {
     loadData();
@@ -125,7 +134,7 @@ const FollowList = ({ route, navigation }) => {
     return (
       <GlassContainer borderRadius={borderRadius.lg} style={styles.userCard}>
         <TouchableOpacity
-          style={styles.userRow}
+          style={[styles.userRow, isRTL && styles.userRowRtl]}
           onPress={() => handleUserPress(user)}
           activeOpacity={0.7}
         >
@@ -170,22 +179,31 @@ const FollowList = ({ route, navigation }) => {
   };
 
   const renderEmptyState = () => (
-    <GlassContainer borderRadius={borderRadius.lg} style={styles.emptyCard}>
-      <Ionicons 
-        name={activeTab === 'followers' ? 'people-outline' : 'person-add-outline'} 
-        size={moderateScale(50)} 
-        color={theme.textSecondary} 
-      />
-      <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-        {activeTab === 'followers' 
-          ? t('profile.noFollowers')
-          : t('profile.noFollowing')
-        }
-      </Text>
-    </GlassContainer>
+    <UnifiedEmptyState
+      iconName={loadError ? 'alert-circle-outline' : (activeTab === 'followers' ? 'people-outline' : 'person-add-outline')}
+      title={loadError ? t('error.title') : (activeTab === 'followers' ? t('profile.followers') : t('profile.following'))}
+      description={loadError || (activeTab === 'followers' ? t('profile.noFollowers') : t('profile.noFollowing'))}
+      actionLabel={loadError ? t('common.retry') : undefined}
+      actionIconName={loadError ? 'refresh-outline' : undefined}
+      onAction={loadError ? loadData : undefined}
+      compact
+      style={styles.emptyCard}
+    />
   );
 
   const currentList = activeTab === 'followers' ? followers : following;
+  const displayedFollowersCount = resolveFollowTabCount({
+    routeCount: followersCount,
+    loadedCount: followers.length,
+    loading,
+    loadError,
+  });
+  const displayedFollowingCount = resolveFollowTabCount({
+    routeCount: followingCount,
+    loadedCount: following.length,
+    loading,
+    loadError,
+  });
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -231,7 +249,7 @@ const FollowList = ({ route, navigation }) => {
                 fontWeight: activeTab === 'followers' ? '700' : '500'
               }
             ]}>
-              {t('profile.followers')} ({followers.length})
+              {t('profile.followers')} ({displayedFollowersCount})
             </Text>
             {activeTab === 'followers' && (
               <LinearGradient
@@ -255,7 +273,7 @@ const FollowList = ({ route, navigation }) => {
                 fontWeight: activeTab === 'following' ? '700' : '500'
               }
             ]}>
-              {t('profile.following')} ({following.length})
+              {t('profile.following')} ({displayedFollowingCount})
             </Text>
             {activeTab === 'following' && (
               <LinearGradient
@@ -365,7 +383,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingRight: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  userRowRtl: {
+    flexDirection: 'row-reverse',
   },
   userCardInner: {
     flex: 1,
@@ -384,15 +405,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   emptyCard: {
-    padding: spacing.xl,
-    alignItems: 'center',
     marginTop: spacing.lg,
-  },
-  emptyText: {
-    fontSize: fontSize(14),
-    fontWeight: '500',
-    textAlign: 'center',
-    marginTop: spacing.md,
   },
 });
 

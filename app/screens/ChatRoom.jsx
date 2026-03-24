@@ -35,6 +35,7 @@ import { useUserProfile } from '../hooks/useRealtimeSubscription';
 import useLayout from '../hooks/useLayout';
 import PostViewModal from '../components/PostViewModal';
 import { isUserOnline, getLastSeenText } from '../utils/onlineStatus';
+import { getSelectedMessagesLabel } from '../utils/uiUxAuditHelpers';
 import { getUserById } from '../../database/users';
 import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
 
@@ -623,6 +624,11 @@ const ChatRoom = ({ route, navigation }) => {
       fontSize: fontSize(12),
     },
   ]), [selectedMessageIds.length, theme.textSecondary]);
+
+  const selectionSummaryLabel = useMemo(() => getSelectedMessagesLabel({
+    count: selectedMessageIds.length,
+    t,
+  }), [selectedMessageIds.length, t]);
 
   const maintainVisibleContentPosition = useMemo(() => {
     if (chatViewportState?.messageId || firstUnreadMessageIndex >= 0) {
@@ -1298,7 +1304,7 @@ const ChatRoom = ({ route, navigation }) => {
             onPress={toggleSelectionMode}>
             <Ionicons name="close" size={moderateScale(22)} color={theme.text} />
             <Text style={selectedMessagesTextStyle}>
-              {selectedMessageIds.length} {t('chats.selected')}
+              {selectionSummaryLabel}
             </Text>
           </TouchableOpacity>
           <View style={styles.selectionToolbarActions}>
@@ -1368,7 +1374,7 @@ const ChatRoom = ({ route, navigation }) => {
       />
       )}
     </KeyboardAvoidingView>
-  ), [canMentionEveryone, canSend, cancelReply, chat.requiresRepresentative, chat.type, chatOnlyBlockedBannerStyle, chatStyle, copySelectionTextStyle, deleteSelectionTextStyle, excludedMentionUserIds, flatListRef, fullBlockedBannerStyle, groupMembers, handleBatchCopy, handleBatchDeleteForMe, handleListScroll, handleScrollToIndexFailed, handleSendWithHaptic, handleViewableItemsChanged, iBlockedThem, iChatBlockedThem, initialScrollIndex, insets.top, isBlockedChat, isChatOnlyBlocked, isFocused, isFullyBlockedChat, isNearBottom, keyExtractor, maintainVisibleContentPosition, memoizedMessages, pendingNewMessageCount, renderEmpty, renderEmptyOverlay, renderLoadingOverlay, renderMessage, renderSearchBar, representativeWarningBannerStyle, replyingTo, scrollToLatest, selectedMessageIds.length, selectedMessagesTextStyle, selectionMode, selectionToolbarStyle, shouldRenderMessageInput, showAlert, t, theme.card, theme.primary, theme.text, theme.textSecondary, toggleSelectionMode, userFriends, viewabilityConfig]);
+  ), [canMentionEveryone, canSend, cancelReply, chat?.$id, chat.requiresRepresentative, chat.type, chatOnlyBlockedBannerStyle, chatStyle, copySelectionTextStyle, deleteSelectionTextStyle, excludedMentionUserIds, flatListRef, fullBlockedBannerStyle, groupMembers, handleBatchCopy, handleBatchDeleteForMe, handleListScroll, handleScrollToIndexFailed, handleSendWithHaptic, handleViewableItemsChanged, iBlockedThem, iChatBlockedThem, initialScrollIndex, insets.top, isBlockedChat, isChatOnlyBlocked, isFocused, isFullyBlockedChat, isNearBottom, keyExtractor, maintainVisibleContentPosition, memoizedMessages, pendingNewMessageCount, renderEmpty, renderEmptyOverlay, renderLoadingOverlay, renderMessage, renderSearchBar, representativeWarningBannerStyle, replyingTo, scrollToLatest, selectedMessageIds.length, selectedMessagesTextStyle, selectionMode, selectionSummaryLabel, selectionToolbarStyle, shouldRenderMessageInput, showAlert, t, theme.card, theme.primary, theme.text, theme.textSecondary, toggleSelectionMode, userFriends, viewabilityConfig]);
 
   return (
     <View style={[styles.container, { backgroundColor: backgroundColors[0] || headerBackgroundColor }]}>

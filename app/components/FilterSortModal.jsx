@@ -176,6 +176,8 @@ const FilterSortModal = ({
               <TouchableOpacity
                 onPress={onClose}
                 style={styles.closeButton}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.close')}
               >
                 <Ionicons
                   name="close-outline"

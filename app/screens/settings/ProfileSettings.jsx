@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ import SearchableDropdownNew from '../../components/SearchableDropdownNew';
 import CustomAlert from '../../components/CustomAlert';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { getUniversityKeys, getCollegesForUniversity, getDepartmentsForCollege, getStagesForDepartment } from '../../data/universitiesData';
+import { getSettingsHeaderGradient } from './settingsTheme';
 
 const COOLDOWN_DAYS = 30;
 const FREE_ACADEMIC_CHANGES = 2;
@@ -85,12 +86,15 @@ const normalizeSocialLinks = (links = {}) => ({
 
 
 const ProfileSettings = ({ navigation }) => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const { user, updateUser, updateProfilePicture, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
   const { contentStyle } = useLayout();
 
+  const backIconName = Platform.OS === 'ios'
+    ? (isRTL ? 'chevron-forward' : 'chevron-back')
+    : (isRTL ? 'arrow-forward' : 'arrow-back');
   const bioInputRef = useRef(null);
   const autoSaveTimeoutRef = useRef(null);
   const hasHydratedProfileRef = useRef(false);
@@ -127,7 +131,12 @@ const ProfileSettings = ({ navigation }) => {
   const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   const hasAcademicChanges = useMemo(() => {
-    const currentAcademic = normalizeAcademicSnapshot(profileData);
+    const currentAcademic = normalizeAcademicSnapshot({
+      university: profileData.university,
+      college: profileData.college,
+      department: profileData.department,
+      stage: profileData.stage,
+    });
     const userAcademic = normalizeAcademicSnapshot(user || {});
     return currentAcademic.university !== userAcademic.university
       || currentAcademic.college !== userAcademic.college
@@ -552,7 +561,7 @@ const ProfileSettings = ({ navigation }) => {
     if (!allowedStageKeys.includes(profileData.stage)) {
       setProfileData(prev => ({ ...prev, stage: '' }));
     }
-  }, [profileData.stage, stageOptions]);
+  }, [profileData.stage, profileData.university, profileData.college, profileData.department, stageOptions]);
 
   const genderOptions = useMemo(() => {
     return [
@@ -608,10 +617,7 @@ const ProfileSettings = ({ navigation }) => {
       />
 
       <LinearGradient
-        colors={isDarkMode
-          ? ['rgba(10, 132, 255, 0.24)', 'rgba(10, 132, 255, 0.08)', 'transparent']
-          : ['rgba(0, 122, 255, 0.2)', 'rgba(0, 122, 255, 0.04)', 'transparent']
-        }
+        colors={getSettingsHeaderGradient('ProfileSettings', { theme, isDarkMode })}
         style={styles.headerGradient}
       />
 
@@ -620,11 +626,11 @@ const ProfileSettings = ({ navigation }) => {
         style={styles.keyboardView}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
         
-        <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <View style={[styles.header, isRTL && styles.rowReverse, { paddingTop: insets.top + spacing.sm }]}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backButton}>
-            <Ionicons name="arrow-back" size={moderateScale(22)} color={theme.text} />
+            <Ionicons name={backIconName} size={moderateScale(22)} color={theme.text} />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
             <Text style={[styles.headerTitle, { color: theme.text }]}>
@@ -659,7 +665,11 @@ const ProfileSettings = ({ navigation }) => {
               <TouchableOpacity
                 onPress={handleUploadProfilePicture}
                 disabled={isUploadingImage}
-                style={[styles.uploadButton, { backgroundColor: theme.primary }]}
+                style={[
+                  styles.uploadButton,
+                  isRTL ? styles.uploadButtonRtl : styles.uploadButtonLtr,
+                  { backgroundColor: theme.primary },
+                ]}
                 activeOpacity={0.7}>
                 {isUploadingImage ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
@@ -668,7 +678,7 @@ const ProfileSettings = ({ navigation }) => {
                 )}
               </TouchableOpacity>
             </View>
-            <Text style={[styles.uploadHint, { color: theme.textSecondary }]}>
+            <Text style={[styles.uploadHint, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
               {t('settings.tapToUpload') || 'Tap to upload profile picture'}
             </Text>
           </View>
@@ -676,12 +686,13 @@ const ProfileSettings = ({ navigation }) => {
           <GlassCard>
             <View style={styles.profileCard}>
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                   {t('auth.fullName')}
                 </Text>
                 <TextInput
                   style={[
                     styles.input,
+                    isRTL && styles.directionalInput,
                     {
                       color: theme.text,
                       backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
@@ -696,7 +707,7 @@ const ProfileSettings = ({ navigation }) => {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                   {t('auth.collegeEmail')}
                 </Text>
                 <View
@@ -712,7 +723,7 @@ const ProfileSettings = ({ navigation }) => {
                   <Text
                     numberOfLines={1}
                     ellipsizeMode="tail"
-                    style={[styles.emailValueText, { color: theme.textSecondary }]}
+                    style={[styles.emailValueText, { color: theme.textSecondary }, isRTL && styles.directionalText]}
                   >
                     {profileData.email}
                   </Text>
@@ -720,7 +731,7 @@ const ProfileSettings = ({ navigation }) => {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                   {t('settings.bio')}
                 </Text>
                 <TextInput
@@ -728,6 +739,7 @@ const ProfileSettings = ({ navigation }) => {
                   style={[
                     styles.input,
                     styles.bioInput,
+                    isRTL && styles.directionalInput,
                     {
                       color: theme.text,
                       backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
@@ -745,13 +757,13 @@ const ProfileSettings = ({ navigation }) => {
                   autoCorrect={false}
                   scrollEnabled={false}
                 />
-                <Text style={[styles.charCounter, { color: theme.textSecondary }]}>
+                <Text style={[styles.charCounter, { color: theme.textSecondary }, isRTL && styles.charCounterRtl]}>
                   {profileData.bio?.length || 0}/200
                 </Text>
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                   {t('settings.gender')}
                 </Text>
                 <SearchableDropdownNew
@@ -765,19 +777,20 @@ const ProfileSettings = ({ navigation }) => {
 
               <View style={styles.divider} />
 
-              <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+              <Text style={[styles.sectionLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                 {t('settings.socialLinks') || 'Social Links'}
               </Text>
 
               {socialLinksConfig.map(({ key, icon, placeholder, color }, index) => (
                 <React.Fragment key={key}>
-                  <View style={styles.socialLinkRow}>
+                  <View style={[styles.socialLinkRow, isRTL && styles.rowReverse]}>
                     <View style={[styles.socialIconContainer, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }]}>
                       <Ionicons name={icon} size={moderateScale(18)} color={color} />
                     </View>
                     <TextInput
                       style={[
                         styles.socialInput,
+                        isRTL && styles.socialInputRtl,
                         {
                           color: theme.text,
                           backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
@@ -798,6 +811,7 @@ const ProfileSettings = ({ navigation }) => {
                     <View
                       style={[
                         styles.socialLinkDivider,
+                        isRTL ? styles.socialLinkDividerRtl : styles.socialLinkDividerLtr,
                         { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }
                       ]}
                     />
@@ -806,7 +820,7 @@ const ProfileSettings = ({ navigation }) => {
               ))}
 
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                   {t('settings.socialLinksVisibility')}
                 </Text>
                 <SearchableDropdownNew
@@ -820,21 +834,21 @@ const ProfileSettings = ({ navigation }) => {
 
               <View style={styles.divider} />
 
-              <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+              <Text style={[styles.sectionLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                 {t('settings.academicInfo')}
               </Text>
 
               {!canEditAcademic && cooldownInfo && (
-                <View style={[styles.cooldownBanner, { 
+                <View style={[styles.cooldownBanner, isRTL && styles.rowReverse, { 
                   backgroundColor: isDarkMode ? 'rgba(255, 149, 0, 0.15)' : 'rgba(255, 149, 0, 0.1)',
                   borderColor: isDarkMode ? 'rgba(255, 149, 0, 0.3)' : 'rgba(255, 149, 0, 0.2)',
                 }]}>
                   <Ionicons name="time-outline" size={moderateScale(18)} color="#FF9500" />
-                  <View style={styles.cooldownTextContainer}>
-                    <Text style={[styles.cooldownTitle, { color: theme.text }]}>
+                  <View style={[styles.cooldownTextContainer, isRTL && styles.cooldownTextContainerRtl]}>
+                    <Text style={[styles.cooldownTitle, { color: theme.text }, isRTL && styles.directionalText]}>
                       {t('settings.academicCooldown')} {cooldownInfo.remainingDays} {cooldownInfo.remainingDays === 1 ? t('settings.dayRemaining') : t('settings.daysRemaining')}
                     </Text>
-                    <Text style={[styles.cooldownSubtitle, { color: theme.textSecondary }]}>
+                    <Text style={[styles.cooldownSubtitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                       {t('settings.lastUpdated')}: {cooldownInfo.lastUpdate}
                     </Text>
                   </View>
@@ -842,13 +856,13 @@ const ProfileSettings = ({ navigation }) => {
               )}
 
               {canEditAcademic && (
-                <View style={[styles.cooldownBanner, { 
+                <View style={[styles.cooldownBanner, isRTL && styles.rowReverse, { 
                   backgroundColor: isDarkMode ? 'rgba(52, 199, 89, 0.15)' : 'rgba(52, 199, 89, 0.1)',
                   borderColor: isDarkMode ? 'rgba(52, 199, 89, 0.3)' : 'rgba(52, 199, 89, 0.2)',
                 }]}>
                   <Ionicons name="checkmark-circle-outline" size={moderateScale(18)} color="#34C759" />
-                  <View style={styles.cooldownTextContainer}>
-                    <Text style={[styles.cooldownTitle, { color: theme.text }]}>
+                  <View style={[styles.cooldownTextContainer, isRTL && styles.cooldownTextContainerRtl]}>
+                    <Text style={[styles.cooldownTitle, { color: theme.text }, isRTL && styles.directionalText]}>
                       {t('settings.canUpdateNow')}
                     </Text>
                   </View>
@@ -856,7 +870,7 @@ const ProfileSettings = ({ navigation }) => {
               )}
 
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                   {t('auth.selectUniversity')}
                 </Text>
                 <SearchableDropdownNew
@@ -870,7 +884,7 @@ const ProfileSettings = ({ navigation }) => {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                   {t('auth.selectCollege')}
                 </Text>
                 <SearchableDropdownNew
@@ -884,7 +898,7 @@ const ProfileSettings = ({ navigation }) => {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                   {t('auth.selectDepartment')}
                 </Text>
                 <SearchableDropdownNew
@@ -898,7 +912,7 @@ const ProfileSettings = ({ navigation }) => {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
                   {t('auth.selectStage')}
                 </Text>
                 <SearchableDropdownNew
@@ -917,7 +931,7 @@ const ProfileSettings = ({ navigation }) => {
         </ScrollView>
 
         {hasAcademicChanges && (
-          <View style={[styles.fixedButtonContainer, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)', borderTopColor: theme.border }]}>
+          <View style={[styles.fixedButtonContainer, isRTL && styles.rowReverse, { backgroundColor: isDarkMode ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)', borderTopColor: theme.border }]}>
             <TouchableOpacity
               onPress={() => {
                 setProfileData(prev => ({
@@ -980,6 +994,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(5),
     paddingBottom: spacing.md,
   },
+  rowReverse: {
+    flexDirection: 'row-reverse',
+  },
   backButton: {
     width: moderateScale(40),
     height: moderateScale(40),
@@ -1037,7 +1054,6 @@ const styles = StyleSheet.create({
   uploadButton: {
     position: 'absolute',
     bottom: -2,
-    right: -2,
     width: moderateScale(38),
     height: moderateScale(38),
     borderRadius: moderateScale(19),
@@ -1051,6 +1067,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     zIndex: 10,
+  },
+  uploadButtonLtr: {
+    right: -2,
+  },
+  uploadButtonRtl: {
+    left: -2,
   },
   uploadHint: {
     fontSize: responsiveFontSize(12),
@@ -1096,10 +1118,17 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     paddingTop: spacing.sm,
   },
+  directionalInput: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   charCounter: {
     fontSize: responsiveFontSize(12),
     textAlign: 'right',
     marginTop: spacing.xs,
+  },
+  charCounterRtl: {
+    textAlign: 'left',
   },
   divider: {
     height: 1,
@@ -1124,6 +1153,9 @@ const styles = StyleSheet.create({
   },
   cooldownTextContainer: {
     flex: 1,
+  },
+  cooldownTextContainerRtl: {
+    alignItems: 'flex-end',
   },
   cooldownTitle: {
     fontSize: responsiveFontSize(14),
@@ -1176,9 +1208,14 @@ const styles = StyleSheet.create({
   },
   socialLinkDivider: {
     height: StyleSheet.hairlineWidth,
-    marginLeft: moderateScale(44) + spacing.sm,
     marginBottom: spacing.sm,
     opacity: 0.3,
+  },
+  socialLinkDividerLtr: {
+    marginLeft: moderateScale(44) + spacing.sm,
+  },
+  socialLinkDividerRtl: {
+    marginRight: moderateScale(44) + spacing.sm,
   },
   socialIconContainer: {
     width: moderateScale(44),
@@ -1195,6 +1232,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
     height: moderateScale(44),
+  },
+  socialInputRtl: {
+    textAlign: 'right',
+  },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   bottomPadding: {
     height: hp(5),

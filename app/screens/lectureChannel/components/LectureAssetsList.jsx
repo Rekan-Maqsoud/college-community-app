@@ -1,10 +1,11 @@
 import React from 'react';
-import { Image, Linking, Text, TouchableOpacity, View, RefreshControl, Alert } from 'react-native';
+import { Image, Linking, Text, TouchableOpacity, View, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import { SavedPostSkeleton } from '../../../components/SkeletonLoader';
 import { GlassContainer } from '../../../components/GlassComponents';
 import { moderateScale } from '../../../utils/responsive';
+import { getLectureJoinButtonState } from '../../../utils/uiStateHelpers';
 import { LECTURE_UPLOAD_TYPES } from '../../../../database/lectures';
 import {
   buildYouTubeVideoId,
@@ -33,6 +34,12 @@ const LectureAssetsList = ({
   isManager,
   canUpload,
 }) => {
+  const isJoiningChannel = !!actionState.joiningChannel;
+  const joinButtonState = getLectureJoinButtonState({
+    joinStatus: membership?.joinStatus,
+    isJoining: isJoiningChannel,
+  });
+
   const renderAsset = ({ item }) => {
     if (item?.type === 'folder') {
       return (
@@ -217,13 +224,17 @@ const LectureAssetsList = ({
         <TouchableOpacity
           style={[
             styles.joinBtn,
-            { backgroundColor: membership?.joinStatus === 'pending' ? colors.card : colors.primary },
+            { backgroundColor: joinButtonState.isPending ? colors.card : colors.primary },
           ]}
           onPress={actionState.handleJoin}
-          disabled={membership?.joinStatus === 'pending'}>
-          <Text style={[styles.joinBtnText, membership?.joinStatus === 'pending' && { color: colors.textSecondary }]}>
-            {membership?.joinStatus === 'pending' ? t('lectures.joinPending') : t('lectures.join')}
-          </Text>
+          disabled={joinButtonState.disabled}>
+          {joinButtonState.showSpinner ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={[styles.joinBtnText, joinButtonState.isPending && { color: colors.textSecondary }]}> 
+              {t(joinButtonState.labelKey)}
+            </Text>
+          )}
         </TouchableOpacity>
       ) : null}
 

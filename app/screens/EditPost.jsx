@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
+  BackHandler,
   View,
   Text,
   TextInput,
@@ -13,6 +14,7 @@ import {
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from '../hooks/useTranslation';
@@ -35,6 +37,7 @@ import {
 import { uploadImage, deleteMultipleImages } from '../../services/imgbbService';
 import { updatePost } from '../../database/posts';
 import { createPollPayload, parsePollPayload } from '../utils/pollUtils';
+import { REFRESH_TOPICS, publishRefreshEvent } from '../utils/dataRefreshBus';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
@@ -58,11 +61,43 @@ const normalizeStageValue = (userStage) => {
   return stageMap[userStage] || userStage || '';
 };
 
+const createEditSnapshot = ({
+  postType,
+  topic,
+  text,
+  department,
+  stage,
+  visibility,
+  canOthersRepost,
+  existingImages,
+  images,
+  tags,
+  links,
+  pollChoices,
+  isQuizPoll,
+  correctPollOptionId,
+}) => JSON.stringify({
+  postType: postType || POST_TYPES.DISCUSSION,
+  topic: String(topic || '').trim(),
+  text: String(text || '').trim(),
+  department: String(department || '').trim(),
+  stage: String(stage || '').trim(),
+  visibility: String(visibility || 'department').trim(),
+  canOthersRepost: canOthersRepost !== false,
+  existingImages: (existingImages || []).map((image) => String(image || '').trim()),
+  images: (images || []).map((image) => String(image?.uri || image || '').trim()),
+  tags: (tags || []).map((tag) => String(tag || '').trim()).filter(Boolean),
+  links: (links || []).map((link) => String(link || '').trim()).filter(Boolean),
+  pollChoices: (pollChoices || []).map((choice) => String(choice || '').trim()),
+  isQuizPoll: Boolean(isQuizPoll),
+  correctPollOptionId: String(correctPollOptionId || '').trim(),
+});
+
 const EditPost = ({ navigation, route }) => {
   const { t } = useTranslation();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { user } = useUser();
-  const { theme, isDarkMode } = useAppSettings();
+  const { theme, isDarkMode, isRTL } = useAppSettings();
   const { contentStyle } = useLayout();
   const { post } = route?.params || {};
 
@@ -87,6 +122,7 @@ const EditPost = ({ navigation, route }) => {
   const [isQuizPoll, setIsQuizPoll] = useState(false);
   const [correctPollOptionId, setCorrectPollOptionId] = useState('');
   const [loading, setLoading] = useState(false);
+  const discardConfirmedRef = useRef(false);
 
   useEffect(() => {
     if (!post) {
@@ -136,6 +172,97 @@ const EditPost = ({ navigation, route }) => {
     ...POST_TYPE_OPTIONS,
     { value: POST_TYPES.POLL, labelKey: 'post.types.poll' },
   ];
+
+  const initialSnapshot = createEditSnapshot({
+    postType: post?.postType || POST_TYPES.DISCUSSION,
+    topic: post?.topic || '',
+    text: post?.text || '',
+    department: post?.department || user?.department || '',
+    stage: post?.stage || normalizeStageValue(user?.stage),
+    visibility: post?.visibility || 'department',
+    canOthersRepost: post?.canOthersRepost !== false,
+    existingImages: post?.images || [],
+    images: [],
+    tags: post?.tags || [],
+    links: post?.links || [],
+    pollChoices: parsePollPayload(post?.pollData)?.options?.map((option) => option.text) || ['', ''],
+    isQuizPoll: Boolean(parsePollPayload(post?.pollData)?.isQuiz),
+    correctPollOptionId: parsePollPayload(post?.pollData)?.correctOptionId || '',
+  });
+  const hasUnsavedChanges = createEditSnapshot({
+    postType,
+    topic,
+    text,
+    department,
+    stage,
+    visibility,
+    canOthersRepost,
+    existingImages,
+    images,
+    tags,
+    links,
+    pollChoices,
+    isQuizPoll,
+    correctPollOptionId,
+  }) !== initialSnapshot;
+
+  const confirmDiscardChanges = useCallback((onDiscard) => {
+    if (!hasUnsavedChanges || loading) {
+      onDiscard?.();
+      return;
+    }
+
+    showAlert({
+      type: 'warning',
+      title: t('post.discardPost'),
+      message: t('post.discardPostMessage'),
+      buttons: [
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('post.discard'),
+          style: 'destructive',
+          onPress: () => {
+            discardConfirmedRef.current = true;
+            onDiscard?.();
+          },
+        },
+      ],
+    });
+  }, [hasUnsavedChanges, loading, showAlert, t]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
+      if (!hasUnsavedChanges || discardConfirmedRef.current) {
+        discardConfirmedRef.current = false;
+        return;
+      }
+
+      event.preventDefault();
+      confirmDiscardChanges(() => navigation.dispatch(event.data.action));
+    });
+
+    return unsubscribe;
+  }, [confirmDiscardChanges, hasUnsavedChanges, navigation]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return undefined;
+    }
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!hasUnsavedChanges) {
+        return false;
+      }
+
+      confirmDiscardChanges(() => navigation.goBack());
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [confirmDiscardChanges, hasUnsavedChanges, navigation]);
 
   const inputColors = {
     backgroundColor: theme.input.background,
@@ -271,6 +398,10 @@ const EditPost = ({ navigation, route }) => {
       updateData.links = linkArray;
 
       const updatedPost = await updatePost(post.$id, updateData);
+      discardConfirmedRef.current = true;
+      publishRefreshEvent(REFRESH_TOPICS.FEED, {
+        post: updatedPost,
+      });
 
       const routes = navigation.getState()?.routes || [];
       const previousRoute = routes.length > 1 ? routes[routes.length - 2] : null;
@@ -280,23 +411,24 @@ const EditPost = ({ navigation, route }) => {
         : null;
 
       if (previousRoute?.name === 'MainTabs' && activeTabRoute?.name) {
-        navigation.navigate('MainTabs', {
-          screen: activeTabRoute.name,
-          params: { updatedPost },
-          merge: true,
-        });
-      } else if (previousRoute?.name) {
-        navigation.navigate(previousRoute.name, { updatedPost, merge: true });
+        navigation.dispatch(
+          {
+            ...CommonActions.setParams({ updatedPost }),
+            source: activeTabRoute.key,
+          }
+        );
+      } else if (previousRoute?.key) {
+        navigation.dispatch(
+          {
+            ...CommonActions.setParams({ updatedPost }),
+            source: previousRoute.key,
+          }
+        );
       }
-
-      showAlert(
-        t('common.success'),
-        t('post.postUpdated'),
-        'success'
-      );
 
       navigation.goBack();
     } catch (error) {
+      discardConfirmedRef.current = false;
       if (newImageDeleteUrls.length > 0) {
         deleteMultipleImages(newImageDeleteUrls).catch(() => {});
       }
@@ -338,14 +470,14 @@ const EditPost = ({ navigation, route }) => {
   if (!post) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
+        <View style={[styles.header, isRTL && styles.rowReverse]}>
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => navigation.goBack()}
           >
             <Ionicons name="close" size={moderateScale(26)} color="#111827" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('common.error')}</Text>
+          <Text style={[styles.headerTitle, isRTL && styles.directionalText]}>{t('common.error')}</Text>
           <View style={styles.headerButton} />
         </View>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -369,7 +501,7 @@ const EditPost = ({ navigation, route }) => {
       >
         <AnimatedBackground particleCount={16} />
         <GlassContainer style={styles.headerGlass} borderRadius={0} disableBackgroundOverlay>
-          <View style={[styles.header, { backgroundColor: 'transparent', borderBottomColor: theme.border }]}>
+          <View style={[styles.header, isRTL && styles.rowReverse, { backgroundColor: 'transparent', borderBottomColor: theme.border }]}>
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => navigation.goBack()}
@@ -378,7 +510,7 @@ const EditPost = ({ navigation, route }) => {
               <Ionicons name="close" size={moderateScale(26)} color={theme.text} />
             </TouchableOpacity>
 
-            <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.editPost')}</Text>
+            <Text style={[styles.headerTitle, isRTL && styles.directionalText, { color: theme.text }]}>{t('post.editPost')}</Text>
 
             <TouchableOpacity
               style={[styles.headerButton, loading && styles.headerButtonDisabled]}
@@ -388,7 +520,7 @@ const EditPost = ({ navigation, route }) => {
               {loading ? (
                 <ActivityIndicator size="small" color={theme.primary} />
               ) : (
-                <Text style={[styles.postButtonText, { color: theme.primary }]}>{t('common.save')}</Text>
+                <Text style={[styles.postButtonText, isRTL && styles.directionalText, { color: theme.primary }]}>{t('common.save')}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -408,9 +540,9 @@ const EditPost = ({ navigation, route }) => {
                 keyboardShouldPersistTaps="handled"
               >
           <View style={styles.section}>
-            <View style={styles.topControlsRow}>
+            <View style={[styles.topControlsRow, isRTL && styles.rowReverse]}>
               <View style={[styles.compactField, styles.postTypeField]}>
-                <Text style={[styles.compactLabel, { color: theme.textSecondary }]}>
+                <Text style={[styles.compactLabel, isRTL && styles.directionalText, { color: theme.textSecondary }]}>
                   {t('post.postType')}
                 </Text>
                 <SearchableDropdownNew
@@ -426,7 +558,7 @@ const EditPost = ({ navigation, route }) => {
               </View>
 
               <View style={[styles.compactField, styles.compactFieldHalf]}>
-                <Text style={[styles.compactLabel, { color: theme.textSecondary }]}>
+                <Text style={[styles.compactLabel, isRTL && styles.directionalText, { color: theme.textSecondary }]}>
                   {t('post.stage')}
                 </Text>
                 <SearchableDropdownNew
@@ -443,12 +575,13 @@ const EditPost = ({ navigation, route }) => {
               </View>
 
               <View style={[styles.compactField, styles.compactFieldHalf]}>
-                <Text style={[styles.compactLabel, { color: theme.textSecondary }]}>
+                <Text style={[styles.compactLabel, isRTL && styles.directionalText, { color: theme.textSecondary }]}>
                   {t('post.visibility')}
                 </Text>
                 <TouchableOpacity
                   style={[
                     styles.compactToggle,
+                    isRTL && styles.rowReverse,
                     { backgroundColor: theme.input.background, borderColor: theme.input.border }
                   ]}
                   onPress={cycleVisibility}
@@ -457,7 +590,7 @@ const EditPost = ({ navigation, route }) => {
                 >
                   <Ionicons name="eye-outline" size={moderateScale(14)} color={theme.primary} />
                   <Text
-                    style={[styles.compactToggleText, { color: theme.text }]}
+                    style={[styles.compactToggleText, isRTL && styles.directionalText, { color: theme.text }]}
                     numberOfLines={1}
                   >
                     {getVisibilityLabel()}
@@ -465,18 +598,18 @@ const EditPost = ({ navigation, route }) => {
                 </TouchableOpacity>
               </View>
             </View>
-            <Text style={[styles.helperText, styles.compactHelper, { color: theme.textSecondary }]}>
+            <Text style={[styles.helperText, styles.compactHelper, isRTL && styles.directionalText, { color: theme.textSecondary }]}>
               {getVisibilityHelper()}
             </Text>
 
-            <View style={styles.actionButtonsRow}>
+            <View style={[styles.actionButtonsRow, isRTL && styles.rowReverse]}>
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}
                 onPress={() => setShowTags(!showTags)}
                 activeOpacity={0.7}
               >
                 <Ionicons name="pricetag-outline" size={18} color={showTags ? theme.primary : theme.textSecondary} />
-                <Text style={[styles.actionButtonText, { color: showTags ? theme.primary : theme.textSecondary }]}>
+                <Text style={[styles.actionButtonText, isRTL && styles.directionalText, { color: showTags ? theme.primary : theme.textSecondary }]}>
                   {t('post.tags')}
                 </Text>
               </TouchableOpacity>
@@ -487,7 +620,7 @@ const EditPost = ({ navigation, route }) => {
                 activeOpacity={0.7}
               >
                 <Ionicons name="link-outline" size={18} color={showLinks ? theme.primary : theme.textSecondary} />
-                <Text style={[styles.actionButtonText, { color: showLinks ? theme.primary : theme.textSecondary }]}>
+                <Text style={[styles.actionButtonText, isRTL && styles.directionalText, { color: showLinks ? theme.primary : theme.textSecondary }]}>
                   {t('post.links')}
                 </Text>
               </TouchableOpacity>
@@ -499,7 +632,7 @@ const EditPost = ({ navigation, route }) => {
                 activeOpacity={1}
               >
                 <Ionicons name="images-outline" size={18} color={theme.textSecondary} />
-                <Text style={[styles.actionButtonText, { color: theme.textSecondary }]}> 
+                <Text style={[styles.actionButtonText, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
                   {t('post.images')} ({existingImages.length + images.length})
                 </Text>
               </TouchableOpacity>
@@ -507,7 +640,7 @@ const EditPost = ({ navigation, route }) => {
           </View>
 
           <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: theme.text }]}>
+            <Text style={[styles.sectionLabel, isRTL && styles.directionalText, { color: theme.text }]}> 
               {t('post.topic')}
             </Text>
             <View style={styles.inputShell}>
@@ -515,6 +648,7 @@ const EditPost = ({ navigation, route }) => {
                 style={[
                   styles.topicInput,
                   styles.growingInput,
+                  isRTL && styles.directionalInput,
                   inputColors,
                   {
                     minHeight: topicInputHeight,
@@ -535,14 +669,14 @@ const EditPost = ({ navigation, route }) => {
                   setTopicInputHeight(nextHeight);
                 }}
               />
-              <Text style={[styles.inlineCharCount, { color: theme.textSecondary }]}>
+              <Text style={[styles.inlineCharCount, isRTL && styles.inlineCharCountRtl, { color: theme.textSecondary }]}> 
                 {topic.length}/{VALIDATION_RULES.POST.topic.max}
               </Text>
             </View>
           </View>
 
           <View style={[styles.section, styles.compactNextSection]}>
-            <Text style={[styles.sectionLabel, { color: theme.text }]}>
+            <Text style={[styles.sectionLabel, isRTL && styles.directionalText, { color: theme.text }]}> 
               {t('post.description')}
             </Text>
             <View style={styles.inputShell}>
@@ -550,6 +684,7 @@ const EditPost = ({ navigation, route }) => {
                 style={[
                   styles.textInput,
                   styles.growingInput,
+                  isRTL && styles.directionalInput,
                   inputColors,
                   {
                     minHeight: textInputHeight,
@@ -570,7 +705,7 @@ const EditPost = ({ navigation, route }) => {
                   setTextInputHeight(nextHeight);
                 }}
               />
-              <Text style={[styles.inlineCharCount, { color: theme.textSecondary }]}>
+              <Text style={[styles.inlineCharCount, isRTL && styles.inlineCharCountRtl, { color: theme.textSecondary }]}> 
                 {text.length}/{VALIDATION_RULES.POST.text.max}
               </Text>
             </View>
@@ -578,14 +713,15 @@ const EditPost = ({ navigation, route }) => {
 
           {postType === POST_TYPES.POLL && (
             <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: theme.text }]}>{t('post.poll.choicesLabel')}</Text>
-              <Text style={[styles.helperText, { color: theme.textSecondary }]}>{t('post.poll.choicesHelper')}</Text>
+              <Text style={[styles.sectionLabel, isRTL && styles.directionalText, { color: theme.text }]}>{t('post.poll.choicesLabel')}</Text>
+              <Text style={[styles.helperText, isRTL && styles.directionalText, { color: theme.textSecondary }]}>{t('post.poll.choicesHelper')}</Text>
 
               {pollChoices.map((choice, index) => (
                 <View key={`poll-choice-${index}`} style={styles.pollChoiceRow}>
                   <TextInput
                     style={[
                       styles.pollChoiceInput,
+                      isRTL && styles.directionalInput,
                       {
                         backgroundColor: theme.input.background,
                         borderColor: theme.input.border,
@@ -631,7 +767,7 @@ const EditPost = ({ navigation, route }) => {
                     size={20}
                     color={!isQuizPoll ? theme.primary : theme.textSecondary}
                   />
-                  <Text style={[styles.pollModeText, { color: theme.text }]}>{t('post.poll.modePoll')}</Text>
+                  <Text style={[styles.pollModeText, isRTL && styles.directionalText, { color: theme.text }]}>{t('post.poll.modePoll')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -643,13 +779,13 @@ const EditPost = ({ navigation, route }) => {
                     size={20}
                     color={isQuizPoll ? theme.primary : theme.textSecondary}
                   />
-                  <Text style={[styles.pollModeText, { color: theme.text }]}>{t('post.poll.modeQuestion')}</Text>
+                  <Text style={[styles.pollModeText, isRTL && styles.directionalText, { color: theme.text }]}>{t('post.poll.modeQuestion')}</Text>
                 </TouchableOpacity>
               </View>
 
               {isQuizPoll && (
                 <View style={styles.pollCorrectAnswerWrap}>
-                  <Text style={[styles.compactLabel, { color: theme.textSecondary }]}>{t('post.poll.correctAnswerLabel')}</Text>
+                  <Text style={[styles.compactLabel, isRTL && styles.directionalText, { color: theme.textSecondary }]}>{t('post.poll.correctAnswerLabel')}</Text>
                   {pollChoices.map((choice, index) => {
                     const optionId = `opt_${index + 1}`;
                     const choiceLabel = choice.trim();
@@ -669,7 +805,7 @@ const EditPost = ({ navigation, route }) => {
                           size={18}
                           color={isSelected ? theme.primary : theme.textSecondary}
                         />
-                        <Text style={[styles.pollCorrectAnswerText, { color: theme.text }]} numberOfLines={1}>
+                        <Text style={[styles.pollCorrectAnswerText, isRTL && styles.directionalText, { color: theme.text }]} numberOfLines={1}>
                           {choiceLabel}
                         </Text>
                       </TouchableOpacity>
@@ -941,6 +1077,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111827',
   },
+  rowReverse: {
+    flexDirection: 'row-reverse',
+  },
   postButtonText: {
     fontSize: fontSize(15),
     fontWeight: '600',
@@ -1101,6 +1240,10 @@ const styles = StyleSheet.create({
     bottom: 8,
     fontSize: fontSize(10),
     fontWeight: '600',
+  },
+  inlineCharCountRtl: {
+    right: 'auto',
+    left: 10,
   },
   charCount: {
     fontSize: fontSize(11),
@@ -1320,6 +1463,14 @@ const styles = StyleSheet.create({
   },
   bottomSpace: {
     height: hp(5),
+  },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  directionalInput: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });
 

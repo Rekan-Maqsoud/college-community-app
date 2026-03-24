@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
+  AppState,
   View,
   Text,
   StyleSheet,
@@ -20,7 +21,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ReanimatedAnimated, { FadeInDown } from 'react-native-reanimated';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
-import AnimatedBackground from '../components/AnimatedBackground';
 import SearchBar from '../components/SearchBar';
 import FeedSelector from '../components/FeedSelector';
 import FilterSortModal, { SORT_OPTIONS, FILTER_TYPES } from '../components/FilterSortModal';
@@ -53,6 +53,8 @@ import useLayout from '../hooks/useLayout';
 import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
 import { REFRESH_TOPICS, subscribeToRefreshTopic } from '../utils/dataRefreshBus';
 import telemetry from '../utils/telemetry';
+import { hasActiveHomeFilters, shouldScheduleRealtimeNotification } from '../utils/uiStateHelpers';
+import { formatNotificationBadgeCount } from '../utils/notificationUiHelpers';
 
 const POSTS_PER_PAGE = 15;
 const AnimatedFlatList = Animated.createAnimatedComponent(FlashList);
@@ -134,6 +136,18 @@ const Home = ({ navigation, route }) => {
     department: user?.department,
   });
   const scopedDepartment = isAcademicOtherUser ? ACADEMIC_OTHER_KEY : user?.department;
+  const hasActiveFilters = hasActiveHomeFilters({
+    sortBy,
+    defaultSortBy: SORT_OPTIONS.NEWEST,
+    filterType,
+    defaultFilterType: 'all',
+    selectedStage,
+    defaultStage: 'all',
+    answerStatus,
+    defaultAnswerStatus: 'all',
+  });
+  const notificationBadgeText = formatNotificationBadgeCount(unreadNotifications);
+  const requiresDepartmentContext = selectedFeed !== FEED_TYPES.PUBLIC;
   const feedLoadSignature = JSON.stringify({
     userId: user?.$id || '',
     scopedDepartment: scopedDepartment || '',
@@ -272,17 +286,18 @@ const Home = ({ navigation, route }) => {
       }
     };
 
-    // Schedule local notification
-    scheduleLocalNotification({
-      title: t('notifications.title') || 'New Notification',
-      body: getNotificationTitle(notification.type, notification.senderName),
-      data: {
-        type: notification.type,
-        postId: notification.postId,
-        userId: notification.senderId,
-      },
-      channelId: notification.type === 'follow' ? 'social' : 'posts',
-    });
+    if (shouldScheduleRealtimeNotification({ appState: AppState.currentState })) {
+      scheduleLocalNotification({
+        title: t('notifications.title') || 'New Notification',
+        body: getNotificationTitle(notification.type, notification.senderName),
+        data: {
+          type: notification.type,
+          postId: notification.postId,
+          userId: notification.senderId,
+        },
+        channelId: notification.type === 'follow' ? 'social' : 'posts',
+      });
+    }
   }, [t]);
 
   // Subscribe to real-time notification updates
@@ -561,7 +576,6 @@ const Home = ({ navigation, route }) => {
   }, [answerStatus, filterType, isAcademicOtherUser, page, scopedDepartment, selectedFeed, selectedStage, showAlert, sortBy, t, user]);
 
   useEffect(() => {
-    const requiresDepartmentContext = selectedFeed !== FEED_TYPES.PUBLIC;
     if (!user?.$id || (requiresDepartmentContext && !scopedDepartment)) {
       setIsLoadingPosts(false);
       setIsRefreshing(false);
@@ -576,7 +590,7 @@ const Home = ({ navigation, route }) => {
     lastLoadedFeedSignatureRef.current = feedLoadSignature;
     hasAppliedViewportRef.current = false;
     loadPosts(true);
-  }, [feedLoadSignature, loadPosts, posts.length, scopedDepartment, user?.$id]);
+  }, [feedLoadSignature, loadPosts, posts.length, requiresDepartmentContext, scopedDepartment, user?.$id]);
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
@@ -1101,18 +1115,20 @@ const Home = ({ navigation, route }) => {
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel={t('home.filterSort')}
+              accessibilityState={{ selected: hasActiveFilters }}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <GlassIconButton
                 size={actionButtonSize}
                 borderRadiusValue={borderRadius.md}
-                active={(sortBy !== SORT_OPTIONS.NEWEST || filterType !== 'all' || selectedStage !== 'all') || answerStatus !== 'all'}
+                active={Platform.OS === 'android' ? false : hasActiveFilters}
               >
                 <Ionicons 
                   name="options-outline" 
                   size={headerIconSize} 
-                  color={(sortBy !== SORT_OPTIONS.NEWEST || filterType !== 'all' || selectedStage !== 'all') || answerStatus !== 'all' ? theme.primary : theme.text} 
+                  color={hasActiveFilters ? theme.primary : theme.text} 
                 />
+                {hasActiveFilters && <View style={[styles.filterActiveDot, { backgroundColor: theme.primary }]} />}
               </GlassIconButton>
             </TouchableOpacity>
 
@@ -1129,13 +1145,13 @@ const Home = ({ navigation, route }) => {
                 borderRadiusValue={borderRadius.md}
               >
                 <Ionicons name="notifications-outline" size={headerIconSize} color={theme.text} />
-                {unreadNotifications > 0 && (
+                {notificationBadgeText ? (
                   <View style={styles.notificationBadge}>
                     <Text style={styles.notificationBadgeText}>
-                      {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                      {notificationBadgeText}
                     </Text>
                   </View>
-                )}
+                ) : null}
               </GlassIconButton>
             </TouchableOpacity>
           </Animated.View>
@@ -1345,6 +1361,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: moderateScale(3),
+  },
+  filterActiveDot: {
+    position: 'absolute',
+    top: moderateScale(6),
+    right: moderateScale(6),
+    width: moderateScale(8),
+    height: moderateScale(8),
+    borderRadius: moderateScale(4),
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
   },
   notificationBadgeText: {
     color: '#FFFFFF',

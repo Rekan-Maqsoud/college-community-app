@@ -1,15 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import {
   Modal,
+  Platform,
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   Animated,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { GlassModalCard } from './GlassComponents';
-import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useTranslation } from '../hooks/useTranslation';
@@ -92,6 +91,9 @@ const CustomAlert = ({
   };
 
   const iconConfig = getIconConfig();
+  const backdropOverlayColor = Platform.OS === 'android'
+    ? (isDarkMode ? 'rgba(0, 0, 0, 0.68)' : 'rgba(0, 0, 0, 0.52)')
+    : (isDarkMode ? 'rgba(0, 0, 0, 0.44)' : 'rgba(0, 0, 0, 0.34)');
 
   const defaultButtons = buttons.length > 0 ? buttons : [
     {
@@ -115,28 +117,12 @@ const CustomAlert = ({
             opacity: opacityAnim,
           },
         ]}>
-        {/* Modal backdrop: liquid glass on iOS 26+, BlurView tint on Android / older iOS */}
-        {isLiquidGlassSupported ? (
-          <LiquidGlassView
-            colorScheme={isDarkMode ? 'dark' : 'light'}
-            effect="regular"
-            style={StyleSheet.absoluteFillObject}
-            pointerEvents="none"
-          />
-        ) : (
-          <BlurView
-            intensity={isDarkMode ? 50 : 40}
-            tint={isDarkMode ? 'dark' : 'light'}
-            style={StyleSheet.absoluteFillObject}
-            pointerEvents="none"
-          />
-        )}
         <View
           pointerEvents="none"
           style={[
             StyleSheet.absoluteFillObject,
             {
-              backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.44)' : 'rgba(0, 0, 0, 0.34)',
+              backgroundColor: backdropOverlayColor,
             },
           ]}
         />
@@ -282,7 +268,6 @@ const styles = StyleSheet.create({
   alertContent: {
     borderRadius: borderRadius.xl,
     padding: spacing.xl,
-    borderWidth: 1,
     ...shadows.large,
   },
   iconContainer: {

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,11 +19,12 @@ import { borderRadius } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
 import { createSuggestion, SUGGESTION_CATEGORIES } from '../../../database/suggestions';
 import { GlassCard } from '../../components/GlassComponents';
+import { getSettingsHeaderGradient } from './settingsTheme';
 
 const MIN_MESSAGE_LENGTH = 10;
 
 const SuggestionSettings = ({ navigation }) => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const globalAlert = useGlobalAlert();
   const insets = useSafeAreaInsets();
 
@@ -30,6 +32,9 @@ const SuggestionSettings = ({ navigation }) => {
   const [message, setMessage] = useState('');
   const [category, setCategory] = useState('feature');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const backIconName = Platform.OS === 'ios'
+    ? (isRTL ? 'chevron-forward' : 'chevron-back')
+    : (isRTL ? 'arrow-forward' : 'arrow-back');
 
   const categoryLabels = useMemo(() => ({
     feature: t('settings.suggestionCategoryFeature'),
@@ -101,16 +106,13 @@ const SuggestionSettings = ({ navigation }) => {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <LinearGradient
-        colors={isDarkMode
-          ? ['rgba(10, 132, 255, 0.24)', 'rgba(10, 132, 255, 0.08)', 'transparent']
-          : ['rgba(0, 122, 255, 0.2)', 'rgba(0, 122, 255, 0.04)', 'transparent']
-        }
+        colors={getSettingsHeaderGradient('SuggestionSettings', { theme, isDarkMode })}
         style={styles.headerGradient}
       />
 
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+      <View style={[styles.header, isRTL && styles.rowReverse, { paddingTop: insets.top + spacing.sm }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={moderateScale(22)} color={theme.text} />
+          <Ionicons name={backIconName} size={moderateScale(22)} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>{t('settings.suggestions')}</Text>
@@ -128,7 +130,7 @@ const SuggestionSettings = ({ navigation }) => {
           style={styles.card}
           padding={0}
         >
-          <Text style={[styles.label, { color: theme.textSecondary }]}>{t('settings.suggestionTitleLabel')}</Text>
+          <Text style={[styles.label, { color: theme.textSecondary }, isRTL && styles.directionalText]}>{t('settings.suggestionTitleLabel')}</Text>
           <TextInput
             value={title}
             onChangeText={setTitle}
@@ -138,6 +140,8 @@ const SuggestionSettings = ({ navigation }) => {
                 color: theme.text,
                 borderColor: theme.border,
                 backgroundColor: theme.background,
+                textAlign: isRTL ? 'right' : 'left',
+                writingDirection: isRTL ? 'rtl' : 'ltr',
               },
             ]}
             placeholder={t('settings.suggestionTitlePlaceholder')}
@@ -146,10 +150,10 @@ const SuggestionSettings = ({ navigation }) => {
             editable={!isSubmitting}
           />
 
-          <Text style={[styles.label, styles.sectionGap, { color: theme.textSecondary }]}>
+          <Text style={[styles.label, styles.sectionGap, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.suggestionCategoryLabel')}
           </Text>
-          <View style={styles.categoryWrap}>
+          <View style={[styles.categoryWrap, isRTL && styles.rowReverse]}>
             {SUGGESTION_CATEGORIES.map((value) => {
               const isSelected = value === category;
 
@@ -182,7 +186,7 @@ const SuggestionSettings = ({ navigation }) => {
             })}
           </View>
 
-          <Text style={[styles.label, styles.sectionGap, { color: theme.textSecondary }]}>
+          <Text style={[styles.label, styles.sectionGap, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
             {t('settings.suggestionMessageLabel')}
           </Text>
           <TextInput
@@ -195,6 +199,8 @@ const SuggestionSettings = ({ navigation }) => {
                 color: theme.text,
                 borderColor: theme.border,
                 backgroundColor: theme.background,
+                textAlign: isRTL ? 'right' : 'left',
+                writingDirection: isRTL ? 'rtl' : 'ltr',
               },
             ]}
             placeholder={t('settings.suggestionMessagePlaceholder')}
@@ -248,6 +254,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(5),
     paddingBottom: spacing.md,
   },
+  rowReverse: {
+    flexDirection: 'row-reverse',
+  },
   backButton: {
     width: moderateScale(40),
     height: moderateScale(40),
@@ -299,6 +308,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   categoryChip: {
     borderWidth: 1,

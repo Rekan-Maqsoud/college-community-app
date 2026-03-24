@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar, ActivityIndicator, RefreshControl, Linking, Share, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, StatusBar, ActivityIndicator, RefreshControl, Linking, Share, Modal } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ import AnimatedBackground from '../components/AnimatedBackground';
 import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
 import RepBadge from '../components/RepBadge';
+import UnifiedEmptyState from '../components/UnifiedEmptyState';
 import useRepDetection from '../hooks/useRepDetection';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { getPostsByUser, togglePostLike, setQuestionResolvedStatus, deletePost } from '../../database/posts';
@@ -20,6 +21,24 @@ import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 import telemetry from '../utils/telemetry';
+import { getAsyncCollectionState } from '../utils/uiStateHelpers';
+
+const normalizeHexColor = (color, fallback) => {
+  if (typeof color !== 'string') {
+    return fallback;
+  }
+
+  const trimmedColor = color.trim();
+  if (/^#[0-9A-Fa-f]{6}$/.test(trimmedColor)) {
+    return trimmedColor.toUpperCase();
+  }
+
+  if (/^#[0-9A-Fa-f]{3}$/.test(trimmedColor)) {
+    return `#${trimmedColor.slice(1).split('').map((value) => `${value}${value}`).join('')}`.toUpperCase();
+  }
+
+  return fallback;
+};
 
 const Profile = ({ navigation, route }) => {
   const { t, theme, isDarkMode, isRTL } = useAppSettings();
@@ -36,12 +55,16 @@ const Profile = ({ navigation, route }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const qrShareCardRef = useRef(null);
+  const qrBackgroundColor = normalizeHexColor(isDarkMode ? theme.card : theme.background, isDarkMode ? '#2C2C2E' : '#FFFFFF');
+  const qrForegroundColor = normalizeHexColor(theme.text, isDarkMode ? '#FFFFFF' : '#1A1A1A');
+  const qrAccentPrimary = normalizeHexColor(theme.primary, isDarkMode ? '#0A84FF' : '#007AFF');
+  const qrAccentSecondary = normalizeHexColor(theme.gradient?.[1], qrAccentPrimary);
 
   const getProfileLink = () => {
     return `collegecommunity://profile/${user?.$id}`;
   };
 
-  const getQrImageUrl = () => `https://quickchart.io/qr?size=440&margin=2&ecLevel=Q&dark=0F172A&light=FFFFFF&text=${encodeURIComponent(getProfileLink())}`;
+  const getQrImageUrl = () => `https://quickchart.io/qr?size=440&margin=2&ecLevel=Q&dark=${encodeURIComponent(qrForegroundColor.replace('#', ''))}&light=${encodeURIComponent(qrBackgroundColor.replace('#', ''))}&text=${encodeURIComponent(getProfileLink())}`;
 
   const shareProfileText = async (fallbackUrl = null) => {
     const profileLink = getProfileLink();
@@ -122,7 +145,7 @@ const Profile = ({ navigation, route }) => {
             <Ionicons
               name={item.name}
               size={compact ? moderateScale(12) : moderateScale(18)}
-              color={index % 2 === 0 ? '#1E3A8A' : '#2563EB'}
+              color={index % 2 === 0 ? qrAccentPrimary : qrAccentSecondary}
             />
           </View>
         ))}
@@ -310,10 +333,6 @@ const Profile = ({ navigation, route }) => {
   }
 
   if (!user) {
-    const cardBackground = isDarkMode 
-      ? 'rgba(255, 255, 255, 0.08)' 
-      : 'rgba(255, 255, 255, 0.85)';
-
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
@@ -396,10 +415,6 @@ const Profile = ({ navigation, route }) => {
     }
   };
 
-  const cardBackground = isDarkMode 
-    ? 'rgba(255, 255, 255, 0.08)' 
-    : 'rgba(255, 255, 255, 0.85)';
-
   const renderInfoRow = ({ iconName, iconColor, label, value, valueNumberOfLines = 1, valueStyle }) => {
     if (!value) {
       return null;
@@ -433,7 +448,7 @@ const Profile = ({ navigation, route }) => {
 
   const renderAboutSection = () => (
     <View style={styles.sectionContainer}>
-      <Text style={[styles.sectionHeader, { color: theme.text }]}>{t('profile.about')}</Text>
+      <Text style={[styles.sectionHeader, isRTL && styles.sectionHeaderRtl, { color: theme.text }]}>{t('profile.about')}</Text>
       <GlassContainer
         style={styles.infoCard}
         borderRadius={borderRadius.lg}
@@ -559,7 +574,7 @@ const Profile = ({ navigation, route }) => {
   const renderListHeader = () => (
     <>
       <View style={styles.profileHeader}>
-        <View style={styles.headerRightActions}>
+        <View style={[styles.headerRightActions, isRTL && styles.headerRightActionsRtl]}>
           <GlassIconButton
             size={moderateScale(40)}
             style={styles.headerActionButton}
@@ -587,7 +602,7 @@ const Profile = ({ navigation, route }) => {
             </View>
           </LinearGradient>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <View style={[styles.nameRow, isRTL && styles.nameRowRtl]}>
           <Text style={[styles.name, { fontSize: fontSize(22), color: isDarkMode ? '#FFFFFF' : '#1C1C1E' }]}>{userProfile.name}</Text>
           {isMeRep && <RepBadge size="medium" colors={theme} label={t('repVoting.repLabel')} />}
         </View>
@@ -604,7 +619,9 @@ const Profile = ({ navigation, route }) => {
             onPress={() => navigation.navigate('FollowList', { 
               userId: user?.$id, 
               initialTab: 'followers',
-              userName: user?.name 
+              userName: user?.name,
+              followersCount: userProfile.stats.followers,
+              followingCount: userProfile.stats.following,
             })}
           >
             <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.followers}</Text>
@@ -617,7 +634,9 @@ const Profile = ({ navigation, route }) => {
             onPress={() => navigation.navigate('FollowList', { 
               userId: user?.$id, 
               initialTab: 'following',
-              userName: user?.name 
+              userName: user?.name,
+              followersCount: userProfile.stats.followers,
+              followingCount: userProfile.stats.following,
             })}
           >
             <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.following}</Text>
@@ -628,14 +647,20 @@ const Profile = ({ navigation, route }) => {
       <View style={styles.contentSection}>
         {renderAboutSection()}
         <View style={styles.sectionContainer}>
-          <Text style={[styles.sectionHeader, { color: theme.text }]}>{t('profile.myPosts')}</Text>
+          <Text style={[styles.sectionHeader, isRTL && styles.sectionHeaderRtl, { color: theme.text }]}>{t('profile.myPosts')}</Text>
         </View>
       </View>
     </>
   );
 
+  const postsListState = getAsyncCollectionState({
+    isLoading: loadingPosts,
+    error: postsError,
+    itemCount: userPosts?.length || 0,
+  });
+
   const renderEmptyComponent = () => {
-    if (loadingPosts) {
+    if (postsListState === 'loading') {
       return (
         <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
           <GlassContainer style={styles.emptyCard} borderRadius={borderRadius.lg}>
@@ -647,18 +672,19 @@ const Profile = ({ navigation, route }) => {
         </View>
       );
     }
-    if (postsError) {
+    if (postsListState === 'error') {
       return (
         <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
-          <GlassContainer style={styles.emptyCard} borderRadius={borderRadius.lg}>
-            <Ionicons name="alert-circle-outline" size={moderateScale(40)} color={theme.error} />
-            <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
-              {t('common.error')}
-            </Text>
-            <TouchableOpacity onPress={loadUserPosts} style={styles.retryButton}>
-              <Text style={[styles.retryButtonText, { color: theme.primary }]}>{t('common.retry')}</Text>
-            </TouchableOpacity>
-          </GlassContainer>
+          <UnifiedEmptyState
+            iconName="alert-circle-outline"
+            title={t('error.title')}
+            description={postsError || t('errors.genericError')}
+            actionLabel={t('common.retry')}
+            actionIconName="refresh-outline"
+            onAction={() => loadUserPosts(false)}
+            compact
+            style={styles.emptyCard}
+          />
         </View>
       );
     }
@@ -683,7 +709,7 @@ const Profile = ({ navigation, route }) => {
           data={userPosts || []}
           ListHeaderComponent={renderListHeader}
           ListEmptyComponent={renderEmptyComponent}
-          renderItem={({ item: post, index }) => (
+          renderItem={({ item: post }) => (
             <View style={styles.contentSection}>
               <PostCard
                 post={{
@@ -733,7 +759,7 @@ const Profile = ({ navigation, route }) => {
           activeOpacity={1}
           onPress={() => setShowQRModal(false)}>
           <View style={[styles.qrModalContent, { backgroundColor: isDarkMode ? '#2a2a40' : '#FFFFFF' }]}>
-            <View style={styles.qrModalHeader}>
+            <View style={[styles.qrModalHeader, isRTL && styles.qrModalHeaderRtl]}>
               <View style={styles.qrModalHeaderSpacer} />
               <TouchableOpacity onPress={() => setShowQRModal(false)}>
                 <Ionicons name="close" size={moderateScale(24)} color={theme.textSecondary} />
@@ -742,9 +768,6 @@ const Profile = ({ navigation, route }) => {
             <View style={styles.qrCodeContainer}>
               {renderQrDecorativeFrame({ compact: true })}
             </View>
-            <Text style={[styles.qrModalHint, { color: theme.textSecondary }]}>
-              {t('profile.qrHint')}
-            </Text>
             <TouchableOpacity
               style={[styles.shareButton, { backgroundColor: theme.primary }]}
               onPress={handleShareQr}>
@@ -825,11 +848,14 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: hp(6) }, 
   profileHeader: { alignItems: 'center', paddingHorizontal: wp(5), marginBottom: spacing.md, position: 'relative' }, 
   headerRightActions: { position: 'absolute', top: spacing.md, right: wp(5), zIndex: 10, flexDirection: 'row', gap: spacing.xs },
+  headerRightActionsRtl: { right: 'auto', left: wp(5), flexDirection: 'row-reverse' },
   headerActionButton: { justifyContent: 'center', alignItems: 'center' }, 
   avatarContainer: { marginBottom: spacing.sm, marginTop: moderateScale(50) }, 
   avatarBorder: { width: moderateScale(110), height: moderateScale(110), borderRadius: moderateScale(55), padding: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 4 }, 
   avatarInner: { width: moderateScale(104), height: moderateScale(104), borderRadius: moderateScale(52), padding: 3 }, 
   avatar: { width: moderateScale(98), height: moderateScale(98), borderRadius: moderateScale(49) }, 
+  nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  nameRowRtl: { flexDirection: 'row-reverse' },
   name: { fontWeight: '700', marginBottom: spacing.xs / 2, textAlign: 'center', textShadowColor: 'rgba(0, 0, 0, 0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }, 
   bio: { textAlign: 'center', marginBottom: spacing.md, lineHeight: fontSize(18), paddingHorizontal: wp(5) }, 
   statsContainer: { 
@@ -853,6 +879,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     marginTop: spacing.xs,
   }, 
+  sectionHeaderRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   infoCard: { 
     padding: spacing.md,
     overflow: 'hidden',
@@ -948,6 +978,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     marginBottom: spacing.md,
+  },
+  qrModalHeaderRtl: {
+    flexDirection: 'row-reverse',
   },
   qrModalHeaderSpacer: {
     flex: 1,

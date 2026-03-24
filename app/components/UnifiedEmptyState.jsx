@@ -28,6 +28,8 @@ const UnifiedEmptyState = ({
         ]}
       >
         <View
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
           style={[
             styles.iconContainer,
             {
@@ -35,7 +37,7 @@ const UnifiedEmptyState = ({
             },
           ]}
         >
-          <Ionicons name={iconName} size={moderateScale(compact ? 36 : 48)} color={theme.primary} />
+          <Ionicons accessible={false} name={iconName} size={moderateScale(compact ? 36 : 48)} color={theme.primary} />
         </View>
 
         <Text style={[styles.title, { color: theme.text }]}>{title}</Text>

@@ -17,7 +17,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import telemetry from '../utils/telemetry';
-import { moderateScale, fontSize } from '../utils/responsive';
+import { moderateScale } from '../utils/responsive';
 import CustomAlert from '../components/CustomAlert';
 import { uploadImage } from '../../services/imgbbService';
 import { createReply, getRepliesByPost, updateReply, deleteReply, markReplyAsAccepted, unmarkReplyAsAccepted } from '../../database/replies';
@@ -142,6 +142,15 @@ const PostDetails = ({ navigation, route }) => {
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
+      const updatedPost = route?.params?.updatedPost;
+      if (updatedPost?.$id && updatedPost.$id === post?.$id) {
+        setPost((prevPost) => ({
+          ...(prevPost || {}),
+          ...updatedPost,
+        }));
+        navigation.setParams({ updatedPost: undefined });
+      }
+
       if (!post?.$id) return;
       dismissPresentedNotificationsByTarget({ postId: post.$id }).catch(() => {});
       if (user?.$id) {
@@ -150,7 +159,7 @@ const PostDetails = ({ navigation, route }) => {
     });
 
     return unsubscribe;
-  }, [navigation, post?.$id, user?.$id]);
+  }, [navigation, post?.$id, route?.params?.updatedPost, user?.$id]);
 
 
 
@@ -855,17 +864,41 @@ const PostDetails = ({ navigation, route }) => {
           contentContainerStyle={[styles.scrollContent, contentStyle]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          stickyHeaderIndices={[0]}
         >
-          <View style={[styles.repliesSection, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : '#F9FAFB' }]}>
-            <View style={styles.repliesSectionHeader}>
+          <View style={[styles.repliesStickyHeader, { backgroundColor: theme.background }]}>
+            <View
+              style={[
+                styles.repliesSectionHeader,
+                styles.repliesStickyHeaderCard,
+                {
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : '#F9FAFB',
+                  borderColor: theme.border,
+                },
+              ]}
+            >
               <Ionicons name="chatbubbles-outline" size={moderateScale(22)} color={theme.text} />
-              <Text style={[styles.repliesSectionTitle, { color: theme.text }]}>
-                {t('post.repliesCount').replace('{count}', replies.length.toString())}
-              </Text>
+              <View style={styles.repliesHeaderTextBlock}>
+                <Text style={[styles.repliesSectionTitle, { color: theme.text }]}>
+                  {t('post.repliesCount').replace('{count}', replies.length.toString())}
+                </Text>
+                {replies.length > 1 && (
+                  <Text style={[styles.repliesSortSummary, { color: theme.textSecondary }]}>
+                    {replySortOrder === 'newest' ? t('post.sortNewest') : t('post.sortTop')}
+                  </Text>
+                )}
+              </View>
               {replies.length > 1 && (
                 <TouchableOpacity
                   onPress={() => setReplySortOrder(prev => prev === 'top' ? 'newest' : 'top')}
-                  style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: moderateScale(4) }}
+                  style={[
+                    styles.replySortButton,
+                    {
+                      marginLeft: 'auto',
+                      backgroundColor: isDarkMode ? 'rgba(102,126,234,0.14)' : 'rgba(79,70,229,0.08)',
+                      borderColor: isDarkMode ? 'rgba(102,126,234,0.28)' : 'rgba(79,70,229,0.18)',
+                    },
+                  ]}
                   activeOpacity={0.7}
                   accessibilityRole="button"
                   accessibilityLabel={replySortOrder === 'newest' ? t('post.sortNewest') : t('post.sortTop')}
@@ -876,12 +909,15 @@ const PostDetails = ({ navigation, route }) => {
                     size={moderateScale(16)}
                     color={theme.primary}
                   />
-                  <Text style={{ color: theme.primary, fontSize: fontSize(13) }}>
+                  <Text style={[styles.replySortButtonText, { color: theme.primary }]}>
                     {replySortOrder === 'newest' ? (t('post.sortNewest') || 'Newest') : (t('post.sortTop') || 'Top')}
                   </Text>
                 </TouchableOpacity>
               )}
             </View>
+          </View>
+
+          <View style={[styles.repliesSection, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : '#F9FAFB' }]}>
 
             {isLoadingReplies ? (
               <View style={styles.loadingContainer}>

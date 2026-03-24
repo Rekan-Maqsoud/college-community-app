@@ -25,7 +25,7 @@ const STAGES = [
 ];
 
 const StageFilter = ({ selectedStage = 'all', onStageChange, visible = false, onClose }) => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme } = useAppSettings();
 
   const handleStageSelect = (stageKey) => {
     onStageChange(stageKey);

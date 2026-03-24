@@ -66,6 +66,7 @@ export const useLectureChannelControllerActions = ({
   setPostingComment,
   setRefreshing,
   setJoinRequests,
+  setJoiningChannel,
   setSavingSettings,
   setSearchingManagerSuggestions: _setSearchingManagerSuggestions,
   setSelectedFile,
@@ -99,6 +100,7 @@ export const useLectureChannelControllerActions = ({
 
   const handleJoin = async () => {
     logLectureChannel('join:start', { channelId });
+    setJoiningChannel(true);
     try {
       await requestJoinLectureChannel(channelId);
       await loadData({ showLoading: false });
@@ -106,6 +108,8 @@ export const useLectureChannelControllerActions = ({
     } catch (error) {
       logLectureChannelError('join:error', error, { channelId });
       Alert.alert(t('common.error') || 'Error', t('common.somethingWentWrong') || 'Something went wrong. Please try again.');
+    } finally {
+      setJoiningChannel(false);
     }
   };
 

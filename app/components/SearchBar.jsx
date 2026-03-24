@@ -9,7 +9,6 @@ import {
   Keyboard,
   ActivityIndicator,
   StatusBar,
-  ScrollView,
   Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,8 +20,9 @@ import { searchUsers } from '../../database/users';
 import { searchPosts, enrichPostsWithUserData } from '../../database/posts';
 import { FlashList } from '@shopify/flash-list';
 import { GlassContainer, GlassInput, GlassIconButton } from './GlassComponents';
-import { moderateScale, wp, hp, fontSize, spacing } from '../utils/responsive';
+import { moderateScale, fontSize, spacing } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { SEARCH_DEBOUNCE_MS } from '../utils/uiStateHelpers';
 import UserCard from './UserCard';
 import PostCard from './PostCard';
 
@@ -48,6 +48,12 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
   });
   const searchTimeout = useRef(null);
   const filterIndicatorAnim = useRef(new Animated.Value(0)).current;
+  const clearPendingSearch = useCallback(() => {
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
+      searchTimeout.current = null;
+    }
+  }, []);
 
   const filterTabs = [
     { key: SEARCH_FILTERS.ALL, label: t('search.all') || 'All', icon: 'apps-outline' },
@@ -96,15 +102,13 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
 
   useEffect(() => {
     if (searchQuery.trim().length > 0) {
-      if (searchTimeout.current) {
-        clearTimeout(searchTimeout.current);
-      }
+      clearPendingSearch();
 
       setIsSearching(true);
       
       searchTimeout.current = setTimeout(() => {
         performSearch(searchQuery);
-      }, 1000);
+      }, SEARCH_DEBOUNCE_MS);
     } else {
       setResults({ users: [], posts: [] });
       setIsSearching(false);
@@ -115,7 +119,7 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
         clearTimeout(searchTimeout.current);
       }
     };
-  }, [searchQuery, performSearch]);
+  }, [clearPendingSearch, searchQuery, performSearch]);
 
   const performSearch = useCallback(async (query, filter = activeFilter) => {
     if (!query || query.trim().length === 0) {
@@ -174,9 +178,7 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
   };
 
   const handleSearchSubmit = () => {
-    if (searchTimeout.current) {
-      clearTimeout(searchTimeout.current);
-    }
+    clearPendingSearch();
     
     if (searchQuery.trim().length > 0) {
       setIsSearching(true);
@@ -185,8 +187,10 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
   };
 
   const handleClear = () => {
+    clearPendingSearch();
     setSearchQuery('');
     setResults({ users: [], posts: [] });
+    setIsSearching(false);
   };
 
   const handleOpenModal = () => {
@@ -197,10 +201,12 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
   };
 
   const handleCloseModal = () => {
+    clearPendingSearch();
     setIsModalVisible(false);
     setSearchQuery('');
     setResults({ users: [], posts: [] });
     setActiveFilter(SEARCH_FILTERS.ALL);
+    setIsSearching(false);
     Keyboard.dismiss();
   };
 

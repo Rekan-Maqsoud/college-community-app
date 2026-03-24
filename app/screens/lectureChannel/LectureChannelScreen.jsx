@@ -37,6 +37,7 @@ const LectureChannel = ({ route, navigation }) => {
         canViewAssetInfo: controller.actions.canViewAssetInfo,
         handleJoin: controller.actions.handleJoin,
         handleUpload: controller.actions.handleUpload,
+        joiningChannel: controller.state.joiningChannel,
       }}
       assetOps={assetOps}
       computed={controller.computed}

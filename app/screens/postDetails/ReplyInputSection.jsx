@@ -9,13 +9,17 @@ import {
   ActivityIndicator,
   Animated,
   Keyboard,
+  Platform,
   StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { postDetailsStyles as styles } from './styles';
 import { getFriends, searchUsers } from '../../../database/users';
-import { moderateScale, fontSize, spacing } from '../../utils/responsive';
+import { moderateScale, fontSize, spacing, isSmallDevice } from '../../utils/responsive';
 import { GlassInput } from '../../components/GlassComponents';
+import ProfilePicture from '../../components/ProfilePicture';
+import { useAppSettings } from '../../context/AppSettingsContext';
 
 const ReplyInputSection = ({
   editingReply,
@@ -44,6 +48,8 @@ const ReplyInputSection = ({
   currentUserId,
   inputRef,
 }) => {
+  const insets = useSafeAreaInsets();
+  const { isRTL } = useAppSettings();
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionStartIndex, setMentionStartIndex] = useState(-1);
@@ -162,6 +168,19 @@ const ReplyInputSection = ({
   };
 
   const replyingToName = replyingTo?.userData?.fullName || replyingTo?.userData?.name || t('common.user');
+  const attachmentCount = replyImages.length + replyLinks.length;
+  const canSend = replyText.trim().length > 0 && !isSubmitting;
+  const compactComposer = isSmallDevice();
+  const bottomPadding = Platform.OS === 'android'
+    ? Math.max(insets.bottom + spacing.md, spacing.lg)
+    : Math.max(insets.bottom, spacing.xs);
+  const sendIconName = editingReply ? 'checkmark' : (isRTL ? 'arrow-back' : 'send');
+  const composerButtonSize = moderateScale(compactComposer ? 36 : 40);
+  const composerButtonRadius = moderateScale(compactComposer ? 13 : 15);
+  const idleButtonBackground = isDarkMode ? 'rgba(59,130,246,0.20)' : 'rgba(59,130,246,0.12)';
+  const activeButtonBackground = isDarkMode ? 'rgba(59,130,246,0.86)' : theme.primary;
+  const inputSurfaceBackground = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.76)';
+  const inputSurfaceBorderColor = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.58)';
 
   const openLinksSection = () => {
     if (!showLinksSection) {
@@ -220,7 +239,15 @@ const ReplyInputSection = ({
   ];
 
   return (
-    <View style={[styles.inputSection, { backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF', borderTopColor: theme.border }]}>
+    <View
+      style={[
+        styles.inputSection,
+        {
+          backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF',
+          borderTopColor: theme.border,
+          paddingBottom: bottomPadding,
+        },
+      ]}>
       {editingReply && (
         <View style={styles.editingBanner}>
           <Text style={styles.editingBannerText}>{t('post.editingReply')}</Text>
@@ -259,7 +286,7 @@ const ReplyInputSection = ({
                 name={suggestion.displayName}
                 size={32}
               />
-              <View style={mentionStyles.suggestionInfo}>
+              <View style={[mentionStyles.suggestionInfo, isRTL && mentionStyles.suggestionInfoRtl]}>
                 <Text style={[mentionStyles.suggestionName, { color: theme.text }]}>
                   {suggestion.displayName}
                 </Text>
@@ -273,28 +300,6 @@ const ReplyInputSection = ({
           ))}
         </View>
       )}
-
-      <GlassInput focused={false}>
-        <TextInput
-          ref={inputRef}
-          style={[
-            styles.replyTextInput,
-            localStyles.replyTextInput,
-            {
-              backgroundColor: 'transparent',
-              color: theme.text,
-              borderColor: 'transparent',
-            },
-          ]}
-          placeholder={t('post.writeReply')}
-          placeholderTextColor={theme.textSecondary}
-          value={replyText}
-          onChangeText={handleTextChange}
-          onFocus={() => setShowActionSheet(false)}
-          multiline
-          maxLength={2000}
-        />
-      </GlassInput>
 
       {replyImages.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagePreviewScroll}>
@@ -312,7 +317,7 @@ const ReplyInputSection = ({
       {showLinksSection && (
         <View style={styles.linksSection}>
           {replyLinks.map((link, index) => (
-            <View key={index} style={[styles.linkChip, { backgroundColor: isDarkMode ? 'rgba(59,130,246,0.2)' : 'rgba(59,130,246,0.1)' }]}>
+            <View key={index} style={[styles.linkChip, isRTL && localStyles.linkChipRtl, { backgroundColor: isDarkMode ? 'rgba(59,130,246,0.2)' : 'rgba(59,130,246,0.1)' }]}>
               <Ionicons name="link-outline" size={14} color="#3B82F6" />
               <Text style={styles.linkChipText} numberOfLines={1}>{link}</Text>
               <TouchableOpacity onPress={() => onRemoveLink(index)}>
@@ -344,60 +349,120 @@ const ReplyInputSection = ({
         </View>
       )}
 
-      <View style={localStyles.mainInputRow}>
-        <TouchableOpacity
-          style={[
-            localStyles.plusButton,
-            {
-              backgroundColor: showActionSheet ? theme.primary : (isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'),
-            },
-          ]}
-          onPress={() => {
-            Keyboard.dismiss();
-            setShowActionSheet((prev) => !prev);
-          }}
-          activeOpacity={0.7}
-        >
-          <Animated.View
-            style={{
-              transform: [
-                {
-                  rotate: actionSheetAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0deg', '45deg'],
-                  }),
-                },
-              ],
+      <View style={localStyles.composerShell}>
+        <View style={[localStyles.composerRow, isRTL && localStyles.composerRowRtl]}>
+          <TouchableOpacity
+            style={[
+              localStyles.composerIconButton,
+              {
+                width: composerButtonSize,
+                height: composerButtonSize,
+                minWidth: composerButtonSize,
+                minHeight: composerButtonSize,
+                borderRadius: composerButtonRadius,
+                backgroundColor: showActionSheet ? activeButtonBackground : idleButtonBackground,
+              },
+            ]}
+            onPress={() => {
+              Keyboard.dismiss();
+              setShowActionSheet((prev) => !prev);
             }}
+            activeOpacity={0.7}
           >
-            <Ionicons name="add" size={moderateScale(22)} color={showActionSheet ? '#FFFFFF' : theme.primary} />
-          </Animated.View>
-          {(replyImages.length > 0 || replyLinks.length > 0) && (
-            <View style={localStyles.inlineBadge}>
-              <Text style={localStyles.inlineBadgeText}>{replyImages.length + replyLinks.length}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+            <Animated.View
+              style={{
+                transform: [
+                  {
+                    rotate: actionSheetAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0deg', '45deg'],
+                    }),
+                  },
+                ],
+              }}
+            >
+              <Ionicons
+                name="add"
+                size={moderateScale(compactComposer ? 19 : 20)}
+                color={showActionSheet ? '#FFFFFF' : theme.primary}
+              />
+            </Animated.View>
+            {attachmentCount > 0 && (
+              <View style={localStyles.inlineBadge}>
+                <Text style={localStyles.inlineBadgeText}>{attachmentCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            localStyles.sendButton,
-            {
-              backgroundColor: replyText.trim()
-                ? '#3B82F6'
-                : (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
-            },
-          ]}
-          onPress={onSubmit}
-          disabled={!replyText.trim() || isSubmitting}
-          activeOpacity={0.8}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Ionicons name={editingReply ? 'checkmark' : 'send'} size={moderateScale(18)} color={replyText.trim() ? '#FFFFFF' : theme.textSecondary} />
-          )}
-        </TouchableOpacity>
+          <View
+            style={[
+              localStyles.textInputColumn,
+              {
+                backgroundColor: inputSurfaceBackground,
+                borderColor: inputSurfaceBorderColor,
+              },
+            ]}
+          >
+            <TextInput
+              ref={inputRef}
+              style={[
+                styles.replyTextInput,
+                localStyles.replyTextInput,
+                {
+                  backgroundColor: 'transparent',
+                  color: theme.text,
+                  borderColor: 'transparent',
+                  textAlign: isRTL ? 'right' : 'left',
+                  writingDirection: isRTL ? 'rtl' : 'ltr',
+                },
+              ]}
+              placeholder={t('post.writeReply')}
+              placeholderTextColor={theme.textSecondary}
+              value={replyText}
+              onChangeText={handleTextChange}
+              onFocus={() => setShowActionSheet(false)}
+              multiline
+              maxLength={2000}
+            />
+            <View style={[localStyles.composerMetaRow, isRTL && localStyles.composerMetaRowRtl]}>
+              <Text style={[localStyles.composerMetaText, { color: theme.textSecondary }]}>
+                {attachmentCount > 0
+                  ? t('post.images') + ` ${attachmentCount}`
+                  : t('post.reply')}
+              </Text>
+              <Text style={[localStyles.composerMetaText, { color: theme.textSecondary }]}>
+                {replyText.length}/2000
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={[
+              localStyles.sendButton,
+              {
+                width: composerButtonSize,
+                height: composerButtonSize,
+                minWidth: composerButtonSize,
+                minHeight: composerButtonSize,
+                borderRadius: composerButtonRadius,
+                backgroundColor: canSend ? activeButtonBackground : idleButtonBackground,
+              },
+            ]}
+            onPress={onSubmit}
+            disabled={!canSend}
+            activeOpacity={0.8}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons
+                name={sendIconName}
+                size={moderateScale(18)}
+                color={canSend ? '#FFFFFF' : theme.textSecondary}
+              />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {showActionSheet && (
@@ -472,6 +537,11 @@ const mentionStyles = StyleSheet.create({
     marginLeft: 10,
     flex: 1,
   },
+  suggestionInfoRtl: {
+    marginLeft: 0,
+    marginRight: 10,
+    alignItems: 'flex-end',
+  },
   suggestionName: {
     fontSize: 14,
     fontWeight: '500',
@@ -484,21 +554,62 @@ const mentionStyles = StyleSheet.create({
 });
 
 const localStyles = StyleSheet.create({
-  replyTextInput: {
-    borderWidth: 1,
-  },
-  mainInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  composerShell: {
     marginTop: spacing.sm,
   },
-  plusButton: {
-    width: moderateScale(42),
-    height: moderateScale(42),
-    borderRadius: moderateScale(21),
+  composerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  composerRowRtl: {
+    flexDirection: 'row-reverse',
+  },
+  composerIconButton: {
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(59,130,246,0.14)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  textInputColumn: {
+    flex: 1,
+    minHeight: moderateScale(56),
+    borderRadius: moderateScale(18),
+    borderWidth: 1,
+    paddingHorizontal: moderateScale(14),
+    paddingTop: moderateScale(8),
+    paddingBottom: moderateScale(6),
+  },
+  replyTextInput: {
+    borderWidth: 0,
+    flex: 1,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: moderateScale(4),
+    minHeight: moderateScale(34),
+    maxHeight: moderateScale(110),
+  },
+  composerMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: moderateScale(16),
+  },
+  composerMetaRowRtl: {
+    flexDirection: 'row-reverse',
+  },
+  composerMetaText: {
+    fontSize: fontSize(11),
+    fontWeight: '500',
+  },
+  linkChipRtl: {
+    flexDirection: 'row-reverse',
   },
   inlineBadge: {
     position: 'absolute',
@@ -518,15 +629,20 @@ const localStyles = StyleSheet.create({
     fontWeight: '700',
   },
   sendButton: {
-    width: moderateScale(42),
-    height: moderateScale(42),
-    borderRadius: moderateScale(21),
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(59,130,246,0.14)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 3,
   },
   actionSheet: {
     marginTop: spacing.sm,
     borderRadius: moderateScale(16),
+    borderWidth: 1,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },

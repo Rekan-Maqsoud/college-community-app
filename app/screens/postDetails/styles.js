@@ -41,15 +41,44 @@ export const postDetailsStyles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     padding: spacing.md,
   },
+  repliesStickyHeader: {
+    paddingBottom: spacing.sm,
+  },
+  repliesStickyHeaderCard: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+  },
   repliesSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.md,
     gap: spacing.sm,
   },
+  repliesHeaderTextBlock: {
+    gap: moderateScale(2),
+  },
   repliesSectionTitle: {
     fontSize: fontSize(17),
     fontWeight: '700',
+  },
+  repliesSortSummary: {
+    fontSize: fontSize(12),
+    fontWeight: '500',
+  },
+  replySortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(4),
+    borderRadius: moderateScale(14),
+    borderWidth: 1,
+    paddingHorizontal: moderateScale(10),
+    paddingVertical: moderateScale(7),
+  },
+  replySortButtonText: {
+    fontSize: fontSize(13),
+    fontWeight: '600',
   },
   loadingContainer: {
     alignItems: 'center',
@@ -138,7 +167,7 @@ export const postDetailsStyles = StyleSheet.create({
   replyTextInput: {
     borderRadius: moderateScale(12),
     paddingHorizontal: moderateScale(14),
-    paddingVertical: moderateScale(12),
+    paddingVertical: moderateScale(10),
     fontSize: fontSize(14),
     minHeight: moderateScale(44),
     maxHeight: moderateScale(120),

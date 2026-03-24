@@ -182,29 +182,47 @@ const SignIn = ({ navigation, route }) => {
       
       const completeUserData = await getCompleteUserData();
       
-      if (completeUserData) {
-        const academicChangesCount = getAcademicChangesCountFromProfileViews(completeUserData.profileViews);
-        const userData = {
-          $id: completeUserData.$id,
-          email: completeUserData.email,
-          fullName: completeUserData.name,
-          bio: completeUserData.bio || '',
-          profilePicture: completeUserData.profilePicture || '',
-          university: completeUserData.university || '',
-          college: completeUserData.major || '',
-          department: completeUserData.department || '',
-          stage: completeUserData.year || '',
-          postsCount: completeUserData.postsCount || 0,
-          followersCount: completeUserData.followersCount || 0,
-          followingCount: completeUserData.followingCount || 0,
-          isEmailVerified: completeUserData.emailVerification || false,
-          lastAcademicUpdate: completeUserData.lastAcademicUpdate || null,
-          academicChangesCount,
-        };
-        
-        await setUserData(userData);
+      if (!completeUserData) {
+        // Auth succeeded but no user document exists — this happens when account
+        // creation was started but never completed (e.g. cancelled OTP flow).
+        // Sign out so the stale session does not persist, then tell the user.
+        try { await signOut(); } catch (_) {}
+        signInTrace.finish({ success: false, meta: { reason: 'no_user_doc' } });
+        showAlert({
+          type: 'warning',
+          title: t('auth.incompleteRegistration'),
+          message: t('auth.incompleteRegistrationMessage'),
+          buttons: [
+            {
+              text: t('common.ok'),
+              style: 'primary',
+              onPress: () => navigation.navigate('SignUp', { preservedData: { email: email.trim().toLowerCase() } }),
+            },
+          ],
+        });
+        return;
       }
+
+      const academicChangesCount = getAcademicChangesCountFromProfileViews(completeUserData.profileViews);
+      const userData = {
+        $id: completeUserData.$id,
+        email: completeUserData.email,
+        fullName: completeUserData.name,
+        bio: completeUserData.bio || '',
+        profilePicture: completeUserData.profilePicture || '',
+        university: completeUserData.university || '',
+        college: completeUserData.major || '',
+        department: completeUserData.department || '',
+        stage: completeUserData.year || '',
+        postsCount: completeUserData.postsCount || 0,
+        followersCount: completeUserData.followersCount || 0,
+        followingCount: completeUserData.followingCount || 0,
+        isEmailVerified: completeUserData.emailVerification || false,
+        lastAcademicUpdate: completeUserData.lastAcademicUpdate || null,
+        academicChangesCount,
+      };
       
+      await setUserData(userData);
       signInTrace.finish({ success: true, meta: { reusedSession: false } });
       navigation.replace('MainTabs');
     } catch (error) {

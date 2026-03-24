@@ -34,10 +34,10 @@ import {
 import { useLectureChannelControllerActions } from './useLectureChannelControllerActions';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
 
-const logLectureChannel = (event, payload = {}) => {
+const logLectureChannel = (event, _payload = {}) => {
 };
 
-const logLectureChannelError = (event, error, payload = {}) => {
+const logLectureChannelError = (event, error, _payload = {}) => {
 };
 
 export const useLectureChannelController = ({ channelId, navigation }) => {
@@ -52,6 +52,7 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showUploadComposer, setShowUploadComposer] = useState(false);
   const [showSettingsStats, setShowSettingsStats] = useState(false);
+  const [joiningChannel, setJoiningChannel] = useState(false);
 
   const [channel, setChannel] = useState(null);
   const [assets, setAssets] = useState([]);
@@ -769,6 +770,7 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
     setPostingComment,
     setRefreshing,
     setJoinRequests,
+    setJoiningChannel,
     setSavingSettings,
     setSearchingManagerSuggestions,
     setSelectedFile,
@@ -864,6 +866,7 @@ export const useLectureChannelController = ({ channelId, navigation }) => {
       externalUrl,
       isDarkMode,
       joinRequests,
+      joiningChannel,
       linkedChatId,
       loading,
       managerError,

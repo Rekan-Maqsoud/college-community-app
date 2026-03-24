@@ -38,10 +38,6 @@ export const PostCardSkeleton = () => {
     ? 'rgba(255, 255, 255, 0.1)' 
     : 'rgba(0, 0, 0, 0.08)';
     
-  const cardBackground = isDarkMode 
-    ? 'rgba(255, 255, 255, 0.05)' 
-    : 'rgba(255, 255, 255, 0.85)';
-
   return (
     <GlassContainer style={styles.container} borderRadius={borderRadius.lg}>
       <View

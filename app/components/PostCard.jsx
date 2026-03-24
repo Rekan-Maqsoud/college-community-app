@@ -5,6 +5,7 @@ import {
   Image,
   TouchableOpacity,
   Share,
+  Linking,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { isPostBookmarked, togglePostBookmark } from '../utils/bookmarkService';
@@ -16,6 +17,7 @@ import { createRepost, requestPostReview, voteOnPostPoll } from '../../database/
 import { getUserById } from '../../database/users';
 import { moderateScale, getResponsiveSize } from '../utils/responsive';
 import { POST_COLORS, POST_ICONS } from '../constants/postConstants';
+import { detectTextDir, getPostBodyDir } from '../utils/textDirection';
 import {
   parsePollPayload,
   applyPollVote,
@@ -42,7 +44,6 @@ import {
 import telemetry from '../utils/telemetry';
 
 
-
 const PostCard = ({ 
   post, 
   onUserPress,
@@ -60,7 +61,7 @@ const PostCard = ({
   compact = false,
 }) => {
   const navigation = useNavigation();
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlertHook();
   const [showMenu, setShowMenu] = useState(false);
@@ -87,6 +88,13 @@ const PostCard = ({
     setLikeCount(post.likeCount || 0);
   }, [post.likeCount]);
 
+
+  const appDir = isRTL ? 'rtl' : 'ltr';
+  const topicDir = useMemo(() => detectTextDir(post.topic, appDir), [post.topic, appDir]);
+  const textDir = useMemo(
+    () => getPostBodyDir({ topic: post.topic, text: post.text, fallbackDir: appDir }),
+    [post.topic, post.text, appDir]
+  );
 
   const postColor = POST_COLORS[post.postType] || '#6B7280';
   const postIcon = POST_ICONS[post.postType] || 'document-outline';
@@ -705,17 +713,31 @@ const PostCard = ({
 
       {/* Content */}
       <View style={[styles.content, compact && styles.contentCompact]}>
-        <Text style={[styles.topic, { color: theme.text }, compact && styles.topicCompact]} numberOfLines={compact ? 1 : 2} selectable>
+        <Text style={[styles.topic, { color: theme.text, textAlign: topicDir === 'rtl' ? 'right' : 'left', writingDirection: topicDir }, compact && styles.topicCompact]} numberOfLines={compact ? 1 : 2} selectable>
           {post.topic}
         </Text>
         {post.text && (
           <Text 
-            style={[styles.text, compact && styles.textCompact, { color: theme.textSecondary }]}
+            style={[styles.text, compact && styles.textCompact, { color: theme.textSecondary, textAlign: textDir === 'rtl' ? 'right' : 'left', writingDirection: textDir }]}
             numberOfLines={compact ? 2 : (isExpanded ? undefined : 3)}
             selectable
           >
             {post.text}
           </Text>
+        )}
+
+        {((post.text && post.text.length > 150) || 
+          (post.links && post.links.length > 2) || 
+          (post.tags && post.tags.length > 4)) && !compact && (
+          <TouchableOpacity 
+            onPress={() => setIsExpanded(!isExpanded)}
+            style={styles.seeMoreButton}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.seeMoreText, { color: theme.primary || '#3B82F6' }]}>
+              {isExpanded ? t('common.seeLess') : t('common.seeMore')}
+            </Text>
+          </TouchableOpacity>
         )}
 
         {renderPollBlock()}
@@ -747,7 +769,7 @@ const PostCard = ({
         )}
 
         {post.tags && post.tags.length > 0 && (
-          <View style={[styles.tagsContainer, compact && styles.tagsContainerCompact]}>
+          <View style={[styles.tagsContainer, compact && styles.tagsContainerCompact, isRTL && { flexDirection: 'row-reverse' }]}>
             {(isExpanded ? post.tags : post.tags.slice(0, compact ? 2 : 4)).map((tag, index) => (
               <TouchableOpacity 
                 key={index} 
@@ -761,25 +783,11 @@ const PostCard = ({
           </View>
         )}
 
-        {((post.text && post.text.length > 150) || 
-          (post.links && post.links.length > 2) || 
-          (post.tags && post.tags.length > 4)) && !compact && (
-          <TouchableOpacity 
-            onPress={() => setIsExpanded(!isExpanded)}
-            style={styles.seeMoreButton}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.seeMoreText, { color: theme.primary || '#3B82F6' }]}>
-              {isExpanded ? t('common.seeLess') : t('common.seeMore')}
-            </Text>
-          </TouchableOpacity>
-        )}
-
         {showImages && renderCompactOrFullImages()}
       </View>
 
       {/* Footer */}
-      <View style={[styles.footer, { borderTopColor: theme.border }, compact && styles.footerCompact]}>
+      <View style={[styles.footer, { borderTopColor: theme.border }, compact && styles.footerCompact, isRTL && { flexDirection: 'row-reverse' }]}>
         <View style={[styles.footerLeft, compact && styles.footerLeftCompact]}>
           <TouchableOpacity 
             style={[styles.actionButton, compact && styles.actionButtonCompact]}
@@ -788,6 +796,9 @@ const PostCard = ({
             delayLongPress={300}
             activeOpacity={0.7}
             disabled={isLiking}
+            accessibilityRole="button"
+            accessibilityLabel={liked ? t('post.unlikePost') : t('post.likePost')}
+            accessibilityHint={t('post.likeHint')}
           >
             <Ionicons 
               name={liked ? "heart" : "heart-outline"} 

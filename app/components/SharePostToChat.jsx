@@ -74,7 +74,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
     } finally {
       setLoading(false);
     }
-  }, [user?.$id, user?.department, user?.stage]);
+  }, [user?.$id, user?.department, user?.stage, user?.year]);
 
   useEffect(() => {
     if (visible) {
@@ -88,7 +88,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
       return undefined;
     }
 
-    const showSub = Keyboard.addListener('keyboardDidShow', (event) => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => {
 
     });
 

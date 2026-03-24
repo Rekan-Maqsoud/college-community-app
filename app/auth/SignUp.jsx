@@ -278,6 +278,28 @@ const SignUp = ({ navigation, route }) => {
 
   const passwordStrength = getPasswordStrength(password);
   const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
+  const passwordRequirementItems = [
+    {
+      key: 'length',
+      label: t('auth.passwordRequirementLength'),
+      met: password.length >= 8,
+    },
+    {
+      key: 'letters',
+      label: t('auth.passwordRequirementLetters'),
+      met: /[a-zA-Z]/.test(password),
+    },
+    {
+      key: 'numbers',
+      label: t('auth.passwordRequirementNumbers'),
+      met: /[0-9]/.test(password),
+    },
+    {
+      key: 'symbols',
+      label: t('auth.passwordRequirementSymbols'),
+      met: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    },
+  ];
 
   const stepOneFieldKeys = ['fullName', 'email', 'age', 'password', 'confirmPassword'];
   const stepTwoFieldKeys = [
@@ -1173,6 +1195,38 @@ const SignUp = ({ navigation, route }) => {
                         <Text style={[styles.fieldErrorText, { color: theme.danger }]}>{fieldErrors.password}</Text>
                       )}
 
+                      <View style={styles.passwordRequirementsContainer}>
+                        <Text
+                          style={[
+                            styles.passwordRequirementsTitle,
+                            {
+                              color: theme.textSecondary,
+                              fontSize: fontSize(12),
+                            },
+                          ]}>
+                          {t('auth.passwordRequirements')}
+                        </Text>
+                        {passwordRequirementItems.map((requirement) => (
+                          <View key={requirement.key} style={styles.passwordRequirementRow}>
+                            <Ionicons
+                              name={requirement.met ? 'checkmark-circle' : 'ellipse-outline'}
+                              size={moderateScale(16)}
+                              color={requirement.met ? theme.success : theme.textSecondary}
+                            />
+                            <Text
+                              style={[
+                                styles.passwordRequirementText,
+                                {
+                                  color: requirement.met ? theme.success : theme.textSecondary,
+                                  fontSize: fontSize(12),
+                                },
+                              ]}>
+                              {requirement.label}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+
                       {password.length > 0 && (
                         <View style={styles.passwordStrengthContainer}>
                           <View style={styles.strengthBarContainer}>
@@ -1634,13 +1688,13 @@ const SignUp = ({ navigation, route }) => {
                 </>
               )}
 
+              {!!submitError && (
+                <Text style={[styles.submitErrorText, { color: theme.danger }]}>{submitError}</Text>
+              )}
               <View style={[
                 styles.navigationButtonsRow,
                 isCompactPhone && styles.navigationButtonsRowCompact,
               ]}>
-                {!!submitError && (
-                  <Text style={[styles.submitErrorText, { color: theme.danger }]}>{submitError}</Text>
-                )}
                 {currentStep > 1 && (
                   <TouchableOpacity
                     style={[
@@ -1916,6 +1970,22 @@ const styles = StyleSheet.create({
   },
   passwordStrengthContainer: {
     marginTop: spacing.sm,
+  },
+  passwordRequirementsContainer: {
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+  },
+  passwordRequirementsTitle: {
+    fontWeight: '600',
+  },
+  passwordRequirementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  passwordRequirementText: {
+    flex: 1,
+    fontWeight: '500',
   },
   strengthBarContainer: {
     height: moderateScale(4),

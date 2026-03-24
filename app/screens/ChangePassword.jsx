@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  BackHandler,
   View,
   Text,
   TextInput,
@@ -39,10 +40,14 @@ const ChangePassword = ({ navigation }) => {
   const [newPasswordFocused, setNewPasswordFocused] = useState(false);
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const discardConfirmedRef = useRef(false);
   
   const { t, theme, isDarkMode } = useAppSettings();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { formStyle } = useLayout();
+  const backgroundGradientColors = isDarkMode
+    ? [theme.background, theme.backgroundSecondary, theme.gradient[0]]
+    : [theme.gradientLight[0], theme.gradientLight[1], theme.backgroundSecondary];
 
   const getPasswordStrength = (pwd) => {
     if (!pwd || pwd.length < 8) return 'weak';
@@ -60,6 +65,29 @@ const ChangePassword = ({ navigation }) => {
 
   const passwordStrength = getPasswordStrength(newPassword);
   const passwordsMatch = newPassword === confirmPassword && confirmPassword.length > 0;
+  const hasUnsavedChanges = currentPassword.length > 0 || newPassword.length > 0 || confirmPassword.length > 0;
+  const passwordRequirementItems = [
+    {
+      key: 'length',
+      label: t('auth.passwordRequirementLength'),
+      met: newPassword.length >= 8,
+    },
+    {
+      key: 'letters',
+      label: t('auth.passwordRequirementLetters'),
+      met: /[a-zA-Z]/.test(newPassword),
+    },
+    {
+      key: 'numbers',
+      label: t('auth.passwordRequirementNumbers'),
+      met: /[0-9]/.test(newPassword),
+    },
+    {
+      key: 'symbols',
+      label: t('auth.passwordRequirementSymbols'),
+      met: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword),
+    },
+  ];
 
   const getStrengthColor = () => {
     switch (passwordStrength) {
@@ -88,6 +116,73 @@ const ChangePassword = ({ navigation }) => {
     );
   };
 
+  const confirmDiscardChanges = useCallback((onDiscard) => {
+    if (!hasUnsavedChanges || isLoading) {
+      onDiscard();
+      return;
+    }
+
+    showAlert({
+      type: 'warning',
+      title: t('settings.discardPasswordChangesTitle'),
+      message: t('settings.discardPasswordChangesMessage'),
+      buttons: [
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('post.discard'),
+          style: 'destructive',
+          onPress: () => {
+            discardConfirmedRef.current = true;
+            onDiscard();
+          },
+        },
+      ],
+    });
+  }, [hasUnsavedChanges, isLoading, showAlert, t]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
+      if (isLoading) {
+        event.preventDefault();
+        return;
+      }
+
+      if (!hasUnsavedChanges || discardConfirmedRef.current) {
+        discardConfirmedRef.current = false;
+        return;
+      }
+
+      event.preventDefault();
+      confirmDiscardChanges(() => navigation.dispatch(event.data.action));
+    });
+
+    return unsubscribe;
+  }, [confirmDiscardChanges, hasUnsavedChanges, isLoading, navigation]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return undefined;
+    }
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (isLoading) {
+        return true;
+      }
+
+      if (!hasUnsavedChanges) {
+        return false;
+      }
+
+      confirmDiscardChanges(() => navigation.goBack());
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [confirmDiscardChanges, hasUnsavedChanges, isLoading, navigation]);
+
   const handleChangePassword = async () => {
     if (!isFormValid()) {
       showAlert({ type: 'error', title: t('common.error'), message: t('settings.fillAllPasswordFields') || 'Please fill all fields correctly' });
@@ -106,7 +201,10 @@ const ChangePassword = ({ navigation }) => {
         buttons: [
           {
             text: t('common.ok') || 'OK',
-            onPress: () => navigation.goBack(),
+            onPress: () => {
+              discardConfirmedRef.current = true;
+              navigation.goBack();
+            },
           }
         ]
       });
@@ -132,10 +230,7 @@ const ChangePassword = ({ navigation }) => {
       />
       
       <LinearGradient
-        colors={isDarkMode 
-          ? ['#1a1a2e', '#16213e', '#0f3460'] 
-          : ['#667eea', '#764ba2', '#f093fb']
-        }
+        colors={backgroundGradientColors}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}>
@@ -151,7 +246,7 @@ const ChangePassword = ({ navigation }) => {
             
             <TouchableOpacity 
               style={styles.backButton}
-              onPress={() => navigation.goBack()}
+              onPress={() => confirmDiscardChanges(() => navigation.goBack())}
               activeOpacity={0.7}>
               <Ionicons 
                 name="arrow-back" 
@@ -248,6 +343,38 @@ const ChangePassword = ({ navigation }) => {
                   </TouchableOpacity>
                 </View>
               </GlassInput>
+
+              <View style={styles.passwordRequirementsContainer}>
+                <Text
+                  style={[
+                    styles.passwordRequirementsTitle,
+                    {
+                      color: theme.textSecondary,
+                      fontSize: fontSize(12),
+                    },
+                  ]}>
+                  {t('auth.passwordRequirements')}
+                </Text>
+                {passwordRequirementItems.map((requirement) => (
+                  <View key={requirement.key} style={styles.passwordRequirementRow}>
+                    <Ionicons
+                      name={requirement.met ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={moderateScale(16)}
+                      color={requirement.met ? theme.success : theme.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.passwordRequirementText,
+                        {
+                          color: requirement.met ? theme.success : theme.textSecondary,
+                          fontSize: fontSize(12),
+                        },
+                      ]}>
+                      {requirement.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
 
               {newPassword.length > 0 && (
                 <View style={styles.passwordStrengthContainer}>
@@ -444,6 +571,22 @@ const styles = StyleSheet.create({
   },
   passwordStrengthContainer: {
     marginTop: spacing.sm,
+  },
+  passwordRequirementsContainer: {
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+  },
+  passwordRequirementsTitle: {
+    fontWeight: '600',
+  },
+  passwordRequirementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  passwordRequirementText: {
+    flex: 1,
+    fontWeight: '500',
   },
   strengthBarContainer: {
     height: moderateScale(4),

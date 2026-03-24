@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text, 
@@ -10,19 +10,21 @@ import {
   Modal,
   ToastAndroid,
   Platform,
-  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
+import CustomAlert from '../../components/CustomAlert';
+import { useCustomAlert } from '../../hooks/useCustomAlert';
 import VoteCard from '../../components/VoteCard';
 import RepBadge from '../../components/RepBadge';
 import ProfilePicture from '../../components/ProfilePicture';
 import { wp, hp, fontSize, normalize, spacing } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
 import { FlashList } from '@shopify/flash-list';
+import { annotateRepCandidates, getRepVotingCountdownTone } from '../../utils/uiStateHelpers';
 import { getClassStudents } from '../../../database/users';
 import {
   getActiveElection,
@@ -43,6 +45,7 @@ import { castVote, getElectionResults } from '../../../database/repVotes';
 const RepVotingScreen = ({ navigation, route }) => {
   const { t, theme, isDarkMode } = useAppSettings();
   const { user } = useUser();
+  const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
 
   const department = route?.params?.department || user?.department;
@@ -231,9 +234,12 @@ const RepVotingScreen = ({ navigation, route }) => {
     if (Platform.OS === 'android') {
       ToastAndroid.show(message, ToastAndroid.SHORT);
     } else {
-      Alert.alert('', message);
+      showAlert({
+        type: 'info',
+        message,
+      });
     }
-  }, []);
+  }, [showAlert]);
 
   const formatRemaining = (ms) => {
     const total = Math.max(0, Math.floor(ms / 1000));
@@ -277,13 +283,16 @@ const RepVotingScreen = ({ navigation, route }) => {
   }, [election, classReps.length, showToast, t, navigation, department, stage]);
 
   // Merge students with vote counts
-  const allCandidatesWithInfo = students.map((student) => {
-    const voteInfo = results.candidates.find((c) => c.candidateId === student.$id);
-    return {
-      ...student,
-      voteCount: voteInfo?.voteCount || 0,
-    };
-  }).sort((a, b) => b.voteCount - a.voteCount);
+  const allCandidatesWithInfo = useMemo(() => annotateRepCandidates({
+    candidates: students.map((student) => {
+      const voteInfo = results.candidates.find((c) => c.candidateId === student.$id);
+      return {
+        ...student,
+        voteCount: voteInfo?.voteCount || 0,
+      };
+    }),
+    classReps,
+  }).sort((a, b) => b.voteCount - a.voteCount), [classReps, results.candidates, students]);
 
   const isCompleted = election?.status === ELECTION_STATUS.COMPLETED;
   const isInTiebreaker = election?.status === ELECTION_STATUS.TIEBREAKER;
@@ -291,9 +300,15 @@ const RepVotingScreen = ({ navigation, route }) => {
   const isActive = election?.status === ELECTION_STATUS.ACTIVE;
   const winner = election?.winner || null;
   const currentSeat = election?.seatNumber || routeSeatNumber || nextSeat || 1;
-  const tiebreakerCandidateIds = React.useMemo(() => (
+  const tiebreakerCandidateIds = useMemo(() => (
     isInTiebreaker ? getTiebreakerCandidates(election) : []
   ), [isInTiebreaker, election]);
+  const countdownTone = getRepVotingCountdownTone({ remainingMs: winnerCountdownMs });
+  const countdownColor = countdownTone === 'danger'
+    ? (theme.error || '#EF4444')
+    : countdownTone === 'warning'
+      ? (theme.warning || '#F59E0B')
+      : (theme.primary || theme.warning || '#F59E0B');
 
   // During tiebreaker, only show the two tied candidates
   const candidatesWithInfo = isInTiebreaker && tiebreakerCandidateIds.length > 0
@@ -330,7 +345,9 @@ const RepVotingScreen = ({ navigation, route }) => {
         voteCount={item.voteCount}
         isVotedByMe={results.myVote === item.$id}
         isLeading={item.$id === leadingId}
-        disabled={isVotingDisabled}
+        disabled={isVotingDisabled || item.isCurrentRep}
+        isCurrentRep={item.isCurrentRep}
+        currentRepLabel={t('repVoting.currentRepBadge')}
         isTiebreakerCandidate={isTiebreakerCandidate}
         onVote={(candidateId) => {
           if (isVotingDisabled) {
@@ -408,9 +425,9 @@ const RepVotingScreen = ({ navigation, route }) => {
       )}
 
       {!isCompleted && results.totalVotes > 0 && winnerCountdownMs > 0 && (
-        <View style={[styles.cooldownBanner, { backgroundColor: theme.warning + '15', borderColor: theme.warning + '40' }]}>
-          <Ionicons name="time-outline" size={fontSize(16)} color={theme.warning} />
-          <Text style={[styles.cooldownText, { color: theme.warning }]}>
+        <View style={[styles.cooldownBanner, { backgroundColor: countdownColor + '15', borderColor: countdownColor + '40' }]}>
+          <Ionicons name="time-outline" size={fontSize(16)} color={countdownColor} />
+          <Text style={[styles.cooldownText, { color: countdownColor }]}>
             {isInTiebreaker
               ? t('repVoting.tiebreakerCountdown').replace('{time}', formatRemaining(winnerCountdownMs))
               : t('repVoting.winnerCooldown').replace('{time}', formatRemaining(winnerCountdownMs))}
@@ -631,6 +648,15 @@ const RepVotingScreen = ({ navigation, route }) => {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[theme.primary]} tintColor={theme.primary} />
         }
+      />
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={hideAlert}
       />
     </View>
   );

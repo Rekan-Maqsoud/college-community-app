@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar, ActivityIndicator, Share, Modal, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, StatusBar, ActivityIndicator, Share, Modal, Linking } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -13,7 +13,6 @@ import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
 import RepBadge from '../components/RepBadge';
 import useRepDetection from '../hooks/useRepDetection';
-import UnifiedEmptyState from '../components/UnifiedEmptyState';
 import { ProfileSkeleton, PostCardSkeleton } from '../components/SkeletonLoader';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { getPostsByUser, togglePostLike } from '../../database/posts';
@@ -23,6 +22,7 @@ import { createPrivateChat } from '../../database/chatHelpers';
 import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { parseSocialLinksProfileViews } from '../utils/uiUxAuditHelpers';
 import useLayout from '../hooks/useLayout';
 import telemetry from '../utils/telemetry';
 import { useUserProfile } from '../hooks/useRealtimeSubscription';
@@ -188,14 +188,7 @@ const UserProfile = ({ route, navigation }) => {
         const fetchedUser = await getUserById(userId);
         
         // Parse socialLinks from profileViews field (stored as JSON string)
-        let socialLinksData = { links: null, visibility: 'everyone' };
-        if (fetchedUser.profileViews) {
-          try {
-            socialLinksData = JSON.parse(fetchedUser.profileViews);
-          } catch (_error) {
-            socialLinksData = { links: null, visibility: 'everyone' };
-          }
-        }
+        const socialLinksData = parseSocialLinksProfileViews(fetchedUser.profileViews);
         
         // Map the database fields to expected format
         const mappedUser = {
@@ -215,6 +208,7 @@ const UserProfile = ({ route, navigation }) => {
           followingCount: fetchedUser.followingCount || 0,
           socialLinks: socialLinksData.links || null,
           socialLinksVisibility: socialLinksData.visibility || 'everyone',
+          socialLinksParseFailed: socialLinksData.parseFailed,
         };
         
         setUserData(mappedUser);
@@ -238,6 +232,7 @@ const UserProfile = ({ route, navigation }) => {
             followingCount: 0,
             socialLinks: null,
             socialLinksVisibility: 'nobody',
+            socialLinksParseFailed: false,
           });
           setUserError(null);
           setIsDeletedProfile(true);
@@ -280,6 +275,19 @@ const UserProfile = ({ route, navigation }) => {
     const unsubscribe = navigation.addListener('focus', () => {
       const updatedPostId = route?.params?.updatedPostId;
       const updatedReplyCount = route?.params?.updatedReplyCount;
+      const updatedPost = route?.params?.updatedPost;
+      const paramsToClear = {};
+
+      if (updatedPost?.$id) {
+        setUserPosts((prevPosts) =>
+          prevPosts.map((currentPost) =>
+            currentPost.$id === updatedPost.$id
+              ? { ...currentPost, ...updatedPost }
+              : currentPost
+          )
+        );
+        paramsToClear.updatedPost = undefined;
+      }
       
       if (updatedPostId !== undefined && updatedReplyCount !== undefined) {
         // Update the specific post in the list
@@ -290,12 +298,16 @@ const UserProfile = ({ route, navigation }) => {
               : p
           )
         );
-        // Clear the params
-        navigation.setParams({ updatedPostId: undefined, updatedReplyCount: undefined });
+        paramsToClear.updatedPostId = undefined;
+        paramsToClear.updatedReplyCount = undefined;
+      }
+
+      if (Object.keys(paramsToClear).length > 0) {
+        navigation.setParams(paramsToClear);
       }
     });
     return unsubscribe;
-  }, [navigation, route?.params?.updatedPostId, route?.params?.updatedReplyCount]);
+  }, [navigation, route?.params?.updatedPost, route?.params?.updatedPostId, route?.params?.updatedReplyCount]);
 
   const handleFollowToggle = async () => {
     if (followLoading || !currentUser?.$id || !userId || currentUser.$id === userId) return;
@@ -537,10 +549,6 @@ const UserProfile = ({ route, navigation }) => {
     }
   };
 
-  const cardBackground = isDarkMode
-    ? 'rgba(255, 255, 255, 0.08)'
-    : 'rgba(255, 255, 255, 0.85)';
-
   const renderInfoRow = ({ iconName, iconColor, label, value, valueNumberOfLines = 1, valueStyle }) => {
     if (!value) {
       return null;
@@ -650,10 +658,10 @@ const UserProfile = ({ route, navigation }) => {
       </GlassContainer>
 
       {/* Social Links - respect visibility settings */}
-      {userData?.socialLinks &&
-        Object.values(userData.socialLinks).some((v) => v) &&
+      {((((userData?.socialLinks && Object.values(userData.socialLinks).some((value) => value)) &&
         (userData.socialLinksVisibility === 'everyone' ||
-          (userData.socialLinksVisibility === 'friends' && isFollowing)) && (
+          (userData.socialLinksVisibility === 'friends' && isFollowing))) ||
+        userData?.socialLinksParseFailed)) && (
           <GlassContainer
             style={[styles.infoCard, { marginTop: spacing.md }]}
             borderRadius={borderRadius.lg}
@@ -661,40 +669,49 @@ const UserProfile = ({ route, navigation }) => {
             <Text style={[styles.infoLabel, { fontSize: fontSize(10), color: theme.textSecondary, marginBottom: spacing.sm }]}> 
               {t('settings.socialLinks')}
             </Text>
-            <View style={styles.socialLinksContainer}>
-              {[
-                { key: 'instagram', icon: 'logo-instagram', color: '#E4405F', prefix: 'https://instagram.com/' },
-                { key: 'twitter', icon: 'logo-twitter', color: '#1DA1F2', prefix: 'https://twitter.com/' },
-                { key: 'linkedin', icon: 'logo-linkedin', color: '#0A66C2', prefix: '' },
-                { key: 'github', icon: 'logo-github', color: isDarkMode ? '#FFFFFF' : '#333333', prefix: '' },
-                { key: 'website', icon: 'globe-outline', color: theme.primary, prefix: '' },
-              ].map(({ key, icon, color, prefix }) => {
-                const value = userData.socialLinks?.[key];
-                if (!value) return null;
-                return (
-                  <TouchableOpacity
-                    key={key}
-                    style={[styles.socialLinkButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }]}
-                    onPress={() => {
-                      let url = value;
-                      if (!url.startsWith('http') && prefix) {
-                        url = prefix + url.replace('@', '');
-                      } else if (!url.startsWith('http') && key === 'website') {
-                        url = 'https://' + url;
-                      }
-                      Linking.openURL(url).catch(() => {
-                        showAlert({
-                          type: 'error',
-                          title: t('common.error'),
-                          message: t('common.couldNotOpenLink'),
+            {userData?.socialLinksParseFailed ? (
+              <View style={styles.socialLinksFallback}>
+                <Ionicons name="alert-circle-outline" size={moderateScale(18)} color={theme.textSecondary} />
+                <Text style={[styles.socialLinksFallbackText, { color: theme.textSecondary }]}>
+                  {t('profile.socialLinksUnavailable')}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.socialLinksContainer}>
+                {[
+                  { key: 'instagram', icon: 'logo-instagram', color: '#E4405F', prefix: 'https://instagram.com/' },
+                  { key: 'twitter', icon: 'logo-twitter', color: '#1DA1F2', prefix: 'https://twitter.com/' },
+                  { key: 'linkedin', icon: 'logo-linkedin', color: '#0A66C2', prefix: '' },
+                  { key: 'github', icon: 'logo-github', color: isDarkMode ? '#FFFFFF' : '#333333', prefix: '' },
+                  { key: 'website', icon: 'globe-outline', color: theme.primary, prefix: '' },
+                ].map(({ key, icon, color, prefix }) => {
+                  const value = userData.socialLinks?.[key];
+                  if (!value) return null;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      style={[styles.socialLinkButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }]}
+                      onPress={() => {
+                        let url = value;
+                        if (!url.startsWith('http') && prefix) {
+                          url = prefix + url.replace('@', '');
+                        } else if (!url.startsWith('http') && key === 'website') {
+                          url = 'https://' + url;
+                        }
+                        Linking.openURL(url).catch(() => {
+                          showAlert({
+                            type: 'error',
+                            title: t('common.error'),
+                            message: t('common.couldNotOpenLink'),
+                          });
                         });
-                      });
-                    }}>
-                    <Ionicons name={icon} size={moderateScale(22)} color={color} />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                      }}>
+                      <Ionicons name={icon} size={moderateScale(22)} color={color} />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
           </GlassContainer>
         )}
     </View>
@@ -841,7 +858,9 @@ const UserProfile = ({ route, navigation }) => {
             onPress={() => navigation.navigate('FollowList', { 
               userId, 
               initialTab: 'followers',
-              userName: displayName
+              userName: displayName,
+              followersCount: userProfile.stats.followers,
+              followingCount: userProfile.stats.following,
             })}
           >
             <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.followers}</Text>
@@ -854,7 +873,9 @@ const UserProfile = ({ route, navigation }) => {
             onPress={() => navigation.navigate('FollowList', { 
               userId, 
               initialTab: 'following',
-              userName: displayName
+              userName: displayName,
+              followersCount: userProfile.stats.followers,
+              followingCount: userProfile.stats.following,
             })}
           >
             <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.following}</Text>
@@ -927,7 +948,7 @@ const UserProfile = ({ route, navigation }) => {
           data={userPosts || []}
           ListHeaderComponent={renderListHeader}
           ListEmptyComponent={renderEmptyComponent}
-          renderItem={({ item: post, index }) => (
+          renderItem={({ item: post }) => (
             <View style={styles.contentSection}>
               <PostCard
                 post={{
@@ -1386,6 +1407,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  socialLinksFallback: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  socialLinksFallbackText: {
+    fontSize: fontSize(12),
+    flex: 1,
   },
   socialLinksHeader: {
     fontSize: fontSize(10),

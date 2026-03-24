@@ -13,10 +13,13 @@ import { GlassCard } from '../../components/GlassComponents';
 import { borderRadius } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getSettingsAccentColor, getSettingsHeaderGradient } from './settingsTheme';
 
 const Settings = ({ navigation }) => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const insets = useSafeAreaInsets();
+  const backIconName = isRTL ? 'arrow-forward' : 'arrow-back';
+  const chevronIconName = isRTL ? 'chevron-back' : 'chevron-forward';
 
   const settingsSections = [
     {
@@ -24,7 +27,6 @@ const Settings = ({ navigation }) => {
       title: t('settings.profileSettings'),
       description: t('settings.profileDesc') || 'Manage your profile information',
       icon: 'person-outline',
-      color: theme.primary,
       screen: 'ProfileSettings',
     },
     {
@@ -32,7 +34,6 @@ const Settings = ({ navigation }) => {
       title: t('settings.personalization') || 'Personalization',
       description: t('settings.personalizationDesc') || 'Customize theme, language, and display',
       icon: 'color-palette-outline',
-      color: '#FF9500',
       screen: 'PersonalizationSettings',
     },
     {
@@ -40,7 +41,6 @@ const Settings = ({ navigation }) => {
       title: t('settings.chatCustomization') || 'Chat Customization',
       description: t('settings.chatCustomizationDesc') || 'Bubble style, colors, and backgrounds',
       icon: 'chatbubbles-outline',
-      color: '#AF52DE',
       screen: 'ChatSettings',
     },
     {
@@ -48,7 +48,6 @@ const Settings = ({ navigation }) => {
       title: t('settings.notifications'),
       description: t('settings.notificationDesc'),
       icon: 'notifications-outline',
-      color: '#34C759',
       screen: 'NotificationSettings',
     },
     {
@@ -56,7 +55,6 @@ const Settings = ({ navigation }) => {
       title: t('settings.suggestions'),
       description: t('settings.suggestionsDesc'),
       icon: 'bulb-outline',
-      color: theme.primary,
       screen: 'SuggestionSettings',
     },
     {
@@ -64,7 +62,6 @@ const Settings = ({ navigation }) => {
       title: t('settings.blockedUsers') || 'Blocked Users',
       description: t('settings.blockedUsersDesc') || 'Manage your blocked users list',
       icon: 'person-remove-outline',
-      color: '#8E8E93',
       screen: 'BlockList',
     },
     {
@@ -72,7 +69,6 @@ const Settings = ({ navigation }) => {
       title: t('settings.savedPosts'),
       description: t('settings.savedPostsDesc'),
       icon: 'bookmark-outline',
-      color: '#5856D6',
       screen: 'SavedPosts',
     },
     {
@@ -80,7 +76,6 @@ const Settings = ({ navigation }) => {
       title: t('settings.classRepresentative'),
       description: t('settings.classRepresentativeDesc'),
       icon: 'people-outline',
-      color: '#F59E0B',
       screen: 'RepVoting',
     },
     {
@@ -88,12 +83,14 @@ const Settings = ({ navigation }) => {
       title: t('settings.accountSettings'),
       description: t('settings.accountDesc') || 'Password, security, and account actions',
       icon: 'shield-checkmark-outline',
-      color: '#FF3B30',
       screen: 'AccountSettings',
     },
   ];
 
-  const SettingCard = ({ item }) => (
+  const SettingCard = ({ item }) => {
+    const accentColor = getSettingsAccentColor(item.screen, theme);
+
+    return (
     <TouchableOpacity
       onPress={() => navigation.navigate(item.screen)}
       activeOpacity={0.7}>
@@ -101,42 +98,40 @@ const Settings = ({ navigation }) => {
         style={[styles.card]}
         padding={0}
       >
-        <View style={styles.cardContent}>
-          <View style={[styles.iconContainer, { backgroundColor: isDarkMode ? `${item.color}15` : `${item.color}15` }]}>
-            <Ionicons name={item.icon} size={moderateScale(22)} color={item.color} />
+        <View style={[styles.cardContent, isRTL && styles.rowReverse]}>
+          <View style={[styles.iconContainer, isRTL ? styles.iconContainerRtl : styles.iconContainerLtr, { backgroundColor: `${accentColor}15` }]}>
+            <Ionicons name={item.icon} size={moderateScale(22)} color={accentColor} />
           </View>
           <View style={styles.textContainer}>
-            <Text style={[styles.cardTitle, { color: theme.text }]}>
+            <Text style={[styles.cardTitle, isRTL && styles.directionalText, { color: theme.text }]}>
               {item.title}
             </Text>
-            <Text style={[styles.cardDescription, { color: theme.textSecondary }]}>
+            <Text style={[styles.cardDescription, isRTL && styles.directionalText, { color: theme.textSecondary }]}>
               {item.description}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={moderateScale(18)} color={theme.textSecondary} />
+          <Ionicons name={chevronIconName} size={moderateScale(18)} color={theme.textSecondary} />
         </View>
       </GlassCard>
     </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <LinearGradient
-        colors={isDarkMode
-          ? ['rgba(10, 132, 255, 0.24)', 'rgba(10, 132, 255, 0.08)', 'transparent']
-          : ['rgba(0, 122, 255, 0.2)', 'rgba(0, 122, 255, 0.04)', 'transparent']
-        }
+        colors={getSettingsHeaderGradient('ProfileSettings', { theme, isDarkMode })}
         style={styles.headerGradient}
       />
 
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+      <View style={[styles.header, isRTL && styles.rowReverse, { paddingTop: insets.top + spacing.sm }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={styles.backButton}>
-          <Ionicons name="arrow-back" size={moderateScale(22)} color={theme.text} />
+          <Ionicons name={backIconName} size={moderateScale(22)} color={theme.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>
+        <Text style={[styles.headerTitle, isRTL && styles.directionalText, { color: theme.text }]}>
           {t('settings.title')}
         </Text>
         <View style={styles.placeholder} />
@@ -154,7 +149,7 @@ const Settings = ({ navigation }) => {
         </View>
 
         <View style={styles.versionContainer}>
-          <Text style={[styles.versionText, { color: theme.textSecondary }]}>
+          <Text style={[styles.versionText, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
             {t('settings.version')} 1.1.0
           </Text>
         </View>
@@ -214,13 +209,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.lg,
   },
+  rowReverse: {
+    flexDirection: 'row-reverse',
+  },
   iconContainer: {
     width: moderateScale(44),
     height: moderateScale(44),
     borderRadius: borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  iconContainerLtr: {
     marginRight: spacing.md,
+  },
+  iconContainerRtl: {
+    marginLeft: spacing.md,
   },
   textContainer: {
     flex: 1,
@@ -241,6 +244,10 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: responsiveFontSize(13),
+  },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });
 

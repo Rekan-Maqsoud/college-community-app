@@ -19,7 +19,7 @@ const LAST_GREETING_KEY = '@last_greeting_index';
 const LAST_GREETING_DATE_KEY = '@last_greeting_date';
 
 const GreetingBanner = () => {
-  const { t, isDarkMode, reduceMotion, compactMode } = useAppSettings();
+  const { t, isDarkMode, reduceMotion, compactMode, isRTL } = useAppSettings();
   const { user } = useUser();
   const [greeting, setGreeting] = useState({ key: '', icon: 'sunny-outline', appendName: false });
   
@@ -528,11 +528,12 @@ const GreetingBanner = () => {
           </Animated.View>
         )}
 
-        <View style={styles.content}>
+        <View style={[styles.content, isRTL && styles.contentRtl]}>
           <Animated.View
             style={{
               transform: [{ scale: pulseAnim }],
-              marginRight: compactMode ? spacing.xs + 1 : spacing.sm,
+              marginRight: isRTL ? 0 : compactMode ? spacing.xs + 1 : spacing.sm,
+              marginLeft: isRTL ? (compactMode ? spacing.xs + 1 : spacing.sm) : 0,
             }}
           >
             <GlassIconButton
@@ -550,6 +551,7 @@ const GreetingBanner = () => {
             style={[
               styles.greetingText,
               compactMode && styles.greetingTextCompact,
+              isRTL && styles.greetingTextRtl,
               {
                 color: isDarkMode ? '#fff' : '#333',
               },
@@ -613,6 +615,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 1,
   },
+  contentRtl: {
+    flexDirection: 'row-reverse',
+  },
   iconContainer: {
     width: moderateScale(36),
     height: moderateScale(36),
@@ -632,6 +637,10 @@ const styles = StyleSheet.create({
     fontSize: normalize(14),
     fontWeight: '600',
     letterSpacing: 0.3,
+  },
+  greetingTextRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   greetingTextCompact: {
     fontSize: normalize(12),

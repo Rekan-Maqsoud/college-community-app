@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../../components/GlassComponents';
@@ -16,13 +17,14 @@ import { useUser } from '../../context/UserContext';
 import CustomAlert from '../../components/CustomAlert';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { getBlockedUsers, getChatBlockedUsers, unblockUser, unblockUserChatOnly } from '../../../database/users';
-import { borderRadius, shadows } from '../../theme/designTokens';
+import { borderRadius } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useLayout from '../../hooks/useLayout';
+import { getSettingsHeaderGradient } from './settingsTheme';
 
 const BlockList = ({ navigation }) => {
-  const { t, theme, isDarkMode } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const { user, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
@@ -32,6 +34,9 @@ const BlockList = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [unblocking, setUnblocking] = useState(null);
   const [unblockingChat, setUnblockingChat] = useState(null);
+  const backIconName = Platform.OS === 'ios'
+    ? (isRTL ? 'chevron-forward' : 'chevron-back')
+    : (isRTL ? 'arrow-forward' : 'arrow-back');
 
   const loadBlockedUsers = useCallback(async () => {
     if (!user?.$id) return;
@@ -125,8 +130,8 @@ const BlockList = ({ navigation }) => {
 
 
   const renderBlockedUser = (blockedUser, onUnblock, isChatOnly = false) => (
-    <View key={blockedUser.$id} style={styles.userItem}>
-      <View style={styles.userInfo}>
+    <View key={blockedUser.$id} style={[styles.userItem, isRTL && styles.rowReverse]}>
+      <View style={[styles.userInfo, isRTL && styles.rowReverse]}>
         {blockedUser.profilePicture ? (
           <Image 
             source={{ uri: blockedUser.profilePicture }} 
@@ -139,12 +144,12 @@ const BlockList = ({ navigation }) => {
             </Text>
           </View>
         )}
-        <View style={styles.userDetails}>
-          <Text style={[styles.userName, { color: theme.text }]}>
+        <View style={[styles.userDetails, isRTL ? styles.userDetailsRtl : styles.userDetailsLtr]}>
+          <Text style={[styles.userName, { color: theme.text }, isRTL && styles.directionalText]}>
             {blockedUser.name || t('common.unknownUser') || 'Unknown User'}
           </Text>
           {blockedUser.university && (
-            <Text style={[styles.userUniversity, { color: theme.textSecondary }]}>
+            <Text style={[styles.userUniversity, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
               {blockedUser.university}
             </Text>
           )}
@@ -168,18 +173,15 @@ const BlockList = ({ navigation }) => {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <LinearGradient
-        colors={isDarkMode
-          ? ['rgba(102, 126, 234, 0.24)', 'rgba(102, 126, 234, 0.08)', 'transparent']
-          : ['rgba(102, 126, 234, 0.2)', 'rgba(102, 126, 234, 0.04)', 'transparent']
-        }
+        colors={getSettingsHeaderGradient('BlockList', { theme, isDarkMode })}
         style={styles.headerGradient}
       />
 
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+      <View style={[styles.header, isRTL && styles.rowReverse, { paddingTop: insets.top + spacing.sm }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}>
-          <Ionicons name="arrow-back" size={moderateScale(22)} color={theme.text} />
+          <Ionicons name={backIconName} size={moderateScale(22)} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>
@@ -200,9 +202,14 @@ const BlockList = ({ navigation }) => {
           </View>
         ) : (
           <>
-            <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
-              {t('settings.blockedUsers')}
-            </Text>
+            <View style={[styles.sectionHeader, isRTL && styles.sectionHeaderRtl]}>
+              <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
+                {t('settings.blockedUsers')}
+              </Text>
+              <Text style={[styles.sectionDescription, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
+                {t('settings.blockInfo')}
+              </Text>
+            </View>
             {blockedUsers.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <View style={[styles.emptyIcon, { backgroundColor: theme.primary + '15' }]}>
@@ -221,16 +228,14 @@ const BlockList = ({ navigation }) => {
               </GlassCard>
             )}
 
-            <View style={styles.infoContainer}>
-              <Ionicons name="information-circle-outline" size={moderateScale(20)} color={theme.textSecondary} />
-              <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-                {t('settings.blockInfo')}
+            <View style={[styles.sectionHeader, isRTL && styles.sectionHeaderRtl]}>
+              <Text style={[styles.sectionTitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
+                {t('settings.chatBlockedUsers')}
+              </Text>
+              <Text style={[styles.sectionDescription, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
+                {t('settings.chatBlockInfo')}
               </Text>
             </View>
-
-            <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
-              {t('settings.chatBlockedUsers')}
-            </Text>
             {chatBlockedUsers.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <View style={[styles.emptyIcon, { backgroundColor: theme.primary + '15' }]}>
@@ -249,12 +254,6 @@ const BlockList = ({ navigation }) => {
               </GlassCard>
             )}
 
-            <View style={styles.infoContainer}>
-              <Ionicons name="information-circle-outline" size={moderateScale(20)} color={theme.textSecondary} />
-              <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-                {t('settings.chatBlockInfo')}
-              </Text>
-            </View>
           </>
         )}
 
@@ -315,8 +314,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: responsiveFontSize(14),
     fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  sectionHeader: {
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
+  },
+  sectionHeaderRtl: {
+    alignItems: 'flex-end',
+  },
+  sectionDescription: {
+    fontSize: responsiveFontSize(13),
+    lineHeight: responsiveFontSize(18),
   },
   glassCard: {
     borderRadius: borderRadius.lg,
@@ -326,12 +335,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: hp(20),
+    paddingVertical: hp(10),
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingTop: hp(15),
-    paddingHorizontal: wp(10),
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: hp(4),
   },
   emptyIcon: {
     width: moderateScale(100),
@@ -364,6 +374,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
+  rowReverse: {
+    flexDirection: 'row-reverse',
+  },
   avatar: {
     width: moderateScale(44),
     height: moderateScale(44),
@@ -381,8 +394,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   userDetails: {
-    marginLeft: spacing.sm,
     flex: 1,
+  },
+  userDetailsLtr: {
+    marginLeft: spacing.sm,
+  },
+  userDetailsRtl: {
+    marginRight: spacing.sm,
   },
   userName: {
     fontSize: responsiveFontSize(15),
@@ -391,6 +409,10 @@ const styles = StyleSheet.create({
   userUniversity: {
     fontSize: responsiveFontSize(12),
     marginTop: 2,
+  },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   unblockButton: {
     paddingHorizontal: spacing.md,

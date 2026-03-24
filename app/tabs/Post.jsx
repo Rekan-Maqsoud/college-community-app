@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,12 +15,12 @@ import {
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
-import AnimatedBackground from '../components/AnimatedBackground';
 import SearchableDropdownNew from '../components/SearchableDropdownNew';
 import { GlassContainer } from '../components/GlassComponents';
 import CustomAlert from '../components/CustomAlert';
@@ -42,34 +42,68 @@ import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
 
+const STAGE_VALUE_MAP = {
+  firstYear: 'stage_1',
+  secondYear: 'stage_2',
+  thirdYear: 'stage_3',
+  fourthYear: 'stage_4',
+  fifthYear: 'stage_5',
+  sixthYear: 'stage_6',
+  'First Year': 'stage_1',
+  'Second Year': 'stage_2',
+  'Third Year': 'stage_3',
+  'Fourth Year': 'stage_4',
+  'Fifth Year': 'stage_5',
+  'Sixth Year': 'stage_6',
+  graduate: 'graduate',
+  stage_1: 'stage_1',
+  stage_2: 'stage_2',
+  stage_3: 'stage_3',
+  stage_4: 'stage_4',
+  stage_5: 'stage_5',
+  stage_6: 'stage_6',
+  '1': 'stage_1',
+  '2': 'stage_2',
+  '3': 'stage_3',
+  '4': 'stage_4',
+  '5': 'stage_5',
+  '6': 'stage_6',
+};
+
 const normalizeStageValue = (userStage) => {
-  const stageMap = {
-    firstYear: 'stage_1',
-    secondYear: 'stage_2',
-    thirdYear: 'stage_3',
-    fourthYear: 'stage_4',
-    fifthYear: 'stage_5',
-    sixthYear: 'stage_6',
-    graduate: 'graduate',
-    '1': 'stage_1',
-    '2': 'stage_2',
-    '3': 'stage_3',
-    '4': 'stage_4',
-    '5': 'stage_5',
-    '6': 'stage_6',
-  };
-  return stageMap[userStage] || userStage || '';
+  if (userStage === null || userStage === undefined) {
+    return '';
+  }
+
+  const trimmedValue = String(userStage).trim();
+  if (!trimmedValue) {
+    return '';
+  }
+
+  return STAGE_VALUE_MAP[trimmedValue] || trimmedValue;
+};
+
+const resolveStageSelection = (stageValue, availableOptions = []) => {
+  const normalizedValue = normalizeStageValue(stageValue);
+  if (normalizedValue && availableOptions.some((option) => option.value === normalizedValue)) {
+    return normalizedValue;
+  }
+
+  return '';
 };
 
 const Post = () => {
+  const navigation = useNavigation();
   const appSettings = useAppSettings();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { user } = useUser();
   const { contentStyle } = useLayout();
+  const successNavigationTimeoutRef = useRef(null);
 
   const theme = appSettings?.theme;
   const isDarkMode = appSettings?.isDarkMode;
   const t = appSettings?.t;
+  const isRTL = appSettings?.isRTL;
 
   const [postType, setPostType] = useState(POST_TYPES.DISCUSSION);
   const [topic, setTopic] = useState('');
@@ -83,6 +117,7 @@ const Post = () => {
   const [links, setLinks] = useState([]);
   const [linkInput, setLinkInput] = useState('');
   const [images, setImages] = useState([]);
+  const [imageCompressionWarning, setImageCompressionWarning] = useState('');
   const [loading, setLoading] = useState(false);
   
   const [showTags, setShowTags] = useState(false);
@@ -114,12 +149,30 @@ const Post = () => {
     }
   }, [user, stage]);
 
-  const stageOptions = getStageOptionsForDepartment(department || user?.department || '');
-  useEffect(() => {
-    if (stage && !stageOptions.some((option) => option.value === stage)) {
-      setStage('');
+  useEffect(() => () => {
+    if (successNavigationTimeoutRef.current) {
+      clearTimeout(successNavigationTimeoutRef.current);
     }
-  }, [stage, stageOptions]);
+  }, []);
+
+  const stageOptions = getStageOptionsForDepartment(department || user?.department || '');
+  const defaultStageValue = resolveStageSelection(user?.stage, stageOptions);
+
+  useEffect(() => {
+    if (!stage) {
+      if (defaultStageValue && stage !== defaultStageValue) {
+        setStage(defaultStageValue);
+      }
+      return;
+    }
+
+    if (!stageOptions.some((option) => option.value === stage)) {
+      const nextStageValue = resolveStageSelection(stage, stageOptions) || defaultStageValue;
+      if (nextStageValue !== stage) {
+        setStage(nextStageValue);
+      }
+    }
+  }, [defaultStageValue, stage, stageOptions]);
 
   const cycleVisibility = () => {
     const currentIndex = visibilityOptions.indexOf(visibility);
@@ -160,19 +213,31 @@ const Post = () => {
       });
 
       if (!result.canceled && result.assets) {
-        const compressedImages = await Promise.all(
+        const compressionResults = await Promise.all(
           result.assets.map(async (asset) => {
             try {
               const compressed = await compressImage(asset.uri, { quality: 0.7 });
-              return compressed?.uri || asset.uri;
+              if (compressed?.uri) {
+                return { uri: compressed.uri, failedCompression: false };
+              }
+
+              return { uri: asset.uri, failedCompression: true };
             } catch (_error) {
-              return asset.uri;
+              return { uri: asset.uri, failedCompression: true };
             }
           })
         );
-        setImages([...images, ...compressedImages]);
+
+        const failedCompressionCount = compressionResults.filter((resultItem) => resultItem.failedCompression).length;
+        setImages((prevImages) => [...prevImages, ...compressionResults.map((resultItem) => resultItem.uri)]);
+        setImageCompressionWarning(
+          failedCompressionCount > 0
+            ? t('post.imageCompressionWarning', { count: failedCompressionCount })
+            : ''
+        );
       }
     } catch (_error) {
+      setImageCompressionWarning('');
       showAlert({ type: 'error', title: t('common.error'), message: t('post.imagePickError') });
     }
   };
@@ -323,6 +388,13 @@ const Post = () => {
       }
 
       showAlert({ type: 'success', title: t('common.success'), message: t('post.postCreated') });
+
+      if (successNavigationTimeoutRef.current) {
+        clearTimeout(successNavigationTimeoutRef.current);
+      }
+      successNavigationTimeoutRef.current = setTimeout(() => {
+        navigation.navigate('Home', { newPostCreated: true });
+      }, 1600);
       
       setTopic('');
       setText('');
@@ -331,9 +403,11 @@ const Post = () => {
       setLinks([]);
       setLinkInput('');
       setImages([]);
+      setImageCompressionWarning('');
       setPostType(POST_TYPES.DISCUSSION);
       setVisibility('department');
       setCanOthersRepost(true);
+      setStage(defaultStageValue);
       setPollChoices(['', '']);
       setPollAllowMultiple(false);
       setPollShowVoters(false);
@@ -373,11 +447,11 @@ const Post = () => {
       >
         
       <GlassContainer style={styles.headerGlass} borderRadius={0} disableBackgroundOverlay>
-        <View style={[styles.header, { borderBottomColor: theme.border }]}> 
-            <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.createPost')}</Text>
+        <View style={[styles.header, isRTL && styles.rowReverse, { borderBottomColor: theme.border }]}> 
+            <Text style={[styles.headerTitle, isRTL && styles.directionalText, { color: theme.text }]}>{t('post.createPost')}</Text>
             <TouchableOpacity
               onPress={handleCreatePost}
-              style={[styles.postButton, { backgroundColor: theme.primary }]}
+              style={[styles.postButton, isRTL ? styles.postButtonRtl : styles.postButtonLtr, { backgroundColor: theme.primary }]}
               disabled={loading}
             >
               {loading ? (
@@ -398,9 +472,9 @@ const Post = () => {
               <ScrollView style={styles.scrollView} contentContainerStyle={contentStyle} showsVerticalScrollIndicator={false}>
           
           <View style={styles.section}>
-            <View style={styles.topControlsRow}>
+            <View style={[styles.topControlsRow, isRTL && styles.rowReverse]}>
               <View style={[styles.compactField, styles.postTypeField]}>
-                <Text style={[styles.compactLabel, { color: theme.textSecondary }]}> 
+                <Text style={[styles.compactLabel, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
                   {t('post.postType')}
                 </Text>
                 <SearchableDropdownNew
@@ -416,7 +490,7 @@ const Post = () => {
               </View>
 
               <View style={[styles.compactField, styles.compactFieldHalf]}>
-                <Text style={[styles.compactLabel, { color: theme.textSecondary }]}> 
+                <Text style={[styles.compactLabel, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
                   {t('post.stage')}
                 </Text>
                 <SearchableDropdownNew
@@ -433,12 +507,13 @@ const Post = () => {
               </View>
 
               <View style={[styles.compactField, styles.compactFieldHalf]}>
-                <Text style={[styles.compactLabel, { color: theme.textSecondary }]}> 
+                <Text style={[styles.compactLabel, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
                   {t('post.visibility')}
                 </Text>
                 <TouchableOpacity
                   style={[
                     styles.compactToggle,
+                    isRTL && styles.rowReverse,
                     { backgroundColor: theme.input.background, borderColor: theme.input.border }
                   ]}
                   onPress={cycleVisibility}
@@ -447,7 +522,7 @@ const Post = () => {
                 >
                   <Ionicons name="eye-outline" size={14} color={theme.primary} />
                   <Text
-                    style={[styles.compactToggleText, { color: theme.text }]}
+                    style={[styles.compactToggleText, isRTL && styles.directionalText, { color: theme.text }]}
                     numberOfLines={1}
                   >
                     {getVisibilityLabel()}
@@ -455,13 +530,13 @@ const Post = () => {
                 </TouchableOpacity>
               </View>
             </View>
-            <Text style={[styles.helperText, styles.compactHelper, { color: theme.textSecondary }]}>
+            <Text style={[styles.helperText, styles.compactHelper, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
               {getVisibilityHelper()}
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: theme.text }]}>
+            <Text style={[styles.sectionLabel, isRTL && styles.directionalText, { color: theme.text }]}> 
               {t('post.topic')}
             </Text>
             <View style={styles.inputShell}>
@@ -470,6 +545,7 @@ const Post = () => {
                   styles.input,
                   styles.topicInput,
                   styles.growingInput,
+                  isRTL && styles.directionalInput,
                   {
                     minHeight: topicInputHeight,
                     height: topicInputHeight,
@@ -492,14 +568,14 @@ const Post = () => {
                   setTopicInputHeight(nextHeight);
                 }}
               />
-              <Text style={[styles.inlineCharCount, { color: theme.textSecondary }]}>
+              <Text style={[styles.inlineCharCount, isRTL && styles.inlineCharCountRtl, { color: theme.textSecondary }]}> 
                 {topic.length}/200
               </Text>
             </View>
           </View>
 
           <View style={[styles.section, styles.compactNextSection]}>
-            <Text style={[styles.sectionLabel, { color: theme.text }]}>
+            <Text style={[styles.sectionLabel, isRTL && styles.directionalText, { color: theme.text }]}> 
               {t('post.description')}
             </Text>
             <View style={styles.inputShell}>
@@ -508,6 +584,7 @@ const Post = () => {
                   styles.input,
                   styles.textArea,
                   styles.growingInput,
+                  isRTL && styles.directionalInput,
                   {
                     minHeight: textInputHeight,
                     height: textInputHeight,
@@ -529,7 +606,7 @@ const Post = () => {
                   setTextInputHeight(nextHeight);
                 }}
               />
-              <Text style={[styles.inlineCharCount, { color: theme.textSecondary }]}>
+              <Text style={[styles.inlineCharCount, isRTL && styles.inlineCharCountRtl, { color: theme.textSecondary }]}> 
                 {text.length}/5000
               </Text>
             </View>
@@ -537,14 +614,15 @@ const Post = () => {
 
           {postType === POST_TYPES.POLL && (
             <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: theme.text }]}>{t('post.poll.choicesLabel')}</Text>
-              <Text style={[styles.helperText, { color: theme.textSecondary }]}>{t('post.poll.choicesHelper')}</Text>
+              <Text style={[styles.sectionLabel, isRTL && styles.directionalText, { color: theme.text }]}>{t('post.poll.choicesLabel')}</Text>
+              <Text style={[styles.helperText, isRTL && styles.directionalText, { color: theme.textSecondary }]}>{t('post.poll.choicesHelper')}</Text>
 
               {pollChoices.map((choice, index) => (
                 <View key={`poll-choice-${index}`} style={styles.pollChoiceRow}>
                   <TextInput
                     style={[
                       styles.pollChoiceInput,
+                      isRTL && styles.directionalInput,
                       {
                         backgroundColor: theme.input.background,
                         borderColor: theme.input.border,
@@ -590,7 +668,7 @@ const Post = () => {
                     size={20}
                     color={!isQuizPoll ? theme.primary : theme.textSecondary}
                   />
-                  <Text style={[styles.pollModeText, { color: theme.text }]}>{t('post.poll.modePoll')}</Text>
+                  <Text style={[styles.pollModeText, isRTL && styles.directionalText, { color: theme.text }]}>{t('post.poll.modePoll')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -605,15 +683,15 @@ const Post = () => {
                     size={20}
                     color={isQuizPoll ? theme.primary : theme.textSecondary}
                   />
-                  <Text style={[styles.pollModeText, { color: theme.text }]}>{t('post.poll.modeQuestion')}</Text>
+                  <Text style={[styles.pollModeText, isRTL && styles.directionalText, { color: theme.text }]}>{t('post.poll.modeQuestion')}</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={styles.pollToggleRow}>
                 <View style={[styles.pollToggleItem, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}>
-                  <View style={styles.pollToggleLabelWrap}>
+                  <View style={[styles.pollToggleLabelWrap, isRTL && styles.rowReverse]}>
                     <Ionicons name="checkbox-outline" size={14} color={theme.primary} />
-                    <Text style={[styles.pollToggleLabel, { color: theme.text }]}>{t('post.poll.multiAnswer')}</Text>
+                    <Text style={[styles.pollToggleLabel, isRTL && styles.directionalText, { color: theme.text }]}>{t('post.poll.multiAnswer')}</Text>
                   </View>
                   <Switch
                     value={pollAllowMultiple && !isQuizPoll}
@@ -625,9 +703,9 @@ const Post = () => {
                 </View>
 
                 <View style={[styles.pollToggleItem, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}>
-                  <View style={styles.pollToggleLabelWrap}>
+                  <View style={[styles.pollToggleLabelWrap, isRTL && styles.rowReverse]}>
                     <Ionicons name="people-outline" size={14} color={theme.primary} />
-                    <Text style={[styles.pollToggleLabel, { color: theme.text }]}>{t('post.poll.showVoters')}</Text>
+                    <Text style={[styles.pollToggleLabel, isRTL && styles.directionalText, { color: theme.text }]}>{t('post.poll.showVoters')}</Text>
                   </View>
                   <Switch
                     value={pollShowVoters}
@@ -641,7 +719,7 @@ const Post = () => {
 
               {isQuizPoll && (
                 <View style={styles.pollCorrectAnswerWrap}>
-                  <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>{t('post.poll.correctAnswerLabel')}</Text>
+                  <Text style={[styles.optionLabel, isRTL && styles.directionalText, { color: theme.textSecondary }]}>{t('post.poll.correctAnswerLabel')}</Text>
                   {pollChoices.map((choice, index) => {
                     const optionId = `opt_${index + 1}`;
                     const choiceLabel = choice.trim();
@@ -653,7 +731,7 @@ const Post = () => {
                     return (
                       <TouchableOpacity
                         key={`poll-correct-${optionId}`}
-                        style={styles.pollCorrectAnswerItem}
+                        style={[styles.pollCorrectAnswerItem, isRTL && styles.rowReverse]}
                         onPress={() => setCorrectPollOptionId(optionId)}
                       >
                         <Ionicons
@@ -661,7 +739,7 @@ const Post = () => {
                           size={18}
                           color={isSelected ? theme.primary : theme.textSecondary}
                         />
-                        <Text style={[styles.pollCorrectAnswerText, { color: theme.text }]} numberOfLines={1}>
+                        <Text style={[styles.pollCorrectAnswerText, isRTL && styles.directionalText, { color: theme.text }]} numberOfLines={1}>
                           {choiceLabel}
                         </Text>
                       </TouchableOpacity>
@@ -671,6 +749,7 @@ const Post = () => {
                   <TextInput
                     style={[
                       styles.pollExplanationInput,
+                      isRTL && styles.directionalInput,
                       {
                         backgroundColor: theme.input.background,
                         borderColor: theme.input.border,
@@ -693,14 +772,14 @@ const Post = () => {
           )}
 
           <View style={styles.section}>
-            <View style={styles.actionButtonsRow}>
+            <View style={[styles.actionButtonsRow, isRTL && styles.rowReverse]}>
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}
                 onPress={() => setShowTags(!showTags)}
                 activeOpacity={0.7}
               >
                 <Ionicons name="pricetag-outline" size={18} color={showTags ? theme.primary : theme.textSecondary} />
-                <Text style={[styles.actionButtonText, { color: showTags ? theme.primary : theme.textSecondary }]}>
+                <Text style={[styles.actionButtonText, isRTL && styles.directionalText, { color: showTags ? theme.primary : theme.textSecondary }]}>
                   {t('post.tags')}
                 </Text>
               </TouchableOpacity>
@@ -711,7 +790,7 @@ const Post = () => {
                 activeOpacity={0.7}
               >
                 <Ionicons name="link-outline" size={18} color={showLinks ? theme.primary : theme.textSecondary} />
-                <Text style={[styles.actionButtonText, { color: showLinks ? theme.primary : theme.textSecondary }]}>
+                <Text style={[styles.actionButtonText, isRTL && styles.directionalText, { color: showLinks ? theme.primary : theme.textSecondary }]}>
                   {t('post.links')}
                 </Text>
               </TouchableOpacity>
@@ -723,11 +802,27 @@ const Post = () => {
                 activeOpacity={0.7}
               >
                 <Ionicons name="images-outline" size={18} color={theme.textSecondary} />
-                <Text style={[styles.actionButtonText, { color: theme.textSecondary }]}>
+                <Text style={[styles.actionButtonText, isRTL && styles.directionalText, { color: theme.textSecondary }]}>
                   {t('post.images')} {images.length > 0 && `(${images.length})`}
                 </Text>
               </TouchableOpacity>
             </View>
+            {!!imageCompressionWarning && (
+              <View
+                style={[
+                  styles.inlineWarningBanner,
+                  {
+                    backgroundColor: `${theme.warning}15`,
+                    borderColor: `${theme.warning}40`,
+                  },
+                ]}
+              >
+                <Ionicons name="alert-circle-outline" size={16} color={theme.warning} />
+                <Text style={[styles.inlineWarningText, { color: theme.warning }]}>
+                  {imageCompressionWarning}
+                </Text>
+              </View>
+            )}
           </View>
 
           {showTags && (
@@ -988,13 +1083,21 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
   },
+  rowReverse: {
+    flexDirection: 'row-reverse',
+  },
   postButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 10,
     minWidth: 70,
     alignItems: 'center',
+  },
+  postButtonLtr: {
     marginLeft: 12,
+  },
+  postButtonRtl: {
+    marginRight: 12,
   },
   postButtonText: {
     color: '#fff',
@@ -1092,6 +1195,10 @@ const styles = StyleSheet.create({
     bottom: 8,
     fontSize: fontSizeUtil(10),
     fontWeight: '600',
+  },
+  inlineCharCountRtl: {
+    right: 'auto',
+    left: 10,
   },
   textArea: {
     minHeight: 128,
@@ -1195,6 +1302,22 @@ const styles = StyleSheet.create({
   actionButtonsRow: {
     flexDirection: 'row',
     gap: 10,
+  },
+  inlineWarningBanner: {
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  inlineWarningText: {
+    flex: 1,
+    fontSize: fontSizeUtil(12),
+    lineHeight: fontSizeUtil(16),
+    fontWeight: '500',
   },
   repostPermissionRow: {
     marginBottom: 16,
@@ -1356,6 +1479,14 @@ const styles = StyleSheet.create({
   },
   bottomSpace: {
     height: 40,
+  },
+  directionalText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  directionalInput: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });
 
