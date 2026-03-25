@@ -1,0 +1,44 @@
+diff --git a/node_modules/@tensorflow/tfjs-react-native/dist/bundle_resource_io.js b/node_modules/@tensorflow/tfjs-react-native/dist/bundle_resource_io.js
+index 7b3c8f1..2267cff 100644
+--- a/node_modules/@tensorflow/tfjs-react-native/dist/bundle_resource_io.js
++++ b/node_modules/@tensorflow/tfjs-react-native/dist/bundle_resource_io.js
+@@ -72,11 +72,10 @@ class BundleResourceHandler {
+         return modelArtifacts;
+     }
+     async loadLocalAsset(weightsAssets) {
+-        // Use a dynamic import here because react-native-fs is not compatible
+-        // with managed expo workflow. However the managed expo workflow should
+-        // never hit this code path.
++        // Use Expo FileSystem so managed Expo apps can load local bundled assets
++        // without requiring react-native-fs.
+         // tslint:disable-next-line: no-require-imports
+-        const RNFS = require('react-native-fs');
++        const ExpoFileSystem = require('expo-file-system');
+         const modelJson = this.modelJson;
+         const modelArtifacts = Object.assign({}, modelJson);
+         modelArtifacts.weightSpecs = modelJson.weightsManifest[0].weights;
+@@ -90,7 +89,9 @@ class BundleResourceHandler {
+                 // need to load the weights from the res/raw folder using this id.
+                 const fileName = `${weightsAsset.uri}.${weightsAsset.type}`;
+                 try {
+-                    base64Weights = await RNFS.readFileRes(fileName, 'base64');
++                    base64Weights = await ExpoFileSystem.readAsStringAsync(`asset:/${fileName}`, {
++                        encoding: ExpoFileSystem.EncodingType.Base64,
++                    });
+                 }
+                 catch (e) {
+                     throw new Error(`Error reading resource ${fileName}. Make sure the file is
+@@ -99,7 +100,12 @@ class BundleResourceHandler {
+             }
+             else {
+                 try {
+-                    base64Weights = await RNFS.readFile(weightsAsset.uri, 'base64');
++                    const weightUri = weightsAsset.uri.startsWith('file://') || weightsAsset.uri.startsWith('content://')
++                        ? weightsAsset.uri
++                        : `file://${weightsAsset.uri}`;
++                    base64Weights = await ExpoFileSystem.readAsStringAsync(weightUri, {
++                        encoding: ExpoFileSystem.EncodingType.Base64,
++                    });
+                 }
+                 catch (e) {
+                     throw new Error(`Error reading resource ${weightsAsset.uri}.`);

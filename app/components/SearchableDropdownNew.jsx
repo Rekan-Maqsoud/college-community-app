@@ -11,6 +11,10 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { 
+  SchoolIcon, BookIcon, BusinessIcon, LibraryIcon, TimeIcon,
+  CheckmarkCircleIcon, CloseCircleIcon,
+} from './icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { GlassInput, GlassModalCard } from './GlassComponents';
 import { fontSize, spacing, moderateScale } from '../utils/responsive';
@@ -32,6 +36,15 @@ const SearchableDropdownNew = ({
   const [searchText, setSearchText] = useState('');
   const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Map string icon props to new custom SVG components
+  const iconMap = {
+    'school-outline': SchoolIcon,
+    'book-outline': BookIcon,
+    'business-outline': BusinessIcon,
+    'library-outline': LibraryIcon,
+    'time-outline': TimeIcon,
+  };
 
   const normalizedItems = items.map(item => ({
     key: item.key || item.value,
@@ -82,12 +95,20 @@ const SearchableDropdownNew = ({
         selectorStyle,
       ]}
     >
-      <Ionicons
-        name={icon || 'list-outline'}
-        size={compact ? moderateScale(16) : moderateScale(20)}
-        color={disabled ? theme.textSecondary : (selectedItem ? theme.primary : theme.textSecondary)}
-        style={[styles.icon, isRTL && styles.iconRtl]}
-      />
+      {iconMap[icon] ? (
+        React.createElement(iconMap[icon], {
+          size: compact ? moderateScale(16) : moderateScale(20),
+          color: disabled ? theme.textSecondary : (selectedItem ? theme.primary : theme.textSecondary),
+          style: [styles.icon, isRTL && styles.iconRtl]
+        })
+      ) : (
+        <Ionicons
+          name={icon || 'list-outline'}
+          size={compact ? moderateScale(16) : moderateScale(20)}
+          color={disabled ? theme.textSecondary : (selectedItem ? theme.primary : theme.textSecondary)}
+          style={[styles.icon, isRTL && styles.iconRtl]}
+        />
+      )}
       <Text
         style={[
           styles.selectedText,
@@ -161,7 +182,7 @@ const SearchableDropdownNew = ({
                   {placeholder}
                 </Text>
                 <TouchableOpacity onPress={closeModal} activeOpacity={0.7}>
-                  <Ionicons name="close-circle" size={moderateScale(28)} color={theme.textSecondary} />
+                  <CloseCircleIcon size={moderateScale(28)} color={theme.textSecondary} />
                 </TouchableOpacity>
               </View>
 
@@ -192,7 +213,7 @@ const SearchableDropdownNew = ({
                 />
                 {searchText.length > 0 && (
                   <TouchableOpacity onPress={() => setSearchText('')} activeOpacity={0.7}>
-                    <Ionicons name="close-circle" size={moderateScale(20)} color={theme.textSecondary} />
+                    <CloseCircleIcon size={moderateScale(20)} color={theme.textSecondary} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -237,7 +258,7 @@ const SearchableDropdownNew = ({
                           {item.label}
                         </Text>
                         {isSelected && (
-                          <Ionicons name="checkmark-circle" size={moderateScale(20)} color={theme.primary} />
+                          <CheckmarkCircleIcon size={moderateScale(20)} color={theme.primary} />
                         )}
                       </TouchableOpacity>
                     );

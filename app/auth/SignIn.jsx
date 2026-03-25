@@ -14,7 +14,7 @@ import {
   Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { MailIcon, LockIcon, EyeIcon, EyeOffIcon, ArrowForwardIcon } from '../components/icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import LanguageDropdown from '../components/LanguageDropdown';
@@ -394,8 +394,7 @@ const SignIn = ({ navigation, route }) => {
             >
               <GlassInput focused={emailFocused}>
                 <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
-                  <Ionicons 
-                    name="mail-outline" 
+                  <MailIcon 
                     size={moderateScale(22)} 
                     color={emailFocused ? theme.primary : theme.textSecondary} 
                     style={[styles.inputIcon, isRTL && styles.inputIconRtl]}
@@ -447,8 +446,7 @@ const SignIn = ({ navigation, route }) => {
 
               <GlassInput focused={passwordFocused} style={{ marginTop: spacing.md }}>
                 <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
-                  <Ionicons 
-                    name="lock-closed-outline" 
+                  <LockIcon 
                     size={moderateScale(22)} 
                     color={passwordFocused ? theme.primary : theme.textSecondary} 
                     style={[styles.inputIcon, isRTL && styles.inputIconRtl]}
@@ -484,11 +482,11 @@ const SignIn = ({ navigation, route }) => {
                     activeOpacity={0.7}
                     hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                   >
-                    <Ionicons 
-                      name={showPassword ? "eye-off-outline" : "eye-outline"} 
-                      size={moderateScale(22)} 
-                      color={theme.textSecondary} 
-                    />
+                    {showPassword ? (
+                      <EyeOffIcon size={moderateScale(22)} color={theme.textSecondary} />
+                    ) : (
+                      <EyeIcon size={moderateScale(22)} color={theme.textSecondary} />
+                    )}
                   </TouchableOpacity>
                 </View>
               </GlassInput>
@@ -523,8 +521,7 @@ const SignIn = ({ navigation, route }) => {
                       <Text style={[styles.signInButtonText, { fontSize: fontSize(15) }]}>
                         {t('auth.signIn')}
                       </Text>
-                      <Ionicons 
-                        name="arrow-forward" 
+                      <ArrowForwardIcon 
                         size={moderateScale(20)} 
                         color="#FFFFFF" 
                         style={styles.buttonIcon}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, StatusBar, ActivityIndicator, RefreshControl, Linking, Share, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, StatusBar, ActivityIndicator, RefreshControl, Linking, Share, Modal } from 'react-native';
+import { Image } from 'expo-image';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -154,14 +155,15 @@ const Profile = ({ navigation, route }) => {
         <Image
           source={{ uri: getQrImageUrl() }}
           style={[styles.qrFrameImage, compact ? styles.qrFrameImageCompact : styles.qrFrameImageShare]}
-          resizeMode="contain"
+          contentFit="contain"
+          cachePolicy="memory-disk"
         />
         <View style={[styles.qrCenterLogoWrap, compact ? styles.qrCenterLogoWrapCompact : styles.qrCenterLogoWrapShare]}>
           <View style={[styles.qrCenterLogoViewport, compact ? styles.qrCenterLogoViewportCompact : styles.qrCenterLogoViewportShare]}>
             <Image
               source={require('../../assets/icon.png')}
               style={[styles.qrCenterLogo, compact && styles.qrCenterLogoCompact]}
-              resizeMode="contain"
+              contentFit="contain"
             />
           </View>
         </View>
@@ -610,8 +612,11 @@ const Profile = ({ navigation, route }) => {
           <LinearGradient colors={theme.gradient} style={styles.avatarBorder} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
             <View style={[styles.avatarInner, { backgroundColor: theme.background }]}>
               <Image 
-                source={{ uri: userProfile.avatar, cache: 'force-cache' }} 
+                source={{ uri: userProfile.avatar }} 
                 style={styles.avatar}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={300}
               />
             </View>
           </LinearGradient>

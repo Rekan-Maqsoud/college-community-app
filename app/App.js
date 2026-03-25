@@ -3,7 +3,8 @@ import { NavigationContainer, DefaultTheme, DarkTheme, useIsFocused, useNavigati
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, ActivityIndicator, View, Animated, Image, StyleSheet, AppState, TouchableOpacity, Text, LogBox } from 'react-native';
+import { Platform, ActivityIndicator, View, Animated, StyleSheet, AppState, TouchableOpacity, Text, LogBox } from 'react-native';
+import { Image } from 'expo-image';
 import * as ExpoNotifications from 'expo-notifications';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -475,7 +476,7 @@ const MainStack = () => {
         <Image
           source={require('../assets/icon.png')}
           style={loadingStyles.logo}
-          resizeMode="contain"
+          contentFit="contain"
         />
         <ActivityIndicator size="large" color="#007AFF" style={loadingStyles.loader} />
       </View>

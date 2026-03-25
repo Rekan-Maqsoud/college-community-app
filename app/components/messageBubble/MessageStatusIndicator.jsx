@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, Animated, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Animated, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, moderateScale } from '../../utils/responsive';
 
@@ -71,7 +72,7 @@ const MessageStatusIndicator = ({
             ]}
           >
             {otherUserPhoto ? (
-              <Image source={{ uri: otherUserPhoto }} style={statusStyles.readAvatar} />
+              <Image source={{ uri: otherUserPhoto }} style={statusStyles.readAvatar} contentFit="cover" cachePolicy="memory-disk" />
             ) : (
               <View style={[statusStyles.readAvatarPlaceholder, { backgroundColor: theme.primary }]}>
                 <Text style={statusStyles.readAvatarText}>

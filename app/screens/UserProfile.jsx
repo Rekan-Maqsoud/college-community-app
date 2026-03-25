@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, StatusBar, ActivityIndicator, Share, Modal, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, StatusBar, ActivityIndicator, Share, Modal, Linking } from 'react-native';
+import { Image } from 'expo-image';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -751,8 +752,11 @@ const UserProfile = ({ route, navigation }) => {
           <LinearGradient colors={theme.gradient} style={styles.avatarBorder} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
             <View style={[styles.avatarInner, { backgroundColor: theme.background }]}>
               <Image 
-                source={{ uri: userProfile.avatar, cache: 'reload' }} 
+                source={{ uri: userProfile.avatar }} 
                 style={styles.avatar}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={300}
               />
             </View>
           </LinearGradient>

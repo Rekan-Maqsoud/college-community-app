@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Image, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { useAppSettings } from '../context/AppSettingsContext';
 
 const ProfilePicture = ({ 
@@ -33,7 +34,9 @@ const ProfilePicture = ({
         <Image
           source={{ uri }}
           style={styles.image}
-          resizeMode="cover"
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={200}
         />
       </View>
     );
@@ -44,7 +47,9 @@ const ProfilePicture = ({
       <Image
         source={{ uri: defaultAvatar }}
         style={styles.image}
-        resizeMode="cover"
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={200}
       />
     </View>
   );

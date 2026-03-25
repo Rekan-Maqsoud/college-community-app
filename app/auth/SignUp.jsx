@@ -14,7 +14,12 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { 
+  PersonIcon, MailIcon, LockIcon, LockFilledIcon, EyeIcon, 
+  EyeOffIcon, CheckmarkCircleIcon, CloseCircleIcon, EllipseIcon, 
+  ArrowForwardIcon, CalendarIcon, SchoolIcon, BookIcon, 
+  BusinessIcon, LibraryIcon, TimeIcon 
+} from '../components/icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
@@ -989,8 +994,7 @@ const SignUp = ({ navigation, route }) => {
                 <>
                   <GlassInput focused={nameFocused} style={getInputErrorStyle('fullName')}>
                     <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
-                      <Ionicons
-                        name="person-outline"
+                      <PersonIcon
                         size={moderateScale(20)}
                         color={nameFocused ? theme.primary : theme.textSecondary}
                         style={[styles.inputIcon, isRTL && styles.inputIconRtl]}
@@ -1059,8 +1063,7 @@ const SignUp = ({ navigation, route }) => {
 
                   <GlassInput focused={emailFocused} style={[{ marginTop: spacing.md }, getInputErrorStyle('email')]}>
                     <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
-                      <Ionicons
-                        name="mail-outline"
+                      <MailIcon
                         size={moderateScale(20)}
                         color={emailFocused ? theme.primary : theme.textSecondary}
                         style={[styles.inputIcon, isRTL && styles.inputIconRtl]}
@@ -1098,18 +1101,17 @@ const SignUp = ({ navigation, route }) => {
                         textContentType="emailAddress"
                       />
                       {oauthMode ? (
-                        <Ionicons
-                          name="lock-closed"
+                        <LockFilledIcon
                           size={moderateScale(18)}
                           color={theme.textSecondary}
                         />
                       ) : (
                         emailSuggestions.length === 0 && email.length > 0 && (
-                          <Ionicons
-                            name={isEducationalEmail(email) ? 'checkmark-circle' : 'close-circle'}
-                            size={moderateScale(20)}
-                            color={isEducationalEmail(email) ? '#10B981' : '#EF4444'}
-                          />
+                          isEducationalEmail(email) ? (
+                            <CheckmarkCircleIcon size={moderateScale(20)} color="#10B981" />
+                          ) : (
+                            <CloseCircleIcon size={moderateScale(20)} color="#EF4444" />
+                          )
                         )
                       )}
                     </View>
@@ -1158,8 +1160,7 @@ const SignUp = ({ navigation, route }) => {
                     <>
                       <GlassInput focused={passwordFocused} style={[{ marginTop: spacing.md }, getInputErrorStyle('password')]}>
                         <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
-                          <Ionicons
-                            name="lock-closed-outline"
+                          <LockIcon
                             size={moderateScale(20)}
                             color={passwordFocused ? theme.primary : theme.textSecondary}
                             style={[styles.inputIcon, isRTL && styles.inputIconRtl]}
@@ -1199,11 +1200,11 @@ const SignUp = ({ navigation, route }) => {
                             activeOpacity={0.7}
                             hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                           >
-                            <Ionicons
-                              name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                              size={moderateScale(20)}
-                              color={theme.textSecondary}
-                            />
+                            {showPassword ? (
+                              <EyeOffIcon size={moderateScale(20)} color={theme.textSecondary} />
+                            ) : (
+                              <EyeIcon size={moderateScale(20)} color={theme.textSecondary} />
+                            )}
                           </TouchableOpacity>
                         </View>
                       </GlassInput>
@@ -1224,11 +1225,11 @@ const SignUp = ({ navigation, route }) => {
                         </Text>
                         {passwordRequirementItems.map((requirement) => (
                           <View key={requirement.key} style={styles.passwordRequirementRow}>
-                            <Ionicons
-                              name={requirement.met ? 'checkmark-circle' : 'ellipse-outline'}
-                              size={moderateScale(16)}
-                              color={requirement.met ? theme.success : theme.textSecondary}
-                            />
+                            {requirement.met ? (
+                              <CheckmarkCircleIcon size={moderateScale(16)} color={theme.success} />
+                            ) : (
+                              <EllipseIcon size={moderateScale(16)} color={theme.textSecondary} />
+                            )}
                             <Text
                               style={[
                                 styles.passwordRequirementText,
@@ -1272,8 +1273,7 @@ const SignUp = ({ navigation, route }) => {
 
                       <GlassInput focused={confirmPasswordFocused} style={[{ marginTop: spacing.md }, getInputErrorStyle('confirmPassword')]}>
                         <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
-                          <Ionicons
-                            name="lock-closed-outline"
+                          <LockIcon
                             size={moderateScale(20)}
                             color={confirmPasswordFocused ? theme.primary : theme.textSecondary}
                             style={[styles.inputIcon, isRTL && styles.inputIconRtl]}
@@ -1312,15 +1312,14 @@ const SignUp = ({ navigation, route }) => {
                             activeOpacity={0.7}
                             hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                           >
-                            <Ionicons
-                              name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
-                              size={moderateScale(20)}
-                              color={theme.textSecondary}
-                            />
+                            {showConfirmPassword ? (
+                              <EyeOffIcon size={moderateScale(20)} color={theme.textSecondary} />
+                            ) : (
+                              <EyeIcon size={moderateScale(20)} color={theme.textSecondary} />
+                            )}
                           </TouchableOpacity>
                           {confirmPassword.length > 0 && passwordsMatch && (
-                            <Ionicons
-                              name="checkmark-circle"
+                            <CheckmarkCircleIcon
                               size={moderateScale(20)}
                               color={theme.success}
                               style={[styles.checkIcon, isRTL && styles.checkIconRtl]}
@@ -1424,7 +1423,7 @@ const SignUp = ({ navigation, route }) => {
                     <>
                       <GlassInput style={[{ marginTop: spacing.md }, getInputErrorStyle('customUniversityName')]}>
                         <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
-                          <Ionicons name="school-outline" size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
+                          <SchoolIcon size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
                           <TextInput
                             style={[
                               styles.input,
@@ -1455,7 +1454,7 @@ const SignUp = ({ navigation, route }) => {
 
                       <GlassInput style={[{ marginTop: spacing.md }, getInputErrorStyle('customCollegeName')]}>
                         <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
-                          <Ionicons name="book-outline" size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
+                          <BookIcon size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
                           <TextInput
                             style={[
                               styles.input,
@@ -1486,7 +1485,7 @@ const SignUp = ({ navigation, route }) => {
 
                       <GlassInput style={[{ marginTop: spacing.md }, getInputErrorStyle('customDepartmentName')]}>
                         <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
-                          <Ionicons name="business-outline" size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
+                          <BusinessIcon size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
                           <TextInput
                             style={[
                               styles.input,
@@ -1521,7 +1520,7 @@ const SignUp = ({ navigation, route }) => {
                     <>
                       <GlassInput style={[{ marginTop: spacing.md }, getInputErrorStyle('customCollegeName')]}>
                         <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
-                          <Ionicons name="book-outline" size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
+                          <BookIcon size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
                           <TextInput
                             style={[
                               styles.input,
@@ -1552,7 +1551,7 @@ const SignUp = ({ navigation, route }) => {
 
                       <GlassInput style={[{ marginTop: spacing.md }, getInputErrorStyle('customDepartmentName')]}>
                         <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
-                          <Ionicons name="business-outline" size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
+                          <BusinessIcon size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
                           <TextInput
                             style={[
                               styles.input,
@@ -1586,7 +1585,7 @@ const SignUp = ({ navigation, route }) => {
                   {!isUniversityOther && !isCollegeOther && isDepartmentOther && (
                     <GlassInput style={[{ marginTop: spacing.md }, getInputErrorStyle('customDepartmentName')]}>
                       <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
-                        <Ionicons name="business-outline" size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
+                        <BusinessIcon size={moderateScale(20)} color={theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
                         <TextInput
                           style={[
                             styles.input,
@@ -1651,11 +1650,11 @@ const SignUp = ({ navigation, route }) => {
                     activeOpacity={0.8}
                   >
                     <View style={styles.roleOptionContent}>
-                      <Ionicons name="school-outline" size={moderateScale(20)} color={theme.text} />
+                      <SchoolIcon size={moderateScale(20)} color={theme.text} />
                       <Text style={[styles.roleOptionText, { color: theme.text }]}>{t('auth.studentRole')}</Text>
                     </View>
                     {accountRole === 'student' && (
-                      <Ionicons name="checkmark-circle" size={moderateScale(20)} color={theme.primary} />
+                      <CheckmarkCircleIcon size={moderateScale(20)} color={theme.primary} />
                     )}
                   </TouchableOpacity>
 
@@ -1676,8 +1675,7 @@ const SignUp = ({ navigation, route }) => {
                     activeOpacity={0.8}
                   >
                     <View style={styles.roleOptionContent}>
-                      <Ionicons
-                        name="book-outline"
+                      <BookIcon
                         size={moderateScale(20)}
                         color={!isTeacherSignupEnabled ? theme.textSecondary : theme.text}
                       />
@@ -1698,7 +1696,7 @@ const SignUp = ({ navigation, route }) => {
                       </View>
                     </View>
                     {isTeacherSignupEnabled && accountRole === 'teacher' && (
-                      <Ionicons name="checkmark-circle" size={moderateScale(20)} color={theme.primary} />
+                      <CheckmarkCircleIcon size={moderateScale(20)} color={theme.primary} />
                     )}
                   </TouchableOpacity>
                 </>
@@ -1760,8 +1758,7 @@ const SignUp = ({ navigation, route }) => {
                             : (oauthMode ? t('common.next') : t('auth.createAccount'))}
                         </Text>
                         {!isCompactPhone && (
-                          <Ionicons
-                            name="arrow-forward"
+                          <ArrowForwardIcon
                             size={moderateScale(20)}
                             color="#FFFFFF"
                             style={[styles.buttonIcon, { opacity: (currentStep === 3 && !isFormValid()) ? 0.6 : 1 }]}

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Image, Linking, Text, TouchableOpacity, View, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import { Linking, Text, TouchableOpacity, View, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import { SavedPostSkeleton } from '../../../components/SkeletonLoader';
@@ -98,7 +99,7 @@ const LectureAssetsList = ({
         <View style={[styles.previewContainer, styles.youtubePreviewContainer, { borderColor: accentColor, backgroundColor: previewBg }]}> 
           {!!youtubeThumbUrl && (
             <TouchableOpacity activeOpacity={0.84} onPress={onOpenYoutube}>
-              <Image source={{ uri: youtubeThumbUrl }} style={styles.youtubeThumb} resizeMode="cover" />
+              <Image source={{ uri: youtubeThumbUrl }} style={styles.youtubeThumb} contentFit="cover" cachePolicy="memory-disk" transition={200} />
             </TouchableOpacity>
           )}
 
