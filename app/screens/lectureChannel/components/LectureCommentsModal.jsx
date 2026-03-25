@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, useWindowDimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../../components/icons/CompatIonicon';
 import { FlashList } from '@shopify/flash-list';
 import { GlassContainer } from '../../../components/GlassComponents';
 import styles from '../LectureChannelStyles';

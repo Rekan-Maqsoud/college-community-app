@@ -6,7 +6,8 @@ import {
   Modal,
   StyleSheet,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../icons/CompatIonicon';
+import IoniconSvg from '../icons/IoniconSvg';
 
 const PostCardMenu = ({
   visible,
@@ -104,7 +105,7 @@ const PostCardMenu = ({
                 style={styles.menuItem} 
                 onPress={() => handleAction('delete')}
               >
-                <Ionicons name="trash-outline" size={22} color="#EF4444" />
+                <IoniconSvg name="trash-outline" size={22} color="#EF4444" />
                 <Text style={[styles.menuText, { color: '#EF4444' }]}>
                   {t('common.delete')}
                 </Text>
@@ -116,7 +117,7 @@ const PostCardMenu = ({
                     style={styles.menuItem} 
                     onPress={() => handleAction('requestReview')}
                   >
-                    <Ionicons name="shield-checkmark-outline" size={22} color={theme.primary || '#007AFF'} />
+                    <IoniconSvg name="shield-checkmark-outline" size={22} color={theme.primary || '#007AFF'} />
                     <Text style={[styles.menuText, { color: theme.primary || '#007AFF' }]}>
                       {t('post.requestReview')}
                     </Text>
@@ -142,7 +143,7 @@ const PostCardMenu = ({
                     style={styles.menuItem} 
                     onPress={() => handleAction('repost')}
                   >
-                    <Ionicons name="repeat-outline" size={22} color={theme.primary || '#007AFF'} />
+                    <IoniconSvg name="repeat-outline" size={22} color={theme.primary || '#007AFF'} />
                     <Text style={[styles.menuText, { color: theme.primary || '#007AFF' }]}>
                       {t('post.repost') || 'Repost'}
                     </Text>
@@ -158,7 +159,7 @@ const PostCardMenu = ({
                 style={styles.menuItem} 
                 onPress={() => handleAction('visitOriginal')}
               >
-                <Ionicons name="open-outline" size={22} color={theme.primary || '#007AFF'} />
+                <IoniconSvg name="open-outline" size={22} color={theme.primary || '#007AFF'} />
                 <Text style={[styles.menuText, { color: theme.primary || '#007AFF' }]}>
                   {t('post.visitOriginalPost') || 'Visit original post'}
                 </Text>
@@ -170,7 +171,7 @@ const PostCardMenu = ({
             style={styles.menuItem} 
             onPress={() => handleAction('copy')}
           >
-            <Ionicons name="copy-outline" size={22} color={theme.primary || '#007AFF'} />
+            <IoniconSvg name="copy-outline" size={22} color={theme.primary || '#007AFF'} />
             <Text style={[styles.menuText, { color: theme.primary || '#007AFF' }]}>
               {t('post.copyText') || 'Copy Text'}
             </Text>
@@ -180,7 +181,7 @@ const PostCardMenu = ({
             style={styles.menuItem} 
             onPress={() => handleAction('bookmark')}
           >
-            <Ionicons 
+            <IoniconSvg
               name={isBookmarked ? "bookmark" : "bookmark-outline"} 
               size={22} 
               color={isBookmarked ? "#F59E0B" : theme.primary || '#007AFF'} 
@@ -194,7 +195,7 @@ const PostCardMenu = ({
             style={styles.menuItem} 
             onPress={onClose}
           >
-            <Ionicons name="close-outline" size={22} color={theme.textSecondary} />
+            <IoniconSvg name="close-outline" size={22} color={theme.textSecondary} />
             <Text style={[styles.menuText, { color: theme.textSecondary }]}>
               {t('common.cancel')}
             </Text>

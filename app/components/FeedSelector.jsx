@@ -7,9 +7,9 @@ import {
   Animated,
   useWindowDimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { GlassContainer } from './GlassComponents';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { GlobeIcon, PeopleIcon, SchoolHomeIcon } from './icons/home';
 import { wp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { FEED_TYPES } from '../constants/feedCategories';
@@ -25,19 +25,19 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
   const feeds = useMemo(() => ([
     {
       type: FEED_TYPES.DEPARTMENT,
-      icon: 'people-outline',
+      icon: PeopleIcon,
       label: t('feed.department'),
       index: 0,
     },
     {
       type: FEED_TYPES.MAJOR,
-      icon: 'school-outline',
+      icon: SchoolHomeIcon,
       label: t('feed.major'),
       index: 1,
     },
     {
       type: FEED_TYPES.PUBLIC,
-      icon: 'globe-outline',
+      icon: GlobeIcon,
       label: t('feed.public'),
       index: 2,
     },
@@ -74,11 +74,68 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
 
     return containerWidth / visualFeeds.length;
   }, [containerWidth, visualFeeds.length]);
-  
+
+  const buttonWidths = useMemo(() => {
+    if (containerWidth <= 0 || visualFeeds.length === 0) {
+      return visualFeeds.map(() => 0);
+    }
+
+    const minShare = isSmallScreen ? 0.26 : 0.24;
+    const availableShare = 1 - (minShare * visualFeeds.length);
+    const rawWeights = visualFeeds.map((feed) => {
+      const labelLength = String(feed.label || '').trim().length || 1;
+      const departmentBoost = feed.type === FEED_TYPES.DEPARTMENT ? 1.2 : 1;
+      return Math.max(1, labelLength * departmentBoost);
+    });
+    const totalWeight = rawWeights.reduce((sum, weight) => sum + weight, 0) || 1;
+
+    return rawWeights.map((weight) => {
+      const weightedShare = minShare + (availableShare * (weight / totalWeight));
+      return Math.max(0, containerWidth * weightedShare);
+    });
+  }, [containerWidth, isSmallScreen, visualFeeds]);
+
+  const buttonOffsets = useMemo(() => {
+    let runningOffset = 0;
+    return buttonWidths.map((widthValue) => {
+      const current = runningOffset;
+      runningOffset += widthValue;
+      return current;
+    });
+  }, [buttonWidths]);
+
   const translateX = indicatorAnim.interpolate({
     inputRange: [0, 1, 2],
-    outputRange: [0, buttonWidth, buttonWidth * 2],
+    outputRange: [
+      buttonOffsets[0] || 0,
+      buttonOffsets[1] || 0,
+      buttonOffsets[2] || 0,
+    ],
   });
+
+  const indicatorWidth = indicatorAnim.interpolate({
+    inputRange: [0, 1, 2],
+    outputRange: [
+      buttonWidths[0] || buttonWidth || 0,
+      buttonWidths[1] || buttonWidth || 0,
+      buttonWidths[2] || buttonWidth || 0,
+    ],
+  });
+
+  const maxLabelLength = useMemo(() => {
+    return visualFeeds.reduce((maxLength, feed) => {
+      const length = String(feed.label || '').trim().length;
+      return Math.max(maxLength, length);
+    }, 0);
+  }, [visualFeeds]);
+
+  const labelFontSize = useMemo(() => {
+    if (isSmallScreen) {
+      return maxLabelLength > 10 ? fontSize(8.5) : fontSize(9.5);
+    }
+
+    return maxLabelLength > 10 ? fontSize(9.5) : fontSize(10.5);
+  }, [isSmallScreen, maxLabelLength]);
 
   const textColor = (isSelected) => {
     if (isSelected) return '#FFFFFF';
@@ -115,13 +172,14 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
             styles.indicator,
             {
               backgroundColor: theme.primary,
-              width: buttonWidth || 0,
+              width: indicatorWidth,
               transform: [{ translateX }],
             },
           ]}
         />
-        {visualFeeds.map((feed) => {
+        {visualFeeds.map((feed, visualIndex) => {
           const isSelected = selectedFeed === feed.type;
+          const FeedIcon = feed.icon;
           
           return (
             <TouchableOpacity
@@ -129,7 +187,7 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
               style={[
                 styles.feedButton,
                 isRTL && styles.feedButtonRtl,
-                { width: buttonWidth || `${100 / visualFeeds.length}%` },
+                { width: buttonWidths[visualIndex] || buttonWidth || `${100 / visualFeeds.length}%` },
               ]}
               onPress={() => handleFeedChange(feed.type)}
               activeOpacity={0.7}
@@ -137,8 +195,7 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
               accessibilityLabel={feed.label}
               accessibilityState={{ selected: isSelected }}
             >
-              <Ionicons
-                name={feed.icon}
+              <FeedIcon
                 size={moderateScale(isSmallScreen ? 14 : 16)}
                 color={iconColor(isSelected)}
                 style={[styles.feedIcon, isRTL ? styles.feedIconRtl : styles.feedIconLtr]}
@@ -149,7 +206,7 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
                   isRTL && styles.feedLabelRtl,
                   {
                     color: textColor(isSelected),
-                    fontSize: fontSize(isSmallScreen ? 9.5 : 10.5),
+                    fontSize: labelFontSize,
                     fontWeight: isSelected ? '700' : '600',
                     textShadowColor: isSelected ? 'rgba(0, 0, 0, 0.2)' : 'transparent',
                     textShadowOffset: isSelected ? { width: 0, height: 1 } : { width: 0, height: 0 },

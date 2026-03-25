@@ -13,8 +13,15 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
+import {
+  MailIcon,
+  TimeIcon,
+  AlertCircleIcon,
+  CheckmarkCircleIcon,
+  InformationCircleIcon,
+  ArrowBackIcon,
+} from '../components/icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
@@ -408,11 +415,7 @@ const VerifyEmail = ({ route, navigation }) => {
                   { transform: [{ scale: pulseAnim }] }
                 ]}>
                 <View style={styles.iconCircle}>
-                  <Ionicons 
-                    name="mail-unread-outline" 
-                    size={moderateScale(40)} 
-                    color="#FFFFFF" 
-                  />
+                  <MailIcon size={moderateScale(40)} color="#FFFFFF" />
                 </View>
               </Animated.View>
 
@@ -430,7 +433,7 @@ const VerifyEmail = ({ route, navigation }) => {
                 </View>
                 {expirationCountdown !== null && (
                   <View style={styles.expirationContainer}>
-                    <Ionicons name="time-outline" size={moderateScale(16)} color="#FF9500" />
+                    <TimeIcon size={moderateScale(16)} color="#FF9500" />
                     <Text style={styles.expirationText}>
                       {`${t('auth.expiresIn')} ${formatTime(expirationCountdown)}`}
                     </Text>
@@ -476,7 +479,7 @@ const VerifyEmail = ({ route, navigation }) => {
                   
                   {otpError ? (
                     <View style={styles.errorContainer}>
-                      <Ionicons name="alert-circle" size={moderateScale(16)} color="#FF3B30" />
+                      <AlertCircleIcon size={moderateScale(16)} color="#FF3B30" />
                       <Text style={styles.errorText}>{otpError}</Text>
                     </View>
                   ) : null}
@@ -498,7 +501,7 @@ const VerifyEmail = ({ route, navigation }) => {
                     <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
                     <>
-                      <Ionicons name="checkmark-circle-outline" size={moderateScale(20)} color="#FFFFFF" />
+                      <CheckmarkCircleIcon size={moderateScale(20)} color="#FFFFFF" />
                       <Text style={[styles.verifyButtonText, { fontSize: fontSize(16) }]}>
                         {t('auth.verify')}
                       </Text>
@@ -517,7 +520,7 @@ const VerifyEmail = ({ route, navigation }) => {
                   ]}
                   onPress={handleOpenEmailApp}
                   activeOpacity={0.8}>
-                  <Ionicons name="mail-open-outline" size={moderateScale(20)} color={theme.primary} />
+                  <MailIcon size={moderateScale(20)} color={theme.primary} />
                   <Text style={[styles.openEmailButtonText, { fontSize: fontSize(14), color: theme.primary }]}>
                     {t('auth.openEmailApp')}
                   </Text>
@@ -525,7 +528,7 @@ const VerifyEmail = ({ route, navigation }) => {
 
                 {/* Spam notice */}
                 <View style={styles.spamNotice}>
-                  <Ionicons name="information-circle-outline" size={moderateScale(16)} color={theme.textSecondary} />
+                  <InformationCircleIcon size={moderateScale(16)} color={theme.textSecondary} />
                   <Text style={[styles.spamNoticeText, { color: theme.textSecondary }]}>
                     {t('auth.checkSpamFolder')}
                   </Text>
@@ -552,11 +555,7 @@ const VerifyEmail = ({ route, navigation }) => {
                 <TouchableOpacity
                   style={styles.changeEmailButton}
                   onPress={handleGoBack}>
-                  <Ionicons 
-                    name="arrow-back" 
-                    size={moderateScale(16)} 
-                    color={theme.textSecondary} 
-                  />
+                  <ArrowBackIcon size={moderateScale(16)} color={theme.textSecondary} />
                   <Text style={[
                     styles.changeEmailText,
                     { color: theme.textSecondary, fontSize: fontSize(14) }

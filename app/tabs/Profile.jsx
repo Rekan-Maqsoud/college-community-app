@@ -9,7 +9,8 @@ import { FlashList } from '@shopify/flash-list';
 import { useUser } from '../context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard, GlassContainer, GlassIconButton } from '../components/GlassComponents';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/CompatIonicon';
+import IoniconSvg from '../components/icons/IoniconSvg';
 import AnimatedBackground from '../components/AnimatedBackground';
 import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
@@ -605,7 +606,7 @@ const Profile = ({ navigation, route }) => {
             onPress={() => navigation.navigate('Settings')}
             accessibilityLabel={t('settings.title')}
           >
-            <Ionicons name="settings-outline" size={moderateScale(22)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
+            <IoniconSvg name="settings-outline" size={moderateScale(22)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
           </GlassIconButton>
         </View>
         <View style={styles.avatarContainer}>
@@ -710,7 +711,7 @@ const Profile = ({ navigation, route }) => {
     return (
       <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
         <GlassContainer style={styles.emptyCard} borderRadius={borderRadius.lg}>
-          <Ionicons name="document-text-outline" size={moderateScale(40)} color={theme.textSecondary} />
+          <IoniconSvg name="document-text-outline" size={moderateScale(40)} color={theme.textSecondary} />
           <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
             {t('profile.noPosts')}
           </Text>
@@ -787,7 +788,7 @@ const Profile = ({ navigation, route }) => {
                 accessibilityLabel={t('common.close')}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons name="close" size={moderateScale(24)} color={theme.textSecondary} />
+                <IoniconSvg name="close" size={moderateScale(24)} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
             <View style={styles.qrCodeContainer}>
@@ -798,7 +799,7 @@ const Profile = ({ navigation, route }) => {
               onPress={handleShareQr}
               accessibilityRole="button"
               accessibilityLabel={t('profile.shareProfile')}>
-              <Ionicons name="share-outline" size={moderateScale(18)} color="#FFFFFF" />
+              <IoniconSvg name="share-outline" size={moderateScale(18)} color="#FFFFFF" />
               <Text style={styles.shareButtonText}>{t('profile.shareProfile')}</Text>
             </TouchableOpacity>
           </View>

@@ -1,19 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import {
-  View,
-  Text,
-  Modal, 
-  Image,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
-  useWindowDimensions,
-  Switch,
-  Platform,
-  KeyboardAvoidingView,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, useWindowDimensions, Switch, Platform, KeyboardAvoidingView } from 'react-native';
+import { Ionicons } from './icons/CompatIonicon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import {
@@ -29,6 +16,7 @@ import {
   trendingGifs,
   trendingStickers,
 } from '../../services/giphyService';
+import { Image } from 'expo-image';
 
 const NUM_COLUMNS = 2;
 const GRID_GAP = spacing.xs;

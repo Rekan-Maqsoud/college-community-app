@@ -7,11 +7,11 @@ import {
   ScrollView,
   Modal,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { GlassContainer, GlassPill } from './GlassComponents';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { CheckmarkCircleOutlineFsIcon, CloseOutlineFsIcon } from './icons/filterSort';
 
 const STAGES = [
   { key: 'all', label: 'filter.allStages' },
@@ -65,11 +65,7 @@ const StageFilter = ({ selectedStage = 'all', onStageChange, visible = false, on
                 onPress={onClose}
                 style={styles.closeButton}
               >
-                <Ionicons
-                  name="close-outline"
-                  size={moderateScale(24)}
-                  color={theme.text}
-                />
+                <CloseOutlineFsIcon size={moderateScale(24)} color={theme.text} />
               </TouchableOpacity>
             </View>
 
@@ -109,11 +105,7 @@ const StageFilter = ({ selectedStage = 'all', onStageChange, visible = false, on
                         {t(stage.label)}
                       </Text>
                       {isSelected && (
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={moderateScale(22)}
-                          color={theme.primary}
-                        />
+                        <CheckmarkCircleOutlineFsIcon size={moderateScale(22)} color={theme.primary} />
                       )}
                     </GlassPill>
                   </TouchableOpacity>

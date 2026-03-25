@@ -20,12 +20,12 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
-import { Ionicons } from '@expo/vector-icons';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import CustomAlert from './CustomAlert';
 import { FlashList } from '@shopify/flash-list';
 import { GlassContainer, GlassIconButton } from './GlassComponents';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { CloseFilledIcon, DownloadOutlineExactIcon, ShareOutlineExactIcon } from './icons';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -281,7 +281,7 @@ const ZoomableImageModal = ({
         <GlassContainer style={[styles.header, { backgroundColor: 'transparent' }]} disableBackgroundOverlay={true}>
           <TouchableOpacity onPress={onClose}>
             <GlassIconButton size={44} active={false}>
-              <Ionicons name="close" size={28} color="#fff" />
+              <CloseFilledIcon size={28} color="#fff" />
             </GlassIconButton>
           </TouchableOpacity>
           
@@ -295,7 +295,7 @@ const ZoomableImageModal = ({
             {showShare && (
               <TouchableOpacity onPress={handleShare}>
                 <GlassIconButton size={44} active={false}>
-                  <Ionicons name="share-outline" size={24} color="#fff" />
+                  <ShareOutlineExactIcon size={24} color="#fff" />
                 </GlassIconButton>
               </TouchableOpacity>
             )}
@@ -308,7 +308,7 @@ const ZoomableImageModal = ({
                   {isDownloading ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Ionicons name="download-outline" size={24} color="#fff" />
+                    <DownloadOutlineExactIcon size={24} color="#fff" />
                   )}
                 </GlassIconButton>
               </TouchableOpacity>

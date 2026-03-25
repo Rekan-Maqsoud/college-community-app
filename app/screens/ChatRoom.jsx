@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/CompatIonicon';
+import IoniconSvg from '../components/icons/IoniconSvg';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -751,7 +752,7 @@ const ChatRoom = ({ route, navigation }) => {
             accessibilityRole="button"
             accessibilityLabel={t('common.refresh')}
             hitSlop={HEADER_ACTION_HIT_SLOP}>
-            <Ionicons name="refresh-outline" size={moderateScale(22)} color={theme.text} />
+            <IoniconSvg name="refresh-outline" size={moderateScale(22)} color={theme.text} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerActionButton}
@@ -759,7 +760,7 @@ const ChatRoom = ({ route, navigation }) => {
             accessibilityRole="button"
             accessibilityLabel={t('chats.searchInChat')}
             hitSlop={HEADER_ACTION_HIT_SLOP}>
-            <Ionicons name="search-outline" size={moderateScale(22)} color={theme.text} />
+            <IoniconSvg name="search-outline" size={moderateScale(22)} color={theme.text} />
           </TouchableOpacity>
           {chat.type === 'custom_group' && (
             <TouchableOpacity
@@ -768,7 +769,7 @@ const ChatRoom = ({ route, navigation }) => {
               accessibilityRole="button"
               accessibilityLabel={t('chats.groupSettings')}
               hitSlop={HEADER_ACTION_HIT_SLOP}>
-              <Ionicons name="settings-outline" size={moderateScale(22)} color={theme.text} />
+              <IoniconSvg name="settings-outline" size={moderateScale(22)} color={theme.text} />
             </TouchableOpacity>
           )}
         </View>
@@ -1183,7 +1184,7 @@ const ChatRoom = ({ route, navigation }) => {
     return (
       <View style={searchBarStyle}>
         <View style={searchInputContainerStyle}>
-          <Ionicons name="search" size={moderateScale(18)} color={theme.textSecondary} />
+          <IoniconSvg name="search" size={moderateScale(18)} color={theme.textSecondary} />
           <TextInput
             ref={searchInputRef}
             style={searchInputStyle}
@@ -1195,7 +1196,7 @@ const ChatRoom = ({ route, navigation }) => {
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={handleSearchClear} hitSlop={SEARCH_ACTION_HIT_SLOP}>
-              <Ionicons name="close-circle" size={moderateScale(18)} color={theme.textSecondary} />
+              <IoniconSvg name="close-circle" size={moderateScale(18)} color={theme.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -1302,7 +1303,7 @@ const ChatRoom = ({ route, navigation }) => {
           <TouchableOpacity
             style={styles.selectionToolbarBtn}
             onPress={toggleSelectionMode}>
-            <Ionicons name="close" size={moderateScale(22)} color={theme.text} />
+            <IoniconSvg name="close" size={moderateScale(22)} color={theme.text} />
             <Text style={selectedMessagesTextStyle}>
               {selectionSummaryLabel}
             </Text>
@@ -1312,7 +1313,7 @@ const ChatRoom = ({ route, navigation }) => {
               style={styles.selectionToolbarBtn}
               onPress={handleBatchCopy}
               disabled={selectedMessageIds.length === 0}>
-              <Ionicons name="copy-outline" size={moderateScale(20)} color={selectedMessageIds.length > 0 ? theme.primary : theme.textSecondary} />
+              <IoniconSvg name="copy-outline" size={moderateScale(20)} color={selectedMessageIds.length > 0 ? theme.primary : theme.textSecondary} />
               <Text style={copySelectionTextStyle}>
                 {t('chats.copy')}
               </Text>
@@ -1333,7 +1334,7 @@ const ChatRoom = ({ route, navigation }) => {
       {/* Blocked user banner */}
       {isFullyBlockedChat && (
         <View style={fullBlockedBannerStyle}>
-          <Ionicons name="ban-outline" size={moderateScale(18)} color={BLOCKED_COLOR} />
+          <IoniconSvg name="ban-outline" size={moderateScale(18)} color={BLOCKED_COLOR} />
           <Text style={[styles.warningText, { fontSize: fontSize(12), color: BLOCKED_COLOR }]}>
             {iBlockedThem
               ? t('chats.blockedUserBanner')

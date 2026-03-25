@@ -1,17 +1,10 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  Linking,
-  Modal,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Linking, Modal } from 'react-native';
+import { Ionicons } from '../../components/icons/CompatIonicon';
+import IoniconSvg from '../../components/icons/IoniconSvg';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
 import CustomAlert from '../../components/CustomAlert';
+import { Image } from 'expo-image';
 
 const ReplyItem = ({ 
   reply, 
@@ -61,7 +54,7 @@ const ReplyItem = ({
     ]}>
       {reply.isAccepted && (
         <View style={styles.acceptedBadge}>
-          <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />
+          <IoniconSvg name="checkmark-circle" size={14} color="#FFFFFF" />
           <Text style={styles.acceptedBadgeText}>{t('post.bestAnswer')}</Text>
         </View>
       )}
@@ -95,7 +88,7 @@ const ReplyItem = ({
 
         {(isOwner || isPostOwner) && (
           <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.replyMenuButton}>
-            <Ionicons name="ellipsis-horizontal" size={20} color={theme.textSecondary} />
+            <IoniconSvg name="ellipsis-horizontal" size={20} color={theme.textSecondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -114,9 +107,9 @@ const ReplyItem = ({
                 style={[styles.replyLinkItem, { backgroundColor: isDarkMode ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.1)' }]}
                 onPress={() => handleLinkPress(link)}
               >
-                <Ionicons name={isEmail ? 'mail-outline' : 'link-outline'} size={16} color="#3B82F6" />
+                <IoniconSvg name={isEmail ? 'mail-outline' : 'link-outline'} size={16} color="#3B82F6" />
                 <Text style={styles.replyLinkText} numberOfLines={1}>{link}</Text>
-                <Ionicons name="open-outline" size={14} color="#3B82F6" />
+                <IoniconSvg name="open-outline" size={14} color="#3B82F6" />
               </TouchableOpacity>
             );
           })}
@@ -211,7 +204,7 @@ const ReplyItem = ({
                   style={styles.menuItem}
                   onPress={() => { setShowMenu(false); onDelete(reply); }}
                 >
-                  <Ionicons name="trash-outline" size={22} color="#EF4444" />
+                  <IoniconSvg name="trash-outline" size={22} color="#EF4444" />
                   <Text style={[styles.menuItemText, { color: '#EF4444' }]}>{t('post.deleteReply')}</Text>
                 </TouchableOpacity>
               </>
@@ -222,7 +215,7 @@ const ReplyItem = ({
                   style={styles.menuItem}
                   onPress={() => { setShowMenu(false); onDelete(reply); }}
                 >
-                  <Ionicons name="trash-outline" size={22} color="#EF4444" />
+                  <IoniconSvg name="trash-outline" size={22} color="#EF4444" />
                   <Text style={[styles.menuItemText, { color: '#EF4444' }]}>{t('post.deleteReply')}</Text>
                 </TouchableOpacity>
                 {showAcceptButton && (

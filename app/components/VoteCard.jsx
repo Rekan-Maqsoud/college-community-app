@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import ProfilePicture from './ProfilePicture';
 import { GlassContainer } from './GlassComponents';
 import { wp, normalize, spacing } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { CheckmarkCircleIcon, EllipseIcon, TrophyIcon } from './icons';
 
 /**
  * Card showing a candidate in the voting screen with their vote count.
@@ -66,7 +66,7 @@ const VoteCard = ({
             ) : null}
             {isLeading && voteCount > 0 && (
               <View style={[styles.leadingBadge, { backgroundColor: colors.success || '#22C55E' }]}>
-                <Ionicons name="trophy" size={10} color="#FFFFFF" />
+                <TrophyIcon size={10} color="#FFFFFF" />
               </View>
             )}
           </View>
@@ -80,11 +80,11 @@ const VoteCard = ({
 
       <View style={styles.right}>
         <View style={[styles.voteCountBox, { backgroundColor: isVotedByMe ? colors.primary + '20' : colors.inputBackground }]}>
-          <Ionicons
-            name={isVotedByMe ? 'checkmark-circle' : 'ellipse-outline'}
-            size={normalize(16)}
-            color={isVotedByMe ? colors.primary : colors.textSecondary}
-          />
+          {isVotedByMe ? (
+            <CheckmarkCircleIcon size={normalize(16)} color={colors.primary} />
+          ) : (
+            <EllipseIcon size={normalize(16)} color={colors.textSecondary} />
+          )}
           <Text style={[styles.voteCount, { color: isVotedByMe ? colors.primary : colors.text }]}>
             {voteCount}
           </Text>

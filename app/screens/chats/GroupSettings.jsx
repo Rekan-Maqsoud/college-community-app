@@ -1,22 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  StatusBar,
-  Platform,
-  KeyboardAvoidingView,
-  TouchableOpacity,
-  TextInput, 
-  ActivityIndicator,
-  ScrollView,
-  Switch,
-  Image,
-} from 'react-native';
+import { View, Text, StyleSheet, StatusBar, Platform, KeyboardAvoidingView, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassContainer } from '../../components/GlassComponents';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/CompatIonicon';
+import IoniconSvg from '../../components/icons/IoniconSvg';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
 import AnimatedBackground from '../../components/AnimatedBackground';
@@ -48,6 +36,7 @@ import {
 import { borderRadius } from '../../theme/designTokens';
 import useLayout from '../../hooks/useLayout';
 import { FlashList } from '@shopify/flash-list';
+import { Image } from 'expo-image';
 
 const GroupSettings = ({ navigation, route }) => {
   const { chat } = route.params || {};
@@ -650,7 +639,7 @@ const GroupSettings = ({ navigation, route }) => {
               <TouchableOpacity 
                 style={styles.backButton}
                 onPress={() => navigation.goBack()}>
-                <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.text} />
+                <IoniconSvg name="arrow-back" size={moderateScale(24)} color={theme.text} />
               </TouchableOpacity>
               <Text style={[styles.headerTitle, { color: theme.text, fontSize: fontSize(20) }]}>
                 {t('chats.groupSettings')}
@@ -693,12 +682,12 @@ const GroupSettings = ({ navigation, route }) => {
                       />
                     ) : (
                       <View style={[styles.groupPhotoPlaceholder, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
-                        <Ionicons name="people" size={moderateScale(40)} color={theme.textSecondary} />
+                        <IoniconSvg name="people" size={moderateScale(40)} color={theme.textSecondary} />
                       </View>
                     )}
                     {isAdmin && !uploadingPhoto && (
                       <View style={[styles.photoEditBadge, { backgroundColor: theme.primary }]}>
-                        <Ionicons name="camera" size={moderateScale(14)} color="#FFFFFF" />
+                        <IoniconSvg name="camera" size={moderateScale(14)} color="#FFFFFF" />
                       </View>
                     )}
                   </TouchableOpacity>
@@ -850,7 +839,7 @@ const GroupSettings = ({ navigation, route }) => {
                       <Text style={[styles.lectureOptionText, { color: theme.text, fontSize: fontSize(13) }]}>
                         {t('chats.noLinkedLectureChannel')}
                       </Text>
-                      {!selectedLectureChannelId && <Ionicons name="checkmark-circle" size={moderateScale(18)} color={theme.primary} />}
+                      {!selectedLectureChannelId && <IoniconSvg name="checkmark-circle" size={moderateScale(18)} color={theme.primary} />}
                     </TouchableOpacity>
 
                     {lectureChannels.map(channel => (
@@ -873,7 +862,7 @@ const GroupSettings = ({ navigation, route }) => {
                             {channel.channelType === 'official' ? t('lectures.official') : t('lectures.community')}
                           </Text>
                         </View>
-                        {selectedLectureChannelId === channel.$id && <Ionicons name="checkmark-circle" size={moderateScale(18)} color={theme.primary} />}
+                        {selectedLectureChannelId === channel.$id && <IoniconSvg name="checkmark-circle" size={moderateScale(18)} color={theme.primary} />}
                       </TouchableOpacity>
                     ))}
 
@@ -946,7 +935,7 @@ const GroupSettings = ({ navigation, route }) => {
                   <TouchableOpacity 
                     style={[styles.addButton, { backgroundColor: `${theme.primary}15` }]}
                     onPress={() => navigation.navigate('AddMembers', { chat })}>
-                    <Ionicons name="add" size={moderateScale(18)} color={theme.primary} />
+                    <IoniconSvg name="add" size={moderateScale(18)} color={theme.primary} />
                     <Text style={[styles.addButtonText, { color: theme.primary, fontSize: fontSize(12) }]}>
                       {t('chats.addMembers')}
                     </Text>

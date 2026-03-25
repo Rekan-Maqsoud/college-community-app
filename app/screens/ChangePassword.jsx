@@ -13,7 +13,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/CompatIonicon';
+import IoniconSvg from '../components/icons/IoniconSvg';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { GlassContainer, GlassInput } from '../components/GlassComponents';
 import { updateUserPassword } from '../../database/auth';
@@ -242,7 +243,7 @@ const ChangePassword = ({ navigation }) => {
               style={[styles.backButton, { backgroundColor: theme.card }]}
               onPress={() => confirmDiscardChanges(() => navigation.goBack())}
               activeOpacity={0.7}>
-              <Ionicons 
+              <IoniconSvg
                 name={isRTL ? 'arrow-forward' : 'arrow-back'} 
                 size={moderateScale(24)} 
                 color={theme.text} 
@@ -266,7 +267,7 @@ const ChangePassword = ({ navigation }) => {
             >
               <GlassInput focused={currentPasswordFocused}>
                 <View style={[styles.inputWrapper, isRTL && styles.rowReverse]}>
-                  <Ionicons 
+                  <IoniconSvg
                     name="lock-closed-outline" 
                     size={moderateScale(20)} 
                     color={currentPasswordFocused ? theme.primary : theme.textSecondary} 
@@ -292,7 +293,7 @@ const ChangePassword = ({ navigation }) => {
                     style={[styles.eyeIcon, isRTL && styles.eyeIconRtl]}
                     activeOpacity={0.7}
                   >
-                    <Ionicons 
+                    <IoniconSvg
                       name={showCurrentPassword ? "eye-off-outline" : "eye-outline"} 
                       size={moderateScale(20)} 
                       color={theme.textSecondary} 
@@ -329,7 +330,7 @@ const ChangePassword = ({ navigation }) => {
                     style={[styles.eyeIcon, isRTL && styles.eyeIconRtl]}
                     activeOpacity={0.7}
                   >
-                    <Ionicons 
+                    <IoniconSvg
                       name={showNewPassword ? "eye-off-outline" : "eye-outline"} 
                       size={moderateScale(20)} 
                       color={theme.textSecondary} 
@@ -427,14 +428,14 @@ const ChangePassword = ({ navigation }) => {
                     style={[styles.eyeIcon, isRTL && styles.eyeIconRtl]}
                     activeOpacity={0.7}
                   >
-                    <Ionicons 
+                    <IoniconSvg
                       name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} 
                       size={moderateScale(20)} 
                       color={theme.textSecondary} 
                     />
                   </TouchableOpacity>
                   {confirmPassword.length > 0 && passwordsMatch && (
-                    <Ionicons 
+                    <IoniconSvg
                       name="checkmark-circle" 
                       size={moderateScale(20)} 
                       color={theme.success} 
@@ -480,7 +481,7 @@ const ChangePassword = ({ navigation }) => {
                     ]}>
                       {t('settings.updatePassword') || 'Update Password'}
                     </Text>
-                    <Ionicons 
+                    <IoniconSvg
                       name="checkmark" 
                       size={moderateScale(20)} 
                       color="#FFFFFF" 

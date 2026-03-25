@@ -1,17 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  Pressable,
-  Platform,
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Pressable, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../../components/GlassComponents';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/CompatIonicon';
+import IoniconSvg from '../../components/icons/IoniconSvg';
 import * as ImagePicker from 'expo-image-picker';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import { useAppSettings } from '../../context/AppSettingsContext';
@@ -22,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useLayout from '../../hooks/useLayout';
 import { getReactionDefaults, updateReactionDefaults, updateReactionDefaultsForAllChats, DEFAULT_REACTION_SET, MAX_REACTION_DEFAULTS } from '../../../database/userChatSettings';
 import { getSettingsHeaderGradient } from './settingsTheme';
+import { Image } from 'expo-image';
 
 const MIN_BUBBLE_RADIUS = 4;
 const MAX_BUBBLE_RADIUS = 28;
@@ -410,7 +403,7 @@ const ChatSettings = ({ navigation, route }) => {
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}>
-          <Ionicons name={backIconName} size={moderateScale(22)} color={theme.text} />
+          <IoniconSvg name={backIconName} size={moderateScale(22)} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>
@@ -502,7 +495,7 @@ const ChatSettings = ({ navigation, route }) => {
                   disabled={sliderBubbleRadius >= MAX_BUBBLE_RADIUS}
                   activeOpacity={0.6}
                 >
-                  <Ionicons name="add" size={moderateScale(22)} color={sliderBubbleRadius >= MAX_BUBBLE_RADIUS ? theme.textSecondary : theme.primary} />
+                  <IoniconSvg name="add" size={moderateScale(22)} color={sliderBubbleRadius >= MAX_BUBBLE_RADIUS ? theme.textSecondary : theme.primary} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -526,7 +519,7 @@ const ChatSettings = ({ navigation, route }) => {
                   ]}
                   onPress={() => handleBubbleColorChange(color.key)}>
                   {chatSettings.bubbleColor === color.key && (
-                    <Ionicons name="checkmark" size={moderateScale(18)} color="#FFFFFF" />
+                    <IoniconSvg name="checkmark" size={moderateScale(18)} color="#FFFFFF" />
                   )}
                 </TouchableOpacity>
               ))}
@@ -557,7 +550,7 @@ const ChatSettings = ({ navigation, route }) => {
                   />
                   {chatSettings.bubbleColor === gradient.key && (
                     <View style={styles.checkOverlay}>
-                      <Ionicons name="checkmark" size={moderateScale(18)} color="#FFFFFF" />
+                      <IoniconSvg name="checkmark" size={moderateScale(18)} color="#FFFFFF" />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -664,7 +657,7 @@ const ChatSettings = ({ navigation, route }) => {
                         { borderColor: theme.border },
                       ]}
                     >
-                      <Ionicons name="add" size={moderateScale(24)} color={theme.textSecondary} />
+                      <IoniconSvg name="add" size={moderateScale(24)} color={theme.textSecondary} />
                     </View>
                   )}
                 </View>
@@ -772,7 +765,7 @@ const ChatSettings = ({ navigation, route }) => {
                         onPress={() => handleRemoveReactionDefault(item)}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
-                        <Ionicons name="close" size={moderateScale(14)} color={theme.textSecondary} />
+                        <IoniconSvg name="close" size={moderateScale(14)} color={theme.textSecondary} />
                       </TouchableOpacity>
                     </Pressable>
                   </ScaleDecorator>

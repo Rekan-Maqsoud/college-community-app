@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { normalize } from '../utils/responsive';
+import { StarIcon } from './icons';
 
 /**
  * Reusable representative badge.
@@ -14,7 +14,7 @@ const RepBadge = ({ size = 'small', colors, label }) => {
 
   return (
     <View style={[styles.badge, { backgroundColor: badgeColor, paddingHorizontal: config.px, paddingVertical: config.py, borderRadius: config.radius }]}>
-      <Ionicons name="star" size={config.icon} color="#FFFFFF" />
+      <StarIcon size={config.icon} color="#FFFFFF" />
       <Text style={[styles.text, { fontSize: config.font }]}>{displayLabel}</Text>
     </View>
   );

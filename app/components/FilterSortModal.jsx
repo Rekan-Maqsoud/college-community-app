@@ -7,12 +7,45 @@ import {
   ScrollView,
   Modal,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { GlassModalCard } from './GlassComponents';
+import {
+  AppsOutlineFsIcon,
+  BarChartOutlineFsIcon,
+  ChatbubblesOutlineFsIcon,
+  CheckmarkCircleOutlineFsIcon,
+  CheckmarkFsIcon,
+  CloseOutlineFsIcon,
+  DocumentTextOutlineFsIcon,
+  FlameOutlineFsIcon,
+  HelpCircleFsIcon,
+  HelpCircleOutlineFsIcon,
+  HourglassOutlineFsIcon,
+  MegaphoneOutlineFsIcon,
+  RibbonOutlineFsIcon,
+  SchoolOutlineFsIcon,
+  TimeOutlineFsIcon,
+} from './icons/filterSort';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { POST_TYPES } from '../constants/postConstants';
+
+const iconMap = {
+  'school-outline': SchoolOutlineFsIcon,
+  'ribbon-outline': RibbonOutlineFsIcon,
+  'time-outline': TimeOutlineFsIcon,
+  'hourglass-outline': HourglassOutlineFsIcon,
+  'flame-outline': FlameOutlineFsIcon,
+  'apps-outline': AppsOutlineFsIcon,
+  'help-circle-outline': HelpCircleOutlineFsIcon,
+  'help-circle': HelpCircleFsIcon,
+  'chatbubbles-outline': ChatbubblesOutlineFsIcon,
+  'document-text-outline': DocumentTextOutlineFsIcon,
+  'megaphone-outline': MegaphoneOutlineFsIcon,
+  'bar-chart-outline': BarChartOutlineFsIcon,
+  'checkmark-circle-outline': CheckmarkCircleOutlineFsIcon,
+  'close-outline': CloseOutlineFsIcon,
+};
 
 export const SORT_OPTIONS = {
   NEWEST: 'newest',
@@ -113,12 +146,11 @@ const FilterSortModal = ({
       activeOpacity={0.7}
     >
       <View style={[styles.optionLeft, isRTL && styles.optionLeftRtl]}>
-        <Ionicons
-          name={option.icon}
-          size={moderateScale(20)}
-          color={isSelected ? theme.primary : theme.text}
-          style={[styles.optionIcon, isRTL && styles.optionIconRtl]}
-        />
+        {React.createElement(iconMap[option.icon] || AppsOutlineFsIcon, {
+          size: moderateScale(20),
+          color: isSelected ? theme.primary : theme.text,
+          style: [styles.optionIcon, isRTL && styles.optionIconRtl],
+        })}
         <Text
           style={[
             styles.optionLabel,
@@ -135,11 +167,7 @@ const FilterSortModal = ({
       </View>
       {isSelected && (
         <View style={[styles.selectedIndicator, { backgroundColor: theme.primary }]}>
-          <Ionicons
-            name="checkmark"
-            size={moderateScale(14)}
-            color="#FFFFFF"
-          />
+          <CheckmarkFsIcon size={moderateScale(14)} color="#FFFFFF" />
         </View>
       )}
     </TouchableOpacity>
@@ -182,11 +210,7 @@ const FilterSortModal = ({
                 accessibilityRole="button"
                 accessibilityLabel={t('common.close')}
               >
-                <Ionicons
-                  name="close-outline"
-                  size={moderateScale(24)}
-                  color={theme.text}
-                />
+                <CloseOutlineFsIcon size={moderateScale(24)} color={theme.text} />
               </TouchableOpacity>
             </View>
 

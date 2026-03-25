@@ -13,8 +13,19 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
+import {
+  MailIcon,
+  LockIcon,
+  EyeIcon,
+  EyeOffIcon,
+  ArrowForwardIcon,
+  ArrowBackIcon,
+  InformationCircleIcon,
+  FlashIcon,
+  CheckmarkCircleIcon,
+  CheckmarkIcon,
+} from '../components/icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import AnimatedBackground from '../components/AnimatedBackground';
 import { GlassContainer } from '../components/GlassComponents';
@@ -53,7 +64,7 @@ const ForgotPassword = ({ navigation, route }) => {
   const [recoveryUserId, setRecoveryUserId] = useState(null);
   const [recoverySecret, setRecoverySecret] = useState(null);
   
-  const { t, isDarkMode } = useAppSettings();
+  const { t, isDarkMode, theme } = useAppSettings();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { formStyle } = useLayout();
   const insets = useSafeAreaInsets();
@@ -355,11 +366,7 @@ const ForgotPassword = ({ navigation, route }) => {
     <>
       <View style={styles.headerContainer}>
         <View style={styles.iconContainer}>
-          <Ionicons 
-            name="key-outline" 
-            size={moderateScale(48)} 
-            color="#FFFFFF" 
-          />
+          <LockIcon size={moderateScale(48)} color="#FFFFFF" />
         </View>
         <Text style={[styles.headerText, { fontSize: fontSize(isTablet() ? 28 : 24) }]}>
           {t('auth.forgotPasswordTitle')}
@@ -376,10 +383,9 @@ const ForgotPassword = ({ navigation, route }) => {
       >
         <View style={styles.inputGroup}>
           <View style={styles.inputWrapper}>
-            <Ionicons 
-              name="mail-outline" 
-              size={moderateScale(20)} 
-              color={emailFocused ? '#BB86FC' : 'rgba(255, 255, 255, 0.6)'} 
+            <MailIcon
+              size={moderateScale(20)}
+              color={emailFocused ? theme.primary : theme.textSecondary}
               style={styles.inputIcon}
             />
             <TextInput
@@ -406,7 +412,7 @@ const ForgotPassword = ({ navigation, route }) => {
               onPress={applyEmailSuggestion}
               activeOpacity={0.7}
             >
-              <Ionicons name="flash" size={16} color="#BB86FC" />
+              <FlashIcon size={16} color={theme.primary} />
               <Text style={[styles.suggestionText, { fontSize: fontSize(13) }]}>
                 {t('auth.useEpuEmail')}
               </Text>
@@ -433,7 +439,7 @@ const ForgotPassword = ({ navigation, route }) => {
                 <Text style={[styles.buttonText, { fontSize: fontSize(16) }]}>
                   {t('auth.sendResetLink')}
                 </Text>
-                <Ionicons name="arrow-forward" size={20} color="#FFFFFF" style={styles.buttonIcon} />
+                <ArrowForwardIcon size={20} color="#FFFFFF" style={styles.buttonIcon} />
               </>
             )}
           </LinearGradient>
@@ -446,11 +452,7 @@ const ForgotPassword = ({ navigation, route }) => {
     <>
       <View style={styles.headerContainer}>
         <View style={styles.iconContainer}>
-          <Ionicons 
-            name="mail-open-outline" 
-            size={moderateScale(48)} 
-            color="#FFFFFF" 
-          />
+          <MailIcon size={moderateScale(48)} color="#FFFFFF" />
         </View>
         <Text style={[styles.headerText, { fontSize: fontSize(isTablet() ? 28 : 24) }]}>
           {t('auth.checkYourEmail')}
@@ -466,7 +468,7 @@ const ForgotPassword = ({ navigation, route }) => {
         disableBackgroundOverlay
       >
         <View style={styles.instructionsBox}>
-          <Ionicons name="information-circle-outline" size={24} color="#BB86FC" />
+          <InformationCircleIcon size={24} color={theme.primary} />
           <Text style={[styles.instructionsText, { fontSize: fontSize(14) }]}>
             {t('auth.checkSpamFolder')}
           </Text>
@@ -500,7 +502,7 @@ const ForgotPassword = ({ navigation, route }) => {
           }}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={18} color="rgba(255, 255, 255, 0.7)" />
+          <ArrowBackIcon size={18} color={theme.textSecondary} />
           <Text style={[styles.changeEmailText, { fontSize: fontSize(14) }]}>
             {t('auth.useAnotherEmail')}
           </Text>
@@ -513,11 +515,7 @@ const ForgotPassword = ({ navigation, route }) => {
     <>
       <View style={styles.headerContainer}>
         <View style={styles.iconContainer}>
-          <Ionicons 
-            name="lock-open-outline" 
-            size={moderateScale(48)} 
-            color="#FFFFFF" 
-          />
+          <LockIcon size={moderateScale(48)} color="#FFFFFF" />
         </View>
         <Text style={[styles.headerText, { fontSize: fontSize(isTablet() ? 28 : 24) }]}>
           {t('auth.createNewPassword')}
@@ -534,10 +532,9 @@ const ForgotPassword = ({ navigation, route }) => {
       >
         <View style={styles.inputGroup}>
           <View style={styles.inputWrapper}>
-            <Ionicons 
-              name="lock-closed-outline" 
-              size={moderateScale(20)} 
-              color={newPasswordFocused ? '#BB86FC' : 'rgba(255, 255, 255, 0.6)'} 
+            <LockIcon
+              size={moderateScale(20)}
+              color={newPasswordFocused ? theme.primary : theme.textSecondary}
               style={styles.inputIcon}
             />
             <TextInput
@@ -559,11 +556,11 @@ const ForgotPassword = ({ navigation, route }) => {
               onPress={() => setShowNewPassword(!showNewPassword)}
               style={styles.eyeIcon}
             >
-              <Ionicons 
-                name={showNewPassword ? "eye-off-outline" : "eye-outline"} 
-                size={moderateScale(22)} 
-                color="rgba(255, 255, 255, 0.6)" 
-              />
+              {showNewPassword ? (
+                <EyeOffIcon size={moderateScale(22)} color={theme.textSecondary} />
+              ) : (
+                <EyeIcon size={moderateScale(22)} color={theme.textSecondary} />
+              )}
             </TouchableOpacity>
           </View>
 
@@ -588,10 +585,9 @@ const ForgotPassword = ({ navigation, route }) => {
 
         <View style={styles.inputGroup}>
           <View style={styles.inputWrapper}>
-            <Ionicons 
-              name="lock-closed-outline" 
-              size={moderateScale(20)} 
-              color={confirmPasswordFocused ? '#BB86FC' : 'rgba(255, 255, 255, 0.6)'} 
+            <LockIcon
+              size={moderateScale(20)}
+              color={confirmPasswordFocused ? theme.primary : theme.textSecondary}
               style={styles.inputIcon}
             />
             <TextInput
@@ -613,11 +609,11 @@ const ForgotPassword = ({ navigation, route }) => {
               onPress={() => setShowConfirmPassword(!showConfirmPassword)}
               style={styles.eyeIcon}
             >
-              <Ionicons 
-                name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} 
-                size={moderateScale(22)} 
-                color="rgba(255, 255, 255, 0.6)" 
-              />
+              {showConfirmPassword ? (
+                <EyeOffIcon size={moderateScale(22)} color={theme.textSecondary} />
+              ) : (
+                <EyeIcon size={moderateScale(22)} color={theme.textSecondary} />
+              )}
             </TouchableOpacity>
           </View>
 
@@ -629,7 +625,7 @@ const ForgotPassword = ({ navigation, route }) => {
 
           {confirmPassword.length > 0 && newPassword === confirmPassword && (
             <View style={styles.matchIndicator}>
-              <Ionicons name="checkmark-circle" size={16} color="#44DD44" />
+              <CheckmarkCircleIcon size={16} color="#44DD44" />
               <Text style={[styles.matchText, { fontSize: fontSize(12) }]}>
                 {t('auth.passwordsMatch')}
               </Text>
@@ -656,7 +652,7 @@ const ForgotPassword = ({ navigation, route }) => {
                 <Text style={[styles.buttonText, { fontSize: fontSize(16) }]}>
                   {t('auth.resetPassword')}
                 </Text>
-                <Ionicons name="checkmark" size={20} color="#FFFFFF" style={styles.buttonIcon} />
+                <CheckmarkIcon size={20} color="#FFFFFF" style={styles.buttonIcon} />
               </>
             )}
           </LinearGradient>
@@ -692,7 +688,7 @@ const ForgotPassword = ({ navigation, route }) => {
               activeOpacity={0.7}
             >
               <View style={styles.backButtonInner}>
-                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                <ArrowBackIcon size={24} color="#FFFFFF" />
               </View>
             </TouchableOpacity>
 

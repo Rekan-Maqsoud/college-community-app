@@ -1,19 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  Image,
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../../components/GlassComponents';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/CompatIonicon';
 import safeStorage from '../../utils/safeStorage';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
@@ -28,6 +17,7 @@ import CustomAlert from '../../components/CustomAlert';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { getUniversityKeys, getCollegesForUniversity, getDepartmentsForCollege, getStagesForDepartment } from '../../data/universitiesData';
 import { getSettingsHeaderGradient } from './settingsTheme';
+import { Image } from 'expo-image';
 
 const COOLDOWN_DAYS = 30;
 const FREE_ACADEMIC_CHANGES = 2;

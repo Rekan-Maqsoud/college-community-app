@@ -1,7 +1,7 @@
 import React from 'react';
 import { KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../../components/icons/CompatIonicon';
 import { GlassContainer, GlassIconButton } from '../../../components/GlassComponents';
 import { useAppSettings } from '../../../context/AppSettingsContext';
 import { LECTURE_UPLOAD_TYPES } from '../../../../database/lectures';

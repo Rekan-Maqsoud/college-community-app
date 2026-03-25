@@ -1,18 +1,10 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  Platform,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import { Ionicons } from './icons/CompatIonicon';
 import { pickAndCompressImages, takePictureAndCompress } from '../utils/imageCompression';
 import { useTranslation } from '../hooks/useTranslation';
 import { useCustomAlert } from '../hooks/useCustomAlert';
+import { Image } from 'expo-image';
 
 const ImagePickerComponent = ({ 
   images = [], 

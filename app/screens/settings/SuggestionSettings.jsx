@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/CompatIonicon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useGlobalAlert } from '../../context/GlobalAlertContext';

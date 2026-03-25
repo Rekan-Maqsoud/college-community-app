@@ -1,22 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  StatusBar,
-  Platform,
-  KeyboardAvoidingView,
-  TouchableOpacity,
-  TextInput, 
-  ActivityIndicator,
-  ScrollView,
-  Switch,
-  Image,
-} from 'react-native';
+import { View, Text, StyleSheet, StatusBar, Platform, KeyboardAvoidingView, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassInput, GlassContainer } from '../../components/GlassComponents';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/CompatIonicon';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
 import AnimatedBackground from '../../components/AnimatedBackground';
@@ -36,6 +23,7 @@ import useLayout from '../../hooks/useLayout';
 import { pickAndCompressImages } from '../../utils/imageCompression';
 import { uploadToImgbb } from '../../../services/imgbbService';
 import { FlashList } from '@shopify/flash-list';
+import { Image } from 'expo-image';
 
 const CreateGroup = ({ navigation }) => {
   const { t, theme, isDarkMode, isRTL } = useAppSettings();

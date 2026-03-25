@@ -1,22 +1,7 @@
 import React, { useState, useRef, memo, useEffect, useCallback } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  Modal, 
-  Image, 
-  Animated,
-  PanResponder,
-  Pressable,
-  ActivityIndicator,
-  LayoutAnimation,
-  UIManager,
-  Platform as RNPlatform,
-  Linking,
-  ScrollView,
-} from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Animated, PanResponder, Pressable, ActivityIndicator, LayoutAnimation, UIManager, Platform as RNPlatform, Linking, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import IoniconSvg from './icons/IoniconSvg';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
@@ -59,6 +44,7 @@ import {
 } from './messageBubble/constants';
 import { parseMessageReactions } from './messageBubble/reactionUtils';
 import { GlassModalCard } from './GlassComponents';
+import { Image } from 'expo-image';
 
 const ReanimatedView = ReanimatedModule?.View || View;
 const CHAT_DOWNLOADS_DIR = 'chat_downloads';
@@ -1240,7 +1226,7 @@ const MessageBubble = ({
       {/* Pinned indicator */}
       {isPinned && (
         <View style={styles.pinnedIndicator}>
-          <Ionicons name="pin" size={moderateScale(12)} color={isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.primary} />
+          <IoniconSvg name="pin" size={moderateScale(12)} color={isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.primary} />
           <Text style={[styles.pinnedText, { color: isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.primary, fontSize: fontSize(9) }]}>
             {t('chats.pinnedMessages').split(' ')[0]}
           </Text>
@@ -1294,7 +1280,7 @@ const MessageBubble = ({
           ]}
         >
           <View style={styles.lectureBannerLeft}>
-            <Ionicons name="document-text-outline" size={moderateScale(14)} color={theme.primary} />
+            <IoniconSvg name="document-text-outline" size={moderateScale(14)} color={theme.primary} />
             <View style={styles.lectureBannerTextWrap}>
               <Text style={[styles.lectureBannerTitle, { color: theme.text }]} numberOfLines={1}>
                 {t('chats.lectureBannerTitle')}
@@ -1309,7 +1295,7 @@ const MessageBubble = ({
 
           <View style={styles.lectureBannerRight}>
             <Text style={[styles.lectureBannerHint, { color: theme.primary }]}>{t('chats.tapToOpen')}</Text>
-            <Ionicons name="chevron-forward" size={moderateScale(12)} color={theme.primary} />
+            <IoniconSvg name="chevron-forward" size={moderateScale(12)} color={theme.primary} />
           </View>
         </TouchableOpacity>
       )}
@@ -1333,7 +1319,7 @@ const MessageBubble = ({
           ) : null}
           <View style={styles.postShareInfo}>
             <View style={styles.postShareHeaderRow}>
-              <Ionicons name="newspaper-outline" size={moderateScale(14)} color={isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.primary} />
+              <IoniconSvg name="newspaper-outline" size={moderateScale(14)} color={isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.primary} />
               <Text style={[styles.postShareLabel, { color: isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.primary, fontSize: fontSize(10), fontWeight: '600' }]}>
                 {t('post.sharedPost') || 'Shared Post'}
               </Text>
@@ -1361,7 +1347,7 @@ const MessageBubble = ({
             <Text style={[styles.postShareLabel, { color: isCurrentUser ? 'rgba(255,255,255,0.5)' : theme.textSecondary, fontSize: fontSize(10) }]}>
               {t('chats.tapToView')}
             </Text>
-            <Ionicons name="chevron-forward" size={moderateScale(12)} color={isCurrentUser ? 'rgba(255,255,255,0.5)' : theme.textSecondary} />
+            <IoniconSvg name="chevron-forward" size={moderateScale(12)} color={isCurrentUser ? 'rgba(255,255,255,0.5)' : theme.textSecondary} />
           </View>
         </TouchableOpacity>
       )}
@@ -1399,7 +1385,7 @@ const MessageBubble = ({
             />
           </View>
           <View style={styles.locationInfo}>
-            <Ionicons name="navigate-outline" size={moderateScale(14)} color={isCurrentUser ? 'rgba(255,255,255,0.8)' : theme.primary} />
+            <IoniconSvg name="navigate-outline" size={moderateScale(14)} color={isCurrentUser ? 'rgba(255,255,255,0.8)' : theme.primary} />
             <Text style={[styles.locationText, { color: isCurrentUser ? '#FFFFFF' : theme.text, fontSize: fontSize(12) }]}>
               {`${locationData.lat.toFixed(4)}, ${locationData.long.toFixed(4)}`}
             </Text>
@@ -1479,7 +1465,7 @@ const MessageBubble = ({
               {voiceLoading ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Ionicons
+                <IoniconSvg
                   name={isVoicePlaying ? 'pause' : 'play'}
                   size={moderateScale(16)}
                   color="#FFFFFF"
@@ -1563,7 +1549,7 @@ const MessageBubble = ({
               },
             ]}
           >
-            <Ionicons
+            <IoniconSvg
               name={fileData.descriptor.iconName}
               size={moderateScale(18)}
               color={isCurrentUser ? '#FFFFFF' : theme.primary}
@@ -1622,7 +1608,7 @@ const MessageBubble = ({
             >
               {fileData.descriptor.extensionLabel || t('chats.file').toUpperCase()}
             </Text>
-            <Ionicons
+            <IoniconSvg
               name="open-outline"
               size={moderateScale(14)}
               color={isCurrentUser ? 'rgba(255,255,255,0.78)' : theme.textSecondary}
@@ -1669,7 +1655,7 @@ const MessageBubble = ({
                 activeOpacity={0.75}
               >
                 <View style={styles.pollOptionLeft}>
-                  <Ionicons
+                  <IoniconSvg
                     name={pollData.allowMultiple ? (isSelected ? 'checkbox' : 'square-outline') : (isSelected ? 'radio-button-on' : 'radio-button-off')}
                     size={15}
                     color={isSelected ? (isCurrentUser ? '#FFFFFF' : theme.primary) : (isCurrentUser ? 'rgba(255,255,255,0.7)' : theme.textSecondary)}
@@ -1714,7 +1700,7 @@ const MessageBubble = ({
                   onPress={() => setShowPollVoters((prev) => !prev)}
                   activeOpacity={0.75}
                 >
-                  <Ionicons name="people-outline" size={14} color={isCurrentUser ? 'rgba(255,255,255,0.75)' : theme.textSecondary} />
+                  <IoniconSvg name="people-outline" size={14} color={isCurrentUser ? 'rgba(255,255,255,0.75)' : theme.textSecondary} />
                 </TouchableOpacity>
               )}
 
@@ -1724,7 +1710,7 @@ const MessageBubble = ({
                   onPress={() => setShowPollExplanation((prev) => !prev)}
                   activeOpacity={0.75}
                 >
-                  <Ionicons name="information-circle-outline" size={15} color={isCurrentUser ? 'rgba(255,255,255,0.75)' : theme.textSecondary} />
+                  <IoniconSvg name="information-circle-outline" size={15} color={isCurrentUser ? 'rgba(255,255,255,0.75)' : theme.textSecondary} />
                 </TouchableOpacity>
               )}
 
@@ -1811,7 +1797,7 @@ const MessageBubble = ({
           style={styles.retryButton}
           onPress={() => onRetry(message)}
         >
-          <Ionicons name="refresh" size={moderateScale(12)} color="#EF4444" />
+          <IoniconSvg name="refresh" size={moderateScale(12)} color="#EF4444" />
           <Text style={styles.retryText}>{t('common.retry') || 'Retry'}</Text>
         </TouchableOpacity>
       )}
@@ -1833,7 +1819,7 @@ const MessageBubble = ({
           style={styles.selectionCheckbox}
           onPress={() => onToggleSelect && onToggleSelect(message.$id)}
           activeOpacity={0.7}>
-          <Ionicons
+          <IoniconSvg
             name={isSelected ? 'checkbox' : 'square-outline'}
             size={moderateScale(22)}
             color={isSelected ? theme.primary : theme.textSecondary}
@@ -1852,7 +1838,7 @@ const MessageBubble = ({
           </Text>
           {isRepresentative && (
             <View style={[styles.repBadge, { backgroundColor: theme.warning }]}>
-              <Ionicons name="star" size={8} color="#FFFFFF" />
+              <IoniconSvg name="star" size={8} color="#FFFFFF" />
               <Text style={styles.repBadgeText}>{t('chats.rep') || 'Rep'}</Text>
             </View>
           )}
@@ -1953,7 +1939,7 @@ const MessageBubble = ({
               onPress={() => setReactionPickerVisible(true)}
               activeOpacity={0.8}
             >
-              <Ionicons name="add" size={moderateScale(14)} color={theme.textSecondary} />
+              <IoniconSvg name="add" size={moderateScale(14)} color={theme.textSecondary} />
             </TouchableOpacity>
           )}
         </Animated.View>
@@ -1993,7 +1979,7 @@ const MessageBubble = ({
           styles.swipeIndicator,
           isCurrentUser ? styles.swipeIndicatorLeft : styles.swipeIndicatorRight,
         ]}>
-          <Ionicons 
+          <IoniconSvg 
             name="arrow-undo" 
             size={moderateScale(16)} 
             color={theme.textSecondary} 
@@ -2054,7 +2040,7 @@ const MessageBubble = ({
                     }}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="settings-outline" size={moderateScale(16)} color={theme.textSecondary} />
+                    <IoniconSvg name="settings-outline" size={moderateScale(16)} color={theme.textSecondary} />
                   </TouchableOpacity>
                 )}
               </ScrollView>
@@ -2068,7 +2054,7 @@ const MessageBubble = ({
                   { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }
                 ]}
                 onPress={() => handleAction(btn.action)}>
-                <Ionicons 
+                <IoniconSvg 
                   name={btn.icon} 
                   size={moderateScale(20)} 
                   color={btn.danger ? '#EF4444' : theme.text} 
@@ -2132,7 +2118,7 @@ const MessageBubble = ({
                   }}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="settings-outline" size={moderateScale(16)} color={theme.textSecondary} />
+                  <IoniconSvg name="settings-outline" size={moderateScale(16)} color={theme.textSecondary} />
                 </TouchableOpacity>
               )}
             </ScrollView>
@@ -2186,7 +2172,7 @@ const MessageBubble = ({
                     }
                   }}
                   activeOpacity={0.7}>
-                  <Ionicons name="person-outline" size={moderateScale(16)} color="#FFFFFF" />
+                  <IoniconSvg name="person-outline" size={moderateScale(16)} color="#FFFFFF" />
                   <Text style={[styles.mentionPreviewButtonText, { fontSize: fontSize(14) }]}>
                     {t('chats.visitProfile')}
                   </Text>

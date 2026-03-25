@@ -9,7 +9,6 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -22,6 +21,12 @@ import {
   spacing,
   moderateScale,
 } from '../utils/responsive';
+import {
+  AlertCircleOutlineExactIcon,
+  ChatbubblesOutlineExactIcon,
+  ChevronForwardExactIcon,
+  CloseFilledIcon,
+} from './icons';
 
 const PostViewModal = ({
   visible,
@@ -167,7 +172,7 @@ const PostViewModal = ({
     if (error || !post) {
       return (
         <View style={styles.centerContainer}>
-          <Ionicons name="alert-circle-outline" size={moderateScale(48)} color={theme.textSecondary} />
+          <AlertCircleOutlineExactIcon size={moderateScale(48)} color={theme.textSecondary} />
           <Text style={[styles.errorText, { color: theme.textSecondary }]}>
             {error || t('post.postNotFound')}
           </Text>
@@ -202,11 +207,11 @@ const PostViewModal = ({
           onPress={handleViewReplies}
           activeOpacity={0.8}
         >
-          <Ionicons name="chatbubbles-outline" size={20} color="#FFFFFF" />
+          <ChatbubblesOutlineExactIcon size={20} color="#FFFFFF" />
           <Text style={styles.viewRepliesText}>
             {t('post.viewReplies') || 'View Replies'} ({post?.replyCount || 0})
           </Text>
-          <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+          <ChevronForwardExactIcon size={16} color="#FFFFFF" />
         </TouchableOpacity>
       </ScrollView>
     );
@@ -238,7 +243,7 @@ const PostViewModal = ({
             onPress={onClose}
             activeOpacity={0.7}
           >
-            <Ionicons name="close" size={moderateScale(24)} color={theme.text} />
+            <CloseFilledIcon size={moderateScale(24)} color={theme.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.text }]}>
             {t('post.viewPost') || 'Post'}

@@ -1,12 +1,38 @@
 import React from 'react';
 import Svg, { Path, Circle, Rect, Ellipse, Line } from 'react-native-svg';
 
+const replaceCurrentColor = (children, color) => React.Children.map(children, (child) => {
+  if (!React.isValidElement(child)) {
+    return child;
+  }
+
+  const nextProps = {};
+
+  if (child.props.stroke === 'currentColor') {
+    nextProps.stroke = color;
+  }
+
+  if (child.props.fill === 'currentColor') {
+    nextProps.fill = color;
+  }
+
+  if (child.props.children) {
+    nextProps.children = replaceCurrentColor(child.props.children, color);
+  }
+
+  return React.cloneElement(child, nextProps);
+});
+
 // Generic Icon wrapper
-const Icon = ({ size = 24, color = 'currentColor', children, ...props }) => (
-  <Svg width={size} height={size} viewBox="0 0 512 512" fill={color} {...props}>
-    {children}
-  </Svg>
-);
+const Icon = ({ size = 24, color = '#111827', children, ...props }) => {
+  const resolvedChildren = replaceCurrentColor(children, color);
+
+  return (
+    <Svg width={size} height={size} viewBox="0 0 512 512" fill={color} {...props}>
+      {resolvedChildren}
+    </Svg>
+  );
+};
 
 // 1. mail-outline
 export const MailIcon = props => (
@@ -130,5 +156,73 @@ export const TimeIcon = props => (
   <Icon {...props}>
     <Path d="M256 64C150 64 64 150 64 256s86 192 192 192 192-86 192-192S362 64 256 64z" fill="none" stroke="currentColor" strokeMiterlimit="10" strokeWidth="32" />
     <Path d="M256 128v144l96 64" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="32" />
+  </Icon>
+);
+
+// 17. information-circle-outline
+export const InformationCircleIcon = props => (
+  <Icon {...props}>
+    <Circle cx="256" cy="256" r="192" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="32" />
+    <Path d="M256 176h.01" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="40" />
+    <Path d="M240 240h16v96" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="32" />
+  </Icon>
+);
+
+// 18. flash-outline
+export const FlashIcon = props => (
+  <Icon {...props}>
+    <Path d="M304 48L176 272h96l-32 192 144-240h-96l16-176z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="32" />
+  </Icon>
+);
+
+// 19. alert-circle-outline
+export const AlertCircleIcon = props => (
+  <Icon {...props}>
+    <Circle cx="256" cy="256" r="192" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="32" />
+    <Path d="M256 144v136" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="32" />
+    <Path d="M256 368h.01" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="40" />
+  </Icon>
+);
+
+// 20. checkmark
+export const CheckmarkIcon = props => (
+  <Icon {...props}>
+    <Path d="M112 264l88 88 200-200" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="48" />
+  </Icon>
+);
+
+// 21. arrow-back
+export const ArrowBackIcon = props => (
+  <Icon {...props}>
+    <Path d="M244 112L100 256l144 144M120 256h292" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="48" />
+  </Icon>
+);
+
+// 22. search-outline
+export const SearchIcon = props => (
+  <Icon {...props}>
+    <Circle cx="232" cy="232" r="120" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="32" />
+    <Path d="M320 320l96 96" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="32" />
+  </Icon>
+);
+
+// 23. list-outline
+export const ListIcon = props => (
+  <Icon {...props}>
+    <Path d="M96 128h320M96 256h320M96 384h320" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="32" />
+  </Icon>
+);
+
+// 24. chevron-up
+export const ChevronUpIcon = props => (
+  <Icon {...props}>
+    <Path d="M112 320l144-144 144 144" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="44" />
+  </Icon>
+);
+
+// 25. chevron-down
+export const ChevronDownIcon = props => (
+  <Icon {...props}>
+    <Path d="M112 192l144 144 144-144" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="44" />
   </Icon>
 );

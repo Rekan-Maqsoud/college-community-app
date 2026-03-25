@@ -1,25 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  ActivityIndicator,
-  Animated,
-  Keyboard,
-  Platform,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Animated, Keyboard, Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/CompatIonicon';
+import IoniconSvg, { hasIoniconSvg } from '../../components/icons/IoniconSvg';
 import { postDetailsStyles as styles } from './styles';
 import { getFriends, searchUsers } from '../../../database/users';
 import { moderateScale, fontSize, spacing, isSmallDevice } from '../../utils/responsive';
 import { GlassInput } from '../../components/GlassComponents';
 import ProfilePicture from '../../components/ProfilePicture';
 import { useAppSettings } from '../../context/AppSettingsContext';
+import { Image } from 'expo-image';
 
 const ReplyInputSection = ({
   editingReply,
@@ -238,6 +228,13 @@ const ReplyInputSection = ({
     },
   ];
 
+  const renderIcon = (name, size, color, style) => {
+    if (hasIoniconSvg(name)) {
+      return <IoniconSvg name={name} size={size} color={color} style={style} />;
+    }
+    return <Ionicons name={name} size={size} color={color} style={style} />;
+  };
+
   return (
     <View
       style={[
@@ -252,7 +249,7 @@ const ReplyInputSection = ({
         <View style={styles.editingBanner}>
           <Text style={styles.editingBannerText}>{t('post.editingReply')}</Text>
           <TouchableOpacity onPress={onResetForm}>
-            <Ionicons name="close-circle" size={22} color="#EF4444" />
+            <IoniconSvg name="close-circle" size={22} color="#EF4444" />
           </TouchableOpacity>
         </View>
       )}
@@ -263,7 +260,7 @@ const ReplyInputSection = ({
             {t('post.replyingTo').replace('{name}', replyingToName)}
           </Text>
           <TouchableOpacity onPress={onCancelReply}>
-            <Ionicons name="close-circle" size={22} color="#EF4444" />
+            <IoniconSvg name="close-circle" size={22} color="#EF4444" />
           </TouchableOpacity>
         </View>
       )}
@@ -307,7 +304,7 @@ const ReplyInputSection = ({
             <View key={index} style={styles.imagePreviewItem}>
               <Image source={{ uri }} style={styles.imagePreview} />
               <TouchableOpacity style={styles.removeImageBtn} onPress={() => onRemoveImage(index)}>
-                <Ionicons name="close-circle" size={22} color="#EF4444" />
+                <IoniconSvg name="close-circle" size={22} color="#EF4444" />
               </TouchableOpacity>
             </View>
           ))}
@@ -318,10 +315,10 @@ const ReplyInputSection = ({
         <View style={styles.linksSection}>
           {replyLinks.map((link, index) => (
             <View key={index} style={[styles.linkChip, isRTL && localStyles.linkChipRtl, { backgroundColor: isDarkMode ? 'rgba(59,130,246,0.2)' : 'rgba(59,130,246,0.1)' }]}>
-              <Ionicons name="link-outline" size={14} color="#3B82F6" />
+              <IoniconSvg name="link-outline" size={14} color="#3B82F6" />
               <Text style={styles.linkChipText} numberOfLines={1}>{link}</Text>
               <TouchableOpacity onPress={() => onRemoveLink(index)}>
-                <Ionicons name="close" size={16} color="#6B7280" />
+                <IoniconSvg name="close" size={16} color="#6B7280" />
               </TouchableOpacity>
             </View>
           ))}
@@ -343,7 +340,7 @@ const ReplyInputSection = ({
               onPress={onAddLink}
               disabled={!linkInput.trim()}
             >
-              <Ionicons name="add-circle" size={28} color="#3B82F6" />
+              <IoniconSvg name="add-circle" size={28} color="#3B82F6" />
             </TouchableOpacity>
           </View>
         </View>
@@ -381,7 +378,7 @@ const ReplyInputSection = ({
                 ],
               }}
             >
-              <Ionicons
+              <IoniconSvg
                 name="add"
                 size={moderateScale(compactComposer ? 19 : 20)}
                 color={showActionSheet ? '#FFFFFF' : theme.primary}
@@ -455,11 +452,7 @@ const ReplyInputSection = ({
             {isSubmitting ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Ionicons
-                name={sendIconName}
-                size={moderateScale(18)}
-                color={canSend ? '#FFFFFF' : theme.textSecondary}
-              />
+              renderIcon(sendIconName, moderateScale(18), canSend ? '#FFFFFF' : theme.textSecondary)
             )}
           </TouchableOpacity>
         </View>
@@ -492,7 +485,7 @@ const ReplyInputSection = ({
                 activeOpacity={0.7}
               >
                 <View style={[localStyles.actionIconCircle, { backgroundColor: `${item.color}18` }]}>
-                  <Ionicons name={item.icon} size={moderateScale(22)} color={item.color} />
+                  {renderIcon(item.icon, moderateScale(22), item.color)}
                 </View>
                 <Text style={[localStyles.actionLabel, { color: theme.text }]} numberOfLines={1}>
                   {item.label}

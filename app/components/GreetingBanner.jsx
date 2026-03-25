@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import safeStorage from '../utils/safeStorage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from './icons/CompatIonicon';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { wp, normalize, moderateScale, spacing } from '../utils/responsive';

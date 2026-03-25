@@ -2,7 +2,7 @@ import React from 'react';
 import { Linking, Text, TouchableOpacity, View, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { FlashList } from '@shopify/flash-list';
-import { Ionicons } from '@expo/vector-icons';
+import IoniconSvg from '../../../components/icons/IoniconSvg';
 import { SavedPostSkeleton } from '../../../components/SkeletonLoader';
 import { GlassContainer } from '../../../components/GlassComponents';
 import { moderateScale } from '../../../utils/responsive';
@@ -46,7 +46,7 @@ const LectureAssetsList = ({
       return (
         <GlassContainer borderRadius={14} style={[styles.folderHeaderGlass]}> 
           <View style={[styles.folderHeaderRow, { borderColor: `${colors.primary}44`, backgroundColor: 'transparent' }]}> 
-            <Ionicons name="folder-open-outline" size={16} color={colors.primary} />
+            <IoniconSvg name="folder-open-outline" size={16} color={colors.primary} />
             <Text style={[styles.folderHeaderText, { color: colors.text }]}>{item.name}</Text>
           </View>
         </GlassContainer>
@@ -105,7 +105,7 @@ const LectureAssetsList = ({
 
           <View style={styles.previewOverlayRow}>
             <View style={[styles.previewBadge, { borderColor: accentColor, backgroundColor: colors.card }]}> 
-              <Ionicons name="logo-youtube" size={12} color={accentColor} />
+              <IoniconSvg name="logo-youtube" size={12} color={accentColor} />
               <Text style={[styles.previewBadgeText, { color: accentColor }]}>{t('lectures.previewVideo')}</Text>
             </View>
 
@@ -113,7 +113,7 @@ const LectureAssetsList = ({
               style={[styles.previewPlayButton, { borderColor: accentColor, backgroundColor: colors.card }]}
               onPress={onOpenYoutube}
             >
-              <Ionicons
+              <IoniconSvg
                 name={'open-outline'}
                 size={14}
                 color={accentColor}
@@ -139,7 +139,7 @@ const LectureAssetsList = ({
               {asset?.fileSize ? `${formatBytesAsMb(asset.fileSize)} MB` : t('lectures.file')}
             </Text>
           </View>
-          <Ionicons name="document-text-outline" size={18} color={accentColor} />
+          <IoniconSvg name="document-text-outline" size={18} color={accentColor} />
         </View>
       );
     } else {
@@ -152,13 +152,13 @@ const LectureAssetsList = ({
       previewContent = (
         <View style={[styles.previewContainer, styles.linkPreviewContainer, { borderColor: accentColor, backgroundColor: previewBg }]}> 
           <View style={[styles.linkIconWrap, { borderColor: accentColor }]}> 
-            <Ionicons name="link-outline" size={16} color={accentColor} />
+            <IoniconSvg name="link-outline" size={16} color={accentColor} />
           </View>
           <View style={styles.previewMetaColumn}>
             <Text style={[styles.previewMetaTitle, { color: colors.text }]} numberOfLines={1}>{t('lectures.previewLink')}</Text>
             <Text style={[styles.previewMetaSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>{hostname}</Text>
           </View>
-          <Ionicons name="open-outline" size={16} color={accentColor} />
+          <IoniconSvg name="open-outline" size={16} color={accentColor} />
         </View>
       );
     }
@@ -242,7 +242,7 @@ const LectureAssetsList = ({
       {!isManager && !!membership && membership.joinStatus === 'approved' && !canUpload && (
         <GlassContainer borderRadius={16} style={styles.warningBannerGlass}>
           <View style={[styles.warningBanner, { borderColor: `${colors.warning}55` }]}>
-            <Ionicons name="warning-outline" size={16} color={colors.warning} />
+            <IoniconSvg name="warning-outline" size={16} color={colors.warning} />
             <Text style={[styles.warningBannerText, { color: colors.text }]}>{t('lectures.onlyAdminsCanUpload')}</Text>
           </View>
         </GlassContainer>

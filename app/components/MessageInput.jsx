@@ -1,22 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import {
-  View,
-  TextInput,
-  TouchableOpacity,
-  PanResponder,
-  Platform,
-  Image,
-  ActivityIndicator,
-  Text,
-  Modal,
-  Pressable,
-  Animated,
-  Keyboard,
-  Linking,
-  useWindowDimensions,
-} from 'react-native';
+import { View, TextInput, TouchableOpacity, PanResponder, Platform, ActivityIndicator, Text, Modal, Pressable, Animated, Keyboard, Linking, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import IoniconSvg from './icons/IoniconSvg';
 import {
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
@@ -61,6 +46,7 @@ import {
 } from './messageInput/helpers';
 import { getMessageInputActionItems } from './messageInput/actionItems';
 import telemetry from '../utils/telemetry';
+import { Image } from 'expo-image';
 
 const MessageInput = ({
   onSend,
@@ -1152,7 +1138,7 @@ const MessageInput = ({
             style={styles.cancelReplyBtn}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="close-circle" size={moderateScale(20)} color={theme.textSecondary} />
+            <IoniconSvg name="close-circle" size={moderateScale(20)} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
       )}
@@ -1173,7 +1159,7 @@ const MessageInput = ({
                 activeOpacity={0.7}
               >
                 <View style={styles.removeImageCircle}>
-                  <Ionicons name="close" size={moderateScale(14)} color="#FFFFFF" />
+                  <IoniconSvg name="close" size={moderateScale(14)} color="#FFFFFF" />
                 </View>
               </TouchableOpacity>
             )}
@@ -1198,7 +1184,7 @@ const MessageInput = ({
             ]}
           >
             <View style={[styles.filePreviewIconWrap, { backgroundColor: theme.primary + '22' }]}>
-              <Ionicons name={selectedFileDescriptor.iconName} size={moderateScale(18)} color={theme.primary} />
+              <IoniconSvg name={selectedFileDescriptor.iconName} size={moderateScale(18)} color={theme.primary} />
             </View>
 
             <View style={styles.filePreviewInfo}>
@@ -1221,7 +1207,7 @@ const MessageInput = ({
                 onPress={handleRemoveFile}
                 activeOpacity={0.7}
               >
-                <Ionicons name="close-circle" size={moderateScale(18)} color={theme.textSecondary} />
+                <IoniconSvg name="close-circle" size={moderateScale(18)} color={theme.textSecondary} />
               </TouchableOpacity>
             )}
 
@@ -1251,7 +1237,7 @@ const MessageInput = ({
               >
                 {suggestion.isSpecial ? (
                   <View style={[styles.mentionAvatar, { backgroundColor: theme.primary + '20' }]}>
-                    <Ionicons name="people" size={moderateScale(16)} color={theme.primary} />
+                    <IoniconSvg name="people" size={moderateScale(16)} color={theme.primary} />
                   </View>
                 ) : suggestion.profilePicture ? (
                   <Image source={{ uri: suggestion.profilePicture }} style={styles.mentionAvatarImg} />
@@ -1300,7 +1286,7 @@ const MessageInput = ({
               ],
             }}
           >
-            <Ionicons
+            <IoniconSvg
               name="add"
               size={moderateScale(22)}
               color={showActionSheet ? '#FFFFFF' : theme.primary}
@@ -1355,7 +1341,7 @@ const MessageInput = ({
             {uploading ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Ionicons
+              <IoniconSvg
                 name="send"
                 size={moderateScale(18)}
                 color={canSendMessage ? '#FFFFFF' : theme.textSecondary}
@@ -1428,7 +1414,7 @@ const MessageInput = ({
               {uploading ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Ionicons
+                <IoniconSvg
                   name={isRecording ? 'mic' : 'mic-outline'}
                   size={moderateScale(19)}
                   color={isRecording ? '#FFFFFF' : theme.textSecondary}
@@ -1447,7 +1433,7 @@ const MessageInput = ({
                   isLockTargetActive && styles.voiceLockPopupActive,
                 ]}
               >
-                <Ionicons
+                <IoniconSvg
                   name={isLockTargetActive ? 'lock-closed' : 'lock-open-outline'}
                   size={moderateScale(16)}
                   color={isLockTargetActive ? '#FFFFFF' : '#EF4444'}
@@ -1469,7 +1455,7 @@ const MessageInput = ({
           ]}
         >
           <View style={styles.voiceRecordingInfoRow}>
-            <Ionicons name="mic" size={moderateScale(16)} color="#EF4444" />
+            <IoniconSvg name="mic" size={moderateScale(16)} color="#EF4444" />
             <Text style={[styles.voiceRecordingTime, { color: theme.text }]}>
               {formatVoiceDuration(recordingDurationMs)}
             </Text>
@@ -1493,7 +1479,7 @@ const MessageInput = ({
                     },
                   ]}
                 >
-                  <Ionicons name="chevron-back" size={moderateScale(12)} color="#EF4444" />
+                  <IoniconSvg name="chevron-back" size={moderateScale(12)} color="#EF4444" />
                   <Text style={[styles.slideCancelText, { color: theme.textSecondary }]}>
                     {t('chats.slideLeftToCancel')}
                   </Text>
@@ -1535,7 +1521,7 @@ const MessageInput = ({
                   onPress={togglePauseVoiceRecording}
                   activeOpacity={0.7}
                 >
-                  <Ionicons
+                  <IoniconSvg
                     name={isRecordingPaused ? 'play-outline' : 'pause-outline'}
                     size={moderateScale(16)}
                     color={theme.text}
@@ -1551,7 +1537,7 @@ const MessageInput = ({
                 onPress={() => stopVoiceRecording({ shouldSend: false })}
                 activeOpacity={0.7}
               >
-                <Ionicons name="trash-outline" size={moderateScale(16)} color="#EF4444" />
+                <IoniconSvg name="trash-outline" size={moderateScale(16)} color="#EF4444" />
                 <Text style={[styles.voiceActionText, { color: '#EF4444' }]}>
                   {t('common.cancel')}
                 </Text>
@@ -1562,7 +1548,7 @@ const MessageInput = ({
                 onPress={() => stopVoiceRecording({ shouldSend: true })}
                 activeOpacity={0.7}
               >
-                <Ionicons name="send" size={moderateScale(14)} color="#FFFFFF" />
+                <IoniconSvg name="send" size={moderateScale(14)} color="#FFFFFF" />
                 <Text style={[styles.voiceActionText, { color: '#FFFFFF' }]}>
                   {t('common.send')}
                 </Text>
@@ -1604,7 +1590,7 @@ const MessageInput = ({
                   {item.loading ? (
                     <ActivityIndicator size="small" color={item.color} />
                   ) : (
-                    <Ionicons name={item.icon} size={moderateScale(22)} color={item.color} />
+                    <IoniconSvg name={item.icon} size={moderateScale(22)} color={item.color} />
                   )}
                 </View>
                 <Text
@@ -1679,13 +1665,13 @@ const MessageInput = ({
                   disabled={pollOptions.length <= 2}
                   onPress={() => handleRemovePollOption(index)}
                 >
-                  <Ionicons name="trash-outline" size={16} color={theme.textSecondary} />
+                  <IoniconSvg name="trash-outline" size={16} color={theme.textSecondary} />
                 </TouchableOpacity>
               </View>
             ))}
 
             <TouchableOpacity style={styles.pollComposerInlineAction} onPress={handleAddPollOption}>
-              <Ionicons name="add-circle-outline" size={18} color={theme.primary} />
+              <IoniconSvg name="add-circle-outline" size={18} color={theme.primary} />
               <Text style={[styles.pollComposerInlineActionText, { color: theme.primary }]}>{t('chats.addOption')}</Text>
             </TouchableOpacity>
 
@@ -1697,7 +1683,7 @@ const MessageInput = ({
                   setPollCorrectOptionId('');
                 }}
               >
-                <Ionicons
+                <IoniconSvg
                   name={!pollIsQuiz ? 'checkbox' : 'square-outline'}
                   size={20}
                   color={!pollIsQuiz ? theme.primary : theme.textSecondary}
@@ -1712,7 +1698,7 @@ const MessageInput = ({
                   setPollAllowMultiple(false);
                 }}
               >
-                <Ionicons
+                <IoniconSvg
                   name={pollIsQuiz ? 'checkbox' : 'square-outline'}
                   size={20}
                   color={pollIsQuiz ? theme.primary : theme.textSecondary}
@@ -1727,7 +1713,7 @@ const MessageInput = ({
                   style={styles.pollComposerModeItem}
                   onPress={() => setPollAllowMultiple((prev) => !prev)}
                 >
-                  <Ionicons
+                  <IoniconSvg
                     name={pollAllowMultiple ? 'checkbox' : 'square-outline'}
                     size={20}
                     color={pollAllowMultiple ? theme.primary : theme.textSecondary}
@@ -1761,7 +1747,7 @@ const MessageInput = ({
               style={styles.pollComposerModeItem}
               onPress={() => setPollShowVoters((prev) => !prev)}
             >
-              <Ionicons
+              <IoniconSvg
                 name={pollShowVoters ? 'checkbox' : 'square-outline'}
                 size={20}
                 color={pollShowVoters ? theme.primary : theme.textSecondary}
@@ -1785,7 +1771,7 @@ const MessageInput = ({
                       style={styles.pollComposerModeItem}
                       onPress={() => setPollCorrectOptionId(optionId)}
                     >
-                      <Ionicons
+                      <IoniconSvg
                         name={pollCorrectOptionId === optionId ? 'radio-button-on' : 'radio-button-off'}
                         size={18}
                         color={pollCorrectOptionId === optionId ? theme.primary : theme.textSecondary}
@@ -1888,7 +1874,7 @@ const MessageInput = ({
                 </View>
 
                 <View style={styles.locationCoords}>
-                  <Ionicons
+                  <IoniconSvg
                     name="location-outline"
                     size={moderateScale(16)}
                     color={theme.primary}
@@ -1942,7 +1928,7 @@ const MessageInput = ({
                 onPress={handleConfirmLocation}
                 activeOpacity={0.7}
               >
-                <Ionicons name="send" size={moderateScale(16)} color="#FFFFFF" />
+                <IoniconSvg name="send" size={moderateScale(16)} color="#FFFFFF" />
                 <Text style={[styles.locationSendText, { fontSize: fontSize(15) }]}>
                   {t('chats.sendLocationButton') || 'Send'}
                 </Text>

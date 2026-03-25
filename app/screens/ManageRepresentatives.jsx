@@ -10,7 +10,8 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/CompatIonicon';
+import IoniconSvg from '../components/icons/IoniconSvg';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { GlassContainer } from '../components/GlassComponents';
@@ -170,11 +171,19 @@ const ManageRepresentatives = ({ navigation }) => {
           }
         ]}>
         <View style={styles.chatItemContent}>
-          <Ionicons 
-            name={item.type === 'stage_group' ? 'people' : 'business'} 
-            size={moderateScale(24)} 
-            color={theme.primary} 
-          />
+          {item.type === 'stage_group' ? (
+            <IoniconSvg
+              name="people"
+              size={moderateScale(24)}
+              color={theme.primary}
+            />
+          ) : (
+            <Ionicons
+              name="business"
+              size={moderateScale(24)}
+              color={theme.primary}
+            />
+          )}
           <View style={styles.chatInfo}>
             <Text style={[styles.chatName, { fontSize: fontSize(14), color: theme.text }]}>
               {item.name}
@@ -217,7 +226,7 @@ const ManageRepresentatives = ({ navigation }) => {
               </Text>
             </View>
             {isRepresentative && (
-              <Ionicons name="checkmark-circle" size={moderateScale(24)} color="#10B981" />
+              <IoniconSvg name="checkmark-circle" size={moderateScale(24)} color="#10B981" />
             )}
           </View>
         </GlassContainer>
@@ -234,7 +243,7 @@ const ManageRepresentatives = ({ navigation }) => {
           styles.avatar, 
           { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }
         ]}>
-          <Ionicons name="person" size={moderateScale(20)} color={theme.text} />
+          <IoniconSvg name="person" size={moderateScale(20)} color={theme.text} />
         </View>
         <Text style={[styles.repId, { fontSize: fontSize(12), color: theme.text }]}>
           {repId.substring(0, 8)}...
@@ -242,7 +251,7 @@ const ManageRepresentatives = ({ navigation }) => {
         <TouchableOpacity
           onPress={() => handleRemoveRepresentative(repId)}
           style={styles.removeButton}>
-          <Ionicons name="close-circle" size={moderateScale(24)} color="#EF4444" />
+          <IoniconSvg name="close-circle" size={moderateScale(24)} color="#EF4444" />
         </TouchableOpacity>
       </View>
     </GlassContainer>
@@ -250,7 +259,7 @@ const ManageRepresentatives = ({ navigation }) => {
 
   const renderChatsEmptyState = () => (
     <View style={styles.emptyChatsContainer}>
-      <Ionicons
+      <IoniconSvg
         name="chatbubbles-outline"
         size={moderateScale(40)}
         color={theme.textSecondary}
@@ -291,7 +300,7 @@ const ManageRepresentatives = ({ navigation }) => {
         
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.text} />
+            <IoniconSvg name="arrow-back" size={moderateScale(24)} color={theme.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { fontSize: fontSize(20), color: theme.text }]}>
             {t('chats.manageRepresentatives')}
@@ -342,7 +351,7 @@ const ManageRepresentatives = ({ navigation }) => {
                   {t('chats.addRepresentative')}
                 </Text>
                 <GlassContainer borderRadius={borderRadius.lg} style={styles.searchContainer}>
-                  <Ionicons name="search" size={moderateScale(20)} color={theme.textSecondary} />
+                  <IoniconSvg name="search" size={moderateScale(20)} color={theme.textSecondary} />
                   <TextInput
                     style={[styles.searchInput, { fontSize: fontSize(14), color: theme.text }]}
                     placeholder={t('chats.searchUsersPlaceholder')}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../../components/icons/CompatIonicon';
 import { GlassIconButton } from '../../../components/GlassComponents';
 import { spacing } from '../../../utils/responsive';
 import styles from '../LectureChannelStyles';

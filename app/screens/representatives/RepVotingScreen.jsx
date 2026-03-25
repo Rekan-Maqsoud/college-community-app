@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import IoniconSvg from '../../components/icons/IoniconSvg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
@@ -376,7 +376,7 @@ const RepVotingScreen = ({ navigation, route }) => {
       {/* Election completed banner */}
       {!hasMinimumStudents && (
         <View style={[styles.closedBanner, isRTL && styles.rowReverse, { backgroundColor: (theme.error || '#EF4444') + '15', borderColor: (theme.error || '#EF4444') + '40' }]}>
-          <Ionicons name="alert-circle-outline" size={fontSize(16)} color={theme.error || '#EF4444'} />
+          <IoniconSvg name="alert-circle-outline" size={fontSize(16)} color={theme.error || '#EF4444'} />
           <Text style={[styles.closedText, isRTL && styles.directionalText, { color: theme.error || '#EF4444' }]}>
             {t('repVoting.minimumStudentsRequired').replace('{min}', String(MIN_STUDENTS_FOR_REP_ELECTION))}
           </Text>
@@ -385,7 +385,7 @@ const RepVotingScreen = ({ navigation, route }) => {
 
       {isCompleted && winner && (
         <View style={[styles.winnerBanner, isRTL && styles.rowReverse, { backgroundColor: (theme.success || '#22C55E') + '15', borderColor: (theme.success || '#22C55E') + '40' }]}>
-          <Ionicons name="trophy" size={fontSize(22)} color={theme.success || '#22C55E'} />
+          <IoniconSvg name="trophy" size={fontSize(22)} color={theme.success || '#22C55E'} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.winnerTitle, isRTL && styles.directionalText, { color: theme.success || '#22C55E' }]}>
               {t('repVoting.electionComplete')}
@@ -402,7 +402,7 @@ const RepVotingScreen = ({ navigation, route }) => {
       {/* Tiebreaker banner */}
       {isInTiebreaker && (
         <View style={[styles.tiebreakerBanner, isRTL && styles.rowReverse, { backgroundColor: (theme.warning || '#F59E0B') + '15', borderColor: (theme.warning || '#F59E0B') + '40' }]}>
-          <Ionicons name="flash-outline" size={fontSize(20)} color={theme.warning || '#F59E0B'} />
+          <IoniconSvg name="flash-outline" size={fontSize(20)} color={theme.warning || '#F59E0B'} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.tiebreakerTitle, isRTL && styles.directionalText, { color: theme.warning || '#F59E0B' }]}>
               {t('repVoting.tiebreakerTitle')}
@@ -417,7 +417,7 @@ const RepVotingScreen = ({ navigation, route }) => {
       {/* Active voting banner (not tiebreaker) */}
       {(isIdle || isActive) && !isInTiebreaker && (
         <View style={[styles.activeBanner, isRTL && styles.rowReverse, { backgroundColor: theme.primary + '15', borderColor: theme.primary + '40' }]}>
-          <Ionicons name="hand-left-outline" size={fontSize(18)} color={theme.primary} />
+          <IoniconSvg name="hand-left-outline" size={fontSize(18)} color={theme.primary} />
           <Text style={[styles.activeBannerText, isRTL && styles.directionalText, { color: theme.primary }]}>
             {t('repVoting.voteInstruction').replace('{seat}', String(currentSeat))}
           </Text>
@@ -426,7 +426,7 @@ const RepVotingScreen = ({ navigation, route }) => {
 
       {!isCompleted && results.totalVotes > 0 && winnerCountdownMs > 0 && (
         <View style={[styles.cooldownBanner, isRTL && styles.rowReverse, { backgroundColor: countdownColor + '15', borderColor: countdownColor + '40' }]}>
-          <Ionicons name="time-outline" size={fontSize(16)} color={countdownColor} />
+          <IoniconSvg name="time-outline" size={fontSize(16)} color={countdownColor} />
           <Text style={[styles.cooldownText, isRTL && styles.directionalText, { color: countdownColor }]}>
             {isInTiebreaker
               ? t('repVoting.tiebreakerCountdown').replace('{time}', formatRemaining(winnerCountdownMs))
@@ -438,7 +438,7 @@ const RepVotingScreen = ({ navigation, route }) => {
       {/* Voting closed banner (timer expired but not yet finalized) */}
       {isVotingDisabled && !isCompleted && (
         <View style={[styles.closedBanner, isRTL && styles.rowReverse, { backgroundColor: (theme.error || '#EF4444') + '15', borderColor: (theme.error || '#EF4444') + '40' }]}>
-          <Ionicons name="lock-closed-outline" size={fontSize(16)} color={theme.error || '#EF4444'} />
+          <IoniconSvg name="lock-closed-outline" size={fontSize(16)} color={theme.error || '#EF4444'} />
           <Text style={[styles.closedText, isRTL && styles.directionalText, { color: theme.error || '#EF4444' }]}>
             {t('repVoting.votingClosed')}
           </Text>
@@ -458,7 +458,7 @@ const RepVotingScreen = ({ navigation, route }) => {
 
       {classReps.length > 0 && (
         <View style={[styles.winnersBox, isRTL && styles.rowReverse, { backgroundColor: theme.primary + '15', borderColor: theme.primary + '40' }]}>
-          <Ionicons name="trophy" size={fontSize(18)} color={theme.primary} />
+          <IoniconSvg name="trophy" size={fontSize(18)} color={theme.primary} />
           <Text style={[styles.winnersText, isRTL && styles.directionalText, { color: theme.primary }]}>
             {t('repVoting.currentReps')}: {classReps.length}/{MAX_REPS_PER_CLASS}
           </Text>
@@ -496,7 +496,7 @@ const RepVotingScreen = ({ navigation, route }) => {
                 </Text>
               </View>
             </View>
-            <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={normalize(20)} color={theme.textSecondary} />
+            <IoniconSvg name={isRTL ? 'chevron-back' : 'chevron-forward'} size={normalize(20)} color={theme.textSecondary} />
           </TouchableOpacity>
         );
       })}
@@ -509,7 +509,7 @@ const RepVotingScreen = ({ navigation, route }) => {
 
       {currentSeat > 1 && !hasRepNoActiveElection && (
         <View style={[styles.seatBadge, isRTL && styles.rowReverse, { backgroundColor: theme.warning + '20', borderColor: theme.warning + '40' }]}>
-          <Ionicons name="ribbon-outline" size={fontSize(16)} color={theme.warning} />
+          <IoniconSvg name="ribbon-outline" size={fontSize(16)} color={theme.warning} />
           <Text style={[styles.seatBadgeText, isRTL && styles.directionalText, { color: theme.warning }]}>
             {t('repVoting.electingSeat').replace('{seat}', String(currentSeat))}
           </Text>
@@ -527,7 +527,7 @@ const RepVotingScreen = ({ navigation, route }) => {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="people-outline" size={normalize(48)} color={theme.textSecondary} />
+      <IoniconSvg name="people-outline" size={normalize(48)} color={theme.textSecondary} />
       <Text style={[styles.emptyText, isRTL && styles.directionalTextCenter, { color: theme.textSecondary }]}>
         {t('repVoting.noStudents')}
       </Text>
@@ -560,7 +560,7 @@ const RepVotingScreen = ({ navigation, route }) => {
       {/* Header */}
       <View style={[styles.header, isRTL && styles.rowReverse, { paddingTop: insets.top + spacing.sm }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-          <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={normalize(22)} color={theme.text} />
+          <IoniconSvg name={isRTL ? 'arrow-forward' : 'arrow-back'} size={normalize(22)} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, isRTL && styles.directionalTextCenter, { color: theme.text }]}>{t('repVoting.title')}</Text>
         <TouchableOpacity
@@ -568,7 +568,7 @@ const RepVotingScreen = ({ navigation, route }) => {
           style={styles.backBtn}
           activeOpacity={0.7}
         >
-          <Ionicons name="ellipsis-vertical" size={normalize(20)} color={theme.text} />
+          <IoniconSvg name="ellipsis-vertical" size={normalize(20)} color={theme.text} />
         </TouchableOpacity>
       </View>
 
@@ -585,7 +585,7 @@ const RepVotingScreen = ({ navigation, route }) => {
                 navigation.navigate('ReselectionRequest', { election, department, stage, seatNumber: currentSeat });
               }}
             >
-              <Ionicons
+              <IoniconSvg
                 name="refresh-outline"
                 size={normalize(20)}
                 color={canRequestReselectionWithClassSize ? theme.text : theme.textSecondary}
@@ -609,7 +609,7 @@ const RepVotingScreen = ({ navigation, route }) => {
                 handleRequestNextRep();
               }}
             >
-              <Ionicons
+              <IoniconSvg
                 name="person-add-outline"
                 size={normalize(20)}
                 color={canElectNextRep ? theme.primary : theme.textSecondary}
@@ -630,7 +630,7 @@ const RepVotingScreen = ({ navigation, route }) => {
             {/* Max reps reached label */}
             {classReps.length >= MAX_REPS_PER_CLASS && (
               <View style={[styles.menuItem, isRTL && styles.rowReverse]}>
-                <Ionicons name="checkmark-done-circle" size={normalize(20)} color={theme.textSecondary} />
+                <IoniconSvg name="checkmark-done-circle" size={normalize(20)} color={theme.textSecondary} />
                 <Text style={[styles.menuItemText, isRTL && styles.directionalText, { color: theme.textSecondary }]}>
                   {t('repVoting.maxRepsReached')}
                 </Text>

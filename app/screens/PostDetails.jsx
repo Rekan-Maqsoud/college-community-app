@@ -11,7 +11,8 @@ import {
   BackHandler,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/CompatIonicon';
+import IoniconSvg from '../components/icons/IoniconSvg';
 import * as ExpoImagePicker from 'expo-image-picker';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
@@ -808,7 +809,7 @@ const PostDetails = ({ navigation, route }) => {
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
         <View style={[styles.header, { backgroundColor: theme.background, borderBottomColor: theme.border }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} accessibilityRole="button" accessibilityLabel={t('common.goBack')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.text} />
+            <IoniconSvg name="arrow-back" size={moderateScale(24)} color={theme.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.replies')}</Text>
           <View style={styles.headerSpacer} />
@@ -828,13 +829,13 @@ const PostDetails = ({ navigation, route }) => {
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
         <View style={[styles.header, { backgroundColor: theme.background, borderBottomColor: theme.border }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} accessibilityRole="button" accessibilityLabel={t('common.goBack')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.text} />
+            <IoniconSvg name="arrow-back" size={moderateScale(24)} color={theme.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.replies')}</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.emptyContainer}>
-          <Ionicons name="alert-circle-outline" size={moderateScale(48)} color={theme.textSecondary} />
+          <IoniconSvg name="alert-circle-outline" size={moderateScale(48)} color={theme.textSecondary} />
           <Text style={[styles.emptyTitle, { color: theme.textSecondary }]}>{t('post.postNotFound') || 'Post not found'}</Text>
         </View>
       </SafeAreaView>
@@ -847,7 +848,7 @@ const PostDetails = ({ navigation, route }) => {
       
       <View style={[styles.header, { backgroundColor: theme.background, borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={handleGoBack} style={styles.backButton} accessibilityRole="button" accessibilityLabel={t('common.goBack')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+          <IoniconSvg name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>{t('post.replies')}</Text>
         <View style={styles.headerSpacer} />

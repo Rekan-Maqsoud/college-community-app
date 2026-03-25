@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/CompatIonicon';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';

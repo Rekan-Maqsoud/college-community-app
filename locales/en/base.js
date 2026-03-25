@@ -658,6 +658,8 @@ export default {
     "departmentFeedEmpty": "No posts from your department yet. Be the first to share!",
     "majorFeedEmpty": "No posts from your major yet. Start the conversation!",
     "publicFeedEmpty": "No public posts yet. Share something with everyone!",
+    "seePublicPosts": "See public posts",
+    "beFirstToPost": "Be the first one to post",
     "filterSort": "Filter and sort feed",
     "scrollToTop": "Scroll to top"
   },

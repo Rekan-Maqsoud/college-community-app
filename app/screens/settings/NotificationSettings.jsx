@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../../components/GlassComponents';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/CompatIonicon';
+import IoniconSvg from '../../components/icons/IoniconSvg';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { borderRadius } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
@@ -72,7 +73,7 @@ const NotificationSettings = ({ navigation }) => {
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}>
-          <Ionicons name={backIconName} size={moderateScale(22)} color={theme.text} />
+          <IoniconSvg name={backIconName} size={moderateScale(22)} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>
@@ -98,7 +99,7 @@ const NotificationSettings = ({ navigation }) => {
                 isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                 { backgroundColor: isDarkMode ? 'rgba(52, 199, 89, 0.15)' : 'rgba(52, 199, 89, 0.1)' },
               ]}>
-                <Ionicons name="notifications-outline" size={moderateScale(18)} color="#34C759" />
+                <IoniconSvg name="notifications-outline" size={moderateScale(18)} color="#34C759" />
               </View>
               <View style={styles.settingContent}>
                 <Text style={[styles.settingTitle, { color: theme.text }, isRTL && styles.directionalText]}>
@@ -163,7 +164,7 @@ const NotificationSettings = ({ navigation }) => {
                         <TouchableOpacity
                           style={[styles.timeButton, isRTL && styles.rowReverse, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }]}
                           onPress={() => openTimePicker('start')}>
-                          <Ionicons name="time-outline" size={moderateScale(16)} color="#AF52DE" />
+                          <IoniconSvg name="time-outline" size={moderateScale(16)} color="#AF52DE" />
                           <Text style={[styles.timeText, { color: theme.text }]}>
                             {quietHours.startTime}
                           </Text>
@@ -176,7 +177,7 @@ const NotificationSettings = ({ navigation }) => {
                         <TouchableOpacity
                           style={[styles.timeButton, isRTL && styles.rowReverse, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }]}
                           onPress={() => openTimePicker('end')}>
-                          <Ionicons name="time-outline" size={moderateScale(16)} color="#AF52DE" />
+                          <IoniconSvg name="time-outline" size={moderateScale(16)} color="#AF52DE" />
                           <Text style={[styles.timeText, { color: theme.text }]}>
                             {quietHours.endTime}
                           </Text>
@@ -199,7 +200,7 @@ const NotificationSettings = ({ navigation }) => {
                   isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                   { backgroundColor: isDarkMode ? 'rgba(10, 132, 255, 0.15)' : 'rgba(10, 132, 255, 0.1)' },
                 ]}>
-                  <Ionicons name="chatbubble-outline" size={moderateScale(18)} color="#0A84FF" />
+                  <IoniconSvg name="chatbubble-outline" size={moderateScale(18)} color="#0A84FF" />
                 </View>
                 <View style={styles.settingContent}>
                   <Text style={[styles.settingTitle, { color: theme.text }, isRTL && styles.directionalText]}>
@@ -226,7 +227,7 @@ const NotificationSettings = ({ navigation }) => {
                   isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                   { backgroundColor: isDarkMode ? 'rgba(255, 159, 10, 0.15)' : 'rgba(255, 159, 10, 0.1)' },
                 ]}>
-                  <Ionicons name="people-outline" size={moderateScale(18)} color="#FF9F0A" />
+                  <IoniconSvg name="people-outline" size={moderateScale(18)} color="#FF9F0A" />
                 </View>
                 <View style={styles.settingContent}>
                   <Text style={[styles.settingTitle, { color: theme.text }, isRTL && styles.directionalText]}>
@@ -253,7 +254,7 @@ const NotificationSettings = ({ navigation }) => {
                   isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                   { backgroundColor: isDarkMode ? 'rgba(191, 90, 242, 0.15)' : 'rgba(191, 90, 242, 0.1)' },
                 ]}>
-                  <Ionicons name="heart-outline" size={moderateScale(18)} color="#BF5AF2" />
+                  <IoniconSvg name="heart-outline" size={moderateScale(18)} color="#BF5AF2" />
                 </View>
                 <View style={styles.settingContent}>
                   <Text style={[styles.settingTitle, { color: theme.text }, isRTL && styles.directionalText]}>
@@ -280,7 +281,7 @@ const NotificationSettings = ({ navigation }) => {
                   isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                   { backgroundColor: isDarkMode ? 'rgba(255, 59, 48, 0.15)' : 'rgba(255, 59, 48, 0.1)' },
                 ]}>
-                  <Ionicons name="heart" size={moderateScale(18)} color="#FF3B30" />
+                  <IoniconSvg name="heart" size={moderateScale(18)} color="#FF3B30" />
                 </View>
                 <View style={styles.settingContent}>
                   <Text style={[styles.settingTitle, { color: theme.text }, isRTL && styles.directionalText]}>
@@ -334,7 +335,7 @@ const NotificationSettings = ({ navigation }) => {
                   isRTL ? styles.iconContainerRtl : styles.iconContainerLtr,
                   { backgroundColor: isDarkMode ? 'rgba(88, 86, 214, 0.15)' : 'rgba(88, 86, 214, 0.1)' },
                 ]}>
-                  <Ionicons name="at" size={moderateScale(18)} color="#5856D6" />
+                  <IoniconSvg name="at" size={moderateScale(18)} color="#5856D6" />
                 </View>
                 <View style={styles.settingContent}>
                   <Text style={[styles.settingTitle, { color: theme.text }, isRTL && styles.directionalText]}>

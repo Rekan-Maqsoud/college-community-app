@@ -1,17 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
-  Platform,
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../../components/GlassComponents';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/CompatIonicon';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
 import CustomAlert from '../../components/CustomAlert';
@@ -22,6 +13,7 @@ import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useLayout from '../../hooks/useLayout';
 import { getSettingsHeaderGradient } from './settingsTheme';
+import { Image } from 'expo-image';
 
 const BlockList = ({ navigation }) => {
   const { t, theme, isDarkMode, isRTL } = useAppSettings();

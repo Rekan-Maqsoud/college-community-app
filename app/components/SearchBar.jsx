@@ -12,8 +12,9 @@ import {
   Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from './icons/CompatIonicon';
 import { LinearGradient } from 'expo-linear-gradient';
+import IoniconSvg, { hasIoniconSvg } from './icons/IoniconSvg';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { searchUsers } from '../../database/users';
@@ -225,6 +226,13 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
     }
   };
 
+  const renderIcon = (name, size, color, style) => {
+    if (hasIoniconSvg(name)) {
+      return <IoniconSvg name={name} size={size} color={color} style={style} />;
+    }
+    return <Ionicons name={name} size={size} color={color} style={style} />;
+  };
+
   const renderSearchResults = () => {
     // Filter results based on active filter
     const showUsers = activeFilter === SEARCH_FILTERS.ALL || activeFilter === SEARCH_FILTERS.PEOPLE;
@@ -290,12 +298,7 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
           if (item.type === 'header') {
             return (
               <View style={[styles.sectionHeaderContainer, isRTL && styles.sectionHeaderContainerRtl]}>
-                <Ionicons
-                  name={item.icon}
-                  size={moderateScale(16)}
-                  color={theme.primary}
-                  style={[styles.sectionHeaderIcon, isRTL && styles.sectionHeaderIconRtl]}
-                />
+                {renderIcon(item.icon, moderateScale(16), theme.primary, [styles.sectionHeaderIcon, isRTL && styles.sectionHeaderIconRtl])}
                 <Text style={[styles.sectionHeader, isRTL && styles.sectionHeaderRtl, { color: theme.text }]}>
                   {item.title}
                 </Text>
@@ -344,20 +347,11 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
       >
         {iconOnly ? (
           <GlassIconButton size={moderateScale(44)} style={styles.iconOnlyButton}>
-            <Ionicons
-              name="search-outline"
-              size={moderateScale(22)}
-              color={theme.text}
-            />
+            <IoniconSvg name="search-outline" size={moderateScale(22)} color={theme.text} />
           </GlassIconButton>
         ) : (
           <GlassContainer borderRadius={borderRadius.lg} style={[styles.searchButton, isRTL && styles.searchButtonRtl]}>
-            <Ionicons
-              name="search-outline"
-              size={moderateScale(20)}
-              color={theme.textSecondary}
-              style={[styles.searchIcon, isRTL && styles.searchIconRtl]}
-            />
+            <IoniconSvg name="search-outline" size={moderateScale(20)} color={theme.textSecondary} style={[styles.searchIcon, isRTL && styles.searchIconRtl]} />
             <Text style={[styles.searchButtonText, isRTL && styles.searchButtonTextRtl, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
               {t('search.placeholder')}
             </Text>
@@ -392,7 +386,7 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
               accessibilityRole="button"
               accessibilityLabel={t('common.back')}
             >
-              <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={moderateScale(24)} color={theme.text} />
+              <IoniconSvg name={isRTL ? 'arrow-forward' : 'arrow-back'} size={moderateScale(24)} color={theme.text} />
             </TouchableOpacity>
             
             <GlassInput
@@ -403,12 +397,7 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
               ]}
               focused={searchQuery.length > 0}
             >
-              <Ionicons
-                name="search-outline"
-                size={moderateScale(20)}
-                color={isDarkMode ? theme.text : theme.textSecondary}
-                style={[styles.searchIcon, isRTL && styles.searchIconRtl]}
-              />
+              <IoniconSvg name="search-outline" size={moderateScale(20)} color={isDarkMode ? theme.text : theme.textSecondary} style={[styles.searchIcon, isRTL && styles.searchIconRtl]} />
               <TextInput
                 ref={searchInputRef}
                 style={[
@@ -429,11 +418,7 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={handleClear} style={styles.clearButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                  <Ionicons
-                    name="close-circle"
-                    size={moderateScale(20)}
-                    color={isDarkMode ? theme.text : theme.textSecondary}
-                  />
+                  <IoniconSvg name="close-circle" size={moderateScale(20)} color={isDarkMode ? theme.text : theme.textSecondary} />
                 </TouchableOpacity>
               )}
             </GlassInput>
@@ -470,12 +455,12 @@ const SearchBar = forwardRef(({ onUserPress, onPostPress, iconOnly = false }, re
                     activeOpacity={0.7}
                     style={[styles.filterTab, isRTL && styles.filterTabRtl, { width: filterTabWidth || `${100 / filterTabs.length}%` }]}
                   >
-                    <Ionicons
-                      name={isActive ? filter.icon.replace('-outline', '') : filter.icon}
-                      size={moderateScale(14)}
-                      color={isActive ? '#FFFFFF' : (isDarkMode ? 'rgba(255,255,255,0.84)' : theme.textSecondary)}
-                      style={[styles.filterTabIcon, isRTL ? styles.filterTabIconRtl : styles.filterTabIconLtr]}
-                    />
+                    {renderIcon(
+                      isActive ? filter.icon.replace('-outline', '') : filter.icon,
+                      moderateScale(14),
+                      isActive ? '#FFFFFF' : (isDarkMode ? 'rgba(255,255,255,0.84)' : theme.textSecondary),
+                      [styles.filterTabIcon, isRTL ? styles.filterTabIconRtl : styles.filterTabIconLtr]
+                    )}
                     <Text
                       style={[
                         styles.filterTabText,

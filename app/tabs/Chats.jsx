@@ -16,7 +16,6 @@ import {
 import { FlashList } from '@shopify/flash-list';
 import { useIsFocused } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
@@ -66,6 +65,27 @@ import { hasAcademicOtherSelection } from '../utils/academicSelection';
 import { unreadCountCacheManager } from '../utils/cacheManager';
 import { getArchivedCountBadgeText, getMuteOptionState } from '../utils/uiStateHelpers';
 import telemetry from '../utils/telemetry';
+import {
+  AddIcon,
+  ArchiveOutlineIcon,
+  ArrowBackIcon,
+  ArrowForwardIcon,
+  CalendarOutlineIcon,
+  ChatbubbleIcon,
+  PeopleChatIcon,
+  SchoolChatIcon,
+  SearchIcon,
+  PersonOutlineIcon,
+  SettingsOutlineIcon,
+  NotificationsOutlineIcon,
+  NotificationsOffOutlineIcon,
+  TrashOutlineIcon,
+  TrashIcon,
+  ExitOutlineIcon,
+  TimeOutlineIcon,
+  TodayOutlineIcon,
+  BanIcon,
+} from '../components/icons/chats';
 
 const Chats = ({ navigation }) => {
   const { t, theme, isDarkMode, isRTL } = useAppSettings();
@@ -1059,8 +1079,17 @@ const Chats = ({ navigation }) => {
   };
 
   const renderSectionHeader = ({ section }) => (
+    (() => {
+      const sectionIconMap = {
+        archive: ArchiveOutlineIcon,
+        school: SchoolChatIcon,
+        people: PeopleChatIcon,
+        chatbubble: ChatbubbleIcon,
+      };
+      const SectionIcon = sectionIconMap[section.icon] || ChatbubbleIcon;
+      return (
     <View style={[styles.sectionHeader, isRTL && styles.rowReverse]}>
-      <Ionicons name={section.icon} size={moderateScale(12)} color={section.color} />
+      <SectionIcon size={moderateScale(12)} color={section.color} />
       <Text style={[styles.sectionTitle, isRTL && styles.directionalText, { color: theme.textSecondary, fontSize: fontSize(11) }]}>
         {section.title}
       </Text>
@@ -1068,6 +1097,8 @@ const Chats = ({ navigation }) => {
         {section.data.length}
       </Text>
     </View>
+      );
+    })()
   );
 
   const renderChatItem = ({ item, section }) => {
@@ -1134,11 +1165,15 @@ const Chats = ({ navigation }) => {
     if (showArchivedChats) {
       return (
         <UnifiedEmptyState
+          iconComponent={({ size, color, accessible }) => <ArchiveOutlineIcon size={size} color={color} accessible={accessible} />}
           iconName="archive-outline"
           title={t('chats.noArchivedChatsTitle')}
           description={t('chats.noArchivedChatsMessage')}
           actionLabel={t('common.goBack')}
           actionIconName={isRTL ? 'arrow-forward' : 'arrow-back'}
+          actionIconComponent={({ size, color }) => (isRTL
+            ? <ArrowForwardIcon size={size} color={color} />
+            : <ArrowBackIcon size={size} color={color} />)}
           onAction={() => setShowArchivedChats(false)}
         />
       );
@@ -1146,11 +1181,13 @@ const Chats = ({ navigation }) => {
     
     return (
       <UnifiedEmptyState
+        iconComponent={({ size, color, accessible }) => <ChatbubbleIcon size={size} color={color} accessible={accessible} />}
         iconName="chatbubbles-outline"
         title={t('chats.emptyTitle')}
         description={t('chats.emptyMessage')}
         actionLabel={t('chats.startNewChat')}
         actionIconName="search"
+        actionIconComponent={({ size, color }) => <SearchIcon size={size} color={color} />}
         onAction={() => navigation.navigate('UserSearch')}
       />
     );
@@ -1210,7 +1247,11 @@ const Chats = ({ navigation }) => {
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <GlassIconButton size={moderateScale(34)} borderRadiusValue={moderateScale(17)}>
-                <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={moderateScale(16)} color={theme.text} />
+                {isRTL ? (
+                  <ArrowForwardIcon size={moderateScale(16)} color={theme.text} />
+                ) : (
+                  <ArrowBackIcon size={moderateScale(16)} color={theme.text} />
+                )}
               </GlassIconButton>
             </TouchableOpacity>
           )}
@@ -1227,7 +1268,7 @@ const Chats = ({ navigation }) => {
             accessibilityLabel={t('chats.startNewChat')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <GlassIconButton size={moderateScale(36)} borderRadiusValue={moderateScale(12)}>
-              <Ionicons name="search" size={moderateScale(18)} color={theme.primary} />
+              <SearchIcon size={moderateScale(18)} color={theme.primary} />
             </GlassIconButton>
           </TouchableOpacity>
           <TouchableOpacity
@@ -1244,7 +1285,7 @@ const Chats = ({ navigation }) => {
               active={showArchivedChats}
               activeColor="#F59E0B"
             >
-              <Ionicons name="archive-outline" size={moderateScale(17)} color="#F59E0B" />
+              <ArchiveOutlineIcon size={moderateScale(17)} color="#F59E0B" />
             </GlassIconButton>
             {archivedChatsCount > 0 && (
               <View
@@ -1266,7 +1307,7 @@ const Chats = ({ navigation }) => {
             accessibilityLabel={t('chats.createGroup')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <GlassIconButton size={moderateScale(36)} borderRadiusValue={moderateScale(12)}>
-              <Ionicons name="add" size={moderateScale(18)} color="#F59E0B" />
+              <AddIcon size={moderateScale(18)} color="#F59E0B" />
             </GlassIconButton>
           </TouchableOpacity>
         </View>
@@ -1281,7 +1322,7 @@ const Chats = ({ navigation }) => {
           accessibilityLabel={t('chats.archivedCount').replace('{count}', String(archivedChatsCount))}
         >
           <GlassContainer style={styles.archivedSummaryChip} borderRadius={moderateScale(12)}>
-            <Ionicons name="archive-outline" size={moderateScale(15)} color="#F59E0B" />
+            <ArchiveOutlineIcon size={moderateScale(15)} color="#F59E0B" />
             <Text style={[styles.archivedSummaryText, isRTL && styles.directionalText, { color: theme.text }]}>
               {t('chats.archivedCount').replace('{count}', String(archivedChatsCount))}
             </Text>
@@ -1483,7 +1524,7 @@ const Chats = ({ navigation }) => {
                       accessibilityRole="button"
                       accessibilityLabel={t('chats.visitProfile')}
                     >
-                      <Ionicons name="person-outline" size={moderateScale(18)} color={theme.primary} />
+                        <PersonOutlineIcon size={moderateScale(18)} color={theme.primary} />
                       <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
                         {t('chats.visitProfile')}
                       </Text>
@@ -1497,7 +1538,7 @@ const Chats = ({ navigation }) => {
                       accessibilityRole="button"
                       accessibilityLabel={t('chats.groupSettings')}
                     >
-                      <Ionicons name="settings-outline" size={moderateScale(18)} color={theme.primary} />
+                        <SettingsOutlineIcon size={moderateScale(18)} color={theme.primary} />
                       <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
                         {t('chats.groupSettings')}
                       </Text>
@@ -1510,11 +1551,9 @@ const Chats = ({ navigation }) => {
                     accessibilityRole="button"
                     accessibilityLabel={muteStatusMap[selectedChat?.$id] ? t('chats.unmute') : t('chats.mute')}
                   >
-                    <Ionicons
-                      name={muteStatusMap[selectedChat?.$id] ? 'notifications-outline' : 'notifications-off-outline'}
-                      size={moderateScale(18)}
-                      color={theme.primary}
-                    />
+                    {muteStatusMap[selectedChat?.$id]
+                      ? <NotificationsOutlineIcon size={moderateScale(18)} color={theme.primary} />
+                      : <NotificationsOffOutlineIcon size={moderateScale(18)} color={theme.primary} />}
                     <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
                       {muteStatusMap[selectedChat?.$id] ? t('chats.unmute') : t('chats.mute')}
                     </Text>
@@ -1530,7 +1569,7 @@ const Chats = ({ navigation }) => {
                     accessibilityRole="button"
                     accessibilityLabel={archivedChatMap[selectedChat?.$id] ? t('chats.unarchive') : t('chats.archive')}
                   >
-                    <Ionicons name="archive-outline" size={moderateScale(18)} color="#F59E0B" />
+                    <ArchiveOutlineIcon size={moderateScale(18)} color="#F59E0B" />
                     <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
                       {archivedChatMap[selectedChat?.$id] ? t('chats.unarchive') : t('chats.archive')}
                     </Text>
@@ -1545,7 +1584,7 @@ const Chats = ({ navigation }) => {
                     accessibilityRole="button"
                     accessibilityLabel={t('chats.searchInChat')}
                   >
-                    <Ionicons name="search-outline" size={moderateScale(18)} color={theme.primary} />
+                    <SearchIcon size={moderateScale(18)} color={theme.primary} />
                     <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
                       {t('chats.searchInChat')}
                     </Text>
@@ -1557,7 +1596,7 @@ const Chats = ({ navigation }) => {
                     accessibilityRole="button"
                     accessibilityLabel={t('chats.clearChat')}
                   >
-                    <Ionicons name="trash-outline" size={moderateScale(18)} color={theme.primary} />
+                    <TrashOutlineIcon size={moderateScale(18)} color={theme.primary} />
                     <Text style={[styles.menuItemText, { color: theme.text, fontSize: fontSize(14) }]}>
                       {t('chats.clearChat')}
                     </Text>
@@ -1570,7 +1609,7 @@ const Chats = ({ navigation }) => {
                       accessibilityRole="button"
                       accessibilityLabel={t('chats.blockUser')}
                     >
-                      <Ionicons name="ban-outline" size={moderateScale(18)} color="#EF4444" />
+                      <BanIcon size={moderateScale(18)} color="#EF4444" />
                       <Text style={[styles.menuItemText, { color: '#EF4444', fontSize: fontSize(14) }]}>
                         {t('chats.blockUser')}
                       </Text>
@@ -1584,7 +1623,7 @@ const Chats = ({ navigation }) => {
                       accessibilityRole="button"
                       accessibilityLabel={t('chats.deleteConversation')}
                     >
-                      <Ionicons name="trash" size={moderateScale(18)} color="#EF4444" />
+                      <TrashIcon size={moderateScale(18)} color="#EF4444" />
                       <Text style={[styles.menuItemText, { color: '#EF4444', fontSize: fontSize(14) }]}>
                         {t('chats.deleteConversation')}
                       </Text>
@@ -1598,7 +1637,7 @@ const Chats = ({ navigation }) => {
                       accessibilityRole="button"
                       accessibilityLabel={t('chats.leaveGroup')}
                     >
-                      <Ionicons name="exit-outline" size={moderateScale(18)} color="#EF4444" />
+                      <ExitOutlineIcon size={moderateScale(18)} color="#EF4444" />
                       <Text style={[styles.menuItemText, { color: '#EF4444', fontSize: fontSize(14) }]}>
                         {t('chats.leaveGroup')}
                       </Text>
@@ -1639,7 +1678,7 @@ const Chats = ({ navigation }) => {
                       accessibilityRole="button"
                       accessibilityLabel={t('chats.unmute')}
                     >
-                      <Ionicons name="notifications-outline" size={moderateScale(18)} color="#10B981" />
+                        <NotificationsOutlineIcon size={moderateScale(18)} color="#10B981" />
                       <Text style={[styles.menuItemText, { color: '#10B981', fontSize: fontSize(14) }]}>
                         {t('chats.unmute')}
                       </Text>
@@ -1655,7 +1694,7 @@ const Chats = ({ navigation }) => {
                     accessibilityRole="button"
                     accessibilityLabel={t('chats.muteFor1Hour')}
                   >
-                    <Ionicons name="time-outline" size={moderateScale(18)} color={theme.primary} />
+                    <TimeOutlineIcon size={moderateScale(18)} color={theme.primary} />
                     <Text style={[
                       styles.menuItemText,
                       { color: theme.text, fontSize: fontSize(14) },
@@ -1674,7 +1713,7 @@ const Chats = ({ navigation }) => {
                     accessibilityRole="button"
                     accessibilityLabel={t('chats.muteFor8Hours')}
                   >
-                    <Ionicons name="time-outline" size={moderateScale(18)} color={theme.primary} />
+                    <TimeOutlineIcon size={moderateScale(18)} color={theme.primary} />
                     <Text style={[
                       styles.menuItemText,
                       { color: theme.text, fontSize: fontSize(14) },
@@ -1693,7 +1732,7 @@ const Chats = ({ navigation }) => {
                     accessibilityRole="button"
                     accessibilityLabel={t('chats.muteFor1Day')}
                   >
-                    <Ionicons name="today-outline" size={moderateScale(18)} color={theme.primary} />
+                    <TodayOutlineIcon size={moderateScale(18)} color={theme.primary} />
                     <Text style={[
                       styles.menuItemText,
                       { color: theme.text, fontSize: fontSize(14) },
@@ -1712,7 +1751,7 @@ const Chats = ({ navigation }) => {
                     accessibilityRole="button"
                     accessibilityLabel={t('chats.muteFor1Week')}
                   >
-                    <Ionicons name="calendar-outline" size={moderateScale(18)} color={theme.primary} />
+                    <CalendarOutlineIcon size={moderateScale(18)} color={theme.primary} />
                     <Text style={[
                       styles.menuItemText,
                       { color: theme.text, fontSize: fontSize(14) },
@@ -1731,7 +1770,7 @@ const Chats = ({ navigation }) => {
                     accessibilityRole="button"
                     accessibilityLabel={t('chats.muteForever')}
                   >
-                    <Ionicons name="notifications-off-outline" size={moderateScale(18)} color="#F59E0B" />
+                    <NotificationsOffOutlineIcon size={moderateScale(18)} color="#F59E0B" />
                     <Text style={[
                       styles.menuItemText,
                       { color: theme.text, fontSize: fontSize(14) },

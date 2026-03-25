@@ -1,21 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  BackHandler,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  Image,
-  Switch,
-} from 'react-native';
+import { BackHandler, View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CommonActions } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import IoniconSvg from '../components/icons/IoniconSvg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from '../hooks/useTranslation';
 import { useCustomAlert } from '../hooks/useCustomAlert';
@@ -41,6 +28,7 @@ import { REFRESH_TOPICS, publishRefreshEvent } from '../utils/dataRefreshBus';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
+import { Image } from 'expo-image';
 
 const normalizeStageValue = (userStage) => {
   const stageMap = {
@@ -475,7 +463,7 @@ const EditPost = ({ navigation, route }) => {
             style={styles.headerButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="close" size={moderateScale(26)} color="#111827" />
+            <IoniconSvg name="close" size={moderateScale(26)} color="#111827" />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, isRTL && styles.directionalText]}>{t('common.error')}</Text>
           <View style={styles.headerButton} />
@@ -507,7 +495,7 @@ const EditPost = ({ navigation, route }) => {
               onPress={() => navigation.goBack()}
               disabled={loading}
             >
-              <Ionicons name="close" size={moderateScale(26)} color={theme.text} />
+              <IoniconSvg name="close" size={moderateScale(26)} color={theme.text} />
             </TouchableOpacity>
 
             <Text style={[styles.headerTitle, isRTL && styles.directionalText, { color: theme.text }]}>{t('post.editPost')}</Text>
@@ -588,7 +576,7 @@ const EditPost = ({ navigation, route }) => {
                   disabled={loading}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="eye-outline" size={moderateScale(14)} color={theme.primary} />
+                  <IoniconSvg name="eye-outline" size={moderateScale(14)} color={theme.primary} />
                   <Text
                     style={[styles.compactToggleText, isRTL && styles.directionalText, { color: theme.text }]}
                     numberOfLines={1}
@@ -608,7 +596,7 @@ const EditPost = ({ navigation, route }) => {
                 onPress={() => setShowTags(!showTags)}
                 activeOpacity={0.7}
               >
-                <Ionicons name="pricetag-outline" size={18} color={showTags ? theme.primary : theme.textSecondary} />
+                <IoniconSvg name="pricetag-outline" size={18} color={showTags ? theme.primary : theme.textSecondary} />
                 <Text style={[styles.actionButtonText, isRTL && styles.directionalText, { color: showTags ? theme.primary : theme.textSecondary }]}>
                   {t('post.tags')}
                 </Text>
@@ -619,7 +607,7 @@ const EditPost = ({ navigation, route }) => {
                 onPress={() => setShowLinks(!showLinks)}
                 activeOpacity={0.7}
               >
-                <Ionicons name="link-outline" size={18} color={showLinks ? theme.primary : theme.textSecondary} />
+                <IoniconSvg name="link-outline" size={18} color={showLinks ? theme.primary : theme.textSecondary} />
                 <Text style={[styles.actionButtonText, isRTL && styles.directionalText, { color: showLinks ? theme.primary : theme.textSecondary }]}>
                   {t('post.links')}
                 </Text>
@@ -631,7 +619,7 @@ const EditPost = ({ navigation, route }) => {
                 disabled
                 activeOpacity={1}
               >
-                <Ionicons name="images-outline" size={18} color={theme.textSecondary} />
+                <IoniconSvg name="images-outline" size={18} color={theme.textSecondary} />
                 <Text style={[styles.actionButtonText, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
                   {t('post.images')} ({existingImages.length + images.length})
                 </Text>
@@ -740,7 +728,7 @@ const EditPost = ({ navigation, route }) => {
                     onPress={() => handleRemovePollChoice(index)}
                     disabled={loading || pollChoices.length <= 2}
                   >
-                    <Ionicons name="trash-outline" size={18} color={theme.textSecondary} />
+                    <IoniconSvg name="trash-outline" size={18} color={theme.textSecondary} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -750,7 +738,7 @@ const EditPost = ({ navigation, route }) => {
                 onPress={handleAddPollChoice}
                 disabled={loading}
               >
-                <Ionicons name="add-circle-outline" size={18} color={theme.primary} />
+                <IoniconSvg name="add-circle-outline" size={18} color={theme.primary} />
                 <Text style={[styles.pollAddChoiceText, { color: theme.primary }]}>{t('post.poll.addChoice')}</Text>
               </TouchableOpacity>
 
@@ -762,7 +750,7 @@ const EditPost = ({ navigation, route }) => {
                     setCorrectPollOptionId('');
                   }}
                 >
-                  <Ionicons
+                  <IoniconSvg
                     name={!isQuizPoll ? 'checkbox' : 'square-outline'}
                     size={20}
                     color={!isQuizPoll ? theme.primary : theme.textSecondary}
@@ -774,7 +762,7 @@ const EditPost = ({ navigation, route }) => {
                   style={styles.pollModeItem}
                   onPress={() => setIsQuizPoll(true)}
                 >
-                  <Ionicons
+                  <IoniconSvg
                     name={isQuizPoll ? 'checkbox' : 'square-outline'}
                     size={20}
                     color={isQuizPoll ? theme.primary : theme.textSecondary}
@@ -800,7 +788,7 @@ const EditPost = ({ navigation, route }) => {
                         style={styles.pollCorrectAnswerItem}
                         onPress={() => setCorrectPollOptionId(optionId)}
                       >
-                        <Ionicons
+                        <IoniconSvg
                           name={isSelected ? 'radio-button-on' : 'radio-button-off'}
                           size={18}
                           color={isSelected ? theme.primary : theme.textSecondary}
@@ -831,7 +819,7 @@ const EditPost = ({ navigation, route }) => {
                       { backgroundColor: isDarkMode ? 'rgba(139,92,246,0.2)' : 'rgba(139,92,246,0.1)' }
                     ]}
                   >
-                    <Ionicons name="pricetag-outline" size={moderateScale(12)} color="#8B5CF6" />
+                    <IoniconSvg name="pricetag-outline" size={moderateScale(12)} color="#8B5CF6" />
                     <Text style={styles.hashtagChipText}>{tag}</Text>
                     <TouchableOpacity
                       onPress={() => {
@@ -842,7 +830,7 @@ const EditPost = ({ navigation, route }) => {
                       disabled={loading}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                      <Ionicons name="close" size={moderateScale(14)} color="#6B7280" />
+                      <IoniconSvg name="close" size={moderateScale(14)} color="#6B7280" />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -886,7 +874,7 @@ const EditPost = ({ navigation, route }) => {
                   }}
                   disabled={loading || !tagInput.trim() || tags.length >= 10}
                 >
-                  <Ionicons name="add-circle" size={moderateScale(26)} color="#8B5CF6" />
+                  <IoniconSvg name="add-circle" size={moderateScale(26)} color="#8B5CF6" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -910,7 +898,7 @@ const EditPost = ({ navigation, route }) => {
                     { backgroundColor: isDarkMode ? 'rgba(59,130,246,0.2)' : 'rgba(59,130,246,0.1)' }
                   ]}
                 >
-                  <Ionicons name="link-outline" size={moderateScale(14)} color="#3B82F6" />
+                  <IoniconSvg name="link-outline" size={moderateScale(14)} color="#3B82F6" />
                   <Text style={styles.linkChipText} numberOfLines={1}>{link}</Text>
                   <TouchableOpacity
                     onPress={() => {
@@ -921,7 +909,7 @@ const EditPost = ({ navigation, route }) => {
                     disabled={loading}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    <Ionicons name="close" size={moderateScale(15)} color="#6B7280" />
+                    <IoniconSvg name="close" size={moderateScale(15)} color="#6B7280" />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -964,7 +952,7 @@ const EditPost = ({ navigation, route }) => {
                   }}
                   disabled={loading || !linkInput.trim()}
                 >
-                  <Ionicons name="add-circle" size={moderateScale(26)} color="#3B82F6" />
+                  <IoniconSvg name="add-circle" size={moderateScale(26)} color="#3B82F6" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -991,7 +979,7 @@ const EditPost = ({ navigation, route }) => {
                       onPress={() => handleRemoveExistingImage(index)}
                       disabled={loading}
                     >
-                      <Ionicons name="close-circle" size={moderateScale(22)} color="#EF4444" />
+                      <IoniconSvg name="close-circle" size={moderateScale(22)} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
                 ))}

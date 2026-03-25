@@ -11,7 +11,6 @@ import {
   Keyboard,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import ProfilePicture from './ProfilePicture';
@@ -28,6 +27,12 @@ import { GlassModalCard } from './GlassComponents';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import telemetry from '../utils/telemetry';
+import {
+  CloseFilledIcon,
+  NewspaperOutlineExactIcon,
+  SearchFilledExactIcon,
+  SendFilledIcon,
+} from './icons';
 
 const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
   const { t, theme, isDarkMode } = useAppSettings();
@@ -225,7 +230,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
         {sending === (item?.$id || item?.id) ? (
           <ActivityIndicator size="small" color={theme.primary} />
         ) : (
-          <Ionicons name="send" size={moderateScale(20)} color={theme.primary} />
+          <SendFilledIcon size={moderateScale(20)} color={theme.primary} />
         )}
       </TouchableOpacity>
     );
@@ -256,7 +261,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
               {t('chats.sendToChat')}
             </Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={moderateScale(24)} color={theme.text} />
+              <CloseFilledIcon size={moderateScale(24)} color={theme.text} />
             </TouchableOpacity>
           </View>
 
@@ -269,7 +274,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
                 borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
               },
             ]}>
-            <Ionicons name="newspaper-outline" size={moderateScale(18)} color={theme.primary} />
+            <NewspaperOutlineExactIcon size={moderateScale(18)} color={theme.primary} />
             <Text
               style={[styles.postPreviewText, { color: theme.text, fontSize: fontSize(14) }]}
               numberOfLines={2}>
@@ -288,7 +293,7 @@ const SharePostToChat = ({ visible, onClose, post, showAlert }) => {
                     : 'rgba(0,0,0,0.05)',
                 },
               ]}>
-              <Ionicons name="search" size={moderateScale(18)} color={theme.textSecondary} />
+              <SearchFilledExactIcon size={moderateScale(18)} color={theme.textSecondary} />
               <TextInput
                 style={[styles.searchTextInput, { color: theme.text, fontSize: fontSize(14) }]}
                 placeholder={t('chats.searchChats')}

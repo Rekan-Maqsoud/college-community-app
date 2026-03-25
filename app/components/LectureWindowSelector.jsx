@@ -7,7 +7,7 @@ import {
   Animated,
   useWindowDimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from './icons/CompatIonicon';
 import { GlassContainer } from './GlassComponents';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { wp, fontSize, spacing, moderateScale } from '../utils/responsive';

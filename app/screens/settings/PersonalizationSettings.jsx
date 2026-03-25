@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../../components/GlassComponents';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/CompatIonicon';
+import IoniconSvg, { hasIoniconSvg } from '../../components/icons/IoniconSvg';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { borderRadius } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
@@ -82,6 +83,13 @@ const PersonalizationSettings = ({ navigation }) => {
 
   const [sliderFontPercent, setSliderFontPercent] = useState(Math.round(fontScale * 100));
 
+  const renderIcon = (name, size, color, style) => {
+    if (hasIoniconSvg(name)) {
+      return <IoniconSvg name={name} size={size} color={color} style={style} />;
+    }
+    return <Ionicons name={name} size={size} color={color} style={style} />;
+  };
+
   const openTimePicker = (type) => {
     setTimePickerType(type);
     setTempTime(type === 'start' ? darkModeSchedule.startTime : darkModeSchedule.endTime);
@@ -125,7 +133,7 @@ const PersonalizationSettings = ({ navigation }) => {
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}>
-          <Ionicons name={backIconName} size={moderateScale(22)} color={theme.text} />
+          <IoniconSvg name={backIconName} size={moderateScale(22)} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>
@@ -160,11 +168,7 @@ const PersonalizationSettings = ({ navigation }) => {
                         : isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
                     },
                   ]}>
-                    <Ionicons
-                      name={option.icon}
-                      size={moderateScale(18)}
-                      color={themePreference === option.value ? theme.primary : theme.textSecondary}
-                    />
+                    {renderIcon(option.icon, moderateScale(18), themePreference === option.value ? theme.primary : theme.textSecondary)}
                   </View>
                   <Text style={[
                     styles.optionLabel,
@@ -174,7 +178,7 @@ const PersonalizationSettings = ({ navigation }) => {
                     {option.label}
                   </Text>
                   {themePreference === option.value && (
-                    <Ionicons name="checkmark-circle" size={moderateScale(20)} color={theme.primary} />
+                    <IoniconSvg name="checkmark-circle" size={moderateScale(20)} color={theme.primary} />
                   )}
                 </TouchableOpacity>
                 {index < themeOptions.length - 1 && (
@@ -250,7 +254,7 @@ const PersonalizationSettings = ({ navigation }) => {
                       ]}
                     >
                       {isSelected ? (
-                        <Ionicons name="checkmark" size={moderateScale(18)} color="#FFFFFF" />
+                        <IoniconSvg name="checkmark" size={moderateScale(18)} color="#FFFFFF" />
                       ) : null}
                     </View>
                     <Text
@@ -292,7 +296,7 @@ const PersonalizationSettings = ({ navigation }) => {
                     </Text>
                   </View>
                   {currentLanguage === lang.code && (
-                    <Ionicons name="checkmark-circle" size={moderateScale(20)} color={theme.primary} />
+                    <IoniconSvg name="checkmark-circle" size={moderateScale(20)} color={theme.primary} />
                   )}
                 </TouchableOpacity>
                 {index < languages.length - 1 && (
@@ -342,7 +346,7 @@ const PersonalizationSettings = ({ navigation }) => {
                   disabled={sliderFontPercent >= MAX_FONT_PERCENT}
                   activeOpacity={0.6}
                 >
-                  <Ionicons name="add" size={moderateScale(22)} color={sliderFontPercent >= MAX_FONT_PERCENT ? theme.textSecondary : theme.primary} />
+                  <IoniconSvg name="add" size={moderateScale(22)} color={sliderFontPercent >= MAX_FONT_PERCENT ? theme.textSecondary : theme.primary} />
                 </TouchableOpacity>
               </View>
               <View
@@ -579,10 +583,10 @@ const PersonalizationSettings = ({ navigation }) => {
                   backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
                 },
               ]}>
-                <Ionicons 
+                <IoniconSvg
                   name="eye-outline" 
                   size={moderateScale(18)} 
-                  color={showActivityStatus ? theme.primary : theme.textSecondary} 
+                  color={showActivityStatus ? theme.primary : theme.textSecondary}
                 />
               </View>
               <View style={styles.optionContent}>

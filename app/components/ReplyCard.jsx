@@ -1,20 +1,23 @@
 import React, { useState, memo } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Modal,
-  useWindowDimensions,
-  ScrollView,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, useWindowDimensions, ScrollView } from 'react-native';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { GlassCard, GlassModalCard } from './GlassComponents';
+import {
+  ArrowDownExactIcon,
+  ArrowUpExactIcon,
+  CheckmarkCircleFilledIcon,
+  CheckmarkCircleOutlineExactIcon,
+  CloseCircleOutlineExactIcon,
+  CloseFilledIcon,
+  CreateOutlineIcon,
+  EllipsisHorizontalFilledIcon,
+  LinkOutlineIcon,
+  TrashOutlineExactIcon,
+} from './icons';
+import { Image } from 'expo-image';
 
 const ReplyCard = ({ 
   reply, 
@@ -61,7 +64,7 @@ const ReplyCard = ({
             key={index}
             style={[styles.linkItem, { backgroundColor: isDarkMode ? 'rgba(66,135,245,0.1)' : 'rgba(66,135,245,0.1)' }]}
             activeOpacity={0.7}>
-            <Ionicons name="link-outline" size={moderateScale(16)} color="#4287f5" />
+            <LinkOutlineIcon size={moderateScale(16)} color="#4287f5" />
             <Text 
               style={[styles.linkText, { fontSize: fontSize(12), color: '#4287f5' }]}
               numberOfLines={1}>
@@ -108,7 +111,7 @@ const ReplyCard = ({
         
         {reply.isAccepted && (
           <View style={[styles.acceptedBadge, { backgroundColor: '#10B981' }]}>
-            <Ionicons name="checkmark-circle" size={moderateScale(14)} color="#FFFFFF" />
+            <CheckmarkCircleFilledIcon size={moderateScale(14)} color="#FFFFFF" />
             <Text style={[styles.acceptedText, { fontSize: fontSize(11) }]}>
               {t('post.bestAnswer')}
             </Text>
@@ -145,7 +148,7 @@ const ReplyCard = ({
               onPress={() => setShowMenu(true)}
               style={styles.menuButton}
               activeOpacity={0.7}>
-              <Ionicons name="ellipsis-horizontal" size={moderateScale(20)} color={theme.text} />
+              <EllipsisHorizontalFilledIcon size={moderateScale(20)} color={theme.text} />
             </TouchableOpacity>
           )}
         </View>
@@ -168,10 +171,9 @@ const ReplyCard = ({
             ]}
             onPress={() => onUpvote && onUpvote(reply)}
             activeOpacity={0.7}>
-            <Ionicons 
-              name={(reply.upvotedBy || []).includes(user?.$id) ? "arrow-up" : "arrow-up-outline"} 
-              size={moderateScale(14)} 
-              color={(reply.upvotedBy || []).includes(user?.$id) ? "#FFFFFF" : "#4CAF50"} 
+            <ArrowUpExactIcon
+              size={moderateScale(14)}
+              color={(reply.upvotedBy || []).includes(user?.$id) ? '#FFFFFF' : '#4CAF50'}
             />
             <Text style={[
               styles.voteCount, 
@@ -194,10 +196,9 @@ const ReplyCard = ({
             ]}
             onPress={() => onDownvote && onDownvote(reply)}
             activeOpacity={0.7}>
-            <Ionicons 
-              name={(reply.downvotedBy || []).includes(user?.$id) ? "arrow-down" : "arrow-down-outline"} 
-              size={moderateScale(14)} 
-              color={(reply.downvotedBy || []).includes(user?.$id) ? "#FFFFFF" : "#F44336"} 
+            <ArrowDownExactIcon
+              size={moderateScale(14)}
+              color={(reply.downvotedBy || []).includes(user?.$id) ? '#FFFFFF' : '#F44336'}
             />
             <Text style={[
               styles.voteCount, 
@@ -230,7 +231,7 @@ const ReplyCard = ({
                     setShowMenu(false);
                     onEdit && onEdit(reply);
                   }}>
-                  <Ionicons name="create-outline" size={moderateScale(20)} color={theme.text} />
+                  <CreateOutlineIcon size={moderateScale(20)} color={theme.text} />
                   <Text style={[styles.menuItemText, { fontSize: fontSize(14), color: theme.text }]}>
                     {t('post.editReply')}
                   </Text>
@@ -242,7 +243,7 @@ const ReplyCard = ({
                     setShowMenu(false);
                     onDelete && onDelete(reply);
                   }}>
-                  <Ionicons name="trash-outline" size={moderateScale(20)} color="#EF4444" />
+                  <TrashOutlineExactIcon size={moderateScale(20)} color="#EF4444" />
                   <Text style={[styles.menuItemText, { fontSize: fontSize(14), color: '#EF4444' }]}>
                     {t('post.deleteReply')}
                   </Text>
@@ -257,11 +258,11 @@ const ReplyCard = ({
                   setShowMenu(false);
                   onAccept && onAccept(reply);
                 }}>
-                <Ionicons 
-                  name={reply.isAccepted ? "close-circle-outline" : "checkmark-circle-outline"} 
-                  size={moderateScale(20)} 
-                  color="#10B981" 
-                />
+                {reply.isAccepted ? (
+                  <CloseCircleOutlineExactIcon size={moderateScale(20)} color="#10B981" />
+                ) : (
+                  <CheckmarkCircleOutlineExactIcon size={moderateScale(20)} color="#10B981" />
+                )}
                 <Text style={[styles.menuItemText, { fontSize: fontSize(14), color: '#10B981' }]}>
                   {reply.isAccepted ? t('post.unmarkAsAccepted') : t('post.markAsAccepted')}
                 </Text>
@@ -280,7 +281,7 @@ const ReplyCard = ({
           <TouchableOpacity
             style={styles.galleryCloseButton}
             onPress={() => setImageGalleryVisible(false)}>
-            <Ionicons name="close" size={moderateScale(30)} color="#FFFFFF" />
+            <CloseFilledIcon size={moderateScale(30)} color="#FFFFFF" />
           </TouchableOpacity>
           
           <ScrollView

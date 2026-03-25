@@ -1,7 +1,8 @@
 import React from 'react';
 import { ActivityIndicator, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../../components/icons/CompatIonicon';
+import IoniconSvg from '../../../components/icons/IoniconSvg';
 import ProfilePicture from '../../../components/ProfilePicture';
 import { GlassContainer, GlassIconButton } from '../../../components/GlassComponents';
 import { useAppSettings } from '../../../context/AppSettingsContext';
@@ -85,7 +86,7 @@ const LectureSettingsModal = ({
               borderRadiusValue={16}
               activeOpacity={0.7}
               onPress={() => setSettingsOpen(false)}>
-              <Ionicons name="close" size={20} color={colors.text} />
+              <IoniconSvg name="close" size={20} color={colors.text} />
             </GlassIconButton>
           </View>
 
@@ -120,7 +121,7 @@ const LectureSettingsModal = ({
                   autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ allowUploadsFromMembers: nextVal }), 600);
                 }}>
                 <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.allowMemberUploads')}</Text>
-                <Ionicons name={settingsDraft.allowUploadsFromMembers ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
+                <IoniconSvg name={settingsDraft.allowUploadsFromMembers ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
               </TouchableOpacity>
             </GlassContainer>
 
@@ -134,7 +135,7 @@ const LectureSettingsModal = ({
                   autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ suggestToDepartment: nextVal }), 600);
                 }}>
                 <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.suggestToDepartment')}</Text>
-                <Ionicons name={settingsDraft.suggestToDepartment ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
+                <IoniconSvg name={settingsDraft.suggestToDepartment ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
               </TouchableOpacity>
             </GlassContainer>
 
@@ -148,7 +149,7 @@ const LectureSettingsModal = ({
                   autoSaveTimerRef.current = setTimeout(() => handleSaveSettings({ suggestToStage: nextVal }), 600);
                 }}>
                 <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.suggestToStage')}</Text>
-                <Ionicons name={settingsDraft.suggestToStage ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
+                <IoniconSvg name={settingsDraft.suggestToStage ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
               </TouchableOpacity>
             </GlassContainer>
 
@@ -277,7 +278,7 @@ const LectureSettingsModal = ({
                 ]}
                 onPress={handleAddManager}
                 disabled={addingManager}>
-                {addingManager ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="add" size={20} color={colors.primary} />}
+                {addingManager ? <ActivityIndicator size="small" color={colors.primary} /> : <IoniconSvg name="add" size={20} color={colors.primary} />}
               </TouchableOpacity>
             </View>
 
@@ -300,7 +301,7 @@ const LectureSettingsModal = ({
                           </Text>
                         </View>
                       </View>
-                      <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={colors.textSecondary} />
+                      <IoniconSvg name={isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={colors.textSecondary} />
                     </TouchableOpacity>
                   </GlassContainer>
                 ))}
@@ -318,7 +319,7 @@ const LectureSettingsModal = ({
                   <Text style={[styles.nameListText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{resolveName(managerId)}</Text>
                   {isOwner && String(managerId || '').trim() !== String(channel?.ownerId || '').trim() && (
                     <TouchableOpacity style={[styles.managerRemoveButton, isRTL && styles.managerRemoveButtonRtl, { borderColor: colors.border }]} onPress={() => handleRemoveManager(managerId)}>
-                      <Ionicons name="trash-outline" size={13} color={colors.danger} />
+                      <IoniconSvg name="trash-outline" size={13} color={colors.danger} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -331,7 +332,7 @@ const LectureSettingsModal = ({
                   style={[styles.toggleRow, isRTL && styles.rowReverse, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
                   onPress={handleToggleAccess}>
                   <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.approvalRequired')}</Text>
-                  <Ionicons name={channel?.accessType === LECTURE_ACCESS_TYPES.APPROVAL_REQUIRED ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
+                  <IoniconSvg name={channel?.accessType === LECTURE_ACCESS_TYPES.APPROVAL_REQUIRED ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
                 </TouchableOpacity>
               </GlassContainer>
             )}
@@ -342,7 +343,11 @@ const LectureSettingsModal = ({
                   style={[styles.toggleRow, isRTL && styles.rowReverse, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
                   onPress={handleToggleNotifications}>
                   <Text style={[styles.toggleText, isRTL && styles.toggleTextRtl, isRTL && styles.directionalText, { color: colors.text }]}>{membership.notificationsEnabled ? t('lectures.notificationsOn') : t('lectures.notificationsOff')}</Text>
-                  <Ionicons name={membership.notificationsEnabled ? 'notifications' : 'notifications-off-outline'} size={20} color={colors.primary} />
+                  {membership.notificationsEnabled ? (
+                    <Ionicons name="notifications" size={20} color={colors.primary} />
+                  ) : (
+                    <IoniconSvg name="notifications-off-outline" size={20} color={colors.primary} />
+                  )}
                 </TouchableOpacity>
               </GlassContainer>
             )}
@@ -385,7 +390,7 @@ const LectureSettingsModal = ({
                 style={[styles.deleteChannelButton, { borderColor: colors.danger, opacity: savingSettings ? 0.6 : 1 }]}
                 onPress={handleDeleteChannel}
                 disabled={savingSettings}>
-                <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                <IoniconSvg name="trash-outline" size={16} color={colors.danger} />
                 <Text style={[styles.deleteChannelButtonText, isRTL && styles.directionalText, { color: colors.danger }]}>{t('lectures.deleteChannelAction')}</Text>
               </TouchableOpacity>
             )}

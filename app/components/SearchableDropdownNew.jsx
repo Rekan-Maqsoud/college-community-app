@@ -10,10 +10,10 @@ import {
   Platform,
   Animated,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { 
   SchoolIcon, BookIcon, BusinessIcon, LibraryIcon, TimeIcon,
-  CheckmarkCircleIcon, CloseCircleIcon,
+  CheckmarkCircleIcon, CloseCircleIcon, SearchIcon, ListIcon,
+  ChevronUpIcon, ChevronDownIcon,
 } from './icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { GlassInput, GlassModalCard } from './GlassComponents';
@@ -44,6 +44,8 @@ const SearchableDropdownNew = ({
     'business-outline': BusinessIcon,
     'library-outline': LibraryIcon,
     'time-outline': TimeIcon,
+    'search-outline': SearchIcon,
+    'list-outline': ListIcon,
   };
 
   const normalizedItems = items.map(item => ({
@@ -102,8 +104,7 @@ const SearchableDropdownNew = ({
           style: [styles.icon, isRTL && styles.iconRtl]
         })
       ) : (
-        <Ionicons
-          name={icon || 'list-outline'}
+        <ListIcon
           size={compact ? moderateScale(16) : moderateScale(20)}
           color={disabled ? theme.textSecondary : (selectedItem ? theme.primary : theme.textSecondary)}
           style={[styles.icon, isRTL && styles.iconRtl]}
@@ -124,11 +125,17 @@ const SearchableDropdownNew = ({
       >
         {selectedItem ? selectedItem.label : placeholder}
       </Text>
-      <Ionicons
-        name={isOpen ? 'chevron-up' : 'chevron-down'}
-        size={compact ? moderateScale(16) : moderateScale(20)}
-        color={theme.textSecondary}
-      />
+      {isOpen ? (
+        <ChevronUpIcon
+          size={compact ? moderateScale(16) : moderateScale(20)}
+          color={theme.textSecondary}
+        />
+      ) : (
+        <ChevronDownIcon
+          size={compact ? moderateScale(16) : moderateScale(20)}
+          color={theme.textSecondary}
+        />
+      )}
     </View>
   );
 
@@ -193,7 +200,7 @@ const SearchableDropdownNew = ({
                   { backgroundColor: isDarkMode ? 'rgba(118, 118, 128, 0.24)' : 'rgba(118, 118, 128, 0.12)' },
                 ]}
               >
-                <Ionicons name="search-outline" size={moderateScale(20)} color={theme.textSecondary} style={[styles.searchIcon, isRTL && styles.searchIconRtl]} />
+                <SearchIcon size={moderateScale(20)} color={theme.textSecondary} style={[styles.searchIcon, isRTL && styles.searchIconRtl]} />
                 <TextInput
                   style={[
                     styles.searchInput,
@@ -265,7 +272,7 @@ const SearchableDropdownNew = ({
                   })
                 ) : (
                   <View style={styles.emptyContainer}>
-                    <Ionicons name="search-outline" size={moderateScale(48)} color={theme.textSecondary} style={{ opacity: 0.5 }} />
+                    <SearchIcon size={moderateScale(48)} color={theme.textSecondary} style={{ opacity: 0.5 }} />
                     <Text style={[styles.emptyText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
                       {t('common.noResults')}
                     </Text>

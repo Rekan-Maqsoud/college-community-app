@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ReanimatedAnimated, { FadeInDown } from 'react-native-reanimated';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -55,10 +54,49 @@ import { REFRESH_TOPICS, subscribeToRefreshTopic } from '../utils/dataRefreshBus
 import telemetry from '../utils/telemetry';
 import { hasActiveHomeFilters, shouldScheduleRealtimeNotification } from '../utils/uiStateHelpers';
 import { formatNotificationBadgeCount } from '../utils/notificationUiHelpers';
+import {
+  OptionsIcon,
+  NotificationsIcon,
+  CloseIcon,
+  ArrowUpIcon,
+  PeopleIcon,
+  SchoolHomeIcon,
+  GlobeIcon,
+  RefreshIcon,
+  MedkitIcon,
+  WarningIcon,
+  BanIcon,
+  HandLeftIcon,
+  AlertCircleHomeIcon,
+  DocumentTextIcon,
+  EyeOffHomeIcon,
+  MailUnreadIcon,
+  EllipsisHorizontalCircleIcon,
+  ChatbubbleEllipsesIcon,
+} from '../components/icons/home';
 
 const POSTS_PER_PAGE = 15;
 const AnimatedFlatList = Animated.createAnimatedComponent(FlashList);
 const homeFeedViewportCache = new Map();
+
+const reportReasonIconMap = {
+  'medkit-outline': MedkitIcon,
+  'warning-outline': WarningIcon,
+  'ban-outline': BanIcon,
+  'hand-left-outline': HandLeftIcon,
+  'alert-circle-outline': AlertCircleHomeIcon,
+  'document-text-outline': DocumentTextIcon,
+  'eye-off-outline': EyeOffHomeIcon,
+  'mail-unread-outline': MailUnreadIcon,
+  'ellipsis-horizontal-circle-outline': EllipsisHorizontalCircleIcon,
+  'chatbubble-ellipses-outline': ChatbubbleEllipsesIcon,
+};
+
+const emptyStateIconMap = {
+  'people-outline': PeopleIcon,
+  'school-outline': SchoolHomeIcon,
+  'globe-outline': GlobeIcon,
+};
 
 const Home = ({ navigation, route }) => {
   const {
@@ -658,6 +696,23 @@ const Home = ({ navigation, route }) => {
     setIsLoadingPosts(true);
   };
 
+  const handleOpenPublicPosts = useCallback(() => {
+    if (selectedFeed === FEED_TYPES.PUBLIC) {
+      handleRefresh();
+      return;
+    }
+
+    setSelectedFeed(FEED_TYPES.PUBLIC);
+    setPosts([]);
+    setPage(0);
+    setHasMore(true);
+    setIsLoadingPosts(true);
+  }, [handleRefresh, selectedFeed]);
+
+  const handleCreatePost = useCallback(() => {
+    navigation.navigate('Post');
+  }, [navigation]);
+
   const handleStageChange = (stage) => {
     setSelectedStage(stage);
     setPosts([]);
@@ -713,6 +768,18 @@ const Home = ({ navigation, route }) => {
   };
 
   const viewedPostsRef = useRef(new Set());
+
+  useEffect(() => {
+    if (!user?.$id || scopedDepartment || selectedFeed === FEED_TYPES.PUBLIC) {
+      return;
+    }
+
+    setSelectedFeed(FEED_TYPES.PUBLIC);
+    setPosts([]);
+    setPage(0);
+    setHasMore(true);
+    setIsLoadingPosts(true);
+  }, [scopedDepartment, selectedFeed, user?.$id]);
 
   const markPostAsViewed = useCallback(async (postId) => {
     if (!user?.$id || !postId || viewedPostsRef.current.has(postId)) return;
@@ -1039,6 +1106,17 @@ const Home = ({ navigation, route }) => {
         removeClippedSubviews={Platform.OS === 'android'}
         ListEmptyComponent={
           <UnifiedEmptyState
+            iconComponent={({ size, color, accessible }) => {
+              const IconComponent = emptyStateIconMap[
+                selectedFeed === FEED_TYPES.DEPARTMENT
+                  ? 'people-outline'
+                  : selectedFeed === FEED_TYPES.MAJOR
+                    ? 'school-outline'
+                    : 'globe-outline'
+              ];
+
+              return IconComponent ? <IconComponent accessible={accessible} size={size} color={color} /> : null;
+            }}
             iconName={
               selectedFeed === FEED_TYPES.DEPARTMENT
                 ? 'people-outline'
@@ -1054,9 +1132,18 @@ const Home = ({ navigation, route }) => {
                   ? t('home.majorFeedEmpty')
                   : t('home.publicFeedEmpty')
             }
-            actionLabel={t('common.retry')}
-            actionIconName="refresh-outline"
-            onAction={handleRefresh}
+            actionLabel={
+              selectedFeed === FEED_TYPES.PUBLIC
+                ? t('common.retry')
+                : t('home.seePublicPosts')
+            }
+            actionIconName={selectedFeed === FEED_TYPES.PUBLIC ? 'refresh-outline' : null}
+            actionIconComponent={selectedFeed === FEED_TYPES.PUBLIC
+              ? ({ size, color }) => <RefreshIcon size={size} color={color} />
+              : undefined}
+            onAction={selectedFeed === FEED_TYPES.PUBLIC ? handleRefresh : handleOpenPublicPosts}
+            secondaryActionLabel={selectedFeed === FEED_TYPES.DEPARTMENT ? t('home.beFirstToPost') : null}
+            onSecondaryAction={selectedFeed === FEED_TYPES.DEPARTMENT ? handleCreatePost : null}
           />
         }
       />
@@ -1125,10 +1212,9 @@ const Home = ({ navigation, route }) => {
                 borderRadiusValue={borderRadius.md}
                 active={Platform.OS === 'android' ? false : hasActiveFilters}
               >
-                <Ionicons 
-                  name="options-outline" 
-                  size={headerIconSize} 
-                  color={hasActiveFilters ? theme.primary : theme.text} 
+                <OptionsIcon
+                  size={headerIconSize}
+                  color={hasActiveFilters ? theme.primary : theme.text}
                 />
                 {hasActiveFilters && <View style={[styles.filterActiveDot, { backgroundColor: theme.primary }]} />}
               </GlassIconButton>
@@ -1146,7 +1232,7 @@ const Home = ({ navigation, route }) => {
                 size={actionButtonSize}
                 borderRadiusValue={borderRadius.md}
               >
-                <Ionicons name="notifications-outline" size={headerIconSize} color={theme.text} />
+                <NotificationsIcon size={headerIconSize} color={theme.text} />
                 {notificationBadgeText ? (
                   <View style={styles.notificationBadge}>
                     <Text style={styles.notificationBadgeText}>
@@ -1208,7 +1294,7 @@ const Home = ({ navigation, route }) => {
                 accessibilityLabel={t('common.close')}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons name="close" size={moderateScale(18)} color={theme.textSecondary} />
+                <CloseIcon size={moderateScale(18)} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -1226,7 +1312,12 @@ const Home = ({ navigation, route }) => {
                   }}
                 >
                   <View style={[styles.reportReasonIconWrap, { backgroundColor: `${reason.color}20` }]}>
-                    <Ionicons name={reason.icon} size={moderateScale(16)} color={reason.color} />
+                    {reportReasonIconMap[reason.icon]
+                      ? React.createElement(reportReasonIconMap[reason.icon], {
+                          size: moderateScale(16),
+                          color: reason.color,
+                        })
+                      : <AlertCircleHomeIcon size={moderateScale(16)} color={reason.color} />}
                   </View>
                   <View style={styles.reportReasonTextWrap}>
                     <Text style={[styles.reportReasonTitle, { color: theme.text }]}>{t(`report.${reason.labelKey}`)}</Text>
@@ -1274,7 +1365,7 @@ const Home = ({ navigation, route }) => {
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <GlassIconButton size={moderateScale(48)} tint="dark">
-            <Ionicons name="arrow-up" size={moderateScale(22)} color="#FFFFFF" />
+            <ArrowUpIcon size={moderateScale(22)} color="#FFFFFF" />
           </GlassIconButton>
         </TouchableOpacity>
       </Animated.View>

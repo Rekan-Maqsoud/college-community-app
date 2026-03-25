@@ -1,22 +1,62 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { GlassContainer } from './GlassComponents';
-import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { wp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import {
+  AlertCircleOutlineIcon,
+  ArchiveOutlineSvgIcon,
+  ArrowBackOutlineIcon,
+  ArrowForwardOutlineIcon,
+  BookmarkOutlineIcon,
+  ChatbubblesOutlineIcon,
+  NotificationsOutlineIcon,
+  PeopleOutlineSvgIcon,
+  PersonAddOutlineIcon,
+  RefreshOutlineIcon,
+  SearchOutlineIcon,
+} from './icons';
+
+const EMPTY_STATE_ICON_MAP = {
+  'alert-circle-outline': AlertCircleOutlineIcon,
+  'archive-outline': ArchiveOutlineSvgIcon,
+  'bookmark-outline': BookmarkOutlineIcon,
+  'chatbubbles-outline': ChatbubblesOutlineIcon,
+  'notifications-outline': NotificationsOutlineIcon,
+  'people-outline': PeopleOutlineSvgIcon,
+  'person-add-outline': PersonAddOutlineIcon,
+};
+
+const EMPTY_STATE_ACTION_ICON_MAP = {
+  'arrow-back': ArrowBackOutlineIcon,
+  'arrow-forward': ArrowForwardOutlineIcon,
+  'refresh-outline': RefreshOutlineIcon,
+  search: SearchOutlineIcon,
+};
 
 const UnifiedEmptyState = ({
   iconName,
+  iconComponent,
   title,
   description,
   actionLabel,
   onAction,
   actionIconName,
+  actionIconComponent,
+  secondaryActionLabel,
+  onSecondaryAction,
+  secondaryActionIconName,
+  secondaryActionIconComponent,
   compact = false,
   style,
 }) => {
   const { theme, isDarkMode } = useAppSettings();
+  const iconSize = moderateScale(compact ? 36 : 48);
+  const actionIconSize = moderateScale(16);
+  const IconRenderer = iconComponent || (iconName ? EMPTY_STATE_ICON_MAP[iconName] : null);
+  const ActionIconRenderer = actionIconComponent || (actionIconName ? EMPTY_STATE_ACTION_ICON_MAP[actionIconName] : null);
+  const SecondaryActionIconRenderer = secondaryActionIconComponent || (secondaryActionIconName ? EMPTY_STATE_ACTION_ICON_MAP[secondaryActionIconName] : null);
 
   return (
     <View style={[styles.container, compact && styles.containerCompact, style]}>
@@ -37,26 +77,42 @@ const UnifiedEmptyState = ({
             },
           ]}
         >
-          <Ionicons accessible={false} name={iconName} size={moderateScale(compact ? 36 : 48)} color={theme.primary} />
+          {IconRenderer ? IconRenderer({ size: iconSize, color: theme.primary, accessible: false }) : null}
         </View>
 
         <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
         <Text style={[styles.description, { color: theme.textSecondary }]}>{description}</Text>
 
-        {actionLabel && onAction ? (
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: theme.primary }]}
-            onPress={onAction}
-            activeOpacity={0.85}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityRole="button"
-            accessibilityLabel={actionLabel}
-          >
-            {actionIconName ? (
-              <Ionicons name={actionIconName} size={moderateScale(16)} color="#FFFFFF" />
+        {(actionLabel && onAction) || (secondaryActionLabel && onSecondaryAction) ? (
+          <View style={styles.actionsRow}>
+            {actionLabel && onAction ? (
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: theme.primary }]}
+                onPress={onAction}
+                activeOpacity={0.85}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel={actionLabel}
+              >
+                {ActionIconRenderer ? ActionIconRenderer({ size: actionIconSize, color: '#FFFFFF' }) : null}
+                <Text style={styles.actionText}>{actionLabel}</Text>
+              </TouchableOpacity>
             ) : null}
-            <Text style={styles.actionText}>{actionLabel}</Text>
-          </TouchableOpacity>
+
+            {secondaryActionLabel && onSecondaryAction ? (
+              <TouchableOpacity
+                style={[styles.secondaryActionButton, { borderColor: theme.primary }]}
+                onPress={onSecondaryAction}
+                activeOpacity={0.85}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel={secondaryActionLabel}
+              >
+                {SecondaryActionIconRenderer ? SecondaryActionIconRenderer({ size: actionIconSize, color: theme.primary }) : null}
+                <Text style={[styles.secondaryActionText, { color: theme.primary }]}>{secondaryActionLabel}</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
         ) : null}
       </GlassContainer>
     </View>
@@ -104,7 +160,6 @@ const styles = StyleSheet.create({
     lineHeight: fontSize(18),
   },
   actionButton: {
-    marginTop: spacing.md,
     borderRadius: borderRadius.round,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
@@ -112,8 +167,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
   },
+  actionsRow: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  secondaryActionButton: {
+    borderRadius: borderRadius.round,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+  },
   actionText: {
     color: '#FFFFFF',
+    fontSize: fontSize(13),
+    fontWeight: '600',
+  },
+  secondaryActionText: {
     fontSize: fontSize(13),
     fontWeight: '600',
   },

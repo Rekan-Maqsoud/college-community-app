@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { GlassContainer } from './GlassComponents';
 import { spacing, moderateScale, fontSize } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { CheckmarkCircleIcon, LanguageOutlineIcon } from './icons';
 
 const LanguageDropdown = () => {
   const { currentLanguage, changeLanguage, theme, isDarkMode } = useAppSettings();
@@ -30,11 +30,7 @@ const LanguageDropdown = () => {
           borderRadius={borderRadius.round}
           style={styles.dropdownButton}
         >
-          <Ionicons 
-            name="language-outline" 
-            size={moderateScale(20)} 
-            color={isDarkMode ? "#FFFFFF" : "#1C1C1E"} 
-          />
+          <LanguageOutlineIcon size={moderateScale(20)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
         </GlassContainer>
       </TouchableOpacity>
 
@@ -95,11 +91,7 @@ const LanguageDropdown = () => {
                     </Text>
                   </View>
                   {currentLanguage === lang.code && (
-                    <Ionicons 
-                      name="checkmark-circle" 
-                      size={moderateScale(24)} 
-                      color={theme.primary} 
-                    />
+                    <CheckmarkCircleIcon size={moderateScale(24)} color={theme.primary} />
                   )}
                 </View>
               </TouchableOpacity>

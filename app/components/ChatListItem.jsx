@@ -1,8 +1,18 @@
 import React, { memo, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, PanResponder } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import ProfilePicture from './ProfilePicture';
 import RepBadge from './RepBadge';
+import {
+  ArchiveOutlineIcon,
+  BusinessChatIcon,
+  ChatbubbleIcon,
+  ChevronForwardIcon,
+  PeopleChatIcon,
+  PeopleCircleIcon,
+  PersonIcon,
+  PersonOutlineIcon,
+  ShieldCheckmarkIcon,
+} from './icons/chats';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { 
   fontSize, 
@@ -110,15 +120,15 @@ const ChatListItem = ({
   const getChatIcon = () => {
     switch (chat.type) {
       case CHAT_TYPES.STAGE_GROUP:
-        return 'people';
+        return PeopleChatIcon;
       case CHAT_TYPES.DEPARTMENT_GROUP:
-        return 'business';
+        return BusinessChatIcon;
       case CHAT_TYPES.PRIVATE:
-        return 'person';
+        return PersonIcon;
       case CHAT_TYPES.CUSTOM_GROUP:
-        return 'people-circle';
+        return PeopleCircleIcon;
       default:
-        return 'chatbubble';
+        return ChatbubbleIcon;
     }
   };
 
@@ -222,6 +232,7 @@ const ChatListItem = ({
   const chatName = getChatName();
   const chatSubtitle = getChatSubtitle();
   const iconColor = getChatIconColor();
+  const ChatTypeIcon = getChatIcon();
 
   // Online status for private chats (only when activity status setting is enabled)
   const otherUserOnline = showActivityStatus && isPrivateChat && chat.otherUser?.lastSeen
@@ -243,7 +254,7 @@ const ChatListItem = ({
             },
           ]}
         >
-          <Ionicons name="archive-outline" size={moderateScale(14)} color="#F59E0B" />
+          <ArchiveOutlineIcon size={moderateScale(14)} color="#F59E0B" />
           <Text style={[styles.archiveText, { color: '#F59E0B', fontSize: fontSize(10) }]}>
             {archiveActionLabel}
           </Text>
@@ -298,11 +309,7 @@ const ChatListItem = ({
           styles.iconContainer, 
           { backgroundColor: `${iconColor}15` }
         ]}>
-          <Ionicons 
-            name={getChatIcon()} 
-            size={moderateScale(18)} 
-            color={iconColor} 
-          />
+          <ChatTypeIcon size={moderateScale(18)} color={iconColor} />
         </View>
       )}
 
@@ -347,11 +354,7 @@ const ChatListItem = ({
 
         {chat.requiresRepresentative && (
           <View style={styles.infoRow}>
-            <Ionicons 
-              name="shield-checkmark" 
-              size={moderateScale(12)} 
-              color={theme.textSecondary} 
-            />
+            <ShieldCheckmarkIcon size={moderateScale(12)} color={theme.textSecondary} />
             <Text style={[styles.infoText, { fontSize: fontSize(10), color: theme.textSecondary }]}>
               {t('chats.representativeOnly')}
             </Text>
@@ -359,9 +362,8 @@ const ChatListItem = ({
         )}
       </View>
 
-          <Ionicons 
-            name="chevron-forward" 
-            size={moderateScale(18)} 
+          <ChevronForwardIcon
+            size={moderateScale(18)}
             color={theme.textSecondary}
             style={styles.chevron}
           />

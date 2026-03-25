@@ -7,7 +7,7 @@ import {
   StyleSheet,
   StatusBar,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/CompatIonicon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';

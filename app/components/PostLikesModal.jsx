@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator, 
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { getUserById } from '../../database/users';
@@ -18,6 +17,7 @@ import { FlashList } from '@shopify/flash-list';
 import { BlurView } from 'expo-blur';
 import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass';
 import { GlassModalCard } from './GlassComponents';
+import { AlertCircleOutlineExactIcon, CloseFilledIcon, HeartOutlineIcon } from './icons';
 
 const PostLikesModal = ({ visible, onClose, likedByIds }) => {
   const { t, theme, isDarkMode } = useAppSettings();
@@ -143,7 +143,7 @@ const PostLikesModal = ({ visible, onClose, likedByIds }) => {
           <View style={[styles.header, { borderBottomColor: theme.border }]}>
             <Text style={[styles.headerTitle, { color: theme.text }]}>{titleText}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={moderateScale(22)} color={theme.text} />
+              <CloseFilledIcon size={moderateScale(22)} color={theme.text} />
             </TouchableOpacity>
           </View>
 
@@ -156,7 +156,7 @@ const PostLikesModal = ({ visible, onClose, likedByIds }) => {
             </View>
           ) : error ? (
             <View style={styles.stateContainer}>
-              <Ionicons name="alert-circle-outline" size={moderateScale(34)} color={theme.textSecondary} />
+              <AlertCircleOutlineExactIcon size={moderateScale(34)} color={theme.textSecondary} />
               <Text style={[styles.stateText, { color: theme.textSecondary }]}>{error}</Text>
             </View>
           ) : (
@@ -170,7 +170,7 @@ const PostLikesModal = ({ visible, onClose, likedByIds }) => {
               estimatedItemSize={72}
               ListEmptyComponent={
                 <View style={styles.stateContainer}>
-                  <Ionicons name="heart-outline" size={moderateScale(32)} color={theme.textSecondary} />
+                  <HeartOutlineIcon size={moderateScale(32)} color={theme.textSecondary} />
                   <Text style={[styles.stateText, { color: theme.textSecondary }]}>
                     {t('post.noLikes')}
                   </Text>

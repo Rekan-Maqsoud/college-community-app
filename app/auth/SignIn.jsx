@@ -1,18 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StatusBar,
-  ActivityIndicator,
-  Image,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Animated, KeyboardAvoidingView, Platform, ScrollView, StatusBar, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MailIcon, LockIcon, EyeIcon, EyeOffIcon, ArrowForwardIcon } from '../components/icons';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -36,6 +23,7 @@ import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 import telemetry from '../utils/telemetry';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
 
 const getAcademicChangesCountFromProfileViews = (profileViews) => {
   if (!profileViews) return 0;

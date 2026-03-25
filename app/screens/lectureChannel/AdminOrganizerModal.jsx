@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, TextInput,  StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/CompatIonicon';
 import { GlassContainer, GlassIconButton } from '../../components/GlassComponents';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { spacing, fontSize, wp, moderateScale } from '../../utils/responsive';

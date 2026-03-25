@@ -658,6 +658,8 @@ export default {
     "departmentFeedEmpty": "لا توجد منشورات من قسمك حتى الآن. كن أول من يشارك!",
     "majorFeedEmpty": "لا توجد منشورات من تخصصك حتى الآن. ابدأ المحادثة!",
     "publicFeedEmpty": "لا توجد منشورات عامة حتى الآن. شارك شيئاً مع الجميع!",
+    "seePublicPosts": "عرض المنشورات العامة",
+    "beFirstToPost": "كن أول من ينشر",
     "filterSort": "تصفية وترتيب الخلاصة",
     "scrollToTop": "التمرير إلى الأعلى"
   },

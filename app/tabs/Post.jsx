@@ -1,24 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import {
-  Animated,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  StatusBar,
-  Image,
-  Modal,
-  Switch,
-} from 'react-native';
+import { Animated, View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar, Modal, Switch } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import IoniconSvg from '../components/icons/IoniconSvg';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -46,6 +31,7 @@ import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
 import ModalBackdrop from '../components/ModalBackdrop';
+import { Image } from 'expo-image';
 
 const STAGE_VALUE_MAP = {
   firstYear: 'stage_1',
@@ -688,7 +674,7 @@ const Post = () => {
                     accessibilityLabel={t('post.visibility')}
                     accessibilityHint={getVisibilityLabel()}
                   >
-                    <Ionicons name="eye-outline" size={14} color={theme.primary} />
+                    <IoniconSvg name="eye-outline" size={14} color={theme.primary} />
                     <Text
                       style={[styles.compactToggleText, isRTL && styles.directionalText, { color: theme.text }]}
                       numberOfLines={1}
@@ -820,7 +806,7 @@ const Post = () => {
                     disabled={isBusy || pollChoices.length <= 2}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Ionicons
+                    <IoniconSvg
                       name="trash-outline"
                       size={18}
                       color={isBusy || pollChoices.length <= 2 ? `${theme.textSecondary}AA` : theme.textSecondary}
@@ -836,7 +822,7 @@ const Post = () => {
                 accessibilityRole="button"
                 accessibilityLabel={t('post.poll.addChoice')}
               >
-                <Ionicons name="add-circle-outline" size={18} color={theme.primary} />
+                <IoniconSvg name="add-circle-outline" size={18} color={theme.primary} />
                 <Text style={[styles.pollAddChoiceText, { color: theme.primary }]}>{t('post.poll.addChoice')}</Text>
               </TouchableOpacity>
 
@@ -851,7 +837,7 @@ const Post = () => {
                   accessibilityLabel={t('post.poll.modePoll')}
                   accessibilityState={{ selected: !isQuizPoll }}
                 >
-                  <Ionicons
+                  <IoniconSvg
                     name={!isQuizPoll ? 'checkbox' : 'square-outline'}
                     size={20}
                     color={!isQuizPoll ? theme.primary : theme.textSecondary}
@@ -869,7 +855,7 @@ const Post = () => {
                   accessibilityLabel={t('post.poll.modeQuestion')}
                   accessibilityState={{ selected: isQuizPoll }}
                 >
-                  <Ionicons
+                  <IoniconSvg
                     name={isQuizPoll ? 'checkbox' : 'square-outline'}
                     size={20}
                     color={isQuizPoll ? theme.primary : theme.textSecondary}
@@ -881,7 +867,7 @@ const Post = () => {
               <View style={styles.pollToggleRow}>
                 <View style={[styles.pollToggleItem, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}>
                   <View style={[styles.pollToggleLabelWrap, isRTL && styles.rowReverse]}>
-                    <Ionicons name="checkbox-outline" size={14} color={theme.primary} />
+                    <IoniconSvg name="checkbox-outline" size={14} color={theme.primary} />
                     <Text style={[styles.pollToggleLabel, isRTL && styles.directionalText, { color: theme.text }]}>{t('post.poll.multiAnswer')}</Text>
                   </View>
                   <Switch
@@ -896,7 +882,7 @@ const Post = () => {
 
                 <View style={[styles.pollToggleItem, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}>
                   <View style={[styles.pollToggleLabelWrap, isRTL && styles.rowReverse]}>
-                    <Ionicons name="people-outline" size={14} color={theme.primary} />
+                    <IoniconSvg name="people-outline" size={14} color={theme.primary} />
                     <Text style={[styles.pollToggleLabel, isRTL && styles.directionalText, { color: theme.text }]}>{t('post.poll.showVoters')}</Text>
                   </View>
                   <Switch
@@ -932,7 +918,7 @@ const Post = () => {
                         style={[styles.pollCorrectAnswerItem, isRTL && styles.rowReverse]}
                         onPress={() => setCorrectPollOptionId(optionId)}
                       >
-                        <Ionicons
+                        <IoniconSvg
                           name={isSelected ? 'radio-button-on' : 'radio-button-off'}
                           size={18}
                           color={isSelected ? theme.primary : theme.textSecondary}
@@ -979,7 +965,7 @@ const Post = () => {
                 accessibilityLabel={t('post.tags')}
                 accessibilityState={{ expanded: showTags }}
               >
-                <Ionicons name="pricetag-outline" size={18} color={showTags ? theme.primary : theme.textSecondary} />
+                <IoniconSvg name="pricetag-outline" size={18} color={showTags ? theme.primary : theme.textSecondary} />
                 <Text style={[styles.actionButtonText, isRTL && styles.directionalText, { color: showTags ? theme.primary : theme.textSecondary }]}>
                   {t('post.tags')}
                 </Text>
@@ -993,7 +979,7 @@ const Post = () => {
                 accessibilityLabel={t('post.links')}
                 accessibilityState={{ expanded: showLinks }}
               >
-                <Ionicons name="link-outline" size={18} color={showLinks ? theme.primary : theme.textSecondary} />
+                <IoniconSvg name="link-outline" size={18} color={showLinks ? theme.primary : theme.textSecondary} />
                 <Text style={[styles.actionButtonText, isRTL && styles.directionalText, { color: showLinks ? theme.primary : theme.textSecondary }]}>
                   {t('post.links')} {links.length > 0 && `(${links.length}/${MAX_LINKS_PER_POST})`}
                 </Text>
@@ -1007,7 +993,7 @@ const Post = () => {
                 accessibilityRole="button"
                 accessibilityLabel={t('post.images')}
               >
-                <Ionicons name="images-outline" size={18} color={theme.textSecondary} />
+                <IoniconSvg name="images-outline" size={18} color={theme.textSecondary} />
                 <Text style={[styles.actionButtonText, isRTL && styles.directionalText, { color: theme.textSecondary }]}>
                   {t('post.images')} {images.length > 0 && `(${images.length})`}
                 </Text>
@@ -1023,7 +1009,7 @@ const Post = () => {
                   },
                 ]}
               >
-                <Ionicons name="alert-circle-outline" size={16} color={theme.warning} />
+                <IoniconSvg name="alert-circle-outline" size={16} color={theme.warning} />
                 <Text style={[styles.inlineWarningText, { color: theme.warning }]}>
                   {imageCompressionWarning}
                 </Text>
@@ -1037,14 +1023,14 @@ const Post = () => {
                 <View style={styles.chipsContainer}>
                   {tags.map((tag, index) => (
                     <View key={index} style={[styles.tagChip, { backgroundColor: isDarkMode ? `${theme.tag || '#8B5CF6'}33` : `${theme.tag || '#8B5CF6'}1A` }]}>
-                      <Ionicons name="pricetag-outline" size={12} color={theme.tag || '#8B5CF6'} />
+                      <IoniconSvg name="pricetag-outline" size={12} color={theme.tag || '#8B5CF6'} />
                       <Text style={[styles.tagChipText, { color: theme.tag || '#8B5CF6' }]}>{tag}</Text>
                       <TouchableOpacity
                         onPress={() => setTags(tags.filter((_, i) => i !== index))}
                         disabled={isBusy}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       >
-                        <Ionicons name="close" size={14} color="#6B7280" />
+                        <IoniconSvg name="close" size={14} color="#6B7280" />
                       </TouchableOpacity>
                     </View>
                   ))}
@@ -1095,7 +1081,7 @@ const Post = () => {
                   }}
                   disabled={isBusy || !tagInput.trim() || tags.length >= 10}
                 >
-                  <Ionicons name="add-circle" size={28} color={theme.tag || '#8B5CF6'} />
+                  <IoniconSvg name="add-circle" size={28} color={theme.tag || '#8B5CF6'} />
                 </TouchableOpacity>
               </View>
               <Text style={[styles.helperText, { color: theme.textSecondary }]}>
@@ -1109,14 +1095,14 @@ const Post = () => {
               <View style={styles.linksChipsContainer}>
                 {links.map((link, index) => (
                   <View key={index} style={[styles.linkChip, { backgroundColor: isDarkMode ? `${theme.link || '#3B82F6'}33` : `${theme.link || '#3B82F6'}1A` }]}>
-                    <Ionicons name="link-outline" size={14} color={theme.link || '#3B82F6'} />
+                    <IoniconSvg name="link-outline" size={14} color={theme.link || '#3B82F6'} />
                     <Text style={[styles.linkChipText, { color: theme.link || '#3B82F6' }]} numberOfLines={1}>{link}</Text>
                     <TouchableOpacity
                       onPress={() => setLinks(links.filter((_, i) => i !== index))}
                       disabled={isBusy}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                      <Ionicons name="close" size={16} color="#6B7280" />
+                      <IoniconSvg name="close" size={16} color="#6B7280" />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -1166,7 +1152,7 @@ const Post = () => {
                   }}
                   disabled={isBusy || !linkInput.trim() || links.length >= MAX_LINKS_PER_POST}
                 >
-                  <Ionicons name="add-circle" size={28} color={theme.link || '#3B82F6'} />
+                  <IoniconSvg name="add-circle" size={28} color={theme.link || '#3B82F6'} />
                 </TouchableOpacity>
               </View>
               <Text style={[styles.helperText, { color: theme.textSecondary }]}>
@@ -1206,7 +1192,7 @@ const Post = () => {
                       accessibilityRole="button"
                       accessibilityLabel={t('common.remove')}
                     >
-                      <Ionicons name="close" size={18} color={theme.buttonText || '#fff'} />
+                      <IoniconSvg name="close" size={18} color={theme.buttonText || '#fff'} />
                     </TouchableOpacity>
                   </TouchableOpacity>
                 )}
@@ -1282,7 +1268,7 @@ const Post = () => {
                 ]}
                 onPress={() => setSelectedImageIndex(null)}
               >
-                <Ionicons name="close" size={24} color={theme.buttonText || '#fff'} />
+                <IoniconSvg name="close" size={24} color={theme.buttonText || '#fff'} />
               </TouchableOpacity>
               {selectedImageIndex !== null && (
                 <Image 

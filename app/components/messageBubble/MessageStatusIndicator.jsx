@@ -1,7 +1,8 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../icons/CompatIonicon';
+import IoniconSvg from '../icons/IoniconSvg';
 import { spacing, moderateScale } from '../../utils/responsive';
 
 const MessageStatusIndicator = ({ 
@@ -100,7 +101,7 @@ const MessageStatusIndicator = ({
 
     return (
       <View style={statusStyles.container}>
-        <Ionicons name="checkmark" size={moderateScale(12)} color="rgba(255,255,255,0.6)" />
+        <IoniconSvg name="checkmark" size={moderateScale(12)} color="rgba(255,255,255,0.6)" />
       </View>
     );
   }
@@ -129,14 +130,14 @@ const MessageStatusIndicator = ({
 
     return (
       <View style={statusStyles.container}>
-        <Ionicons name="checkmark" size={moderateScale(12)} color="rgba(255,255,255,0.6)" />
+        <IoniconSvg name="checkmark" size={moderateScale(12)} color="rgba(255,255,255,0.6)" />
       </View>
     );
   }
 
   return (
     <View style={statusStyles.container}>
-      <Ionicons name="checkmark" size={moderateScale(12)} color="rgba(255,255,255,0.6)" />
+      <IoniconSvg name="checkmark" size={moderateScale(12)} color="rgba(255,255,255,0.6)" />
     </View>
   );
 };

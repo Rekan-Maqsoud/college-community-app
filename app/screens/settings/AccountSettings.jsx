@@ -15,7 +15,7 @@ import { useCustomAlert } from '../../hooks/useCustomAlert';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../../components/GlassComponents';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/CompatIonicon';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { useUser } from '../../context/UserContext';
 import { signOut, deleteAccount } from '../../../database/auth';

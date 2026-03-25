@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/CompatIonicon';
+import IoniconSvg, { hasIoniconSvg } from '../components/icons/IoniconSvg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ReanimatedAnimated, { FadeInRight } from 'react-native-reanimated';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -340,7 +341,11 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
                 { backgroundColor: icon.color, borderColor: iconBadgeBorder },
               ]}
             >
-              <Ionicons name={icon.name} size={moderateScale(11)} color="#fff" />
+              {hasIoniconSvg(icon.name) ? (
+                <IoniconSvg name={icon.name} size={moderateScale(11)} color="#fff" />
+              ) : (
+                <Ionicons name={icon.name} size={moderateScale(11)} color="#fff" />
+              )}
             </View>
           </View>
 
@@ -385,7 +390,7 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
               accessibilityRole="button"
               accessibilityLabel={t('common.more')}
             >
-              <Ionicons name="ellipsis-vertical" size={moderateScale(16)} color={theme.textSecondary} />
+              <IoniconSvg name="ellipsis-vertical" size={moderateScale(16)} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -403,7 +408,7 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
                 onDelete && onDelete(notification);
               }}
             >
-              <Ionicons name="trash-outline" size={moderateScale(15)} color="#EF4444" />
+              <IoniconSvg name="trash-outline" size={moderateScale(15)} color="#EF4444" />
               <Text style={[styles.notifMenuText, isRTL && styles.notifMenuTextRtl, { color: '#EF4444' }]}>
                 {t('notifications.removeNotification') || 'Remove this notification'}
               </Text>
@@ -416,7 +421,7 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
                 onTurnOff && onTurnOff(notification);
               }}
             >
-              <Ionicons name="notifications-off-outline" size={moderateScale(15)} color={theme.textSecondary} />
+              <IoniconSvg name="notifications-off-outline" size={moderateScale(15)} color={theme.textSecondary} />
               <Text style={[styles.notifMenuText, isRTL && styles.notifMenuTextRtl, { color: theme.text }]}>
                 {t('notifications.turnOffLikeThis') || 'Turn off notifications like this'}
               </Text>
@@ -549,7 +554,11 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, isRTL, t, 
                 { backgroundColor: icon.color, borderColor: iconBadgeBorder },
               ]}
             >
-              <Ionicons name={icon.name} size={moderateScale(8)} color="#fff" />
+              {hasIoniconSvg(icon.name) ? (
+                <IoniconSvg name={icon.name} size={moderateScale(8)} color="#fff" />
+              ) : (
+                <Ionicons name={icon.name} size={moderateScale(8)} color="#fff" />
+              )}
             </View>
           </View>
 
@@ -1071,7 +1080,7 @@ const Notifications = ({ navigation }) => {
             accessibilityLabel={t('common.goBack')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={moderateScale(24)} color={theme.text} />
+            <IoniconSvg name={isRTL ? 'arrow-forward' : 'arrow-back'} size={moderateScale(24)} color={theme.text} />
           </TouchableOpacity>
           
           <Text style={[styles.headerTitle, isRTL && styles.headerTitleRtl, { color: theme.text }]}>
@@ -1120,7 +1129,7 @@ const Notifications = ({ navigation }) => {
             </View>
             <View style={[styles.summaryChip, isRTL && styles.summaryChipRtl, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.88)', borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)' }]}>
               <View style={[styles.summaryIconWrap, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)' }]}>
-                <Ionicons name="notifications-outline" size={moderateScale(14)} color={theme.textSecondary} />
+                <IoniconSvg name="notifications-outline" size={moderateScale(14)} color={theme.textSecondary} />
               </View>
               <View>
                 <Text style={[styles.summaryLabel, isRTL && styles.summaryTextRtl, { color: theme.textSecondary }]}>{t('notifications.title')}</Text>

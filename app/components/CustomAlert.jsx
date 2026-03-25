@@ -9,11 +9,16 @@ import {
   Animated,
 } from 'react-native';
 import { GlassModalCard } from './GlassComponents';
-import { Ionicons } from '@expo/vector-icons';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { borderRadius, shadows } from '../theme/designTokens';
 import { fontSize, spacing } from '../utils/responsive';
+import {
+  CheckmarkCircleFilledIcon,
+  CloseCircleFilledIcon,
+  InformationCircleFilledIcon,
+  WarningFilledIcon,
+} from './icons';
 
 const CustomAlert = ({
   visible,
@@ -80,17 +85,18 @@ const CustomAlert = ({
   const getIconConfig = () => {
     switch (type) {
       case 'success':
-        return { name: 'checkmark-circle', color: '#34C759' };
+        return { component: CheckmarkCircleFilledIcon, color: '#34C759' };
       case 'error':
-        return { name: 'close-circle', color: '#FF3B30' };
+        return { component: CloseCircleFilledIcon, color: '#FF3B30' };
       case 'warning':
-        return { name: 'warning', color: '#FF9500' };
+        return { component: WarningFilledIcon, color: '#FF9500' };
       default:
-        return { name: 'information-circle', color: theme.primary };
+        return { component: InformationCircleFilledIcon, color: theme.primary };
     }
   };
 
   const iconConfig = getIconConfig();
+  const AlertTypeIcon = iconConfig.component;
   const backdropOverlayColor = Platform.OS === 'android'
     ? (isDarkMode ? 'rgba(0, 0, 0, 0.68)' : 'rgba(0, 0, 0, 0.52)')
     : (isDarkMode ? 'rgba(0, 0, 0, 0.44)' : 'rgba(0, 0, 0, 0.34)');
@@ -154,11 +160,7 @@ const CustomAlert = ({
                           : `${iconConfig.color}20`,
                       },
                     ]}>
-                    <Ionicons
-                      name={iconConfig.name}
-                      size={40}
-                      color={iconConfig.color}
-                    />
+                    <AlertTypeIcon size={40} color={iconConfig.color} />
                   </View>
                 </View>
 

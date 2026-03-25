@@ -14,7 +14,7 @@ import {
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
+import IoniconSvg from '../components/icons/IoniconSvg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
@@ -143,7 +143,7 @@ const CreateChannelModal = ({
         <View style={[styles.modalCard, { backgroundColor: 'transparent', borderColor: `${colors.primary}33` }]}> 
           <View style={[styles.modalHeader, isRTL && styles.rowReverse]}>
             <View style={[styles.modalHeaderLeft, isRTL && styles.rowReverse]}>
-              <Ionicons name="school-outline" size={20} color={colors.primary} />
+              <IoniconSvg name="school-outline" size={20} color={colors.primary} />
               <Text style={[styles.modalTitle, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.createChannel')}</Text>
             </View>
             <GlassIconButton
@@ -151,7 +151,7 @@ const CreateChannelModal = ({
               borderRadiusValue={16}
               onPress={onClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={22} color={colors.textSecondary} />
+              <IoniconSvg name="close" size={22} color={colors.textSecondary} />
             </GlassIconButton>
           </View>
 
@@ -217,7 +217,7 @@ const CreateChannelModal = ({
               onPress={() => { if (canCreateOfficial) setChannelType(LECTURE_CHANNEL_TYPES.OFFICIAL); }}
               disabled={!canCreateOfficial}
               activeOpacity={canCreateOfficial ? 0.7 : 1}>
-                <Ionicons
+                <IoniconSvg
                   name={canCreateOfficial ? 'shield-checkmark-outline' : 'lock-closed-outline'}
                   size={14}
                   color={canCreateOfficial
@@ -240,7 +240,7 @@ const CreateChannelModal = ({
                 },
               ]}
               onPress={() => setChannelType(LECTURE_CHANNEL_TYPES.COMMUNITY)}>
-              <Ionicons name="people-outline" size={14} color={channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? '#FFFFFF' : colors.text} />
+              <IoniconSvg name="people-outline" size={14} color={channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? '#FFFFFF' : colors.text} />
               <Text style={[styles.chipText, isRTL && styles.directionalText, { color: channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? '#FFFFFF' : colors.text }]}> 
                 {t('lectures.community')}
               </Text>
@@ -257,7 +257,7 @@ const CreateChannelModal = ({
                 style={[styles.toggleRow, isRTL && styles.rowReverse, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
                 onPress={() => setNeedsApproval(prev => !prev)}>
                 <Text style={[styles.toggleText, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.requireApproval')}</Text>
-                <Ionicons name={needsApproval ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
+                <IoniconSvg name={needsApproval ? 'checkbox' : 'square-outline'} size={20} color={colors.primary} />
               </TouchableOpacity>
             </GlassContainer>
           )}
@@ -278,7 +278,7 @@ const CreateChannelModal = ({
                   ]}
                   onPress={() => setLinkedGroupId('')}>
                   <Text style={[styles.groupOptionText, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.noLink')}</Text>
-                  {!linkedGroupId && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
+                  {!linkedGroupId && <IoniconSvg name="checkmark-circle" size={18} color={colors.primary} />}
                 </TouchableOpacity>
               </GlassContainer>
 
@@ -300,7 +300,7 @@ const CreateChannelModal = ({
                         {group.type === CHAT_TYPES.STAGE_GROUP ? t('lectures.stageGroup') : t('lectures.customGroup')}
                       </Text>
                     </View>
-                    {linkedGroupId === group.$id && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
+                    {linkedGroupId === group.$id && <IoniconSvg name="checkmark-circle" size={18} color={colors.primary} />}
                   </TouchableOpacity>
                 </GlassContainer>
               ))}
@@ -775,7 +775,7 @@ const Lecture = ({ navigation }) => {
         <View style={[styles.channelHeader, isRTL && styles.rowReverse]}>
           <View style={[styles.channelHeaderLeft, isRTL && styles.rowReverse]}>
             <View style={[styles.channelIcon, { backgroundColor: isOfficial ? `${colors.primary}20` : `${colors.textSecondary}15` }]}>
-              <Ionicons
+              <IoniconSvg
                 name={isOfficial ? 'school' : 'people'}
                 size={18}
                 color={isOfficial ? colors.primary : colors.textSecondary}
@@ -783,7 +783,7 @@ const Lecture = ({ navigation }) => {
             </View>
             <View style={styles.channelTitleWrap}>
               <View style={[styles.channelNameRow, isRTL && styles.rowReverse]}>
-                {isPinned && <Ionicons name="pin" size={12} color={colors.primary} style={isRTL ? { marginLeft: spacing.xs } : { marginRight: spacing.xs }} />}
+                {isPinned && <IoniconSvg name="pin" size={12} color={colors.primary} style={isRTL ? { marginLeft: spacing.xs } : { marginRight: spacing.xs }} />}
                 <Text style={[styles.channelName, isRTL && styles.directionalText, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
               </View>
               <Text style={[styles.channelDescription, isRTL && styles.directionalText, { color: colors.textSecondary }]} numberOfLines={2}>
@@ -795,13 +795,13 @@ const Lecture = ({ navigation }) => {
           <View style={[styles.channelHeaderRight, isRTL && styles.rowReverse]}>
             {joined && (
               <View style={[styles.statusBadge, { backgroundColor: `${colors.joined || '#10b981'}20` }]}>
-                <Ionicons name="checkmark-circle" size={12} color={colors.joined || '#10b981'} />
+                <IoniconSvg name="checkmark-circle" size={12} color={colors.joined || '#10b981'} />
                 <Text style={[styles.statusBadgeText, isRTL && styles.directionalText, { color: colors.joined || '#10b981' }]}>{t('lectures.joined')}</Text>
               </View>
             )}
             {isPending && !joined && (
               <View style={[styles.statusBadge, { backgroundColor: '#f59e0b20' }]}>
-                <Ionicons name="time-outline" size={12} color="#f59e0b" />
+                <IoniconSvg name="time-outline" size={12} color="#f59e0b" />
                 <Text style={[styles.statusBadgeText, isRTL && styles.directionalText, { color: '#f59e0b' }]}>{t('lectures.pending')}</Text>
               </View>
             )}
@@ -810,13 +810,13 @@ const Lecture = ({ navigation }) => {
 
         <View style={[styles.channelMetaRow, isRTL && styles.rowReverse]}>
           <View style={[styles.metaItem, isRTL && styles.rowReverse]}>
-            <Ionicons name={isOfficial ? 'shield-checkmark-outline' : 'lock-open-outline'} size={12} color={colors.textSecondary} />
+            <IoniconSvg name={isOfficial ? 'shield-checkmark-outline' : 'lock-open-outline'} size={12} color={colors.textSecondary} />
             <Text style={[styles.metaText, isRTL && styles.directionalText, { color: colors.textSecondary }]}> 
               {channelAccessLabel(item)}
             </Text>
           </View>
           <View style={[styles.metaItem, isRTL && styles.rowReverse]}>
-            <Ionicons name="people-outline" size={12} color={colors.textSecondary} />
+            <IoniconSvg name="people-outline" size={12} color={colors.textSecondary} />
             <Text style={[styles.metaText, isRTL && styles.directionalText, { color: colors.textSecondary }]}> 
               {t('lectures.membersCount').replace('{count}', String(item.membersCount || 0))}
             </Text>
@@ -833,7 +833,7 @@ const Lecture = ({ navigation }) => {
                 <ActivityIndicator size="small" color={colors.buttonText || '#FFFFFF'} />
               ) : (
                 <>
-                  <Ionicons name="enter-outline" size={14} color={colors.buttonText || '#FFFFFF'} />
+                  <IoniconSvg name="enter-outline" size={14} color={colors.buttonText || '#FFFFFF'} />
                   <Text style={[styles.joinBtnText, isRTL && styles.directionalText, { color: colors.buttonText || '#FFFFFF' }]}>{t('lectures.join')}</Text>
                 </>
               )}
@@ -885,7 +885,7 @@ const Lecture = ({ navigation }) => {
             activeOpacity={0.7}
             onPress={() => setSearchVisible(prev => !prev)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="search" size={moderateScale(18)} color={colors.primary} />
+            <IoniconSvg name="search" size={moderateScale(18)} color={colors.primary} />
           </GlassIconButton>
           
           <GlassIconButton
@@ -894,7 +894,7 @@ const Lecture = ({ navigation }) => {
             activeOpacity={0.7}
             onPress={() => setCreateOpen(true)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="add" size={moderateScale(20)} color={colors.primary} />
+            <IoniconSvg name="add" size={moderateScale(20)} color={colors.primary} />
           </GlassIconButton>
         </View>
       </View>
@@ -902,7 +902,7 @@ const Lecture = ({ navigation }) => {
       {searchVisible && (
         <View style={styles.searchWrap}>
           <GlassContainer borderRadius={borderRadius.lg} style={[styles.searchInputWrap, isRTL && styles.rowReverse]}>
-            <Ionicons name="search-outline" size={16} color={colors.textSecondary} />
+            <IoniconSvg name="search-outline" size={16} color={colors.textSecondary} />
             <TextInput
               value={search}
               onChangeText={setSearch}
@@ -915,7 +915,7 @@ const Lecture = ({ navigation }) => {
             />
             {search.length > 0 && (
               <TouchableOpacity onPress={() => { setSearch(''); loadChannels({ showLoading: true, searchValue: '' }); }} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
+                <IoniconSvg name="close-circle" size={16} color={colors.textSecondary} />
               </TouchableOpacity>
             )}
           </GlassContainer>
@@ -949,7 +949,7 @@ const Lecture = ({ navigation }) => {
                     borderRadius={borderRadius.lg}
                     style={[styles.suggestedCard]}>
                     <View style={styles.suggestedCardTop}>
-                      <Ionicons
+                      <IoniconSvg
                         name={item.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? 'school' : 'people'}
                         size={14}
                         color={colors.primary}
@@ -961,7 +961,7 @@ const Lecture = ({ navigation }) => {
                     </Text>
                     {sugJoined && (
                       <View style={[styles.suggestedJoinedBadge, { backgroundColor: `${colors.joined || '#10b981'}15` }]}>
-                        <Ionicons name="checkmark-circle" size={10} color={colors.joined || '#10b981'} />
+                        <IoniconSvg name="checkmark-circle" size={10} color={colors.joined || '#10b981'} />
                         <Text style={[styles.suggestedJoinedText, { color: colors.joined || '#10b981' }]}>{t('lectures.joined')}</Text>
                       </View>
                     )}
@@ -988,7 +988,7 @@ const Lecture = ({ navigation }) => {
             </View>
           ) : (
             <View style={styles.emptyWrap}>
-              <Ionicons
+              <IoniconSvg
                 name={activeWindow === LECTURE_WINDOWS.OFFICIAL ? 'school-outline' : 'people-outline'}
                 size={48}
                 color={colors.textSecondary}
@@ -1003,14 +1003,14 @@ const Lecture = ({ navigation }) => {
               <TouchableOpacity
                 style={[styles.emptyCreateBtn, { backgroundColor: colors.primary }]}
                 onPress={() => setCreateOpen(true)}>
-                <Ionicons name="add" size={16} color={colors.buttonText || '#FFFFFF'} />
+                <IoniconSvg name="add" size={16} color={colors.buttonText || '#FFFFFF'} />
                 <Text style={[styles.emptyCreateBtnText, { color: colors.buttonText || '#FFFFFF' }]}>{t('lectures.createChannel')}</Text>
               </TouchableOpacity>
               {loadChannelsFailed && (
                 <TouchableOpacity
                   style={[styles.emptyRetryBtn, { borderColor: colors.border, backgroundColor: colors.inputBackground || 'transparent' }]}
                   onPress={() => loadChannels({ showLoading: true, searchValue: search })}>
-                  <Ionicons name="refresh" size={14} color={colors.text} />
+                  <IoniconSvg name="refresh" size={14} color={colors.text} />
                   <Text style={[styles.emptyRetryBtnText, isRTL && styles.directionalText, { color: colors.text }]}>{t('common.retry')}</Text>
                 </TouchableOpacity>
               )}
@@ -1046,7 +1046,7 @@ const Lecture = ({ navigation }) => {
           onPress={() => setChannelMenuOpen(false)}>
           <GlassContainer style={[styles.channelMenuCard]} padding={spacing.md}> 
             <View style={[styles.channelMenuHeader, isRTL && styles.rowReverse]}>
-              <Ionicons
+              <IoniconSvg
                 name={channelMenuTarget?.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? 'school' : 'people'}
                 size={18}
                 color={colors.primary}
@@ -1067,7 +1067,7 @@ const Lecture = ({ navigation }) => {
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={t('lectures.openChannel')}>
-                <Ionicons name="enter-outline" size={16} color={colors.text} />
+                <IoniconSvg name="enter-outline" size={16} color={colors.text} />
                 <Text style={[styles.channelMenuItemText, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.openChannel')}</Text>
               </TouchableOpacity>
             )}
@@ -1083,7 +1083,7 @@ const Lecture = ({ navigation }) => {
               }}
               accessibilityRole="button"
               accessibilityLabel={t('lectures.share')}>
-              <Ionicons name="share-social-outline" size={16} color={colors.text} />
+              <IoniconSvg name="share-social-outline" size={16} color={colors.text} />
               <Text style={[styles.channelMenuItemText, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.share')}</Text>
             </TouchableOpacity>
 
@@ -1098,7 +1098,7 @@ const Lecture = ({ navigation }) => {
               }}
               accessibilityRole="button"
               accessibilityLabel={channelMenuTargetPinned ? t('lectures.unpinChannel') : t('lectures.pinChannel')}>
-              <Ionicons name={channelMenuTargetPinned ? 'pin-outline' : 'pin'} size={16} color={colors.text} />
+              <IoniconSvg name={channelMenuTargetPinned ? 'pin-outline' : 'pin'} size={16} color={colors.text} />
               <Text style={[styles.channelMenuItemText, isRTL && styles.directionalText, { color: colors.text }]}>
                 {channelMenuTargetPinned ? t('lectures.unpinChannel') : t('lectures.pinChannel')}
               </Text>
@@ -1114,7 +1114,7 @@ const Lecture = ({ navigation }) => {
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={t('lectures.join')}>
-                <Ionicons name="enter-outline" size={16} color={colors.primary} />
+                <IoniconSvg name="enter-outline" size={16} color={colors.primary} />
                 <Text style={[styles.channelMenuItemText, isRTL && styles.directionalText, { color: colors.primary }]}>{t('lectures.join')}</Text>
               </TouchableOpacity>
             )}
@@ -1124,7 +1124,7 @@ const Lecture = ({ navigation }) => {
               onPress={() => setChannelMenuOpen(false)}
               accessibilityRole="button"
               accessibilityLabel={t('common.cancel')}>
-              <Ionicons name="close-outline" size={16} color={colors.textSecondary} />
+              <IoniconSvg name="close-outline" size={16} color={colors.textSecondary} />
               <Text style={[styles.channelMenuItemText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </GlassContainer>

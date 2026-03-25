@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { wp, hp, normalize, spacing } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { GlassModalCard } from './GlassComponents';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { PeopleOutlineIcon, HandLeftOutlineIcon } from './icons/chats';
 
 const RepDetectionPopup = ({ visible, onVote, onDismiss, hasActiveElection }) => {
   const { t, theme } = useAppSettings();
@@ -22,7 +22,7 @@ const RepDetectionPopup = ({ visible, onVote, onDismiss, hasActiveElection }) =>
       <View style={styles.backdrop}>
         <GlassModalCard style={styles.card}>
           <View style={[styles.iconCircle, { backgroundColor: theme.primary + '20' }]}>
-            <Ionicons name="people-outline" size={normalize(36)} color={theme.primary} />
+            <PeopleOutlineIcon size={normalize(36)} color={theme.primary} />
           </View>
 
           <Text style={[styles.title, { color: theme.text }]}>
@@ -40,7 +40,7 @@ const RepDetectionPopup = ({ visible, onVote, onDismiss, hasActiveElection }) =>
             }}
             activeOpacity={0.8}
           >
-            <Ionicons name="hand-left-outline" size={normalize(18)} color="#FFFFFF" />
+            <HandLeftOutlineIcon size={normalize(18)} color="#FFFFFF" />
             <Text style={styles.primaryButtonText}>{t('repVoting.startVoting')}</Text>
           </TouchableOpacity>
 

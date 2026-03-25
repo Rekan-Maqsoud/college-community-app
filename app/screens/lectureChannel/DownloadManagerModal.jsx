@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
+import IoniconSvg from '../../components/icons/IoniconSvg';
 import { GlassContainer, GlassIconButton } from '../../components/GlassComponents';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { spacing, fontSize, moderateScale, wp } from '../../utils/responsive';
@@ -68,7 +68,7 @@ const DownloadManagerModal = ({
               <Text style={[styles.subtitle, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('lectures.downloadsSubtitle')}</Text>
             </View>
             <GlassIconButton size={30} borderRadiusValue={15} onPress={onClose} style={[styles.closeBtn, { borderColor: `${colors.primary}44` }]}> 
-              <Ionicons name="close" size={18} color={colors.text} />
+              <IoniconSvg name="close" size={18} color={colors.text} />
             </GlassIconButton>
           </View>
 
@@ -109,7 +109,7 @@ const DownloadManagerModal = ({
                 >
                   <View style={[styles.savedRowTop, isRTL && styles.rowReverse]}>
                     <View style={[styles.fileIconWrap, { backgroundColor: 'transparent', borderColor: colors.border }]}> 
-                      <Ionicons name="document-outline" size={16} color={colors.primary} />
+                      <IoniconSvg name="document-outline" size={16} color={colors.primary} />
                     </View>
 
                     <View style={styles.savedInfoWrap}>
@@ -117,13 +117,13 @@ const DownloadManagerModal = ({
 
                       <View style={[styles.savedMetaRow, isRTL && styles.rowReverse]}>
                         <View style={[styles.metaPill, isRTL && styles.rowReverse, { borderColor: colors.border }]}> 
-                          <Ionicons name="download-outline" size={12} color={colors.textSecondary} />
+                          <IoniconSvg name="download-outline" size={12} color={colors.textSecondary} />
                           <Text style={[styles.metaText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{formatBytesAsMb(item.size)} MB</Text>
                         </View>
 
                         {!!item.modifiedAt && (
                           <View style={[styles.metaPill, isRTL && styles.rowReverse, { borderColor: colors.border }]}> 
-                            <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+                            <IoniconSvg name="time-outline" size={12} color={colors.textSecondary} />
                             <Text style={[styles.metaText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{formatSavedDate(item.modifiedAt)}</Text>
                           </View>
                         )}
@@ -133,11 +133,11 @@ const DownloadManagerModal = ({
 
                   <View style={[styles.actionsRow, isRTL && styles.rowReverse]}>
                     <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary, isRTL && styles.rowReverse, { borderColor: colors.border, backgroundColor: 'transparent' }]} onPress={() => onOpenFile(item.path, item.mimeType)}>
-                      <Ionicons name="open-outline" size={14} color={colors.text} />
+                      <IoniconSvg name="open-outline" size={14} color={colors.text} />
                       <Text style={[styles.actionText, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.openFile')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDanger, isRTL && styles.rowReverse, { borderColor: colors.border }]} onPress={() => onDeleteFile(item.path)}>
-                      <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                      <IoniconSvg name="trash-outline" size={14} color={colors.danger} />
                       <Text style={[styles.actionText, isRTL && styles.directionalText, { color: colors.danger }]}>{t('common.delete')}</Text>
                     </TouchableOpacity>
                   </View>
@@ -145,7 +145,7 @@ const DownloadManagerModal = ({
               ))}
               {downloadedFiles.length === 0 && (
                 <View style={styles.emptyWrap}>
-                  <Ionicons name="download-outline" size={22} color={colors.textSecondary} />
+                  <IoniconSvg name="download-outline" size={22} color={colors.textSecondary} />
                   <Text style={[styles.emptyText, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('lectures.noSavedDownloads')}</Text>
                 </View>
               )}

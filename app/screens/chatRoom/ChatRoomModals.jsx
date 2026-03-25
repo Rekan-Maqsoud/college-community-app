@@ -6,7 +6,7 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import IoniconSvg from '../../components/icons/IoniconSvg';
 import { 
   fontSize, 
   moderateScale,
@@ -41,7 +41,7 @@ export const MuteModal = ({
             <TouchableOpacity
               style={[styles.muteOption, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
               onPress={onUnmute}>
-              <Ionicons name="notifications-outline" size={moderateScale(22)} color="#10B981" />
+              <IoniconSvg name="notifications-outline" size={moderateScale(22)} color="#10B981" />
               <Text style={[styles.muteOptionText, { color: '#10B981', fontSize: fontSize(15) }]}>
                 {t('chats.unmute')}
               </Text>
@@ -51,7 +51,7 @@ export const MuteModal = ({
               <TouchableOpacity
                 style={[styles.muteOption, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
                 onPress={() => onMute(MUTE_DURATIONS.ONE_HOUR)}>
-                <Ionicons name="time-outline" size={moderateScale(22)} color={theme.primary} />
+                <IoniconSvg name="time-outline" size={moderateScale(22)} color={theme.primary} />
                 <Text style={[styles.muteOptionText, { color: theme.text, fontSize: fontSize(15) }]}>
                   {t('chats.muteFor1Hour')}
                 </Text>
@@ -60,7 +60,7 @@ export const MuteModal = ({
               <TouchableOpacity
                 style={[styles.muteOption, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
                 onPress={() => onMute(MUTE_DURATIONS.EIGHT_HOURS)}>
-                <Ionicons name="time-outline" size={moderateScale(22)} color={theme.primary} />
+                <IoniconSvg name="time-outline" size={moderateScale(22)} color={theme.primary} />
                 <Text style={[styles.muteOptionText, { color: theme.text, fontSize: fontSize(15) }]}>
                   {t('chats.muteFor8Hours')}
                 </Text>
@@ -69,7 +69,7 @@ export const MuteModal = ({
               <TouchableOpacity
                 style={[styles.muteOption, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
                 onPress={() => onMute(MUTE_DURATIONS.ONE_DAY)}>
-                <Ionicons name="today-outline" size={moderateScale(22)} color={theme.primary} />
+                <IoniconSvg name="today-outline" size={moderateScale(22)} color={theme.primary} />
                 <Text style={[styles.muteOptionText, { color: theme.text, fontSize: fontSize(15) }]}>
                   {t('chats.muteFor1Day')}
                 </Text>
@@ -78,7 +78,7 @@ export const MuteModal = ({
               <TouchableOpacity
                 style={[styles.muteOption, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
                 onPress={() => onMute(MUTE_DURATIONS.ONE_WEEK)}>
-                <Ionicons name="calendar-outline" size={moderateScale(22)} color={theme.primary} />
+                <IoniconSvg name="calendar-outline" size={moderateScale(22)} color={theme.primary} />
                 <Text style={[styles.muteOptionText, { color: theme.text, fontSize: fontSize(15) }]}>
                   {t('chats.muteFor1Week')}
                 </Text>
@@ -87,7 +87,7 @@ export const MuteModal = ({
               <TouchableOpacity
                 style={[styles.muteOption, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
                 onPress={() => onMute(MUTE_DURATIONS.FOREVER)}>
-                <Ionicons name="notifications-off-outline" size={moderateScale(22)} color="#F59E0B" />
+                <IoniconSvg name="notifications-off-outline" size={moderateScale(22)} color="#F59E0B" />
                 <Text style={[styles.muteOptionText, { color: theme.text, fontSize: fontSize(15) }]}>
                   {t('chats.muteForever')}
                 </Text>
@@ -96,7 +96,7 @@ export const MuteModal = ({
               <TouchableOpacity
                 style={[styles.muteOption, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
                 onPress={() => onMute(MUTE_DURATIONS.FOREVER, MUTE_TYPES.MENTIONS_ONLY)}>
-                <Ionicons name="at-outline" size={moderateScale(22)} color={theme.primary} />
+                <IoniconSvg name="at-outline" size={moderateScale(22)} color={theme.primary} />
                 <Text style={[styles.muteOptionText, { color: theme.text, fontSize: fontSize(15) }]}>
                   {t('chats.muteMentionsOnly')}
                 </Text>
@@ -141,14 +141,14 @@ export const PinnedMessagesModal = ({
               {t('chats.pinnedMessages')}
             </Text>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={moderateScale(24)} color={theme.text} />
+              <IoniconSvg name="close" size={moderateScale(24)} color={theme.text} />
             </TouchableOpacity>
           </View>
           
           <ScrollView style={styles.pinnedList}>
             {pinnedMessages.length === 0 ? (
               <View style={styles.emptyPinned}>
-                <Ionicons name="pin-outline" size={moderateScale(40)} color={theme.textSecondary} />
+                <IoniconSvg name="pin-outline" size={moderateScale(40)} color={theme.textSecondary} />
                 <Text style={[styles.emptyPinnedText, { color: theme.textSecondary, fontSize: fontSize(14) }]}>
                   {t('chats.noPinnedMessages')}
                 </Text>
@@ -181,7 +181,7 @@ export const PinnedMessagesModal = ({
                         onUnpinMessage(msg);
                         onClose();
                       }}>
-                      <Ionicons name="close-circle" size={moderateScale(20)} color={theme.textSecondary} />
+                      <IoniconSvg name="close-circle" size={moderateScale(20)} color={theme.textSecondary} />
                     </TouchableOpacity>
                   )}
                 </TouchableOpacity>
@@ -229,7 +229,7 @@ export const ChatOptionsModal = ({
             <TouchableOpacity
               style={[styles.muteOption, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
               onPress={onVisitProfile}>
-              <Ionicons name="person-outline" size={moderateScale(22)} color={theme.primary} />
+              <IoniconSvg name="person-outline" size={moderateScale(22)} color={theme.primary} />
               <Text style={[styles.muteOptionText, { color: theme.text, fontSize: fontSize(15) }]}>
                 {t('chats.visitProfile')}
               </Text>
@@ -240,7 +240,7 @@ export const ChatOptionsModal = ({
             <TouchableOpacity
               style={[styles.muteOption, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
               onPress={onOpenGroupSettings}>
-              <Ionicons name="settings-outline" size={moderateScale(22)} color={theme.primary} />
+              <IoniconSvg name="settings-outline" size={moderateScale(22)} color={theme.primary} />
               <Text style={[styles.muteOptionText, { color: theme.text, fontSize: fontSize(15) }]}>
                 {t('chats.groupSettings')}
               </Text>
@@ -250,7 +250,7 @@ export const ChatOptionsModal = ({
           <TouchableOpacity
             style={[styles.muteOption, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
             onPress={onOpenMuteModal}>
-            <Ionicons 
+            <IoniconSvg 
               name={muteStatus.isMuted ? 'notifications-outline' : 'notifications-off-outline'} 
               size={moderateScale(22)} 
               color={theme.primary} 
@@ -263,7 +263,7 @@ export const ChatOptionsModal = ({
           <TouchableOpacity
             style={[styles.muteOption, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
             onPress={onViewPinnedMessages}>
-            <Ionicons name="pin-outline" size={moderateScale(22)} color={theme.primary} />
+            <IoniconSvg name="pin-outline" size={moderateScale(22)} color={theme.primary} />
             <Text style={[styles.muteOptionText, { color: theme.text, fontSize: fontSize(15) }]}>
               {t('chats.pinnedMessages')}
             </Text>
@@ -275,7 +275,7 @@ export const ChatOptionsModal = ({
               onClose();
               showAlert({ type: 'info', title: t('common.info'), message: t('chats.searchComingSoon') });
             }}>
-            <Ionicons name="search-outline" size={moderateScale(22)} color={theme.primary} />
+            <IoniconSvg name="search-outline" size={moderateScale(22)} color={theme.primary} />
             <Text style={[styles.muteOptionText, { color: theme.text, fontSize: fontSize(15) }]}>
               {t('chats.searchInChat')}
             </Text>
@@ -290,7 +290,7 @@ export const ChatOptionsModal = ({
                 onClearChat();
               }
             }}>
-            <Ionicons name="trash-outline" size={moderateScale(22)} color="#EF4444" />
+            <IoniconSvg name="trash-outline" size={moderateScale(22)} color="#EF4444" />
             <Text style={[styles.muteOptionText, { color: '#EF4444', fontSize: fontSize(15) }]}>
               {t('chats.clearChat')}
             </Text>
@@ -300,7 +300,7 @@ export const ChatOptionsModal = ({
             <TouchableOpacity
               style={[styles.muteOption, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
               onPress={onBlockUser}>
-              <Ionicons name="ban-outline" size={moderateScale(22)} color="#EF4444" />
+              <IoniconSvg name="ban-outline" size={moderateScale(22)} color="#EF4444" />
               <Text style={[styles.muteOptionText, { color: '#EF4444', fontSize: fontSize(15) }]}>
                 {t('chats.blockUser')}
               </Text>
@@ -314,7 +314,7 @@ export const ChatOptionsModal = ({
                 onClose();
                 onDeleteConversation();
               }}>
-              <Ionicons name="trash-bin-outline" size={moderateScale(22)} color="#EF4444" />
+              <IoniconSvg name="trash-bin-outline" size={moderateScale(22)} color="#EF4444" />
               <Text style={[styles.muteOptionText, { color: '#EF4444', fontSize: fontSize(15) }]}>
                 {t('chats.deleteConversation') || 'Delete Conversation'}
               </Text>

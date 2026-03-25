@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/CompatIonicon';
 import ProfilePicture from '../../components/ProfilePicture';
 import { spacing, fontSize, wp, moderateScale } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';

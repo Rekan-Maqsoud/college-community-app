@@ -1,15 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, memo } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  Share,
-  Linking,
-} from 'react-native';
+import { View, Text, TouchableOpacity, Share, Linking } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { isPostBookmarked, togglePostBookmark } from '../utils/bookmarkService';
-import { Ionicons } from '@expo/vector-icons';
+import IoniconSvg from './icons/IoniconSvg';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
@@ -42,6 +35,7 @@ import {
   getDefaultAvatar 
 } from './postCard/styles';
 import telemetry from '../utils/telemetry';
+import { Image } from 'expo-image';
 
 
 const PostCard = ({ 
@@ -448,7 +442,7 @@ const PostCard = ({
             >
               <View style={styles.pollOptionRow}>
                 <View style={styles.pollOptionLeft}>
-                  <Ionicons
+                  <IoniconSvg
                     name={pollData.allowMultiple ? (isSelected ? 'checkbox' : 'square-outline') : (isSelected ? 'radio-button-on' : 'radio-button-off')}
                     size={16}
                     color={isSelected ? theme.primary : theme.textSecondary}
@@ -490,7 +484,7 @@ const PostCard = ({
                 onPress={() => setShowPollVoters((prev) => !prev)}
                 activeOpacity={0.75}
               >
-                <Ionicons name="people-outline" size={14} color={theme.textSecondary} />
+                <IoniconSvg name="people-outline" size={14} color={theme.textSecondary} />
               </TouchableOpacity>
             )}
 
@@ -500,7 +494,7 @@ const PostCard = ({
                 onPress={() => setShowPollExplanation((prev) => !prev)}
                 activeOpacity={0.75}
               >
-                <Ionicons name="information-circle-outline" size={15} color={theme.textSecondary} />
+                <IoniconSvg name="information-circle-outline" size={15} color={theme.textSecondary} />
               </TouchableOpacity>
             )}
 
@@ -690,7 +684,7 @@ const PostCard = ({
             </View>
             {!compact && (
               <View style={[styles.typeBadgeInline, compact && styles.typeBadgeInlineCompact, { backgroundColor: isDarkMode ? `${postColor}10` : `${postColor}18` }]}>
-                <Ionicons name={postIcon} size={moderateScale(10)} color={postColor} />
+                <IoniconSvg name={postIcon} size={moderateScale(10)} color={postColor} />
                 <Text style={[styles.typeTextInline, { color: postColor }]}>
                   {t(`post.types.${post.postType}`)}
                 </Text>
@@ -698,7 +692,7 @@ const PostCard = ({
             )}
             {!compact && post.postType === 'question' && resolved && (
               <View style={[styles.repostBadge, compact && styles.repostBadgeCompact, { backgroundColor: isDarkMode ? '#10B98122' : '#10B98118' }]}>
-                <Ionicons name="checkmark-circle" size={moderateScale(10)} color="#10B981" />
+                <IoniconSvg name="checkmark-circle" size={moderateScale(10)} color="#10B981" />
                 <Text style={[styles.repostText, { color: '#10B981' }]}>
                   {t('post.resolved')}
                 </Text>
@@ -706,7 +700,7 @@ const PostCard = ({
             )}
             {post.isRepost === true && (
               <View style={[styles.repostBadge, compact && styles.repostBadgeCompact, { backgroundColor: isDarkMode ? `${theme.primary}15` : `${theme.primary}20` }]}>
-                <Ionicons name="repeat-outline" size={moderateScale(10)} color={theme.primary} />
+                <IoniconSvg name="repeat-outline" size={moderateScale(10)} color={theme.primary} />
                 {!compact && (
                   <Text style={[styles.repostText, { color: theme.primary }]}>
                   {t('post.reposted') || 'Reposted'}
@@ -721,7 +715,7 @@ const PostCard = ({
           onPress={() => setShowMenu(true)}
           activeOpacity={0.6}
         >
-          <Ionicons name="ellipsis-horizontal" size={moderateScale(20)} color={theme.textSecondary} />
+          <IoniconSvg name="ellipsis-horizontal" size={moderateScale(20)} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -771,7 +765,7 @@ const PostCard = ({
                   activeOpacity={0.7}
                   style={[styles.linkChipDisplay, compact && styles.linkChipDisplayCompact]}
                 >
-                  <Ionicons 
+                  <IoniconSvg 
                     name={isEmail ? 'mail-outline' : 'link-outline'} 
                     size={compact ? moderateScale(12) : moderateScale(14)}
                     color="#3B82F6" 
@@ -817,7 +811,7 @@ const PostCard = ({
             accessibilityLabel={liked ? t('post.unlikePost') : t('post.likePost')}
             accessibilityHint={t('post.likeHint')}
           >
-            <Ionicons 
+            <IoniconSvg 
               name={liked ? "heart" : "heart-outline"} 
               size={footerIconSize} 
               color={liked ? "#EF4444" : theme.textSecondary} 
@@ -843,7 +837,7 @@ const PostCard = ({
             accessibilityRole="button"
             accessibilityLabel={t('post.reply')}
           >
-            <Ionicons name="chatbubble-outline" size={footerIconSize} color={theme.textSecondary} />
+            <IoniconSvg name="chatbubble-outline" size={footerIconSize} color={theme.textSecondary} />
             <Text
               style={[styles.actionText, compact && styles.actionTextCompact, { color: theme.textSecondary }]}
               numberOfLines={1}
@@ -862,7 +856,7 @@ const PostCard = ({
             accessibilityRole="button"
             accessibilityLabel={t('post.share')}
           >
-            <Ionicons name="share-outline" size={footerIconSize} color={theme.textSecondary} />
+            <IoniconSvg name="share-outline" size={footerIconSize} color={theme.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -872,13 +866,13 @@ const PostCard = ({
             accessibilityRole="button"
             accessibilityLabel={t('post.sendToChat')}
           >
-            <Ionicons name="send-outline" size={footerSmallIconSize} color={theme.textSecondary} />
+            <IoniconSvg name="send-outline" size={footerSmallIconSize} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
 
         <View style={[styles.footerRight, compact && styles.footerRightCompact]}>
           <View style={[styles.statsItem, compact && styles.statsItemCompact]}>
-            <Ionicons name="eye-outline" size={footerStatsIconSize} color={theme.textTertiary} />
+            <IoniconSvg name="eye-outline" size={footerStatsIconSize} color={theme.textTertiary} />
             <Text
               style={[styles.statsText, compact && styles.statsTextCompact, { color: theme.textTertiary }]}
               numberOfLines={1}
@@ -892,7 +886,7 @@ const PostCard = ({
             <View style={[styles.statsItem, compact && styles.statsItemCompact]}>
               {resolved ? (
                 <>
-                  <Ionicons name="checkmark-circle" size={footerStatsIconSize} color="#10B981" />
+                  <IoniconSvg name="checkmark-circle" size={footerStatsIconSize} color="#10B981" />
                   {!compact && (
                     <Text
                       style={[styles.statsText, compact && styles.statsTextCompact, { color: '#10B981' }]}
@@ -907,7 +901,7 @@ const PostCard = ({
                 </>
               ) : (
                 <>
-                  <Ionicons name="help-circle-outline" size={footerStatsIconSize} color="#F59E0B" />
+                  <IoniconSvg name="help-circle-outline" size={footerStatsIconSize} color="#F59E0B" />
                   {!compact && (
                     <Text
                       style={[styles.statsText, compact && styles.statsTextCompact, { color: '#F59E0B' }]}

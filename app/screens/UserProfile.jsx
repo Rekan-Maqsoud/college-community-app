@@ -8,7 +8,8 @@ import { FlashList } from '@shopify/flash-list';
 import { useUser } from '../context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassContainer } from '../components/GlassComponents';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/CompatIonicon';
+import IoniconSvg from '../components/icons/IoniconSvg';
 import AnimatedBackground from '../components/AnimatedBackground';
 import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
@@ -511,7 +512,7 @@ const UserProfile = ({ route, navigation }) => {
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
         <View style={styles.loadingContainer}>
-          <Ionicons name="alert-circle-outline" size={moderateScale(50)} color={theme.error || '#EF4444'} />
+          <IoniconSvg name="alert-circle-outline" size={moderateScale(50)} color={theme.error || '#EF4444'} />
           <Text style={[styles.loadingText, { color: theme.textSecondary, marginTop: spacing.md }]}>
             {userError || t('profile.userNotFound')}
           </Text>
@@ -672,7 +673,7 @@ const UserProfile = ({ route, navigation }) => {
             </Text>
             {userData?.socialLinksParseFailed ? (
               <View style={styles.socialLinksFallback}>
-                <Ionicons name="alert-circle-outline" size={moderateScale(18)} color={theme.textSecondary} />
+                <IoniconSvg name="alert-circle-outline" size={moderateScale(18)} color={theme.textSecondary} />
                 <Text style={[styles.socialLinksFallbackText, { color: theme.textSecondary }]}>
                   {t('profile.socialLinksUnavailable')}
                 </Text>
@@ -729,7 +730,7 @@ const UserProfile = ({ route, navigation }) => {
                 borderRadius: borderRadius.round,
               },
             ]}>
-            <Ionicons name="arrow-back" size={moderateScale(24)} color={isDarkMode ? "#FFFFFF" : "#1C1C1E"} />
+            <IoniconSvg name="arrow-back" size={moderateScale(24)} color={isDarkMode ? "#FFFFFF" : "#1C1C1E"} />
           </View>
         </TouchableOpacity>
         
@@ -823,7 +824,7 @@ const UserProfile = ({ route, navigation }) => {
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <>
-                    <Ionicons name="chatbubble-outline" size={moderateScale(16)} color="#FFFFFF" />
+                    <IoniconSvg name="chatbubble-outline" size={moderateScale(16)} color="#FFFFFF" />
                     <Text style={[styles.actionButtonText, { fontSize: fontSize(12) }]}>
                       {t('profile.message')}
                     </Text>
@@ -843,7 +844,7 @@ const UserProfile = ({ route, navigation }) => {
                 {blockLoading ? (
                   <ActivityIndicator size="small" color="#EF4444" />
                 ) : (
-                  <Ionicons name="ban-outline" size={moderateScale(18)} color="#EF4444" />
+                  <IoniconSvg name="ban-outline" size={moderateScale(18)} color="#EF4444" />
                 )}
               </View>
             </TouchableOpacity>
@@ -914,7 +915,7 @@ const UserProfile = ({ route, navigation }) => {
       return (
         <View style={[styles.contentSection, { paddingBottom: spacing.xl }]}>
           <GlassContainer style={[styles.emptyCard]} borderRadius={borderRadius.lg}>
-            <Ionicons name="alert-circle-outline" size={moderateScale(40)} color={theme.error} />
+            <IoniconSvg name="alert-circle-outline" size={moderateScale(40)} color={theme.error} />
             <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
               {t('common.error')}
             </Text>
@@ -934,7 +935,7 @@ const UserProfile = ({ route, navigation }) => {
               borderRadius: borderRadius.lg,
             }
           ]}>
-          <Ionicons name="document-text-outline" size={moderateScale(40)} color={theme.textSecondary} />
+          <IoniconSvg name="document-text-outline" size={moderateScale(40)} color={theme.textSecondary} />
           <Text style={[styles.emptyText, { fontSize: fontSize(14), color: theme.textSecondary, marginTop: spacing.sm }]}>
             {t('profile.noPostsUser')}
           </Text>
@@ -1011,7 +1012,7 @@ const UserProfile = ({ route, navigation }) => {
                 {t('profile.scanToConnect')}
               </Text>
               <TouchableOpacity onPress={() => setShowQRModal(false)}>
-                <Ionicons name="close" size={moderateScale(24)} color={theme.textSecondary} />
+                <IoniconSvg name="close" size={moderateScale(24)} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
             <View style={styles.qrCodeContainer}>
@@ -1031,7 +1032,7 @@ const UserProfile = ({ route, navigation }) => {
             <TouchableOpacity
               style={[styles.shareButton, { backgroundColor: theme.primary }]}
               onPress={handleShareQr}>
-              <Ionicons name="share-outline" size={moderateScale(18)} color="#FFFFFF" />
+              <IoniconSvg name="share-outline" size={moderateScale(18)} color="#FFFFFF" />
               <Text style={styles.shareButtonText}>{t('profile.shareProfile') || 'Share Profile'}</Text>
             </TouchableOpacity>
           </View>
