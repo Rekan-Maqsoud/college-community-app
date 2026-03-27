@@ -14,6 +14,8 @@ export default {
     "createAccount": "إنشاء حساب",
     "joinCommunity": "انضم إلى المجتمع",
     "fullName": "الاسم الكامل",
+    "guestSignUpTitle": "تسجيل ضيف",
+    "guestSignUpSubtitle": "انضم لمشاهدة المناقشات العامة",
     "age": "العمر",
     "selectUniversity": "اختر الجامعة",
     "selectCollege": "اختر الكلية",

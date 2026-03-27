@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar, ActivityIndicator, RefreshControl, Linking, Share, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import * as Sharing from 'expo-sharing';
@@ -9,6 +9,8 @@ import { FlashList } from '@shopify/flash-list';
 import { useUser } from '../context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard, GlassContainer, GlassIconButton } from '../components/GlassComponents';
+import TutorialHighlight from '../components/tutorial/TutorialHighlight';
+import ScreenTutorialCard from '../components/tutorial/ScreenTutorialCard';
 import { Ionicons } from '../components/icons/CompatIonicon';
 import IoniconSvg from '../components/icons/IoniconSvg';
 import AnimatedBackground from '../components/AnimatedBackground';
@@ -24,7 +26,9 @@ import { wp, hp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 import telemetry from '../utils/telemetry';
+import safeStorage from '../utils/safeStorage';
 import { getAsyncCollectionState } from '../utils/uiStateHelpers';
+import useScreenTutorial from '../hooks/useScreenTutorial';
 
 const normalizeHexColor = (color, fallback) => {
   if (typeof color !== 'string') {
@@ -43,6 +47,9 @@ const normalizeHexColor = (color, fallback) => {
   return fallback;
 };
 
+const SETUP_CHECKLIST_HIDDEN_KEY_PREFIX = 'profile_setup_checklist_hidden';
+const getSetupChecklistHiddenKey = (userId) => `${SETUP_CHECKLIST_HIDDEN_KEY_PREFIX}_${userId}`;
+
 const Profile = ({ navigation, route }) => {
   const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const { user, isLoading, refreshUser } = useUser();
@@ -57,11 +64,32 @@ const Profile = ({ navigation, route }) => {
   const [postsLoaded, setPostsLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [isSetupChecklistHidden, setIsSetupChecklistHidden] = useState(false);
   const qrShareCardRef = useRef(null);
   const qrBackgroundColor = normalizeHexColor(isDarkMode ? theme.card : theme.background, isDarkMode ? '#2C2C2E' : '#FFFFFF');
   const qrForegroundColor = normalizeHexColor(theme.text, isDarkMode ? '#FFFFFF' : '#1A1A1A');
   const qrAccentPrimary = normalizeHexColor(theme.primary, isDarkMode ? '#0A84FF' : '#007AFF');
   const qrAccentSecondary = normalizeHexColor(theme.gradient?.[1], qrAccentPrimary);
+
+  const tutorialSteps = useMemo(() => ([
+    {
+      target: 'settings',
+      title: t('tutorial.profile.settingsTitle'),
+      description: t('tutorial.profile.settingsDescription'),
+    },
+    {
+      target: 'stats',
+      title: t('tutorial.profile.statsTitle'),
+      description: t('tutorial.profile.statsDescription'),
+    },
+    {
+      target: 'posts',
+      title: t('tutorial.profile.postsTitle'),
+      description: t('tutorial.profile.postsDescription'),
+    },
+  ]), [t]);
+
+  const tutorial = useScreenTutorial('profile', tutorialSteps);
 
   const getProfileLink = () => {
     return `collegecommunity://profile/${user?.$id}`;
@@ -193,6 +221,36 @@ const Profile = ({ navigation, route }) => {
       loadUserPosts();
     }
   }, [user?.$id, loadUserPosts, postsLoaded]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const hydrateSetupChecklistVisibility = async () => {
+      if (!user?.$id) {
+        if (isMounted) {
+          setIsSetupChecklistHidden(false);
+        }
+        return;
+      }
+
+      try {
+        const hiddenValue = await safeStorage.getItem(getSetupChecklistHiddenKey(user.$id));
+        if (isMounted) {
+          setIsSetupChecklistHidden(hiddenValue === 'true');
+        }
+      } catch (_error) {
+        if (isMounted) {
+          setIsSetupChecklistHidden(false);
+        }
+      }
+    };
+
+    hydrateSetupChecklistVisibility();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.$id]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -417,6 +475,147 @@ const Profile = ({ navigation, route }) => {
     }
   };
 
+  const profileSetupChecklist = useMemo(() => {
+    const hasProfilePicture = Boolean(user?.profilePicture);
+    const hasBio = Boolean(user?.bio?.trim());
+    const postsCount = userPosts.length || user?.postsCount || 0;
+    const followingCount = user?.followingCount || user?.following?.length || 0;
+
+    return [
+      {
+        key: 'profilePicture',
+        done: hasProfilePicture,
+        icon: 'camera-outline',
+        label: t('profile.setupChecklist.items.profilePicture'),
+        actionLabel: t('profile.setupChecklist.actions.addPhoto'),
+        onPress: () => navigation.navigate('ProfileSettings'),
+      },
+      {
+        key: 'bio',
+        done: hasBio,
+        icon: 'create-outline',
+        label: t('profile.setupChecklist.items.bio'),
+        actionLabel: t('profile.setupChecklist.actions.addBio'),
+        onPress: () => navigation.navigate('ProfileSettings'),
+      },
+      {
+        key: 'firstPost',
+        done: postsCount > 0,
+        icon: 'document-text-outline',
+        label: t('profile.setupChecklist.items.firstPost'),
+        actionLabel: t('profile.setupChecklist.actions.createPost'),
+        onPress: () => navigation.navigate('Post'),
+      },
+      {
+        key: 'followThreeStudents',
+        done: followingCount >= 3,
+        icon: 'people-outline',
+        label: t('profile.setupChecklist.items.followThreeStudents'),
+        actionLabel: t('profile.setupChecklist.actions.discoverStudents'),
+        onPress: () => navigation.navigate('Home'),
+      },
+    ];
+  }, [navigation, t, user?.bio, user?.following, user?.followingCount, user?.postsCount, user?.profilePicture, userPosts.length]);
+
+  const completedSetupItems = profileSetupChecklist.filter((item) => item.done).length;
+  const totalSetupItems = profileSetupChecklist.length;
+  const setupProgress = totalSetupItems > 0 ? completedSetupItems / totalSetupItems : 0;
+
+  useEffect(() => {
+    const persistCompletionHiddenState = async () => {
+      const isFullyComplete = totalSetupItems > 0 && completedSetupItems === totalSetupItems;
+      if (!user?.$id || !isFullyComplete || isSetupChecklistHidden) {
+        return;
+      }
+
+      setIsSetupChecklistHidden(true);
+      try {
+        await safeStorage.setItem(getSetupChecklistHiddenKey(user.$id), 'true');
+      } catch (_error) {
+      }
+    };
+
+    persistCompletionHiddenState();
+  }, [completedSetupItems, isSetupChecklistHidden, totalSetupItems, user?.$id]);
+
+  const renderProfileSetupSection = () => {
+    const allCompleted = completedSetupItems === totalSetupItems;
+
+    if (isSetupChecklistHidden || allCompleted) {
+      return null;
+    }
+
+    return (
+      <View style={styles.sectionContainer}>
+        <Text style={[styles.sectionHeader, isRTL && styles.sectionHeaderRtl, { color: theme.text }]}>
+          {t('profile.setupChecklist.title')}
+        </Text>
+        <GlassContainer style={styles.setupCard} borderRadius={borderRadius.lg}>
+          <View style={[styles.setupHeaderRow, isRTL && styles.setupHeaderRowRtl]}>
+            <View style={styles.setupHeaderTextWrap}>
+              <Text style={[styles.setupHeading, isRTL && styles.setupHeadingRtl, { color: theme.text }]}>
+                {allCompleted ? t('profile.setupChecklist.completedTitle') : t('profile.setupChecklist.subtitle')}
+              </Text>
+              <Text style={[styles.setupSupportText, isRTL && styles.setupSupportTextRtl, { color: theme.textSecondary }]}> 
+                {allCompleted
+                  ? t('profile.setupChecklist.completedDescription')
+                  : t('profile.setupChecklist.motivation')}
+              </Text>
+            </View>
+            <View style={[styles.setupProgressPill, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}>
+              <Text style={[styles.setupProgressPillText, { color: theme.primary }]}>
+                {completedSetupItems}/{totalSetupItems}
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.setupProgressTrack, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }]}>
+            <View style={[styles.setupProgressFill, { backgroundColor: theme.primary, width: `${Math.min(100, Math.max(0, setupProgress * 100))}%` }]} />
+          </View>
+
+          {profileSetupChecklist.map((item) => (
+            <View key={item.key} style={[styles.setupChecklistRow, isRTL && styles.setupChecklistRowRtl]}>
+              <View style={[styles.setupChecklistLeft, isRTL && styles.setupChecklistLeftRtl]}>
+                <View
+                  style={[
+                    styles.setupStatusIcon,
+                    {
+                      borderColor: item.done ? theme.success : theme.border,
+                      backgroundColor: item.done
+                        ? (isDarkMode ? 'rgba(34,197,94,0.2)' : 'rgba(34,197,94,0.12)')
+                        : (isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={item.done ? 'checkmark' : item.icon}
+                    size={moderateScale(14)}
+                    color={item.done ? theme.success : theme.textSecondary}
+                  />
+                </View>
+                <Text style={[styles.setupChecklistLabel, isRTL && styles.setupChecklistLabelRtl, { color: theme.text }]}>
+                  {item.label}
+                </Text>
+              </View>
+
+              {!item.done && (
+                <TouchableOpacity
+                  onPress={item.onPress}
+                  style={[styles.setupActionButton, { borderColor: theme.primary }]}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.setupActionButtonText, { color: theme.primary }]}>
+                    {item.actionLabel}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
+        </GlassContainer>
+      </View>
+    );
+  };
+
   const renderInfoRow = ({ iconName, iconColor, label, value, valueNumberOfLines = 1, valueStyle }) => {
     if (!value) {
       return null;
@@ -600,14 +799,22 @@ const Profile = ({ navigation, route }) => {
           >
             <Ionicons name="qr-code-outline" size={moderateScale(22)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
           </GlassIconButton>
-          <GlassIconButton
-            size={moderateScale(40)}
+          <TutorialHighlight
+            active={tutorial.activeTarget === 'settings' && tutorial.isVisible}
+            theme={theme}
+            isDarkMode={isDarkMode}
             style={styles.headerActionButton}
-            onPress={() => navigation.navigate('Settings')}
-            accessibilityLabel={t('settings.title')}
+            borderRadius={moderateScale(14)}
           >
-            <IoniconSvg name="settings-outline" size={moderateScale(22)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
-          </GlassIconButton>
+            <GlassIconButton
+              size={moderateScale(40)}
+              style={styles.headerActionButton}
+              onPress={() => navigation.navigate('Settings')}
+              accessibilityLabel={t('settings.title')}
+            >
+              <IoniconSvg name="settings-outline" size={moderateScale(22)} color={isDarkMode ? '#FFFFFF' : '#1C1C1E'} />
+            </GlassIconButton>
+          </TutorialHighlight>
         </View>
         <View style={styles.avatarContainer}>
           <LinearGradient colors={theme.gradient} style={styles.avatarBorder} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
@@ -627,6 +834,13 @@ const Profile = ({ navigation, route }) => {
           {isMeRep && <RepBadge size="medium" colors={theme} label={t('repVoting.repLabel')} />}
         </View>
         {userProfile.bio && <Text style={[styles.bio, { fontSize: fontSize(13), color: isDarkMode ? 'rgba(255,255,255,0.8)' : 'rgba(28, 28, 30, 0.8)' }]} numberOfLines={2}>{userProfile.bio}</Text>}
+        <TutorialHighlight
+          active={tutorial.activeTarget === 'stats' && tutorial.isVisible}
+          theme={theme}
+          isDarkMode={isDarkMode}
+          style={styles.statsContainer}
+          borderRadius={borderRadius.lg}
+        >
         <GlassContainer style={styles.statsContainer} borderRadius={borderRadius.lg}>
           <TouchableOpacity style={styles.statItem} activeOpacity={0.7}>
             <Text style={[styles.statNumber, { fontSize: fontSize(18), color: theme.text }]}>{userProfile.stats.posts}</Text>
@@ -663,12 +877,22 @@ const Profile = ({ navigation, route }) => {
             <Text style={[styles.statLabel, { fontSize: fontSize(11), color: theme.textSecondary }]}>{t('profile.following')}</Text>
           </TouchableOpacity>
         </GlassContainer>
+        </TutorialHighlight>
       </View>
       <View style={styles.contentSection}>
+        {renderProfileSetupSection()}
         {renderAboutSection()}
+        <TutorialHighlight
+          active={tutorial.activeTarget === 'posts' && tutorial.isVisible}
+          theme={theme}
+          isDarkMode={isDarkMode}
+          style={styles.sectionContainer}
+          borderRadius={borderRadius.md}
+        >
         <View style={styles.sectionContainer}>
           <Text style={[styles.sectionHeader, isRTL && styles.sectionHeaderRtl, { color: theme.text }]}>{t('profile.myPosts')}</Text>
         </View>
+        </TutorialHighlight>
       </View>
     </>
   );
@@ -725,43 +949,52 @@ const Profile = ({ navigation, route }) => {
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       <AnimatedBackground particleCount={35} />
       <LinearGradient colors={theme.gradientBackground || (isDarkMode ? ['#1a1a2e', '#16213e', '#0f3460'] : ['#e3f2fd', '#bbdefb', '#90caf9'])} style={styles.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <FlashList
-          data={userPosts || []}
-          ListHeaderComponent={renderListHeader}
-          ListEmptyComponent={renderEmptyComponent}
-          renderItem={({ item: post }) => (
-            <View style={styles.contentSection}>
-              <PostCard
-                post={{
-                  ...post,
-                  userName: user.fullName,
-                  userProfilePicture: user.profilePicture,
-                }}
-                onReply={() => navigation.navigate('PostDetails', { post })}
-                onLike={() => handleLike(post.$id)}
-                onMarkResolved={(nextResolvedState) => handleMarkResolved(post.$id, nextResolvedState)}
-                onEdit={() => handleEditPost(post)}
-                onDelete={() => handleDeletePost(post)}
-                onUserPress={() => {}}
-                isOwner={true}
-                isLiked={post.likedBy?.includes(user.$id)}
-                showImages={true}
+        <TutorialHighlight
+          active={tutorial.activeTarget === 'posts' && tutorial.isVisible}
+          theme={theme}
+          isDarkMode={isDarkMode}
+          style={styles.tutorialListHighlight}
+          borderRadius={borderRadius.lg}
+          publishMeasure={false}
+        >
+          <FlashList
+            data={userPosts || []}
+            ListHeaderComponent={renderListHeader}
+            ListEmptyComponent={renderEmptyComponent}
+            renderItem={({ item: post }) => (
+              <View style={styles.contentSection}>
+                <PostCard
+                  post={{
+                    ...post,
+                    userName: user.fullName,
+                    userProfilePicture: user.profilePicture,
+                  }}
+                  onReply={() => navigation.navigate('PostDetails', { post })}
+                  onLike={() => handleLike(post.$id)}
+                  onMarkResolved={(nextResolvedState) => handleMarkResolved(post.$id, nextResolvedState)}
+                  onEdit={() => handleEditPost(post)}
+                  onDelete={() => handleDeletePost(post)}
+                  onUserPress={() => {}}
+                  isOwner={true}
+                  isLiked={post.likedBy?.includes(user.$id)}
+                  showImages={true}
+                />
+              </View>
+            )}
+            keyExtractor={(item, index) => item.$id || index.toString()}
+            estimatedItemSize={250}
+            contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + spacing.sm, paddingBottom: spacing.xl }, contentStyle]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={theme.primary}
+                colors={[theme.primary]}
               />
-            </View>
-          )}
-          keyExtractor={(item, index) => item.$id || index.toString()}
-          estimatedItemSize={250}
-          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + spacing.sm, paddingBottom: spacing.xl }, contentStyle]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={theme.primary}
-              colors={[theme.primary]}
-            />
-          }
-        />
+            }
+          />
+        </TutorialHighlight>
       </LinearGradient>
       <View style={styles.hiddenShareCardContainer} pointerEvents="none">
         <View ref={qrShareCardRef} collapsable={false} style={styles.shareCardCaptureRoot}>
@@ -813,6 +1046,19 @@ const Profile = ({ navigation, route }) => {
         buttons={alertConfig.buttons}
         onDismiss={hideAlert}
       />
+
+      <ScreenTutorialCard
+        visible={tutorial.isVisible}
+        theme={theme}
+        isRTL={isRTL}
+        t={t}
+        step={tutorial.currentStep}
+        stepIndex={tutorial.currentIndex}
+        totalSteps={tutorial.totalSteps}
+        onPrev={tutorial.prevStep}
+        onNext={tutorial.nextStep}
+        onSkip={tutorial.skipTutorial}
+      />
     </View>
   );
 };
@@ -824,6 +1070,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
     alignItems: 'center',
     paddingHorizontal: wp(10),
+  },
+  tutorialListHighlight: {
+    flex: 1,
   },
   loadingText: {
     fontSize: fontSize(16),
@@ -901,6 +1150,106 @@ const styles = StyleSheet.create({
   statDivider: { width: 1, height: moderateScale(30), opacity: 0.2 }, 
   contentSection: { paddingHorizontal: wp(5) }, 
   sectionContainer: { marginBottom: spacing.lg }, 
+  setupCard: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    overflow: 'hidden',
+  },
+  setupHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  setupHeaderRowRtl: {
+    flexDirection: 'row-reverse',
+  },
+  setupHeaderTextWrap: {
+    flex: 1,
+  },
+  setupHeading: {
+    fontSize: fontSize(14),
+    fontWeight: '700',
+  },
+  setupHeadingRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  setupSupportText: {
+    marginTop: spacing.xs,
+    fontSize: fontSize(12),
+    fontWeight: '500',
+    lineHeight: fontSize(16),
+  },
+  setupSupportTextRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  setupProgressPill: {
+    borderRadius: borderRadius.round,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  setupProgressPillText: {
+    fontSize: fontSize(11),
+    fontWeight: '700',
+  },
+  setupProgressTrack: {
+    marginTop: spacing.sm,
+    borderRadius: borderRadius.round,
+    height: moderateScale(6),
+    overflow: 'hidden',
+  },
+  setupProgressFill: {
+    height: '100%',
+    borderRadius: borderRadius.round,
+  },
+  setupChecklistRow: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  setupChecklistRowRtl: {
+    flexDirection: 'row-reverse',
+  },
+  setupChecklistLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: spacing.sm,
+  },
+  setupChecklistLeftRtl: {
+    flexDirection: 'row-reverse',
+  },
+  setupStatusIcon: {
+    width: moderateScale(24),
+    height: moderateScale(24),
+    borderRadius: borderRadius.round,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  setupChecklistLabel: {
+    flex: 1,
+    fontSize: fontSize(13),
+    fontWeight: '600',
+  },
+  setupChecklistLabelRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  setupActionButton: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  setupActionButtonText: {
+    fontSize: fontSize(11),
+    fontWeight: '700',
+  },
   sectionHeader: { 
     fontSize: fontSize(16), 
     fontWeight: '700', 

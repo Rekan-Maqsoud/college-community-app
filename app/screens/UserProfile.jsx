@@ -29,6 +29,7 @@ import useLayout from '../hooks/useLayout';
 import telemetry from '../utils/telemetry';
 import { useUserProfile } from '../hooks/useRealtimeSubscription';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { canGuestInitiateChat } from '../utils/guestUtils';
 
 const UserProfile = ({ route, navigation }) => {
   const { userId, userData: initialUserData } = route?.params || {};
@@ -205,6 +206,7 @@ const UserProfile = ({ route, navigation }) => {
           college: fetchedUser.major || fetchedUser.college || '',
           department: fetchedUser.department || '',
           stage: fetchedUser.year || fetchedUser.stage || '',
+          role: fetchedUser.role || 'student',
           postsCount: fetchedUser.postsCount || 0,
           followersCount: fetchedUser.followersCount || 0,
           followingCount: fetchedUser.followingCount || 0,
@@ -417,6 +419,19 @@ const UserProfile = ({ route, navigation }) => {
 
   const handleDirectMessage = async () => {
     if (messageLoading || !currentUser?.$id || !userId || currentUser.$id === userId) return;
+
+    // Guest restriction: only allow DM to mutual follows
+    if (currentUser?.role === 'guest') {
+      const allowed = await canGuestInitiateChat(currentUser.$id, userId);
+      if (!allowed) {
+        showAlert({
+          type: 'info',
+          title: t('common.info'),
+          message: t('common.becomeFriendsFirst') || 'Follow each other first to start a conversation.',
+        });
+        return;
+      }
+    }
     
     setMessageLoading(true);
     try {
@@ -531,6 +546,7 @@ const UserProfile = ({ route, navigation }) => {
   const avatarUri = userData.profilePicture ? userData.profilePicture : defaultAvatar;
   
   const stageKey = getStageKey(userData.stage);
+  const isProfileGuest = userData?.role === 'guest';
   const stageTranslation = userData.stage ? t(`stages.${stageKey}`) : '';
   const departmentTranslation = userData.department ? t(`departments.${userData.department}`) : '';
   
@@ -542,6 +558,7 @@ const UserProfile = ({ route, navigation }) => {
     avatar: avatarUri,
     university: userData.university ? t(`universities.${userData.university}`) : '',
     college: userData.college ? t(`colleges.${userData.college}`) : '',
+    role: isProfileGuest ? (t('common.guest') || 'Guest') : null,
     stage: stageTranslation,
     department: departmentTranslation,
     stats: {
@@ -634,14 +651,14 @@ const UserProfile = ({ route, navigation }) => {
           </>
         )}
 
-        {userProfile.stage && (
+        {(userProfile.stage || userProfile.role) && (
           <>
             <View style={[styles.infoDivider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]} />
             {renderInfoRow({
-              iconName: 'stats-chart-outline',
+              iconName: userProfile.role ? 'person-outline' : 'stats-chart-outline',
               iconColor: theme.secondary,
-              label: t('profile.stage'),
-              value: userProfile.stage,
+              label: userProfile.role ? (t('common.role') || 'Role') : t('profile.stage'),
+              value: userProfile.role || userProfile.stage,
             })}
           </>
         )}

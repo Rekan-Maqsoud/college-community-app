@@ -1509,3 +1509,23 @@ export const getStagesForDepartment = (universityKey, collegeKey, departmentKey)
   const years = department?.years || 4;
   return STAGE_KEYS.slice(0, years);
 };
+
+export const getAllDepartments = () => {
+  const departmentsList = [];
+  const deptSet = new Set();
+  
+  Object.values(universitiesData).forEach(uni => {
+    Object.values(uni.colleges || {}).forEach(college => {
+      const depts = college.departments || [];
+      depts.forEach(dept => {
+        const key = typeof dept === 'string' ? dept : dept.key;
+        if (!deptSet.has(key)) {
+          deptSet.add(key);
+          departmentsList.push(key);
+        }
+      });
+    });
+  });
+  
+  return departmentsList;
+};

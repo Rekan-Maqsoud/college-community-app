@@ -642,17 +642,46 @@ export default {
     "channelUnavailableTitle": "القناة غير متاحة",
     "channelUnavailableMessage": "تم حذف هذه القناة أو لم تعد متاحة."
   },
+  "tutorial": {
+    "common": {
+      "next": "التالي",
+      "back": "السابق",
+      "done": "تم",
+      "skip": "تخطي",
+      "progress": "خطوة {current} من {total}"
+    }
+  },
   "home": {
     "welcome": "مرحباً بعودتك",
     "subtitle": "استكشف مجتمع كليتك",
     "quickActions": "إجراءات سريعة",
-    "askQuestion": "اطرح سؤالاً",
+    "askQuestion": "اسأل سؤالاً",
+    "suggestedFriends": {
+      "title": "أشخاص قد تعرفهم",
+      "subtitle": "تواصل مع طلاب في قسمك",
+      "mutualCount": "{count} أصدقاء مشتركون"
+    },
     "shareNotes": "شارك الملاحظات",
     "findStudyGroup": "مجموعة دراسية",
     "pastPapers": "أوراق سابقة",
     "recentActivity": "النشاط الأخير",
     "recentPosts": "المنشورات الأخيرة",
-    "popularTopics": "المواضيع الشائعة",
+    "finishSetup": "أكمل ملفك الشخصي",
+    "guestSignUpSubtitle": "انضم لمشاهدة المناقشات العامة",
+    "emailFromGoogle": "البريد الإلكتروني من جوجل",
+    "emailInUse": "البريد الإلكتروني مسجل بالفعل.",
+    "passwordRequirements": "متطلبات كلمة المرور",
+    "passwordRequirementMinLength": "8 أحرف على الأقل",
+    "passwordRequirementMixed": "أحرف كبيرة وصغيرة",
+    "passwordRequirementNumber": "رقم واحد على الأقل",
+    "passwordRequirementSpecial": "رمز خاص واحد على الأقل",
+    "changePicture": "تغيير الصورة",
+    "addProfilePicture": "إضافة صورة شخصية (اختياري)",
+    "pleaseFixErrors": "يرجى تصحيح جميع الأخطاء",
+    "fullNameTwoWordsRequired": "يرجى إدخال اسمك الأول واسم العائلة",
+    "fullNameLettersOnly": "يجب أن يحتوي الاسم على أحرف ومسافات فقط",
+    "guestSignUpTitle": "تسجيل كضيف",
+    "signInTitle": "مرحباً بعودتك 👋",
     "emptyTitle": "مرحباً بك",
     "emptyMessage": "ستظهر منشوراتك هنا بمجرد البدء في التواصل مع مجتمع كليتك",
     "departmentFeedEmpty": "لا توجد منشورات من قسمك حتى الآن. كن أول من يشارك!",
@@ -661,7 +690,12 @@ export default {
     "seePublicPosts": "عرض المنشورات العامة",
     "beFirstToPost": "كن أول من ينشر",
     "filterSort": "تصفية وترتيب الخلاصة",
-    "scrollToTop": "التمرير إلى الأعلى"
+    "scrollToTop": "التمرير إلى الأعلى",
+    "suggestedFriends": {
+      "title": "أشخاص قد تعرفهم",
+      "subtitle": "من قسمك ومن العلاقات المشتركة",
+      "mutualCount": "{count} أصدقاء مشتركون"
+    }
   },
   "lecture": {
     "myLectures": "محاضراتي",
@@ -715,7 +749,26 @@ export default {
     "qrHint": "امسح رمز QR هذا لعرض هذا الملف الشخصي",
     "socialLinksUnavailable": "روابط التواصل الاجتماعي غير متاحة مؤقتًا.",
     "noFollowers": "لا يوجد متابعون حتى الآن",
-    "noFollowing": "لا تتابع أي شخص حتى الآن"
+    "noFollowing": "لا تتابع أي شخص حتى الآن",
+    "setupChecklist": {
+      "title": "البدء",
+      "subtitle": "أكمل ملفك الشخصي لتحصل على تواصل أفضل",
+      "motivation": "أكمل هذه الخطوات ليتمكن زملاؤك من اكتشاف ملفك والثقة به بسرعة.",
+      "completedTitle": "تم إكمال إعداد الملف الشخصي",
+      "completedDescription": "عمل رائع. ملفك الشخصي الآن جاهز لمجتمع الكلية.",
+      "items": {
+        "profilePicture": "أضف صورة شخصية",
+        "bio": "أضف نبذة تعريفية",
+        "firstPost": "أنشئ أول منشور لك",
+        "followThreeStudents": "تابع 3 طلاب"
+      },
+      "actions": {
+        "addPhoto": "إضافة صورة",
+        "addBio": "إضافة نبذة",
+        "createPost": "إنشاء منشور",
+        "discoverStudents": "اكتشف الطلاب"
+      }
+    }
   },
   "post": {
     "createPost": "إنشاء منشور",
@@ -989,6 +1042,12 @@ export default {
     "clear": "مسح",
     "close": "إغلاق",
     "more": "خيارات إضافية",
+    "guest": "ضيف",
+    "role": "الدور",
+    "guestLimitReached": "لقد نشرت منشورك اليوم بالفعل. عد غداً!",
+    "guestChatRestricted": "يمكنك فقط مراسلة الطلاب الذين تتابعهم ويتابعونك.",
+    "guestReplyRestricted": "يمكنك فقط الرد على منشورات الطلاب الذين تكونون أصدقاء.",
+    "becomeFriendsFirst": "تابعوا بعضكم البعض أولاً لبدء المحادثة.",
     "previous": "السابق",
     "next": "التالي",
     "couldNotOpenLink": "تعذر فتح الرابط",
@@ -1171,5 +1230,66 @@ export default {
     "electingSeat": "انتخاب الممثل رقم {seat}",
     "noActiveVoting": "لا يوجد تصويت نشط حالياً. استخدم القائمة لطلب إعادة انتخاب أو انتخاب ممثل إضافي.",
     "minimumStudentsRequired": "يجب أن يكون هناك {min} طلاب على الأقل قبل بدء الانتخابات أو إعادة الانتخابات."
+  },
+  "tutorial": {
+    "common": {
+      "progress": "الخطوة {current} من {total}",
+      "skip": "تخطي",
+      "back": "رجوع",
+      "next": "التالي",
+      "done": "إنهاء"
+    },
+    "home": {
+      "searchTitle": "ابحث بسرعة عن الأشخاص والمنشورات",
+      "searchDescription": "استخدم البحث للوصول مباشرة إلى الزملاء أو الملفات الشخصية أو منشور محدد بدون تمرير طويل.",
+      "feedTitle": "بدّل بين القسم والتخصص والعام",
+      "feedDescription": "غيّر نطاق الخلاصة هنا عندما تريد محتوى أقرب لصفك أو نقاشات عامة أوسع.",
+      "filterTitle": "فلترة وترتيب للوصول السريع",
+      "filterDescription": "افتح الفلاتر للتركيز على الأسئلة غير المجابة أو مرحلة محددة أو الأحدث أولاً.",
+      "notificationsTitle": "تابع ما يحتاج انتباهك",
+      "notificationsDescription": "افتح الإشعارات لمتابعة الردود والإشارات والتحديثات المرتبطة بنشاطك.",
+      "postsTitle": "تفاعل مع خلاصة التعلم",
+      "postsDescription": "تصفّح المنشورات للتعلم والمساعدة، وافتح التفاصيل عندما تريد الرد أو فهم السياق كاملاً."
+    },
+    "chats": {
+      "newChatTitle": "ابدأ محادثات مباشرة",
+      "newChatDescription": "اضغط هذا الزر للعثور على الأشخاص وبدء محادثات خاصة للتنسيق السريع.",
+      "groupTitle": "أنشئ مجموعات دراسة مركزة",
+      "groupDescription": "استخدم إنشاء المجموعة لمشاريع الفريق أو الامتحانات أو التعاون المرتبط بالمادة.",
+      "filterTitle": "فلترة أنواع المحادثات",
+      "filterDescription": "بدّل بين محادثات الصف والمجموعات والرسائل المباشرة لتصل للمحادثة المطلوبة بسرعة.",
+      "listTitle": "افتح المحادثات من قائمة النشاط",
+      "listDescription": "اضغط أي محادثة للمتابعة من آخر نقطة، واضغط مطولاً لخيارات إضافية."
+    },
+    "post": {
+      "publishTitle": "انشر عندما يصبح المنشور جاهزاً",
+      "publishDescription": "هذا الزر يرسل منشورك. أكمل العنوان والوصف أولاً ليكون المحتوى أوضح.",
+      "typeTitle": "حدد النوع والمرحلة وخصوصية النشر",
+      "typeDescription": "اختر الصيغة المناسبة والجمهور الصحيح حتى يصل سؤالك أو تحديثك للطلاب المناسبين.",
+      "topicTitle": "اكتب عنواناً واضحاً",
+      "topicDescription": "استخدم عنواناً مختصراً يساعد الزملاء على فهم الفكرة قبل فتح المنشور.",
+      "descriptionTitle": "أضف تفاصيل مفيدة",
+      "descriptionDescription": "اشرح المشكلة أو السياق أو المصادر حتى تحصل على ردود أدق.",
+      "mediaTitle": "أرفق وسوماً وروابط وصوراً",
+      "mediaDescription": "استخدم هذه الأدوات لتسهيل اكتشاف المنشور وإضافة سياق بصري مفيد."
+    },
+    "lecture": {
+      "searchTitle": "اعثر بسرعة على قنوات المحاضرات",
+      "searchDescription": "ابحث باسم القناة للوصول مباشرة إلى المجتمع الدراسي الذي تحتاجه.",
+      "createTitle": "أنشئ قناة محاضرة جديدة",
+      "createDescription": "استخدم هذا الخيار عندما يحتاج صفك مساحة مخصصة للملاحظات والملفات والنقاش.",
+      "windowTitle": "بدّل بين المجتمع والرسمي",
+      "windowDescription": "استخدم هذا التبديل للفصل بين قنوات الطلاب والقنوات الرسمية للمادة.",
+      "channelsTitle": "تصفح القنوات وانضم وافتح",
+      "channelsDescription": "استخدم القائمة لمراجعة النشاط والانضمام للقنوات وفتح القناة المناسبة الآن."
+    },
+    "profile": {
+      "settingsTitle": "عدّل إعدادات حسابك",
+      "settingsDescription": "افتح الإعدادات لإدارة اللغة والإشعارات والخصوصية وباقي التفضيلات.",
+      "statsTitle": "تابع نمو ملفك الشخصي",
+      "statsDescription": "هذه المؤشرات تعرض نشاطك وروابطك عبر المنشورات والمتابعين والمتابَعين.",
+      "postsTitle": "راجع منشوراتك المنشورة",
+      "postsDescription": "استخدم هذا القسم لمراجعة منشوراتك السابقة أو تعديلها أو حذفها عند الحاجة."
+    }
   }
 };

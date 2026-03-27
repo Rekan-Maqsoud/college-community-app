@@ -103,11 +103,6 @@ const SignIn = ({ navigation, route }) => {
       return;
     }
 
-    if (!isEducationalEmail(email.trim())) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('auth.educationalEmailRequired') });
-      return;
-    }
-
     const signInTrace = telemetry.startTrace('auth_sign_in', {
       hasEmail: Boolean(email?.trim()),
       emailDomain: String(email || '').includes('@') ? String(email || '').split('@').pop() : 'unknown',
@@ -267,13 +262,19 @@ const SignIn = ({ navigation, route }) => {
           const oauthResolvedEmail = userCheck.email || userCheck.user.email || '';
 
           if (!isEducationalEmail(oauthResolvedEmail)) {
-            await signOut();
-            showAlert({
-              type: 'error',
-              title: t('common.error'),
-              message: t('auth.educationalEmailRequired'),
+            // Non-edu Google account → redirect to guest sign-up (pre-fill name/email)
+            await storePendingOAuthSignup({
+              userId: userCheck.user.$id,
+              email: oauthResolvedEmail,
+              name: userCheck.name || userCheck.user.name || '',
             });
-            googleTrace.finish({ success: false, meta: { reason: 'non_educational_email' } });
+            googleTrace.finish({ success: true, meta: { path: 'guest_signup' } });
+            navigation.navigate('GuestSignUp', {
+              oauthMode: true,
+              oauthEmail: oauthResolvedEmail,
+              oauthName: userCheck.name || userCheck.user.name || '',
+              oauthUserId: userCheck.user.$id,
+            });
             return;
           }
 
@@ -561,6 +562,20 @@ const SignIn = ({ navigation, route }) => {
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {/* Guest sign-up entry point */}
+            <TouchableOpacity
+              style={styles.guestSignUpButton}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('GuestSignUp')}
+            >
+              <Text style={[styles.guestSignUpText, { fontSize: fontSize(12) }]}>
+                {t('auth.notAStudent', 'Not a student?')}{' '}
+                <Text style={styles.guestSignUpLink}>
+                  {t('auth.signUpAsGuest', 'Sign up as Guest')}
+                </Text>
+              </Text>
+            </TouchableOpacity>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -783,6 +798,20 @@ const styles = StyleSheet.create({
   googleLogo: {
     width: moderateScale(18),
     height: moderateScale(18),
+  },
+  guestSignUpButton: {
+    marginTop: spacing.sm,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  guestSignUpText: {
+    color: 'rgba(255, 255, 255, 0.75)',
+    textAlign: 'center',
+  },
+  guestSignUpLink: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    textDecorationLine: 'underline',
   },
 });
 

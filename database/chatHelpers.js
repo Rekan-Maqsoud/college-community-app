@@ -3,6 +3,7 @@ import { ID, Query } from 'appwrite';
 import { CHAT_TYPES, createChat, createGroupChat, getUserGroupChats, decryptChatPreviews, ensureChatParticipant } from './chats';
 import { getUserById } from './users';
 import { chatsCacheManager } from '../app/utils/cacheManager';
+import { canGuestInitiateChat } from '../app/utils/guestUtils';
 
 export const PRIVATE_CHAT_TYPE = 'private';
 export const CUSTOM_GROUP_TYPE = 'custom_group';
@@ -222,6 +223,12 @@ export const createPrivateChat = async (user1, user2) => {
     try {
         if (!user1?.$id || !user2?.$id) {
             throw new Error('Invalid user data');
+        }
+
+        if (!canGuestInitiateChat(user1, user2)) {
+            const error = new Error('Guests can only chat with students they are mutual friends with.');
+            error.code = 'GUEST_CHAT_RESTRICTED';
+            throw error;
         }
 
         const existingChat = await getPrivateChat(user1.$id, user2.$id);

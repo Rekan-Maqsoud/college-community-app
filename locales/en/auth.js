@@ -14,6 +14,8 @@ export default {
     "createAccount": "Create Account",
     "joinCommunity": "Join the Community",
     "fullName": "Full Name",
+    "guestSignUpTitle": "Guest Sign Up",
+    "guestSignUpSubtitle": "Join to view public discussions",
     "age": "Age",
     "selectUniversity": "Select University",
     "selectCollege": "Select College",

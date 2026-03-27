@@ -136,3 +136,107 @@ export const groupPostsByPriority = (posts, userInteractions = {}) => {
     ),
   };
 };
+
+// =============================================================================
+// VIEWER-CONTEXT AWARE RANKING (Universal — applies to students and guests)
+//
+// Factors (in order of importance):
+//   1. isFriend        – viewer mutually follows the author (+50)
+//   2. isTargetedToYou – post explicitly targets viewer's dept/college/uni (+40)
+//   3. isOwnDept       – post is from viewer's own department (+20)  [students]
+//   4. engagement      – log(likes) * 5 + log(replies) * 3
+//   5. recency         – 20 / sqrt(hoursSinceCreation)   (newer = higher)
+//   6. freshness       – 10 / sqrt(hoursSinceLastUpdate) (recent activity bump)
+//
+// The inverse-sqrt decay guarantees new posts always outrank old ones at
+// equal engagement levels.
+// =============================================================================
+
+/**
+ * Compute a viewer-specific relevance score for a post.
+ * Higher score = shown first.
+ *
+ * @param {Object} post
+ * @param {Object} context
+ * @param {string[]} context.friendIds          – IDs of mutual follows
+ * @param {string}   context.userDepartment     – viewer's department ('' for guests)
+ * @param {string}   context.userCollege        – viewer's college ('' for guests)
+ * @param {string}   context.userUniversity     – viewer's university ('' for guests)
+ * @param {string[]} context.targetDepartments  – departments viewer follows (guests)
+ * @returns {number}
+ */
+export const computePostScore = (post, context = {}) => {
+  const {
+    friendIds = [],
+    userDepartment = '',
+    userCollege = '',
+    userUniversity = '',
+    targetDepartments = [],
+  } = context;
+
+  if (!post || typeof post !== 'object') return 0;
+
+  const now = Date.now();
+  const createdMs = post.$createdAt ? new Date(post.$createdAt).getTime() : now;
+  const updatedMs = post.$updatedAt  ? new Date(post.$updatedAt).getTime()  : createdMs;
+
+  const hoursSinceCreate = Math.max(0.5, (now - createdMs) / 3_600_000);
+  const hoursSinceUpdate = Math.max(0.5, (now - updatedMs) / 3_600_000);
+
+  const isFriend    = friendIds.includes(post.userId) ? 1 : 0;
+  const isOwnDept   = userDepartment && post.department === userDepartment ? 1 : 0;
+
+  const postTargets = Array.isArray(post.targetDepartments) ? post.targetDepartments : [];
+  const isTargeted  = postTargets.length > 0 && (
+    (userDepartment && postTargets.includes(userDepartment)) ||
+    (userCollege    && postTargets.includes(userCollege))    ||
+    (userUniversity && postTargets.includes(userUniversity)) ||
+    targetDepartments.some(td => postTargets.includes(td))
+  ) ? 1 : 0;
+
+  const likes   = Math.max(0, Number(post.likeCount)  || 0);
+  const replies = Math.max(0, Number(post.replyCount) || 0);
+
+  const recencyScore   = 20 / Math.sqrt(hoursSinceCreate);
+  const freshnessScore = 10 / Math.sqrt(hoursSinceUpdate);
+
+  return (
+    isFriend  * 50 +
+    isTargeted * 40 +
+    isOwnDept  * 20 +
+    Math.log2(1 + likes)   * 5 +
+    Math.log2(1 + replies) * 3 +
+    recencyScore  +
+    freshnessScore
+  );
+};
+
+/**
+ * Sort posts by viewer-context relevance score (descending).
+ * Returns a new array — does not mutate the original.
+ *
+ * @param {Object[]} posts
+ * @param {Object}   context – same as computePostScore context
+ * @returns {Object[]}
+ */
+export const sortPostsByScore = (posts, context = {}) => {
+  if (!Array.isArray(posts) || posts.length === 0) return posts;
+  return [...posts].sort(
+    (a, b) => computePostScore(b, context) - computePostScore(a, context)
+  );
+};
+
+/**
+ * Build the ranking context object from the current UserContext user.
+ *
+ * @param {Object}   user       – UserContext user object
+ * @param {string[]} friendIds  – IDs of mutually-following users
+ * @returns {Object}
+ */
+export const buildRankingContext = (user, friendIds = []) => ({
+  friendIds,
+  userDepartment:   user?.department  || '',
+  userCollege:      user?.college     || '',
+  userUniversity:   user?.university  || '',
+  targetDepartments: [],
+});

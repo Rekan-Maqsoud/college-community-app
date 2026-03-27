@@ -14,6 +14,8 @@ export default {
     "createAccount": "دروستکردنی هەژمار",
     "joinCommunity": "بەشداریکردن لە کۆمەڵگا",
     "fullName": "ناوی تەواو",
+    "guestSignUpTitle": "خۆتۆمارکردنی میوان",
+    "guestSignUpSubtitle": "بەشداربە بۆ بینینی گفتوگۆ گشتییەکان",
     "age": "تەمەن",
     "selectUniversity": "زانکۆ هەڵبژێرە",
     "selectCollege": "کۆلێژ هەڵبژێرە",

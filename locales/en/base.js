@@ -642,18 +642,46 @@ export default {
     "channelUnavailableTitle": "Channel unavailable",
     "channelUnavailableMessage": "This channel was deleted or is no longer available."
   },
+  "tutorial": {
+    "common": {
+      "next": "Next",
+      "back": "Back",
+      "done": "Done",
+      "skip": "Skip",
+      "progress": "Step {current} of {total}"
+    }
+  },
   "home": {
     "welcome": "Welcome Back",
     "subtitle": "Explore your college community",
     "quickActions": "Quick Actions",
     "askQuestion": "Ask Question",
+    "suggestedFriends": {
+      "title": "People You May Know",
+      "subtitle": "Connect with students in your department",
+      "mutualCount": "{count} mutual friends"
+    },
     "shareNotes": "Share Notes",
     "findStudyGroup": "Study Group",
     "pastPapers": "Past Papers",
     "recentActivity": "Recent Activity",
     "recentPosts": "Recent Posts",
-    "popularTopics": "Popular Topics",
-    "emptyTitle": "Welcome Home",
+    "finishSetup": "Complete your profile",
+    "guestSignUpSubtitle": "Join to view public discussions",
+    "emailFromGoogle": "Email from Google",
+    "emailInUse": "This email is already registered.",
+    "passwordRequirements": "Password Requirements",
+    "passwordRequirementMinLength": "At least 8 characters",
+    "passwordRequirementMixed": "Upper and lowercase letters",
+    "passwordRequirementNumber": "At least one number",
+    "passwordRequirementSpecial": "At least one special character",
+    "changePicture": "Change Picture",
+    "addProfilePicture": "Add Profile Picture (Optional)",
+    "pleaseFixErrors": "Please fix all form errors",
+    "fullNameTwoWordsRequired": "Please enter your first and last name",
+    "fullNameLettersOnly": "Name can only contain letters and spaces",
+    "guestSignUpTitle": "Guest Sign Up",
+    "signInTitle": "Welcome Back 👋",
     "emptyMessage": "Your feed will appear here once you start connecting with your college community",
     "departmentFeedEmpty": "No posts from your department yet. Be the first to share!",
     "majorFeedEmpty": "No posts from your major yet. Start the conversation!",
@@ -661,7 +689,12 @@ export default {
     "seePublicPosts": "See public posts",
     "beFirstToPost": "Be the first one to post",
     "filterSort": "Filter and sort feed",
-    "scrollToTop": "Scroll to top"
+    "scrollToTop": "Scroll to top",
+    "suggestedFriends": {
+      "title": "People you may know",
+      "subtitle": "From your department and mutual connections",
+      "mutualCount": "{count} mutual friends"
+    }
   },
   "lecture": {
     "myLectures": "My Lectures",
@@ -715,7 +748,26 @@ export default {
     "qrHint": "Scan this QR code to view this profile",
     "socialLinksUnavailable": "Social links are temporarily unavailable.",
     "noFollowers": "No followers yet",
-    "noFollowing": "Not following anyone yet"
+    "noFollowing": "Not following anyone yet",
+    "setupChecklist": {
+      "title": "Getting Started",
+      "subtitle": "Finish your profile to unlock better connections",
+      "motivation": "Complete these steps to help classmates discover and trust your profile.",
+      "completedTitle": "Profile setup complete",
+      "completedDescription": "Great work. Your profile now looks ready for your college community.",
+      "items": {
+        "profilePicture": "Add a profile picture",
+        "bio": "Add a bio",
+        "firstPost": "Make your first post",
+        "followThreeStudents": "Follow 3 students"
+      },
+      "actions": {
+        "addPhoto": "Add photo",
+        "addBio": "Add bio",
+        "createPost": "Create post",
+        "discoverStudents": "Discover students"
+      }
+    }
   },
   "post": {
     "createPost": "Create Post",
@@ -989,6 +1041,12 @@ export default {
     "clear": "Clear",
     "close": "Close",
     "more": "More options",
+    "guest": "Guest",
+    "role": "Role",
+    "guestLimitReached": "You've already posted today. Come back tomorrow!",
+    "guestChatRestricted": "You can only message students you follow and who follow you back.",
+    "guestReplyRestricted": "You can only reply to posts from students you are friends with.",
+    "becomeFriendsFirst": "Follow each other first to start a conversation.",
     "previous": "Previous",
     "next": "Next",
     "couldNotOpenLink": "Could not open link",
@@ -1171,5 +1229,66 @@ export default {
     "electingSeat": "Electing Representative #{seat}",
     "noActiveVoting": "No active voting at the moment. Use the menu to request a reselection or elect an additional representative.",
     "minimumStudentsRequired": "At least {min} students are required before starting elections or reselections."
+  },
+  "tutorial": {
+    "common": {
+      "progress": "Step {current} of {total}",
+      "skip": "Skip",
+      "back": "Back",
+      "next": "Next",
+      "done": "Done"
+    },
+    "home": {
+      "searchTitle": "Search people and posts quickly",
+      "searchDescription": "Use search to jump to classmates, profiles, or specific posts without scrolling the whole feed.",
+      "feedTitle": "Switch between Department, Major, and Public",
+      "feedDescription": "Change feed scope here when you want more local class content or wider public discussions.",
+      "filterTitle": "Filter and sort for faster answers",
+      "filterDescription": "Open filters to focus on unanswered questions, specific stages, or newest posts first.",
+      "notificationsTitle": "Track what needs your attention",
+      "notificationsDescription": "Open notifications to catch replies, mentions, and updates related to your activity.",
+      "postsTitle": "Interact with the learning feed",
+      "postsDescription": "Scroll posts to learn, help others, and open details when you want to reply or save context."
+    },
+    "chats": {
+      "newChatTitle": "Start direct conversations",
+      "newChatDescription": "Tap this action to find people and begin private chats for quick coordination.",
+      "groupTitle": "Create focused study groups",
+      "groupDescription": "Use group creation for team projects, exams, or course-specific collaboration.",
+      "filterTitle": "Filter chat types quickly",
+      "filterDescription": "Switch between class, group, and direct chats to reduce noise and find threads faster.",
+      "listTitle": "Open chats from the activity list",
+      "listDescription": "Tap any conversation to continue where you left off, then long press for chat options."
+    },
+    "post": {
+      "publishTitle": "Publish when your post is ready",
+      "publishDescription": "This button sends your post. Complete the topic and description first for better clarity.",
+      "typeTitle": "Set post type, stage, and visibility",
+      "typeDescription": "Choose the right format and audience so your question or update reaches the right students.",
+      "topicTitle": "Write a clear topic",
+      "topicDescription": "Use a short title that helps classmates understand your post before opening it.",
+      "descriptionTitle": "Add useful details",
+      "descriptionDescription": "Describe the problem, context, or resources so others can give accurate replies.",
+      "mediaTitle": "Attach tags, links, and images",
+      "mediaDescription": "Use these tools to make posts easier to discover and to provide visual context."
+    },
+    "lecture": {
+      "searchTitle": "Find lecture channels quickly",
+      "searchDescription": "Search by channel name to jump directly to the lecture community you need.",
+      "createTitle": "Create a new lecture channel",
+      "createDescription": "Use this when your class needs a dedicated place for notes, files, and discussion.",
+      "windowTitle": "Switch between community and official",
+      "windowDescription": "Toggle windows to separate student-led channels from official class channels.",
+      "channelsTitle": "Browse, join, and open channels",
+      "channelsDescription": "Use the list to review channel activity, join channels, and open the one you need now."
+    },
+    "profile": {
+      "settingsTitle": "Adjust your account settings",
+      "settingsDescription": "Open settings for language, notifications, privacy, and other personal preferences.",
+      "statsTitle": "Check your profile growth",
+      "statsDescription": "These counters show your activity and connections across posts, followers, and following.",
+      "postsTitle": "Review your published posts",
+      "postsDescription": "Use this section to revisit old posts, edit updates, or remove content when needed."
+    }
   }
 };

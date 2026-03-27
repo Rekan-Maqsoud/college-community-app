@@ -10,8 +10,11 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import SearchableDropdownNew from '../components/SearchableDropdownNew';
 import { GlassContainer } from '../components/GlassComponents';
+import TutorialHighlight from '../components/tutorial/TutorialHighlight';
+import ScreenTutorialCard from '../components/tutorial/ScreenTutorialCard';
 import CustomAlert from '../components/CustomAlert';
 import { useCustomAlert } from '../hooks/useCustomAlert';
+import useScreenTutorial from '../hooks/useScreenTutorial';
 import { uploadImage } from '../../services/imgbbService';
 import { createPost } from '../../database/posts';
 import { notifyFriendPost } from '../../database/notifications';
@@ -30,6 +33,8 @@ import { fontSize as fontSizeUtil, spacing, moderateScale } from '../utils/respo
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
+import { isGuest } from '../utils/guestUtils';
+import { getAllDepartments } from '../data/universitiesData';
 import ModalBackdrop from '../components/ModalBackdrop';
 import { Image } from 'expo-image';
 
@@ -139,13 +144,71 @@ const Post = () => {
     department: user?.department,
   });
 
-  const postTypeOptions = useMemo(() => [
-    ...POST_TYPE_OPTIONS,
-    { value: POST_TYPES.POLL, labelKey: 'post.types.poll' },
-  ], []);
-  const visibilityOptions = ['department', 'major', 'public'];
+  const isGuestUser = isGuest(user);
+  const [hasReachedGuestLimit, setHasReachedGuestLimit] = useState(false);
+  const [targetDepartments, setTargetDepartments] = useState([]);
+  const allDepartments = useMemo(() => isGuestUser ? getAllDepartments().map(d => ({ key: d, label: d })) : [], [isGuestUser]);
+
+  useEffect(() => {
+    if (isGuestUser && user?.profileViews) {
+      try {
+        const viewsData = typeof user.profileViews === 'string' ? JSON.parse(user.profileViews) : user.profileViews;
+        const today = new Date().toISOString().split('T')[0];
+        if (viewsData?.guestLastPostDate === today && (viewsData?.guestPostCountToday || 0) >= 1) {
+          setHasReachedGuestLimit(true);
+        }
+      } catch (e) {}
+    }
+  }, [isGuestUser, user?.profileViews]);
+
+  useEffect(() => {
+    if (isGuestUser) {
+      setVisibility('public');
+    }
+  }, [isGuestUser]);
+
+  const postTypeOptions = useMemo(() => {
+    if (isGuestUser) {
+      return POST_TYPE_OPTIONS.filter(opt => opt.value === POST_TYPES.DISCUSSION || opt.value === POST_TYPES.QUESTION);
+    }
+    return [
+      ...POST_TYPE_OPTIONS,
+      { value: POST_TYPES.POLL, labelKey: 'post.types.poll' },
+    ];
+  }, [isGuestUser]);
+  const visibilityOptions = isGuestUser ? ['public'] : ['department', 'major', 'public'];
   const MAX_LINKS_PER_POST = 5;
-  const isBusy = loading || verificationState.active;
+  const isBusy = loading || verificationState.active || hasReachedGuestLimit;
+
+  const tutorialSteps = useMemo(() => ([
+    {
+      target: 'publish',
+      title: t('tutorial.post.publishTitle'),
+      description: t('tutorial.post.publishDescription'),
+    },
+    {
+      target: 'postType',
+      title: t('tutorial.post.typeTitle'),
+      description: t('tutorial.post.typeDescription'),
+    },
+    {
+      target: 'topic',
+      title: t('tutorial.post.topicTitle'),
+      description: t('tutorial.post.topicDescription'),
+    },
+    {
+      target: 'description',
+      title: t('tutorial.post.descriptionTitle'),
+      description: t('tutorial.post.descriptionDescription'),
+    },
+    {
+      target: 'media',
+      title: t('tutorial.post.mediaTitle'),
+      description: t('tutorial.post.mediaDescription'),
+    },
+  ]), [t]);
+
+  const tutorial = useScreenTutorial('post', tutorialSteps);
 
   useEffect(() => {
     if (user?.stage && !stage) {
@@ -492,7 +555,7 @@ const Post = () => {
           })
         : null;
       
-      const postDepartment = visibility === 'public'
+      const postDepartment = visibility === 'public' || isGuestUser
         ? 'public'
         : (isAcademicOtherUser ? ACADEMIC_OTHER_KEY : (user?.department || ''));
 
@@ -510,6 +573,8 @@ const Post = () => {
         tags: tagsArray,
         links: linksArray,
         canOthersRepost,
+        isGuestPost: isGuestUser,
+        targetDepartments: isGuestUser && postType === POST_TYPES.QUESTION ? targetDepartments : [],
         ...(pollData ? { pollData } : {}),
       });
 
@@ -594,19 +659,26 @@ const Post = () => {
       <GlassContainer style={styles.headerGlass} borderRadius={0} disableBackgroundOverlay>
         <View style={[styles.header, isRTL && styles.rowReverse, { borderBottomColor: theme.border }]}> 
             <Text style={[styles.headerTitle, isRTL && styles.directionalText, { color: theme.text }]}>{t('post.createPost')}</Text>
-            <TouchableOpacity
-              onPress={handleCreatePost}
-              style={[styles.postButton, isRTL ? styles.postButtonRtl : styles.postButtonLtr, { backgroundColor: theme.primary }]}
-              disabled={isBusy}
-              accessibilityRole="button"
-              accessibilityLabel={t('post.post')}
+            <TutorialHighlight
+              active={tutorial.activeTarget === 'publish' && tutorial.isVisible}
+              theme={theme}
+              isDarkMode={isDarkMode}
+              style={styles.postButtonHighlight}
             >
-              {isBusy ? (
-                <ActivityIndicator size="small" color={theme.buttonText || '#fff'} />
-              ) : (
-                <Text style={[styles.postButtonText, { color: theme.buttonText || '#fff' }]}>{t('post.post')}</Text>
-              )}
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleCreatePost}
+                style={[styles.postButton, isRTL ? styles.postButtonRtl : styles.postButtonLtr, { backgroundColor: theme.primary }]}
+                disabled={isBusy}
+                accessibilityRole="button"
+                accessibilityLabel={t('post.post')}
+              >
+                {isBusy ? (
+                  <ActivityIndicator size="small" color={theme.buttonText || '#fff'} />
+                ) : (
+                  <Text style={[styles.postButtonText, { color: theme.buttonText || '#fff' }]}>{t('post.post')}</Text>
+                )}
+              </TouchableOpacity>
+            </TutorialHighlight>
           </View>
       </GlassContainer>
 
@@ -619,7 +691,12 @@ const Post = () => {
               <ScrollView style={styles.scrollView} contentContainerStyle={contentStyle} showsVerticalScrollIndicator={false}>
           
           <View style={styles.section}>
-            <View style={[styles.topControlsRow, isRTL && styles.rowReverse]}>
+            <TutorialHighlight
+              active={tutorial.activeTarget === 'postType' && tutorial.isVisible}
+              theme={theme}
+              isDarkMode={isDarkMode}
+              style={[styles.topControlsRow, isRTL && styles.rowReverse]}
+            >
               <View style={[styles.compactField, styles.postTypeField]}>
                 <Text style={[styles.compactLabel, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
                   {t('post.postType')}
@@ -656,45 +733,77 @@ const Post = () => {
                 />
               </View>
 
-              <View style={[styles.compactField, styles.compactFieldHalf]}>
-                <Text style={[styles.compactLabel, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
-                  {t('post.visibility')}
-                </Text>
-                <Animated.View style={{ transform: [{ scale: visibilityScaleAnim }] }}>
-                  <TouchableOpacity
-                    style={[
-                      styles.compactToggle,
-                      isRTL && styles.rowReverse,
-                      { backgroundColor: theme.input.background, borderColor: theme.input.border }
-                    ]}
-                    onPress={cycleVisibility}
-                    disabled={isBusy}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('post.visibility')}
-                    accessibilityHint={getVisibilityLabel()}
-                  >
-                    <IoniconSvg name="eye-outline" size={14} color={theme.primary} />
-                    <Text
-                      style={[styles.compactToggleText, isRTL && styles.directionalText, { color: theme.text }]}
-                      numberOfLines={1}
+              {!isGuestUser && (
+                <View style={[styles.compactField, styles.compactFieldHalf]}>
+                  <Text style={[styles.compactLabel, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
+                    {t('post.visibility')}
+                  </Text>
+                  <Animated.View style={{ transform: [{ scale: visibilityScaleAnim }] }}>
+                    <TouchableOpacity
+                      style={[
+                        styles.compactToggle,
+                        isRTL && styles.rowReverse,
+                        { backgroundColor: theme.input.background, borderColor: theme.input.border }
+                      ]}
+                      onPress={cycleVisibility}
+                      disabled={isBusy}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('post.visibility')}
+                      accessibilityHint={getVisibilityLabel()}
                     >
-                      {getVisibilityLabel()}
-                    </Text>
-                  </TouchableOpacity>
-                </Animated.View>
-              </View>
-            </View>
-            <Text style={[styles.helperText, styles.compactHelper, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
-              {getVisibilityHelper()}
-            </Text>
+                      <IoniconSvg name="eye-outline" size={14} color={theme.primary} />
+                      <Text
+                        style={[styles.compactToggleText, isRTL && styles.directionalText, { color: theme.text }]}
+                        numberOfLines={1}
+                      >
+                        {getVisibilityLabel()}
+                      </Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+                  <Text style={[styles.helperText, styles.compactHelper, isRTL && styles.directionalText, { color: theme.textSecondary, marginTop: spacing.xs }]}> 
+                    {getVisibilityHelper()}
+                  </Text>
+                </View>
+              )}
+
+              {isGuestUser && postType === POST_TYPES.QUESTION && (
+                <View style={[styles.compactField, { width: '100%', marginTop: spacing.sm }]}>
+                  <Text style={[styles.compactLabel, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
+                    {t('post.targetDepartments', 'Want to ask a specific department? (optional)')}
+                  </Text>
+                  <SearchableDropdownNew
+                    items={allDepartments}
+                    value={targetDepartments}
+                    onSelect={setTargetDepartments}
+                    placeholder={t('post.selectDepartments', 'Select Departments (Up to 3)')}
+                    icon="business-outline"
+                    disabled={isBusy}
+                    compact
+                    useGlass={false}
+                    multiSelect={true}
+                    maxSelections={3}
+                    selectorStyle={{
+                      backgroundColor: theme.input.background,
+                      borderColor: theme.input.border,
+                    }}
+                  />
+                </View>
+              )}
+            </TutorialHighlight>
           </View>
 
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, isRTL && styles.directionalText, { color: theme.text }]}> 
               {t('post.topic')}
             </Text>
-            <View style={styles.inputShell}>
+            <TutorialHighlight
+              active={tutorial.activeTarget === 'topic' && tutorial.isVisible}
+              theme={theme}
+              isDarkMode={isDarkMode}
+              style={styles.inputShell}
+              borderRadius={borderRadius.md}
+            >
               <TextInput
                 style={[
                   styles.input,
@@ -726,14 +835,20 @@ const Post = () => {
               <Text style={[styles.inlineCharCount, isRTL && styles.inlineCharCountRtl, { color: theme.textSecondary }]}> 
                 {topic.length}/200
               </Text>
-            </View>
+            </TutorialHighlight>
           </View>
 
           <View style={[styles.section, styles.compactNextSection]}>
             <Text style={[styles.sectionLabel, isRTL && styles.directionalText, { color: theme.text }]}> 
               {t('post.description')}
             </Text>
-            <View style={styles.inputShell}>
+            <TutorialHighlight
+              active={tutorial.activeTarget === 'description' && tutorial.isVisible}
+              theme={theme}
+              isDarkMode={isDarkMode}
+              style={styles.inputShell}
+              borderRadius={borderRadius.md}
+            >
               <TextInput
                 style={[
                   styles.input,
@@ -764,7 +879,7 @@ const Post = () => {
               <Text style={[styles.inlineCharCount, isRTL && styles.inlineCharCountRtl, { color: theme.textSecondary }]}> 
                 {text.length}/5000
               </Text>
-            </View>
+            </TutorialHighlight>
           </View>
 
           {postType === POST_TYPES.POLL && (
@@ -956,7 +1071,13 @@ const Post = () => {
           )}
 
           <View style={styles.section}>
-            <View style={[styles.actionButtonsRow, isRTL && styles.rowReverse]}>
+            <TutorialHighlight
+              active={tutorial.activeTarget === 'media' && tutorial.isVisible}
+              theme={theme}
+              isDarkMode={isDarkMode}
+              style={[styles.actionButtonsRow, isRTL && styles.rowReverse]}
+              borderRadius={borderRadius.md}
+            >
               <TouchableOpacity
                 style={[styles.actionButton, isRTL && styles.rowReverse, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}
                 onPress={() => setShowTags(!showTags)}
@@ -998,7 +1119,7 @@ const Post = () => {
                   {t('post.images')} {images.length > 0 && `(${images.length})`}
                 </Text>
               </TouchableOpacity>
-            </View>
+            </TutorialHighlight>
             {!!imageCompressionWarning && (
               <View
                 style={[
@@ -1057,7 +1178,6 @@ const Post = () => {
                   }}
                   placeholder={t('post.tagsPlaceholder')}
                   placeholderTextColor={theme.input.placeholder}
-                  editable={!loading && tags.length < 10}
                   editable={!isBusy && tags.length < 10}
                   blurOnSubmit={false}
                   autoCapitalize="none"
@@ -1128,7 +1248,6 @@ const Post = () => {
                   }}
                   placeholder={t('post.linksPlaceholder')}
                   placeholderTextColor={theme.input.placeholder}
-                  editable={!loading && links.length < MAX_LINKS_PER_POST}
                   editable={!isBusy && links.length < MAX_LINKS_PER_POST}
                   autoCapitalize="none"
                   keyboardType="url"
@@ -1289,6 +1408,19 @@ const Post = () => {
         buttons={alertConfig.buttons}
         onDismiss={hideAlert}
       />
+
+      <ScreenTutorialCard
+        visible={tutorial.isVisible}
+        theme={theme}
+        isRTL={isRTL}
+        t={t}
+        step={tutorial.currentStep}
+        stepIndex={tutorial.currentIndex}
+        totalSteps={tutorial.totalSteps}
+        onPrev={tutorial.prevStep}
+        onNext={tutorial.nextStep}
+        onSkip={tutorial.skipTutorial}
+      />
     </SafeAreaView>
   );
 };
@@ -1318,6 +1450,9 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: fontSizeUtil(22),
     fontWeight: '700',
+  },
+  postButtonHighlight: {
+    borderRadius: borderRadius.md,
   },
   rowReverse: {
     flexDirection: 'row-reverse',

@@ -992,6 +992,33 @@ const SignUp = ({ navigation, route }) => {
 
               {currentStep === 1 && (
                 <>
+                  <View style={styles.profilePictureContainer}>
+                    <TouchableOpacity 
+                      onPress={handleUploadProfilePicture} 
+                      disabled={isUploadingImage}
+                      activeOpacity={0.8}
+                      style={styles.profilePictureWrapper}
+                    >
+                      {profilePicture ? (
+                        <Image source={{ uri: profilePicture }} style={styles.profilePicture} resizeMode="cover" />
+                      ) : (
+                        <View style={[styles.profilePicturePlaceholder, { backgroundColor: isDarkMode ? 'rgba(10, 132, 255, 0.2)' : 'rgba(0, 122, 255, 0.2)' }]}>
+                          <PersonIcon size={moderateScale(40)} color={theme.primary} />
+                        </View>
+                      )}
+                      <View style={[styles.uploadBadge, { backgroundColor: theme.primary }]}>
+                        {isUploadingImage ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <PersonIcon size={moderateScale(14)} color="#FFFFFF" />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                    <Text style={[styles.uploadHint, { color: theme.textSecondary }]}>
+                      {profilePicture ? t('auth.changePicture', 'Change Picture') : t('auth.addProfilePicture', 'Add Profile Picture (Optional)')}
+                    </Text>
+                  </View>
+
                   <GlassInput focused={nameFocused} style={getInputErrorStyle('fullName')}>
                     <View style={[styles.inputWrapper, isRTL && styles.inputWrapperRtl]}>
                       <PersonIcon

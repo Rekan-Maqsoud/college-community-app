@@ -48,18 +48,6 @@ These are **currently installed** dependencies heading toward removal or abandon
 
 ---
 
-### 4. `@react-native-async-storage/async-storage` → Superseded
-
-> Repo status (2026-03-25): no `AsyncStorage` usage found in app/database/services/tests code, and `@react-native-async-storage/async-storage` has been removed from dependencies. **Done ✅**
-
-|                      |                                                                                                                                                                          |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Status**           | ⚠️ Expo recommends `expo-sqlite` as the default for local data persistence. AsyncStorage still works but is slower and less capable.                                     |
-| **You already have** | `react-native-mmkv` — which is **better** than both for simple key-value storage (synchronous, JSI-based, 30x faster).                                                   |
-| **Risk**             | None immediate. AsyncStorage is still maintained.                                                                                                                        |
-| **Action**           | Migrate any `AsyncStorage` usages → `react-native-mmkv` (already installed). Then `npm uninstall @react-native-async-storage/async-storage` to remove the redundant dep. |
-
----
 
 ### 5. `@react-native-community/slider` → Stale
 

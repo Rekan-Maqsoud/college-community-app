@@ -31,6 +31,8 @@ const SearchableDropdownNew = ({
   compact = false,
   useGlass = true,
   selectorStyle,
+  multiSelect = false,
+  maxSelections = 3,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -58,7 +60,10 @@ const SearchableDropdownNew = ({
     ? normalizedItems 
     : normalizedItems.filter(item => item.label.toLowerCase().includes(searchText.toLowerCase()));
 
-  const selectedItem = normalizedItems.find(item => item.key === value);
+  const selectedItem = !multiSelect ? normalizedItems.find(item => item.key === value) : null;
+  const multiSelectedItems = multiSelect && Array.isArray(value) 
+    ? value.map(v => normalizedItems.find(i => i.key === v)).filter(Boolean) 
+    : [];
 
   const openModal = () => {
     if (disabled) return;
@@ -83,8 +88,17 @@ const SearchableDropdownNew = ({
   };
 
   const handleSelect = (item) => {
-    onSelect(item.key);
-    closeModal();
+    if (multiSelect) {
+      const currentValues = Array.isArray(value) ? value : [];
+      if (currentValues.includes(item.key)) {
+        onSelect(currentValues.filter(v => v !== item.key));
+      } else if (currentValues.length < maxSelections) {
+        onSelect([...currentValues, item.key]);
+      }
+    } else {
+      onSelect(item.key);
+      closeModal();
+    }
   };
 
   const selectorNode = (
@@ -106,7 +120,7 @@ const SearchableDropdownNew = ({
       ) : (
         <ListIcon
           size={compact ? moderateScale(16) : moderateScale(20)}
-          color={disabled ? theme.textSecondary : (selectedItem ? theme.primary : theme.textSecondary)}
+          color={disabled ? theme.textSecondary : ((selectedItem || multiSelectedItems.length > 0) ? theme.primary : theme.textSecondary)}
           style={[styles.icon, isRTL && styles.iconRtl]}
         />
       )}
@@ -123,7 +137,9 @@ const SearchableDropdownNew = ({
         ]}
         numberOfLines={1}
       >
-        {selectedItem ? selectedItem.label : placeholder}
+        {multiSelect 
+          ? (multiSelectedItems.length > 0 ? multiSelectedItems.map(i => i.label).join(', ') : placeholder)
+          : (selectedItem ? selectedItem.label : placeholder)}
       </Text>
       {isOpen ? (
         <ChevronUpIcon
@@ -232,7 +248,11 @@ const SearchableDropdownNew = ({
               >
                 {filteredItems.length > 0 ? (
                   filteredItems.map((item) => {
-                    const isSelected = item.key === value;
+                    const isSelected = multiSelect 
+                      ? (Array.isArray(value) && value.includes(item.key))
+                      : item.key === value;
+                    const isDisabledSelection = multiSelect && !isSelected && Array.isArray(value) && value.length >= maxSelections;
+
                     return (
                       <TouchableOpacity
                         key={item.key}
@@ -249,6 +269,7 @@ const SearchableDropdownNew = ({
                         ]}
                         onPress={() => handleSelect(item)}
                         activeOpacity={0.6}
+                        disabled={isDisabledSelection}
                       >
                         <Text
                           style={[
@@ -259,6 +280,7 @@ const SearchableDropdownNew = ({
                               fontWeight: isSelected ? '600' : '400',
                               textAlign: isRTL ? 'right' : 'left',
                               writingDirection: isRTL ? 'rtl' : 'ltr',
+                              opacity: isDisabledSelection ? 0.4 : 1,
                             }
                           ]}
                         >

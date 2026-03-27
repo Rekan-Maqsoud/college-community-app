@@ -24,6 +24,8 @@ import RepDetectionPopup from '../components/RepDetectionPopup';
 import useRepDetection from '../hooks/useRepDetection';
 import UnifiedEmptyState from '../components/UnifiedEmptyState';
 import { GlassContainer, GlassIconButton, GlassModalCard } from '../components/GlassComponents';
+import TutorialHighlight from '../components/tutorial/TutorialHighlight';
+import ScreenTutorialCard from '../components/tutorial/ScreenTutorialCard';
 import { ChatListSkeleton } from '../components/SkeletonLoader';
 import { 
   initializeUserGroups,
@@ -62,9 +64,11 @@ import useLayout from '../hooks/useLayout';
 import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
 import { REFRESH_TOPICS, subscribeToRefreshTopic } from '../utils/dataRefreshBus';
 import { hasAcademicOtherSelection } from '../utils/academicSelection';
+import { isGuest } from '../utils/guestUtils';
 import { unreadCountCacheManager } from '../utils/cacheManager';
 import { getArchivedCountBadgeText, getMuteOptionState } from '../utils/uiStateHelpers';
 import telemetry from '../utils/telemetry';
+import useScreenTutorial from '../hooks/useScreenTutorial';
 import {
   AddIcon,
   ArchiveOutlineIcon,
@@ -111,6 +115,7 @@ const Chats = ({ navigation }) => {
   const [selectedChat, setSelectedChat] = useState(null);
   const [chatMenuVisible, setChatMenuVisible] = useState(false);
   const [muteModalVisible, setMuteModalVisible] = useState(false);
+  const isGuestUser = isGuest(user);
   const isAcademicOtherUser = hasAcademicOtherSelection({
     university: user?.university,
     college: user?.college,
@@ -129,6 +134,31 @@ const Chats = ({ navigation }) => {
   const initializeSignatureRef = useRef(null);
   const filterIndicatorAnim = useRef(new Animated.Value(0)).current;
   const hasMeasuredFilterContainerRef = useRef(false);
+
+  const tutorialSteps = useMemo(() => ([
+    {
+      target: 'newChat',
+      title: t('tutorial.chats.newChatTitle'),
+      description: t('tutorial.chats.newChatDescription'),
+    },
+    {
+      target: 'createGroup',
+      title: t('tutorial.chats.groupTitle'),
+      description: t('tutorial.chats.groupDescription'),
+    },
+    {
+      target: 'filters',
+      title: t('tutorial.chats.filterTitle'),
+      description: t('tutorial.chats.filterDescription'),
+    },
+    {
+      target: 'chatList',
+      title: t('tutorial.chats.listTitle'),
+      description: t('tutorial.chats.listDescription'),
+    },
+  ]), [t]);
+
+  const tutorial = useScreenTutorial('chats', tutorialSteps);
 
   useEffect(() => {
     defaultGroupsRef.current = defaultGroups;
@@ -174,6 +204,7 @@ const Chats = ({ navigation }) => {
 
     return JSON.stringify({
       userId: user.$id,
+      isGuest: isGuestUser,
       department: user.department || '',
       stage: user.stage || '',
       academicOther: isAcademicOtherUser,
@@ -181,6 +212,7 @@ const Chats = ({ navigation }) => {
       chatBlockedUsers: [...(user.chatBlockedUsers || [])].sort(),
     });
   }, [
+    isGuestUser,
     isAcademicOtherUser,
     user?.$id,
     user?.department,
@@ -607,8 +639,8 @@ const Chats = ({ navigation }) => {
       }
 
       const stageValue = stageToValue(user.stage);
-      const departmentForGroups = isAcademicOtherUser ? null : user?.department;
-      const stageForGroups = isAcademicOtherUser ? null : stageValue;
+      const departmentForGroups = isAcademicOtherUser || isGuestUser ? null : user?.department;
+      const stageForGroups = isAcademicOtherUser || isGuestUser ? null : stageValue;
 
       if (preferCache && !forceNetwork) {
         const cachedChats = await getAllUserChats(user.$id, departmentForGroups, stageForGroups, {
@@ -677,18 +709,20 @@ const Chats = ({ navigation }) => {
 
     const initializeAndLoadChats = async () => {
       const stageValue = stageToValue(user?.stage);
-      const departmentForGroups = isAcademicOtherUser ? null : user?.department;
-      const stageForGroups = isAcademicOtherUser ? null : stageValue;
+      const departmentForGroups = isAcademicOtherUser || isGuestUser ? null : user?.department;
+      const stageForGroups = isAcademicOtherUser || isGuestUser ? null : stageValue;
 
       const initTrace = telemetry.startTrace('chats_initialize', {
         userId: user?.$id,
         hasAcademicOther: isAcademicOtherUser,
+        isGuest: isGuestUser,
       });
 
       try {
         setInitializing(true);
-        const groupsInitPromise = initializeUserGroups(departmentForGroups, stageForGroups, user.$id)
-          .catch(() => null);
+        const groupsInitPromise = !isGuestUser 
+          ? initializeUserGroups(departmentForGroups, stageForGroups, user.$id).catch(() => null)
+          : Promise.resolve(null);
 
         await loadChats({ showLoader: true, preferCache: true, skipAuxiliary: true });
         setInitializing(false);
@@ -1193,7 +1227,9 @@ const Chats = ({ navigation }) => {
     );
   };
 
-  const filterOptions = [
+  const filterOptions = isGuestUser ? [
+    { key: 'all', label: t('chats.filterAll') },
+  ] : [
     { key: 'all', label: t('chats.filterAll') },
     { key: 'class', label: t('chats.filterClass') },
     { key: 'groups', label: t('chats.filterGroups') },
@@ -1260,17 +1296,24 @@ const Chats = ({ navigation }) => {
           </Text>
         </View>
         <View style={[styles.headerActions, isRTL && styles.rowReverse]}>
-          <TouchableOpacity
-            style={[styles.iconButton]}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('UserSearch')}
-            accessibilityRole="button"
-            accessibilityLabel={t('chats.startNewChat')}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <GlassIconButton size={moderateScale(36)} borderRadiusValue={moderateScale(12)}>
-              <SearchIcon size={moderateScale(18)} color={theme.primary} />
-            </GlassIconButton>
-          </TouchableOpacity>
+          <TutorialHighlight
+            active={tutorial.activeTarget === 'newChat' && tutorial.isVisible}
+            theme={theme}
+            isDarkMode={isDarkMode}
+            style={styles.iconButton}
+          >
+            <TouchableOpacity
+              style={styles.iconButton}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('UserSearch')}
+              accessibilityRole="button"
+              accessibilityLabel={t('chats.startNewChat')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <GlassIconButton size={moderateScale(36)} borderRadiusValue={moderateScale(12)}>
+                <SearchIcon size={moderateScale(18)} color={theme.primary} />
+              </GlassIconButton>
+            </TouchableOpacity>
+          </TutorialHighlight>
           <TouchableOpacity
             style={[styles.iconButton]}
             activeOpacity={0.7}
@@ -1299,17 +1342,26 @@ const Chats = ({ navigation }) => {
               </View>
             )}
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.iconButton]}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('CreateGroup')}
-            accessibilityRole="button"
-            accessibilityLabel={t('chats.createGroup')}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <GlassIconButton size={moderateScale(36)} borderRadiusValue={moderateScale(12)}>
-              <AddIcon size={moderateScale(18)} color="#F59E0B" />
-            </GlassIconButton>
-          </TouchableOpacity>
+          {!isGuestUser && (
+            <TutorialHighlight
+              active={tutorial.activeTarget === 'createGroup' && tutorial.isVisible}
+              theme={theme}
+              isDarkMode={isDarkMode}
+              style={styles.iconButton}
+            >
+            <TouchableOpacity
+              style={styles.iconButton}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('CreateGroup')}
+              accessibilityRole="button"
+              accessibilityLabel={t('chats.createGroup')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <GlassIconButton size={moderateScale(36)} borderRadiusValue={moderateScale(12)}>
+                <AddIcon size={moderateScale(18)} color="#F59E0B" />
+              </GlassIconButton>
+            </TouchableOpacity>
+          </TutorialHighlight>
+          )}
         </View>
       </View>
 
@@ -1335,18 +1387,25 @@ const Chats = ({ navigation }) => {
         </TouchableOpacity>
       )}
       
-      {!showArchivedChats && (
-        <View
+      {(!showArchivedChats && !isGuestUser) && (
+        <TutorialHighlight
+          active={tutorial.activeTarget === 'filters' && tutorial.isVisible}
+          theme={theme}
+          isDarkMode={isDarkMode}
           style={styles.filterContainer}
-          onLayout={(event) => {
-            const width = event.nativeEvent.layout.width;
-            if (width && width !== filterContainerWidth) {
-              setFilterContainerWidth(width);
-            }
-          }}
+          borderRadius={moderateScale(12)}
         >
-          <GlassContainer style={StyleSheet.absoluteFill} borderRadius={moderateScale(12)} />
-          <View style={styles.filterRow}>
+          <View
+            style={styles.filterContainer}
+            onLayout={(event) => {
+              const width = event.nativeEvent.layout.width;
+              if (width && width !== filterContainerWidth) {
+                setFilterContainerWidth(width);
+              }
+            }}
+          >
+            <GlassContainer style={StyleSheet.absoluteFill} borderRadius={moderateScale(12)} />
+            <View style={styles.filterRow}>
             {filterContainerWidth > 0 && (
               <Animated.View
                 style={[
@@ -1380,8 +1439,9 @@ const Chats = ({ navigation }) => {
                 </Text>
               </TouchableOpacity>
             ))}
+            </View>
           </View>
-        </View>
+        </TutorialHighlight>
       )}
     </View>
   );
@@ -1452,47 +1512,61 @@ const Chats = ({ navigation }) => {
 
             <View style={[styles.content, { paddingTop: insets.top + spacing.sm }]}> 
               {hasContent ? (
-                <SectionList
-                  sections={sections}
-                  renderItem={renderChatItem}
-                  renderSectionHeader={renderSectionHeader}
-                  keyExtractor={(item) => item.$id}
-                  contentContainerStyle={[styles.listContent, contentStyle]}
-                  ListHeaderComponent={renderHeader}
-                  stickySectionHeadersEnabled={false}
-                  windowSize={11}
-                  maxToRenderPerBatch={10}
-                  initialNumToRender={12}
-                  removeClippedSubviews={Platform.OS === 'android'}
-                  refreshControl={
-                    <RefreshControl
-                      refreshing={refreshing}
-                      onRefresh={handleRefresh}
-                      tintColor={theme.primary}
-                      colors={[theme.primary]}
-                    />
-                  }
-                />
+                <TutorialHighlight
+                  active={tutorial.activeTarget === 'chatList' && tutorial.isVisible}
+                  theme={theme}
+                  isDarkMode={isDarkMode}
+                  style={styles.tutorialListHighlight}
+                >
+                  <SectionList
+                    sections={sections}
+                    renderItem={renderChatItem}
+                    renderSectionHeader={renderSectionHeader}
+                    keyExtractor={(item) => item.$id}
+                    contentContainerStyle={[styles.listContent, contentStyle]}
+                    ListHeaderComponent={renderHeader}
+                    stickySectionHeadersEnabled={false}
+                    windowSize={11}
+                    maxToRenderPerBatch={10}
+                    initialNumToRender={12}
+                    removeClippedSubviews={Platform.OS === 'android'}
+                    refreshControl={
+                      <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        tintColor={theme.primary}
+                        colors={[theme.primary]}
+                      />
+                    }
+                  />
+                </TutorialHighlight>
               ) : (
-                <FlashList
-                  data={[]}
-                  renderItem={() => null}
-                  ListHeaderComponent={renderHeader}
-                  ListEmptyComponent={renderEmpty}
-                  contentContainerStyle={[styles.listContent, contentStyle]}
-                  windowSize={8}
-                  maxToRenderPerBatch={8}
-                  initialNumToRender={1}
-                  removeClippedSubviews={Platform.OS === 'android'}
-                  refreshControl={
-                    <RefreshControl
-                      refreshing={refreshing}
-                      onRefresh={handleRefresh}
-                      tintColor={theme.primary}
-                      colors={[theme.primary]}
-                    />
-                  }
-                />
+                <TutorialHighlight
+                  active={tutorial.activeTarget === 'chatList' && tutorial.isVisible}
+                  theme={theme}
+                  isDarkMode={isDarkMode}
+                  style={styles.tutorialListHighlight}
+                >
+                  <FlashList
+                    data={[]}
+                    renderItem={() => null}
+                    ListHeaderComponent={renderHeader}
+                    ListEmptyComponent={renderEmpty}
+                    contentContainerStyle={[styles.listContent, contentStyle]}
+                    windowSize={8}
+                    maxToRenderPerBatch={8}
+                    initialNumToRender={1}
+                    removeClippedSubviews={Platform.OS === 'android'}
+                    refreshControl={
+                      <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        tintColor={theme.primary}
+                        colors={[theme.primary]}
+                      />
+                    }
+                  />
+                </TutorialHighlight>
               )}
             </View>
 
@@ -1795,6 +1869,19 @@ const Chats = ({ navigation }) => {
             </Modal>
           </LinearGradient>
 
+          <ScreenTutorialCard
+            visible={tutorial.isVisible}
+            theme={theme}
+            isRTL={isRTL}
+            t={t}
+            step={tutorial.currentStep}
+            stepIndex={tutorial.currentIndex}
+            totalSteps={tutorial.totalSteps}
+            onPrev={tutorial.prevStep}
+            onNext={tutorial.nextStep}
+            onSkip={tutorial.skipTutorial}
+          />
+
           <RepDetectionPopup
             visible={needsRep}
             hasActiveElection={hasActiveElection}
@@ -1820,6 +1907,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'stretch',
     paddingHorizontal: wp(4),
+  },
+  tutorialListHighlight: {
+    borderRadius: moderateScale(14),
+    overflow: 'hidden',
   },
   loadingText: {
     marginTop: spacing.sm,

@@ -47,6 +47,7 @@ import { markNotificationsAsReadByContext } from '../database/notifications';
 
 import SignIn from './auth/SignIn';
 import SignUp from './auth/SignUp';
+import GuestSignUp from './auth/GuestSignUp';
 import VerifyEmail from './auth/VerifyEmail';
 import ForgotPassword from './auth/ForgotPassword';
 
@@ -182,6 +183,7 @@ const LectureWithActivity = withActivityBoundary(Lecture, 'Lecture');
 const ProfileWithActivity = withActivityBoundary(Profile, 'Profile');
 const SignInWithActivity = withActivityBoundary(SignIn, 'SignIn');
 const SignUpWithActivity = withActivityBoundary(SignUp, 'SignUp');
+const GuestSignUpWithActivity = withActivityBoundary(GuestSignUp, 'GuestSignUp');
 const VerifyEmailWithActivity = withActivityBoundary(VerifyEmail, 'VerifyEmail');
 const ForgotPasswordWithActivity = withActivityBoundary(ForgotPassword, 'ForgotPassword');
 const SettingsWithActivity = withActivityBoundary(Settings, 'Settings');
@@ -431,10 +433,106 @@ const TabNavigator = () => {
 
 const TabNavigatorWithActivity = withActivityBoundary(TabNavigator, 'MainTabs');
 
+const GuestTabNavigator = () => {
+  const { t, theme, isDarkMode, isRTL } = useAppSettings();
+  const insets = useSafeAreaInsets();
+  
+  const tabScreens = [
+    {
+      name: 'Home',
+      component: HomeWithActivity,
+      options: { title: t('tabs.home') },
+    },
+    {
+      name: 'Post',
+      component: PostWithActivity,
+      options: {
+        title: t('tabs.post'),
+        tabBarIconStyle: { marginTop: -4 },
+      },
+    },
+    {
+      name: 'Profile',
+      component: ProfileWithActivity,
+      options: { title: t('tabs.profile') },
+    },
+  ];
+
+  return (
+    <Tab.Navigator
+      initialRouteName="Home"
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+
+          if (route.name === 'Home') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Post') {
+            iconName = focused ? 'add-circle' : 'add-circle-outline';
+          } else if (route.name === 'Profile') {
+            iconName = focused ? 'person' : 'person-outline';
+          }
+
+          return <AnimatedTabIcon focused={focused} iconName={iconName} color={color} size={size} />;
+        },
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: isDarkMode ? 'rgba(255, 255, 255, 0.88)' : (theme.text || theme.textSecondary),
+        tabBarStyle: {
+          backgroundColor: 'transparent',
+          borderTopWidth: 0,
+          elevation: 0,
+          height: Platform.OS === 'ios' ? (60 + Math.max(insets.bottom, 20)) : (56 + Math.max(insets.bottom, 10)),
+          paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 20) : Math.max(insets.bottom, 10),
+          paddingTop: 8,
+          position: 'absolute',
+          flexDirection: isRTL ? 'row-reverse' : 'row',
+        },
+        tabBarBackground: () => (
+          isLiquidGlassSupported ? (
+            <LiquidGlassView
+              colorScheme={isDarkMode ? 'dark' : 'light'}
+              effect="regular"
+              style={StyleSheet.absoluteFill}
+            />
+          ) : (
+            <BlurView
+              intensity={isDarkMode ? 80 : 75}
+              tint={isDarkMode ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFill}
+            />
+          )
+        ),
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '700',
+          letterSpacing: 0.2,
+          writingDirection: isRTL ? 'rtl' : 'ltr',
+        },
+        sceneStyle: {
+          backgroundColor: theme.background,
+        },
+        headerShown: false,
+      })}
+    >
+      {tabScreens.map((screen) => (
+        <Tab.Screen
+          key={screen.name}
+          name={screen.name}
+          component={screen.component}
+          options={screen.options}
+        />
+      ))}
+    </Tab.Navigator>
+  );
+};
+
+const GuestTabNavigatorWithActivity = withActivityBoundary(GuestTabNavigator, 'GuestTabs');
+
 const MainStack = () => {
   const { theme } = useAppSettings();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState('student');
 
   useEffect(() => {
     checkSession();
@@ -449,6 +547,9 @@ const MainStack = () => {
         try {
           const userDoc = await getUserDocument(user.$id);
           setIsAuthenticated(!!userDoc);
+          if (userDoc && userDoc.role) {
+            setUserRole(userDoc.role.toLowerCase());
+          }
         } catch (error) {
           await signOut();
           setIsAuthenticated(false);
@@ -490,7 +591,7 @@ const MainStack = () => {
         cardStyle: { backgroundColor: theme.background },
         contentStyle: { backgroundColor: theme.background },
       }}
-      initialRouteName={isAuthenticated ? 'MainTabs' : 'SignIn'}
+      initialRouteName={isAuthenticated ? (userRole === 'guest' ? 'GuestTabs' : 'MainTabs') : 'SignIn'}
     >
       <Stack.Screen 
         name="SignIn" 
@@ -499,6 +600,10 @@ const MainStack = () => {
       <Stack.Screen 
         name="SignUp" 
         component={SignUpWithActivity}
+      />
+      <Stack.Screen 
+        name="GuestSignUp" 
+        component={GuestSignUpWithActivity}
       />
       <Stack.Screen 
         name="VerifyEmail" 
@@ -511,6 +616,10 @@ const MainStack = () => {
       <Stack.Screen 
         name="MainTabs" 
         component={TabNavigatorWithActivity}
+      />
+      <Stack.Screen 
+        name="GuestTabs" 
+        component={GuestTabNavigatorWithActivity}
       />
       <Stack.Screen 
         name="Settings" 

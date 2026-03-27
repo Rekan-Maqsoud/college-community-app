@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   AppState,
   View,
@@ -27,10 +27,14 @@ import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
 import { GlassIconButton, GlassModalCard } from '../components/GlassComponents';
 import GreetingBanner from '../components/GreetingBanner';
+import SuggestedFriendsCard from '../components/home/SuggestedFriendsCard';
 import { PostCardSkeleton } from '../components/SkeletonLoader';
 import UnifiedEmptyState from '../components/UnifiedEmptyState';
 import RepDetectionPopup from '../components/RepDetectionPopup';
+import TutorialHighlight from '../components/tutorial/TutorialHighlight';
+import ScreenTutorialCard from '../components/tutorial/ScreenTutorialCard';
 import useRepDetection from '../hooks/useRepDetection';
+import useScreenTutorial from '../hooks/useScreenTutorial';
 import {
   wp,
   hp,
@@ -50,6 +54,8 @@ import { postsCacheManager } from '../utils/cacheManager';
 import { scheduleLocalNotification } from '../../services/pushNotificationService';
 import useLayout from '../hooks/useLayout';
 import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
+import { isGuest } from '../utils/guestUtils';
+import { sortPostsByScore } from '../utils/postRanking';
 import { REFRESH_TOPICS, subscribeToRefreshTopic } from '../utils/dataRefreshBus';
 import telemetry from '../utils/telemetry';
 import { hasActiveHomeFilters, shouldScheduleRealtimeNotification } from '../utils/uiStateHelpers';
@@ -115,7 +121,8 @@ const Home = ({ navigation, route }) => {
   const { needsRep, hasActiveElection, dismiss: dismissRepPopup } = useRepDetection(user);
   const insets = useSafeAreaInsets();
   const { contentStyle } = useLayout();
-  const [selectedFeed, setSelectedFeed] = useState(FEED_TYPES.DEPARTMENT);
+  const isGuestUser = isGuest(user);
+  const [selectedFeed, setSelectedFeed] = useState(isGuestUser ? FEED_TYPES.PUBLIC : FEED_TYPES.DEPARTMENT);
   const [selectedStage, setSelectedStage] = useState('all');
   const [sortBy, setSortBy] = useState(SORT_OPTIONS.NEWEST);
   const [filterType, setFilterType] = useState('all');
@@ -197,6 +204,54 @@ const Home = ({ navigation, route }) => {
     answerStatus,
     blockedUsers: [...(user?.blockedUsers || [])].sort(),
   });
+
+  const guestTutorialSteps = useMemo(() => ([
+    {
+      target: 'search',
+      title: t('tutorial.home.searchTitle', 'Search'),
+      description: t('tutorial.guest.searchDescription', 'Find public posts and groups easily.'),
+    },
+    {
+      target: 'notifications',
+      title: t('tutorial.home.notificationsTitle', 'Notifications'),
+      description: t('tutorial.guest.notificationsDescription', 'Check notifications for related posts.'),
+    },
+    {
+      target: 'posts',
+      title: t('tutorial.home.postsTitle', 'Read Posts'),
+      description: t('tutorial.guest.postsDescription', 'See what students and other guests are sharing.'),
+    },
+  ]), [t]);
+
+  const studentTutorialSteps = useMemo(() => ([
+    {
+      target: 'search',
+      title: t('tutorial.home.searchTitle'),
+      description: t('tutorial.home.searchDescription'),
+    },
+    {
+      target: 'feedSelector',
+      title: t('tutorial.home.feedTitle'),
+      description: t('tutorial.home.feedDescription'),
+    },
+    {
+      target: 'filter',
+      title: t('tutorial.home.filterTitle'),
+      description: t('tutorial.home.filterDescription'),
+    },
+    {
+      target: 'notifications',
+      title: t('tutorial.home.notificationsTitle'),
+      description: t('tutorial.home.notificationsDescription'),
+    },
+    {
+      target: 'posts',
+      title: t('tutorial.home.postsTitle'),
+      description: t('tutorial.home.postsDescription'),
+    },
+  ]), [t]);
+
+  const tutorial = useScreenTutorial(isGuestUser ? 'home_guest' : 'home', isGuestUser ? guestTutorialSteps : studentTutorialSteps);
 
   // Real-time subscription for new/updated posts
   const handleRealtimePostUpdate = useCallback(async (payload) => {
@@ -547,7 +602,7 @@ const Home = ({ navigation, route }) => {
             user?.$id
           );
         }
-      } else if (selectedFeed === FEED_TYPES.PUBLIC) {
+      } else if (selectedFeed === FEED_TYPES.PUBLIC || isGuestUser) {
         fetchedPosts = await getAllPublicPosts(
           selectedStage,
           POSTS_PER_PAGE,
@@ -569,11 +624,19 @@ const Home = ({ navigation, route }) => {
           })
         : fetchedPosts;
 
+      const rankedPosts = sortPostsByScore(filteredPosts, {
+        friendIds: user?.following || [],
+        userDepartment: user?.department || '',
+        userCollege: user?.college || '',
+        userUniversity: user?.university || '',
+        targetDepartments: user?.targetDepartments || [],
+      });
+
       if (reset) {
-        setPosts(filteredPosts);
+        setPosts(rankedPosts);
         setPage(1);
       } else {
-        setPosts(prev => [...prev, ...filteredPosts]);
+        setPosts(prev => [...prev, ...rankedPosts]);
         setPage(prev => prev + 1);
       }
 
@@ -1084,7 +1147,16 @@ const Home = ({ navigation, route }) => {
           { paddingTop: listTopPadding },
           contentStyle,
         ]}
-        ListHeaderComponent={<GreetingBanner />}
+        ListHeaderComponent={(
+          <View>
+            <GreetingBanner />
+            <SuggestedFriendsCard
+              user={user}
+              onUserPress={handleUserPress}
+              forceVisible={visiblePosts.length === 0}
+            />
+          </View>
+        )}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -1181,74 +1253,119 @@ const Home = ({ navigation, route }) => {
               }
             ]}
           >
-            <View style={[styles.searchIconButton, { width: headerHeight, height: headerHeight }]}>
+            <TutorialHighlight
+              active={tutorial.activeTarget === 'search' && tutorial.isVisible}
+              theme={theme}
+              isDarkMode={isDarkMode}
+              style={[styles.searchIconButton, { width: headerHeight, height: headerHeight }]}
+            >
               <SearchBar
                 ref={searchBarRef}
                 iconOnly={true}
                 onUserPress={handleUserPress}
                 onPostPress={handlePostPress}
               />
-            </View>
+            </TutorialHighlight>
 
-            <View style={[styles.feedSelectorWrapper, { height: headerHeight }]}>
-              <FeedSelector
-                selectedFeed={selectedFeed}
-                onFeedChange={handleFeedChange}
-                height={headerHeight}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.sortButton, { height: actionButtonSize, width: actionButtonSize }]}
-              onPress={() => setShowFilterSortModal(true)}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={t('home.filterSort')}
-              accessibilityState={{ selected: hasActiveFilters }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <GlassIconButton
-                size={actionButtonSize}
-                borderRadiusValue={borderRadius.md}
-                active={Platform.OS === 'android' ? false : hasActiveFilters}
+            {!isGuestUser && (
+              <TutorialHighlight
+                active={tutorial.activeTarget === 'feedSelector' && tutorial.isVisible}
+                theme={theme}
+                isDarkMode={isDarkMode}
+                style={[styles.feedSelectorWrapper, { height: headerHeight }]}
               >
-                <OptionsIcon
-                  size={headerIconSize}
-                  color={hasActiveFilters ? theme.primary : theme.text}
+                <FeedSelector
+                  selectedFeed={selectedFeed}
+                  onFeedChange={handleFeedChange}
+                  height={headerHeight}
                 />
-                {hasActiveFilters && <View style={[styles.filterActiveDot, { backgroundColor: theme.primary }]} />}
-              </GlassIconButton>
-            </TouchableOpacity>
+              </TutorialHighlight>
+            )}
 
-            <TouchableOpacity
-              style={[styles.notificationButton, { height: actionButtonSize, width: actionButtonSize }]}
-              onPress={() => navigation.navigate('Notifications')}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={t('notifications.title')}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            <TutorialHighlight
+              active={tutorial.activeTarget === 'filter' && tutorial.isVisible}
+              theme={theme}
+              isDarkMode={isDarkMode}
+              style={[styles.sortButton, { height: actionButtonSize, width: actionButtonSize }]}
             >
-              <GlassIconButton
-                size={actionButtonSize}
-                borderRadiusValue={borderRadius.md}
+              <TouchableOpacity
+                style={{ height: actionButtonSize, width: actionButtonSize }}
+                onPress={() => setShowFilterSortModal(true)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={t('home.filterSort')}
+                accessibilityState={{ selected: hasActiveFilters }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <NotificationsIcon size={headerIconSize} color={theme.text} />
-                {notificationBadgeText ? (
-                  <View style={styles.notificationBadge}>
-                    <Text style={styles.notificationBadgeText}>
-                      {notificationBadgeText}
-                    </Text>
-                  </View>
-                ) : null}
-              </GlassIconButton>
-            </TouchableOpacity>
+                <GlassIconButton
+                  size={actionButtonSize}
+                  borderRadiusValue={borderRadius.md}
+                  active={Platform.OS === 'android' ? false : hasActiveFilters}
+                >
+                  <OptionsIcon
+                    size={headerIconSize}
+                    color={hasActiveFilters ? theme.primary : theme.text}
+                  />
+                  {hasActiveFilters && <View style={[styles.filterActiveDot, { backgroundColor: theme.primary }]} />}
+                </GlassIconButton>
+              </TouchableOpacity>
+            </TutorialHighlight>
+
+            <TutorialHighlight
+              active={tutorial.activeTarget === 'notifications' && tutorial.isVisible}
+              theme={theme}
+              isDarkMode={isDarkMode}
+              style={[styles.notificationButton, { height: actionButtonSize, width: actionButtonSize }]}
+            >
+              <TouchableOpacity
+                style={{ height: actionButtonSize, width: actionButtonSize }}
+                onPress={() => navigation.navigate('Notifications')}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={t('notifications.title')}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <GlassIconButton
+                  size={actionButtonSize}
+                  borderRadiusValue={borderRadius.md}
+                >
+                  <NotificationsIcon size={headerIconSize} color={theme.text} />
+                  {notificationBadgeText ? (
+                    <View style={styles.notificationBadge}>
+                      <Text style={styles.notificationBadgeText}>
+                        {notificationBadgeText}
+                      </Text>
+                    </View>
+                  ) : null}
+                </GlassIconButton>
+              </TouchableOpacity>
+            </TutorialHighlight>
           </Animated.View>
 
-          <View style={styles.feedContent}>
+          <TutorialHighlight
+            active={tutorial.activeTarget === 'posts' && tutorial.isVisible}
+            theme={theme}
+            isDarkMode={isDarkMode}
+            style={styles.feedContent}
+            borderRadius={borderRadius.md}
+          >
             {renderFeedContent()}
-          </View>
+          </TutorialHighlight>
         </View>
       </LinearGradient>
+
+      <ScreenTutorialCard
+        visible={tutorial.isVisible}
+        theme={theme}
+        isRTL={isRTL}
+        t={t}
+        step={tutorial.currentStep}
+        stepIndex={tutorial.currentIndex}
+        totalSteps={tutorial.totalSteps}
+        onPrev={tutorial.prevStep}
+        onNext={tutorial.nextStep}
+        onSkip={tutorial.skipTutorial}
+      />
 
       <FilterSortModal
         visible={showFilterSortModal}

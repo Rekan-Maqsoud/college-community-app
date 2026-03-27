@@ -124,6 +124,27 @@ export const createPost = async (postData) => {
         const currentUserId = await getAuthenticatedUserId();
         documentData.userId = currentUserId;
 
+        let isGuestUser = documentData.isGuestPost || false;
+        if (isGuestUser) {
+            const userDoc = await getUserById(currentUserId);
+            let profileViews = {};
+            try {
+                profileViews = typeof userDoc.profileViews === 'string' 
+                    ? JSON.parse(userDoc.profileViews) 
+                    : (userDoc.profileViews || {});
+            } catch (e) {
+                profileViews = {};
+            }
+            
+            const today = new Date().toISOString().split('T')[0];
+            
+            if (profileViews.guestLastPostDate === today && (profileViews.guestPostCountToday || 0) >= 1) {
+                const limitError = new Error('Guest users are limited to 1 post per day. Please come back tomorrow!');
+                limitError.code = 'GUEST_LIMIT_REACHED';
+                throw limitError;
+            }
+        }
+
         enforceRateLimit({
             action: 'create_post',
             userId: currentUserId,
@@ -160,6 +181,28 @@ export const createPost = async (postData) => {
         
         // Invalidate posts cache for the department
         await postsCacheManager.invalidatePostsCache(documentData.department);
+        
+        // Increment guest post count
+        if (isGuestUser) {
+            try {
+                const userDoc = await getUserById(currentUserId);
+                let profileViews = typeof userDoc.profileViews === 'string' 
+                    ? JSON.parse(userDoc.profileViews) 
+                    : (userDoc.profileViews || {});
+                
+                profileViews.guestLastPostDate = new Date().toISOString().split('T')[0];
+                profileViews.guestPostCountToday = (profileViews.guestPostCountToday || 0) + 1;
+                
+                await databases.updateDocument({
+                    databaseId: config.databaseId,
+                    collectionId: config.usersCollectionId,
+                    documentId: currentUserId,
+                    data: { profileViews: JSON.stringify(profileViews) },
+                });
+            } catch (e) {
+                console.warn('[posts.js] Failed to update guest post limit tracking', e);
+            }
+        }
         
         // Send department match notifications in background (non-blocking)
         if (currentUserId && documentData.department) {

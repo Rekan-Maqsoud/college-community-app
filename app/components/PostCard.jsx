@@ -677,11 +677,19 @@ const PostCard = ({
             )}
           </View>
           <View style={[styles.badgesRow, compact && styles.badgesRowCompact]}>
-            <View style={[styles.stageBadge, compact && styles.stageBadgeCompact, { backgroundColor: isDarkMode ? `${stageColor}15` : `${stageColor}20`, borderColor: stageColor }]}>
-              <Text style={[styles.stageText, { color: stageColor }]}>
-                {t(`stages.${stageKey}`) || t(`stages.${post.stage}`)}
-              </Text>
-            </View>
+            {post.isGuestPost ? (
+              <View style={[styles.stageBadge, compact && styles.stageBadgeCompact, { backgroundColor: isDarkMode ? '#7C3AED22' : '#7C3AED18', borderColor: '#7C3AED' }]}>
+                <Text style={[styles.stageText, { color: '#7C3AED' }]}>
+                  {t('common.guest') || 'Guest'}
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.stageBadge, compact && styles.stageBadgeCompact, { backgroundColor: isDarkMode ? `${stageColor}15` : `${stageColor}20`, borderColor: stageColor }]}>
+                <Text style={[styles.stageText, { color: stageColor }]}>
+                  {t(`stages.${stageKey}`) || t(`stages.${post.stage}`)}
+                </Text>
+              </View>
+            )}
             {!compact && (
               <View style={[styles.typeBadgeInline, compact && styles.typeBadgeInlineCompact, { backgroundColor: isDarkMode ? `${postColor}10` : `${postColor}18` }]}>
                 <IoniconSvg name={postIcon} size={moderateScale(10)} color={postColor} />

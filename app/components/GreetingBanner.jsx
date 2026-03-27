@@ -9,6 +9,7 @@ import {
 import safeStorage from '../utils/safeStorage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from './icons/CompatIonicon';
+import { hasIoniconSvg } from './icons/IoniconSvg';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { wp, normalize, moderateScale, spacing } from '../utils/responsive';
@@ -43,6 +44,23 @@ const GreetingBanner = () => {
 
   // Get greeting icon based on context
   const getGreetingIcon = useCallback((period, greetingType) => {
+    const iconAliases = {
+      'diamond-outline': 'sparkles-outline',
+      'medal-outline': 'trophy',
+      'trending-up-outline': 'bar-chart-outline',
+      'glasses-outline': 'eye-outline',
+      'laptop-outline': 'apps-outline',
+      'pencil-outline': 'create-outline',
+      'film-outline': 'color-palette-outline',
+      'wine-outline': 'cafe-outline',
+      'planet-outline': 'sparkles-outline',
+      'cloudy-night-outline': 'moon-outline',
+      'partly-sunny-outline': 'sunny-outline',
+      'thumbs-up-outline': 'hand-right-outline',
+      'game-controller-outline': 'football-outline',
+      'trophy-outline': 'trophy',
+    };
+
     const icons = {
       morning: ['sunny-outline', 'cafe-outline', 'flower-outline', 'alarm-outline', 'sparkles-outline', 'heart-outline'],
       afternoon: ['partly-sunny-outline', 'book-outline', 'bulb-outline', 'flash-outline', 'trending-up-outline', 'fitness-outline'],
@@ -55,7 +73,13 @@ const GreetingBanner = () => {
     };
 
     const categoryIcons = icons[greetingType] || icons[period] || icons.motivation;
-    return categoryIcons[Math.floor(Math.random() * categoryIcons.length)];
+    const resolvedCategoryIcons = categoryIcons
+      .map((iconName) => (hasIoniconSvg(iconName) ? iconName : iconAliases[iconName]))
+      .filter((iconName) => hasIoniconSvg(iconName));
+
+    const fallbackIcons = ['sparkles-outline', 'flash-outline', 'star-outline', 'rocket-outline', 'flame-outline', 'trophy'];
+    const iconPool = resolvedCategoryIcons.length > 0 ? resolvedCategoryIcons : fallbackIcons;
+    return iconPool[Math.floor(Math.random() * iconPool.length)];
   }, []);
 
   // Get random greeting that's different from the last one

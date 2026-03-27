@@ -499,7 +499,8 @@ export const clearPendingOAuthSignup = async () => {
     }
 };
 
-// Complete OAuth signup - create user document with additional data
+// Complete OAuth signup - create user document with additional data.
+// If the email is non-educational the user becomes a guest instead of being rejected.
 export const completeOAuthSignup = async (userId, email, name, additionalData = {}) => {
     try {
         // Verify we have an authenticated user
@@ -508,19 +509,21 @@ export const completeOAuthSignup = async (userId, email, name, additionalData = 
             throw new Error('User authentication mismatch');
         }
 
-        // Check if email is educational
-        if (!isEducationalEmail(email)) {
-            // Sign out the user since they can't use this app
-            await account.deleteSession({ sessionId: 'current' });
-            throw new Error('Only educational email addresses are allowed. Please use your university or college email.');
-        }
+        // Non-educational email → guest role (no rejection; no academic fields needed)
+        const resolvedRole = isEducationalEmail(email)
+            ? (additionalData.role || 'student')
+            : 'guest';
+
+        const resolvedData = resolvedRole === 'guest'
+            ? { ...additionalData, role: 'guest', university: '', college: '', department: '', stage: '' }
+            : additionalData;
 
         // Create user document
         const userDoc = await createUserDocument(
             userId,
             name,
             email,
-            additionalData
+            resolvedData
         );
 
         // Clear pending data
@@ -531,7 +534,91 @@ export const completeOAuthSignup = async (userId, email, name, additionalData = 
             userId: userId,
             email: email,
             name: name,
+            role: resolvedRole,
+            isGuest: resolvedRole === 'guest',
             userDoc: userDoc
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Simplified sign-up for guest users (any email — no edu check).
+ * Mirrors initiateSignup but skips the educational email gate.
+ */
+export const initiateGuestSignup = async (email, password, name, additionalData = {}) => {
+    try {
+        const sanitizedEmail = sanitizeInput(email).toLowerCase();
+        const sanitizedName = sanitizeInput(name);
+
+        if (!sanitizedEmail || !sanitizedName) {
+            throw new Error('Invalid input data');
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(sanitizedEmail)) {
+            throw new Error('Invalid email format');
+        }
+
+        // Explicitly reject edu emails here — they should use the student flow
+        if (isEducationalEmail(sanitizedEmail)) {
+            throw new Error('Educational email addresses should use the student sign-up flow.');
+        }
+
+        if (password.length < 8) {
+            throw new Error('Password must be at least 8 characters');
+        }
+
+        const userId = ID.unique();
+
+        try {
+            await account.create({
+                userId,
+                email: sanitizedEmail,
+                password,
+                name: sanitizedName,
+            });
+        } catch (createError) {
+            if (createError.message?.includes('already exists') ||
+                createError.message?.includes('user with the same email')) {
+                throw new Error('An account with this email already exists. Please sign in or use a different email.');
+            }
+            throw createError;
+        }
+
+        let tokenResponse;
+        try {
+            tokenResponse = await account.createEmailToken({
+                userId,
+                email: sanitizedEmail,
+            });
+        } catch (otpError) {
+            if (otpError.message?.includes('SMTP') || otpError.message?.includes('email')) {
+                throw new Error('Email service is temporarily unavailable. Please try again later.');
+            }
+            throw new Error('Failed to send verification code. Please try again.');
+        }
+
+        // Store pending data (same format as initiateSignup so VerifyEmail works unchanged)
+        const pendingData = {
+            userId,
+            email: sanitizedEmail,
+            name: sanitizedName,
+            additionalData: { ...additionalData, role: 'guest' },
+            timestamp: Date.now(),
+            expiresAt: Date.now() + VERIFICATION_TIMEOUT,
+            tokenId: tokenResponse?.$id || null,
+        };
+
+        await safeStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingData));
+
+        return {
+            success: true,
+            userId,
+            email: sanitizedEmail,
+            name: sanitizedName,
+            requiresVerification: true,
         };
     } catch (error) {
         throw error;
@@ -709,7 +796,10 @@ const createUserDocument = async (userId, name, email, additionalData = {}) => {
     try {
         const sanitizedName = sanitizeInput(name);
         const sanitizedEmail = sanitizeInput(email);
-        const sanitizedRole = sanitizeInput(additionalData.role || 'student') || 'student';
+        // Accept 'guest' as a valid role; default to 'student' for everything else
+        const rawRole = String(additionalData.role || 'student').trim().toLowerCase();
+        const sanitizedRole = ['guest', 'student', 'teacher'].includes(rawRole) ? rawRole : 'student';
+        const isGuestRole = sanitizedRole === 'guest';
 
         if (!sanitizedName || !sanitizedEmail) {
             throw new Error('Invalid user data');
@@ -720,12 +810,13 @@ const createUserDocument = async (userId, name, email, additionalData = {}) => {
             name: sanitizedName,
             email: sanitizedEmail,
             bio: '',
-            profilePicture: '',
+            profilePicture: sanitizeInput(additionalData.profilePicture || ''),
             isEmailVerified: true,
-            university: sanitizeInput(additionalData.university || ''),
-            major: sanitizeInput(additionalData.college || ''),
-            department: sanitizeInput(additionalData.department || ''),
-            year: parseInt(additionalData.stage) || 1,
+            // Guests have no academic affiliation — these fields are kept empty
+            university: isGuestRole ? '' : sanitizeInput(additionalData.university || ''),
+            major: isGuestRole ? '' : sanitizeInput(additionalData.college || ''),
+            department: isGuestRole ? '' : sanitizeInput(additionalData.department || ''),
+            year: isGuestRole ? 0 : (parseInt(additionalData.stage) || 1),
             followersCount: 0,
             followingCount: 0,
             postsCount: 0,

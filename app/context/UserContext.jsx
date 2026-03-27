@@ -17,6 +17,7 @@ export const UserProvider = ({ children }) => {
     if (roleValue === null || roleValue === undefined) return 'student';
     const text = String(roleValue).trim().toLowerCase();
     if (!text || text === 'null' || text === 'undefined') return 'student';
+    // 'guest' is an explicitly valid role — do not default it to 'student'
     return text;
   };
 

@@ -20,6 +20,8 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { GlassContainer, GlassIconButton, GlassInput } from '../components/GlassComponents';
+import TutorialHighlight from '../components/tutorial/TutorialHighlight';
+import ScreenTutorialCard from '../components/tutorial/ScreenTutorialCard';
 import { ChatListSkeleton } from '../components/SkeletonLoader';
 import ModalBackdrop from '../components/ModalBackdrop';
 import LectureWindowSelector from '../components/LectureWindowSelector';
@@ -44,6 +46,8 @@ import { wp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 import telemetry from '../utils/telemetry';
+import useScreenTutorial from '../hooks/useScreenTutorial';
+import { isGuest } from '../utils/guestUtils';
 
 const CHANNEL_FILTERS = {
   ALL: 'all',
@@ -348,6 +352,7 @@ const Lecture = ({ navigation }) => {
   const { user } = useUser();
   const { t } = useTranslation();
   const { contentStyle } = useLayout();
+  const isGuestUser = isGuest(user);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -371,6 +376,31 @@ const Lecture = ({ navigation }) => {
   const lastRealtimeReloadAtRef = useRef(0);
   const realtimeReloadTimeoutRef = useRef(null);
   const loadChannelsInFlightRef = useRef(false);
+
+  const tutorialSteps = useMemo(() => ([
+    {
+      target: 'search',
+      title: t('tutorial.lecture.searchTitle'),
+      description: t('tutorial.lecture.searchDescription'),
+    },
+    {
+      target: 'create',
+      title: t('tutorial.lecture.createTitle'),
+      description: t('tutorial.lecture.createDescription'),
+    },
+    {
+      target: 'window',
+      title: t('tutorial.lecture.windowTitle'),
+      description: t('tutorial.lecture.windowDescription'),
+    },
+    {
+      target: 'channels',
+      title: t('tutorial.lecture.channelsTitle'),
+      description: t('tutorial.lecture.channelsDescription'),
+    },
+  ]), [t]);
+
+  const tutorial = useScreenTutorial('lecture', tutorialSteps);
 
   const logLectureTab = useCallback((name, meta = {}) => {
     telemetry.recordEvent(`lecture_${name}`, meta);
@@ -879,23 +909,41 @@ const Lecture = ({ navigation }) => {
       <View style={[styles.header, isRTL && styles.rowReverse, { paddingTop: insets.top + spacing.sm, borderBottomColor: colors.border }]}> 
         <Text style={[styles.screenTitle, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.title')}</Text>
         <View style={[styles.headerActions, isRTL && styles.rowReverse]}>
-          <GlassIconButton
-            size={moderateScale(36)}
-            borderRadiusValue={moderateScale(12)}
-            activeOpacity={0.7}
-            onPress={() => setSearchVisible(prev => !prev)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <IoniconSvg name="search" size={moderateScale(18)} color={colors.primary} />
-          </GlassIconButton>
+          <TutorialHighlight
+            active={tutorial.activeTarget === 'search' && tutorial.isVisible}
+            theme={colors}
+            isDarkMode={isDarkMode}
+            style={styles.tutorialHeaderAction}
+            borderRadius={moderateScale(12)}
+          >
+            <GlassIconButton
+              size={moderateScale(36)}
+              borderRadiusValue={moderateScale(12)}
+              activeOpacity={0.7}
+              onPress={() => setSearchVisible(prev => !prev)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <IoniconSvg name="search" size={moderateScale(18)} color={colors.primary} />
+            </GlassIconButton>
+          </TutorialHighlight>
           
-          <GlassIconButton
-            size={moderateScale(36)}
-            borderRadiusValue={moderateScale(12)}
-            activeOpacity={0.7}
-            onPress={() => setCreateOpen(true)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <IoniconSvg name="add" size={moderateScale(20)} color={colors.primary} />
-          </GlassIconButton>
+          {!isGuestUser && (
+            <TutorialHighlight
+              active={tutorial.activeTarget === 'create' && tutorial.isVisible}
+              theme={colors}
+              isDarkMode={isDarkMode}
+              style={styles.tutorialHeaderAction}
+              borderRadius={moderateScale(12)}
+            >
+              <GlassIconButton
+                size={moderateScale(36)}
+                borderRadiusValue={moderateScale(12)}
+                activeOpacity={0.7}
+                onPress={() => setCreateOpen(true)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <IoniconSvg name="add" size={moderateScale(20)} color={colors.primary} />
+              </GlassIconButton>
+            </TutorialHighlight>
+          )}
         </View>
       </View>
 
@@ -922,12 +970,20 @@ const Lecture = ({ navigation }) => {
         </View>
       )}
 
-      <View style={styles.windowSwitcher}>
-        <LectureWindowSelector
-          selectedWindow={activeWindow}
-          onWindowChange={setActiveWindow}
-        />
-      </View>
+      {!isGuestUser && (
+        <TutorialHighlight
+          active={tutorial.activeTarget === 'window' && tutorial.isVisible}
+          theme={colors}
+          isDarkMode={isDarkMode}
+          style={styles.windowSwitcher}
+          borderRadius={borderRadius.lg}
+        >
+          <LectureWindowSelector
+            selectedWindow={activeWindow}
+            onWindowChange={setActiveWindow}
+          />
+        </TutorialHighlight>
+      )}
 
       {suggestedChannels.length > 0 && !searchVisible && (
         <View style={styles.suggestedWrap}>
@@ -973,51 +1029,61 @@ const Lecture = ({ navigation }) => {
         </View>
       )}
 
-      <FlashList
-        estimatedItemSize={130}
-        style={styles.list}
-        contentContainerStyle={[styles.listContent, { paddingBottom: spacing.xxl + insets.bottom }, contentStyle]}
-        data={listData}
-        keyExtractor={(item) => item.$id}
-        renderItem={renderChannelCard}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />}
-        ListEmptyComponent={
-          loading ? (
-            <View style={styles.loadingWrap}>
-              <ChatListSkeleton count={6} />
-            </View>
-          ) : (
-            <View style={styles.emptyWrap}>
-              <IoniconSvg
-                name={activeWindow === LECTURE_WINDOWS.OFFICIAL ? 'school-outline' : 'people-outline'}
-                size={48}
-                color={colors.textSecondary}
-                style={{ marginBottom: spacing.md }}
-              />
-              <Text style={[styles.emptyTitle, { color: colors.text }]}> 
-                {activeWindow === LECTURE_WINDOWS.OFFICIAL ? t('lectures.emptyOfficialTitle') : t('lectures.emptyCommunityTitle')}
-              </Text>
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}> 
-                {activeWindow === LECTURE_WINDOWS.OFFICIAL ? t('lectures.emptyOfficialChannels') : t('lectures.emptyCommunityChannels')}
-              </Text>
-              <TouchableOpacity
-                style={[styles.emptyCreateBtn, { backgroundColor: colors.primary }]}
-                onPress={() => setCreateOpen(true)}>
-                <IoniconSvg name="add" size={16} color={colors.buttonText || '#FFFFFF'} />
-                <Text style={[styles.emptyCreateBtnText, { color: colors.buttonText || '#FFFFFF' }]}>{t('lectures.createChannel')}</Text>
-              </TouchableOpacity>
-              {loadChannelsFailed && (
-                <TouchableOpacity
-                  style={[styles.emptyRetryBtn, { borderColor: colors.border, backgroundColor: colors.inputBackground || 'transparent' }]}
-                  onPress={() => loadChannels({ showLoading: true, searchValue: search })}>
-                  <IoniconSvg name="refresh" size={14} color={colors.text} />
-                  <Text style={[styles.emptyRetryBtnText, isRTL && styles.directionalText, { color: colors.text }]}>{t('common.retry')}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )
-        }
-      />
+      <TutorialHighlight
+        active={tutorial.activeTarget === 'channels' && tutorial.isVisible}
+        theme={colors}
+        isDarkMode={isDarkMode}
+        style={styles.tutorialListHighlight}
+        borderRadius={borderRadius.lg}
+      >
+        <FlashList
+          estimatedItemSize={130}
+          style={styles.list}
+          contentContainerStyle={[styles.listContent, { paddingBottom: spacing.xxl + insets.bottom }, contentStyle]}
+          data={listData}
+          keyExtractor={(item) => item.$id}
+          renderItem={renderChannelCard}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />}
+          ListEmptyComponent={
+            loading ? (
+              <View style={styles.loadingWrap}>
+                <ChatListSkeleton count={6} />
+              </View>
+            ) : (
+              <View style={styles.emptyWrap}>
+                <IoniconSvg
+                  name={activeWindow === LECTURE_WINDOWS.OFFICIAL ? 'school-outline' : 'people-outline'}
+                  size={48}
+                  color={colors.textSecondary}
+                  style={{ marginBottom: spacing.md }}
+                />
+                <Text style={[styles.emptyTitle, { color: colors.text }]}> 
+                  {activeWindow === LECTURE_WINDOWS.OFFICIAL ? t('lectures.emptyOfficialTitle') : t('lectures.emptyCommunityTitle')}
+                </Text>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}> 
+                  {activeWindow === LECTURE_WINDOWS.OFFICIAL ? t('lectures.emptyOfficialChannels') : t('lectures.emptyCommunityChannels')}
+                </Text>
+                {!isGuestUser && (
+                  <TouchableOpacity
+                    style={[styles.emptyCreateBtn, { backgroundColor: colors.primary }]}
+                    onPress={() => setCreateOpen(true)}>
+                    <IoniconSvg name="add" size={16} color={colors.buttonText || '#FFFFFF'} />
+                    <Text style={[styles.emptyCreateBtnText, { color: colors.buttonText || '#FFFFFF' }]}>{t('lectures.createChannel')}</Text>
+                  </TouchableOpacity>
+                )}
+                {loadChannelsFailed && (
+                  <TouchableOpacity
+                    style={[styles.emptyRetryBtn, { borderColor: colors.border, backgroundColor: colors.inputBackground || 'transparent' }]}
+                    onPress={() => loadChannels({ showLoading: true, searchValue: search })}>
+                    <IoniconSvg name="refresh" size={14} color={colors.text} />
+                    <Text style={[styles.emptyRetryBtnText, isRTL && styles.directionalText, { color: colors.text }]}>{t('common.retry')}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )
+          }
+        />
+      </TutorialHighlight>
 
       <CreateChannelModal
         visible={createOpen}
@@ -1130,6 +1196,19 @@ const Lecture = ({ navigation }) => {
           </GlassContainer>
         </ModalBackdrop>
       </Modal>
+
+      <ScreenTutorialCard
+        visible={tutorial.isVisible}
+        theme={colors}
+        isRTL={isRTL}
+        t={t}
+        step={tutorial.currentStep}
+        stepIndex={tutorial.currentIndex}
+        totalSteps={tutorial.totalSteps}
+        onPrev={tutorial.prevStep}
+        onNext={tutorial.nextStep}
+        onSkip={tutorial.skipTutorial}
+      />
       </LinearGradient>
     </View>
   );
@@ -1158,6 +1237,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  tutorialHeaderAction: {
+    borderRadius: moderateScale(12),
   },
   rowReverse: {
     flexDirection: 'row-reverse',
@@ -1258,6 +1340,11 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
+  },
+  tutorialListHighlight: {
+    flex: 1,
+    marginHorizontal: spacing.sm,
+    marginBottom: spacing.sm,
   },
   listContent: {
     paddingHorizontal: wp(4),
