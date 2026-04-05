@@ -8,7 +8,8 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "NODE_ENV": "development"
+        "NODE_ENV": "development",
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
       }
     },
     "development-hermesv1-strict": {
@@ -17,7 +18,8 @@
       "env": {
         "NODE_ENV": "development",
         "EXPO_ENABLE_HERMES_V1_ANDROID": "1",
-        "EXPO_HERMES_V1_STRICT": "1"
+        "EXPO_HERMES_V1_STRICT": "1",
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
       },
       "android": {
         "buildType": "apk"
@@ -26,7 +28,8 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
       },
       "android": {
         "buildType": "apk"
@@ -37,7 +40,8 @@
       "autoIncrement": true,
       "env": {
         "NODE_ENV": "production",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
       },
       "android": {
         "buildType": "app-bundle"
@@ -46,6 +50,9 @@
     "development-simulator": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
+      },
       "ios": {
         "simulator": true
       },

@@ -1,6 +1,6 @@
 {
   "name": "college-community",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "index.js",
   "scripts": {
     "start": "expo start --dev-client",
@@ -80,7 +80,6 @@
     "i18next": "^25.5.2",
     "i18next-resources-to-backend": "^1.2.1",
     "ionicons": "^7.4.0",
-    "jest-expo": "~55.0.11",
     "nsfwjs": "^4.3.0",
     "react": "19.2.0",
     "react-i18next": "^16.2.4",
@@ -118,7 +117,8 @@
     "glob": "^13.0.0",
     "tar": "^7.5.9",
     "rimraf": "^5.0.10",
-    "@xmldom/xmldom": "^0.8.11",
+    "@xmldom/xmldom": "0.8.12",
+    "lodash": "4.18.1",
     "hermes-compiler": "0.14.1",
     "minimatch": "^10.2.4",
     "@tootallnate/once": "^3.0.1"
