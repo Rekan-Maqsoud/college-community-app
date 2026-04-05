@@ -258,4 +258,60 @@ describe('canUserSendMessage – block checks for private chats', () => {
     const result = await canUserSendMessage('chat-1', 'user-a');
     expect(result).toBe(true);
   });
+
+  it('returns false for guest sender when not mutual friends with student', async () => {
+    _docs._currentUserId = 'user-a';
+    _docs['chat-1'] = {
+      $id: 'chat-1',
+      type: 'private',
+      participants: ['user-a', 'user-b'],
+    };
+    _docs['user-a'] = {
+      $id: 'user-a',
+      role: 'guest',
+      following: [],
+      followers: [],
+      blockedUsers: [],
+      chatBlockedUsers: [],
+    };
+    _docs['user-b'] = {
+      $id: 'user-b',
+      role: 'student',
+      following: [],
+      followers: [],
+      blockedUsers: [],
+      chatBlockedUsers: [],
+    };
+
+    const result = await canUserSendMessage('chat-1', 'user-a');
+    expect(result).toBe(false);
+  });
+
+  it('returns true for guest sender when mutually following student', async () => {
+    _docs._currentUserId = 'user-a';
+    _docs['chat-1'] = {
+      $id: 'chat-1',
+      type: 'private',
+      participants: ['user-a', 'user-b'],
+    };
+    _docs['user-a'] = {
+      $id: 'user-a',
+      role: 'guest',
+      following: ['user-b'],
+      followers: ['user-b'],
+      blockedUsers: [],
+      chatBlockedUsers: [],
+    };
+    _docs['user-b'] = {
+      $id: 'user-b',
+      role: 'student',
+      following: ['user-a'],
+      followers: ['user-a'],
+      blockedUsers: [],
+      chatBlockedUsers: [],
+    };
+
+    const result = await canUserSendMessage('chat-1', 'user-a');
+    expect(result).toBe(true);
+  });
 });

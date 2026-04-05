@@ -79,6 +79,12 @@ jest.mock('expo-web-browser', () => ({
   openAuthSessionAsync: jest.fn(),
 }));
 
+jest.mock('expo-secure-store', () => ({
+  setItemAsync: jest.fn().mockResolvedValue(),
+  getItemAsync: jest.fn().mockResolvedValue(null),
+  deleteItemAsync: jest.fn().mockResolvedValue(),
+}));
+
 jest.mock('expo-linking', () => ({
   createURL: jest.fn(() => 'exp://test'),
 }));
@@ -91,7 +97,9 @@ jest.mock('../services/pushNotificationService', () => ({
 jest.mock('../app/utils/cacheManager', () => ({
   userCacheManager: {
     getCachedUser: jest.fn().mockResolvedValue(null),
+    getCachedUserData: jest.fn().mockResolvedValue(null),
     cacheUser: jest.fn(),
+    cacheUserData: jest.fn(),
     invalidateUser: jest.fn(),
   },
 }));
@@ -148,5 +156,32 @@ describe('Auth OTP edge cases', () => {
     mockStore[PENDING_VERIFICATION_KEY] = JSON.stringify(pending);
 
     await expect(verifyOTPCode('123456')).rejects.toThrow('Too many verification attempts');
+  });
+
+  it('creates guest user document with schema-safe year during verification', async () => {
+    const pending = {
+      userId: 'guest-user-1',
+      name: 'Guest User',
+      email: 'guest@example.com',
+      additionalData: { role: 'guest', stage: '' },
+      expiresAt: Date.now() + 600_000,
+    };
+    mockStore[PENDING_VERIFICATION_KEY] = JSON.stringify(pending);
+
+    const { databases } = require('../database/config');
+    mockCreateSession.mockResolvedValue({ $id: 'session-1' });
+    databases.getDocument.mockRejectedValueOnce(new Error('missing user doc'));
+    databases.createDocument.mockResolvedValueOnce({ $id: 'guest-user-1', year: 1 });
+
+    await expect(verifyOTPCode('123456')).resolves.toBe(true);
+
+    expect(databases.createDocument).toHaveBeenCalledTimes(1);
+    expect(mockCreateSession).toHaveBeenCalledWith({
+      userId: 'guest-user-1',
+      secret: '123456',
+    });
+    const createRequest = databases.createDocument.mock.calls[0][0];
+    expect(createRequest.data.role).toBe('guest');
+    expect(createRequest.data.year).toBe(1);
   });
 });

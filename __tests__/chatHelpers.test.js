@@ -143,3 +143,149 @@ describe('initializeUserGroups', () => {
     expect(maxActiveCount).toBe(4);
   });
 });
+
+describe('createPrivateChat guest restrictions', () => {
+  const { databases } = require('../database/config');
+  const chatsModule = require('../database/chats');
+  const usersModule = require('../database/users');
+  const { createPrivateChat } = require('../database/chatHelpers');
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    databases.listDocuments.mockResolvedValue({ documents: [] });
+    chatsModule.createChat.mockResolvedValue({ $id: 'chat-new' });
+  });
+
+  it('blocks guest chat creation when users are not mutual friends', async () => {
+    usersModule.getUserById
+      .mockResolvedValueOnce({
+        $id: 'guest-1',
+        role: 'guest',
+        name: 'Guest One',
+        following: [],
+        followers: [],
+      })
+      .mockResolvedValueOnce({
+        $id: 'student-1',
+        role: 'student',
+        name: 'Student One',
+        following: [],
+        followers: [],
+      });
+
+    await expect(
+      createPrivateChat(
+        { $id: 'guest-1', name: 'Guest One' },
+        { $id: 'student-1', name: 'Student One' }
+      )
+    ).rejects.toMatchObject({ code: 'GUEST_CHAT_RESTRICTED' });
+
+    expect(chatsModule.createChat).not.toHaveBeenCalled();
+  });
+
+  it('blocks guest chat creation when only one user follows back', async () => {
+    usersModule.getUserById
+      .mockResolvedValueOnce({
+        $id: 'guest-1',
+        role: 'guest',
+        name: 'Guest One',
+        following: ['student-1'],
+        followers: [],
+      })
+      .mockResolvedValueOnce({
+        $id: 'student-1',
+        role: 'student',
+        name: 'Student One',
+        following: [],
+        followers: ['guest-1'],
+      });
+
+    await expect(
+      createPrivateChat(
+        { $id: 'guest-1', name: 'Guest One' },
+        { $id: 'student-1', name: 'Student One' }
+      )
+    ).rejects.toMatchObject({ code: 'GUEST_CHAT_RESTRICTED' });
+
+    expect(chatsModule.createChat).not.toHaveBeenCalled();
+  });
+
+  it('allows guest chat creation when both users are mutual friends', async () => {
+    usersModule.getUserById
+      .mockResolvedValueOnce({
+        $id: 'guest-1',
+        role: 'guest',
+        name: 'Guest One',
+        following: ['student-1'],
+        followers: ['student-1'],
+      })
+      .mockResolvedValueOnce({
+        $id: 'student-1',
+        role: 'student',
+        name: 'Student One',
+        following: ['guest-1'],
+        followers: ['guest-1'],
+      });
+
+    const result = await createPrivateChat(
+      { $id: 'guest-1', name: 'Guest One' },
+      { $id: 'student-1', name: 'Student One' }
+    );
+
+    expect(chatsModule.createChat).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ $id: 'chat-new' });
+  });
+});
+
+describe('createCustomGroup guest restrictions', () => {
+  const chatsModule = require('../database/chats');
+  const usersModule = require('../database/users');
+  const { createCustomGroup } = require('../database/chatHelpers');
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    chatsModule.createChat.mockResolvedValue({ $id: 'group-new' });
+  });
+
+  it('blocks group creation for guest creators', async () => {
+    usersModule.getUserById.mockResolvedValueOnce({
+      $id: 'guest-1',
+      role: 'guest',
+      name: 'Guest One',
+      following: [],
+      followers: [],
+    });
+
+    await expect(
+      createCustomGroup({ name: 'Study Team', members: ['student-1'] }, 'guest-1')
+    ).rejects.toMatchObject({ code: 'GUEST_GROUP_CHAT_RESTRICTED' });
+
+    expect(chatsModule.createChat).not.toHaveBeenCalled();
+  });
+
+  it('creates group for non-guest creators and ensures creator is a participant', async () => {
+    usersModule.getUserById.mockResolvedValueOnce({
+      $id: 'student-1',
+      role: 'student',
+      name: 'Student One',
+      following: [],
+      followers: [],
+    });
+
+    const result = await createCustomGroup(
+      {
+        name: 'Project Team',
+        members: ['student-2'],
+      },
+      'student-1'
+    );
+
+    expect(chatsModule.createChat).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Project Team',
+      participants: expect.arrayContaining(['student-1', 'student-2']),
+      representatives: ['student-1'],
+      admins: ['student-1'],
+    }));
+    expect(result).toMatchObject({ $id: 'group-new' });
+  });
+});

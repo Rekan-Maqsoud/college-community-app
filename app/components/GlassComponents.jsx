@@ -1,8 +1,11 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 import { useAppSettingsSafe } from '../context/AppSettingsContext';
+import { isLiquidGlassEnabled } from '../utils/glassSupport';
+
+const supportsLiquidGlass = isLiquidGlassEnabled;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -78,7 +81,7 @@ export const GlassContainer = ({
   const context = useAppSettingsSafe();
   const isDarkMode = context?.isDarkMode || false;
 
-  if (!isLiquidGlassSupported) {
+  if (!supportsLiquidGlass) {
     return (
       <FallbackGlassView
         style={style}
@@ -116,7 +119,7 @@ export const GlassCard = ({
   const context = useAppSettingsSafe();
   const isDarkMode = context?.isDarkMode || false;
 
-  if (!isLiquidGlassSupported) {
+  if (!supportsLiquidGlass) {
     return (
       <FallbackGlassView
         style={[{ padding }, style]}
@@ -166,7 +169,7 @@ export const GlassInput = ({
     borderColor,
   };
 
-  if (!isLiquidGlassSupported) {
+  if (!supportsLiquidGlass) {
     return (
       <FallbackGlassView style={[inputStyle, style]} borderRadius={borderRadius} isDarkMode={isDarkMode}>
         {children}
@@ -230,7 +233,7 @@ export const GlassButton = ({
   }
 
   // Secondary: glass style
-  if (!isLiquidGlassSupported) {
+  if (!supportsLiquidGlass) {
     return (
       <FallbackGlassView style={[{ borderRadius }, style]} borderRadius={borderRadius} isDarkMode={isDarkMode}>
         {children}
@@ -288,7 +291,7 @@ export const GlassIconButton = ({
       : `${accentColor}1A`
     : 'transparent';
 
-  const glassNode = !isLiquidGlassSupported ? (
+  const glassNode = !supportsLiquidGlass ? (
     <FallbackGlassView
       style={[baseStyle, style]}
       borderRadius={radius}
@@ -355,7 +358,7 @@ export const GlassPill = ({
     alignItems: 'center',
   };
 
-  if (!isLiquidGlassSupported) {
+  if (!supportsLiquidGlass) {
     return (
       <FallbackGlassView
         style={[baseStyle, style]}
@@ -399,7 +402,7 @@ export const GlassModalCard = ({
   const context = useAppSettingsSafe();
   const isDarkMode = context?.isDarkMode || false;
 
-  if (!isLiquidGlassSupported) {
+  if (!supportsLiquidGlass) {
     return (
       <FallbackGlassView
         style={style}

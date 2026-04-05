@@ -16,6 +16,8 @@ export default {
     "fullName": "Full Name",
     "guestSignUpTitle": "Guest Sign Up",
     "guestSignUpSubtitle": "Join to view public discussions",
+    "notAStudent": "Not a student?",
+    "signUpAsGuest": "Sign up as guest",
     "age": "Age",
     "selectUniversity": "Select University",
     "selectCollege": "Select College",

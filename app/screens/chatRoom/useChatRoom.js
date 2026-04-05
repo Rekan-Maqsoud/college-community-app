@@ -38,6 +38,7 @@ import { useChatMessages } from '../../hooks/useRealtimeSubscription';
 import { normalizeRealtimeMessage } from '../../utils/realtimeHelpers';
 import { messagesCacheManager } from '../../utils/cacheManager';
 import telemetry from '../../utils/telemetry';
+import { canGuestInitiateChat, isGuest } from '../../utils/guestUtils';
 
 const INITIAL_CHAT_MESSAGES_LIMIT = 100;
 const MESSAGES_CACHE_LIMIT = 100;
@@ -80,6 +81,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
   const [selectedMessageIds, setSelectedMessageIds] = useState([]);
   const [isBlockedByOtherUser, setIsBlockedByOtherUser] = useState(false);
   const [isChatBlockedByOtherUser, setIsChatBlockedByOtherUser] = useState(false);
+  const [isGuestFriendRestricted, setIsGuestFriendRestricted] = useState(false);
   const [reactionDefaults, setReactionDefaultsState] = useState(DEFAULT_REACTION_SET);
   const [chatViewportState, setChatViewportState] = useState(null);
   
@@ -391,6 +393,40 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     }
   }, [chat?.$id, user?.$id]);
 
+  const checkGuestFriendRestriction = useCallback(async () => {
+    if (chat.type !== 'private' || !user?.$id) {
+      setIsGuestFriendRestricted(false);
+      return;
+    }
+
+    const otherUserId = chat.otherUser?.$id
+      || chat.otherUser?.id
+      || chat.participants?.find(id => id !== user?.$id);
+
+    if (!otherUserId) {
+      setIsGuestFriendRestricted(false);
+      return;
+    }
+
+    try {
+      const [currentUserDoc, otherUserDoc] = await Promise.all([
+        getUserById(user.$id, true),
+        getUserById(otherUserId, true),
+      ]);
+
+      const restricted = isGuest(currentUserDoc)
+        && !isGuest(otherUserDoc)
+        && !canGuestInitiateChat(currentUserDoc, otherUserDoc);
+
+      setIsGuestFriendRestricted(restricted);
+      if (restricted) {
+        setCanSend(false);
+      }
+    } catch {
+      setIsGuestFriendRestricted(false);
+    }
+  }, [chat.otherUser?.$id, chat.otherUser?.id, chat.participants, chat.type, user?.$id]);
+
   const loadMessages = useCallback(async (options = {}) => {
     const { allowNetwork = true } = options;
     const messagesTrace = telemetry.startTrace('chatroom_load_messages', {
@@ -627,6 +663,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
 
     loadMessages({ allowNetwork: true });
     checkPermissions();
+    checkGuestFriendRestriction();
     checkIfBlockedByOther();
     loadMembersAndFriends();
     loadChatSettings();
@@ -634,7 +671,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     return () => {
       isMountedRef.current = false;
     };
-  }, [chat?.$id, checkIfBlockedByOther, checkPermissions, loadChatSettings, loadMembersAndFriends, loadMessages, user?.$id]);
+  }, [chat?.$id, checkGuestFriendRestriction, checkIfBlockedByOther, checkPermissions, loadChatSettings, loadMembersAndFriends, loadMessages, user?.$id]);
 
   useEffect(() => {
     setMessages(prev => getVisibleMessages(prev));
@@ -818,7 +855,10 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
 
   const handleSendMessage = async (content, imageUrl = null, messageType = null, messageMetadata = null) => {
     if (!canSend) {
-      triggerAlert(t('chats.noPermission'), t('chats.representativeOnlyMessage'), 'warning');
+      const noPermissionMessage = isGuestFriendRestricted && chat.type === 'private'
+        ? t('chats.guestFriendsRequiredBanner')
+        : t('chats.representativeOnlyMessage');
+      triggerAlert(t('chats.noPermission'), noPermissionMessage, 'warning');
       return;
     }
 
@@ -1226,6 +1266,7 @@ export const useChatRoom = ({ chat: frozenChat, user, t, navigation, showAlert, 
     hiddenMessageIds,
     isBlockedByOtherUser,
     isChatBlockedByOtherUser,
+    isGuestFriendRestricted,
     reactionDefaults,
     chatViewportState,
     

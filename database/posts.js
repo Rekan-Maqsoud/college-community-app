@@ -6,6 +6,12 @@ import { parsePollPayload, applyPollVote } from '../app/utils/pollUtils';
 import { getUserById } from './users';
 import { notifyDepartmentPost, notifyPostHiddenByReports, notifyPostLike } from './notifications';
 import { enforceRateLimit } from './securityGuards';
+import {
+    buildUpdatedGuestPostTracking,
+    GUEST_POST_RATE_LIMIT,
+    hasGuestPostedToday,
+    isGuest,
+} from '../app/utils/guestUtils';
 
 const REPORT_HIDE_THRESHOLD = 5;
 const REPORT_HIDE_MAX_VIEWS = 20;
@@ -124,32 +130,21 @@ export const createPost = async (postData) => {
         const currentUserId = await getAuthenticatedUserId();
         documentData.userId = currentUserId;
 
-        let isGuestUser = documentData.isGuestPost || false;
-        if (isGuestUser) {
-            const userDoc = await getUserById(currentUserId);
-            let profileViews = {};
-            try {
-                profileViews = typeof userDoc.profileViews === 'string' 
-                    ? JSON.parse(userDoc.profileViews) 
-                    : (userDoc.profileViews || {});
-            } catch (e) {
-                profileViews = {};
-            }
-            
-            const today = new Date().toISOString().split('T')[0];
-            
-            if (profileViews.guestLastPostDate === today && (profileViews.guestPostCountToday || 0) >= 1) {
+        const userDoc = await getUserById(currentUserId, true);
+        const isGuestUser = isGuest(userDoc);
+        documentData.isGuestPost = isGuestUser;
+
+        if (isGuestUser && hasGuestPostedToday(userDoc?.profileViews)) {
                 const limitError = new Error('Guest users are limited to 1 post per day. Please come back tomorrow!');
                 limitError.code = 'GUEST_LIMIT_REACHED';
                 throw limitError;
-            }
         }
 
         enforceRateLimit({
             action: 'create_post',
             userId: currentUserId,
-            maxActions: 4,
-            windowMs: 60 * 1000,
+            maxActions: isGuestUser ? GUEST_POST_RATE_LIMIT.maxActions : 4,
+            windowMs: isGuestUser ? GUEST_POST_RATE_LIMIT.windowMs : (60 * 1000),
         });
 
         const createPayload = {
@@ -185,19 +180,11 @@ export const createPost = async (postData) => {
         // Increment guest post count
         if (isGuestUser) {
             try {
-                const userDoc = await getUserById(currentUserId);
-                let profileViews = typeof userDoc.profileViews === 'string' 
-                    ? JSON.parse(userDoc.profileViews) 
-                    : (userDoc.profileViews || {});
-                
-                profileViews.guestLastPostDate = new Date().toISOString().split('T')[0];
-                profileViews.guestPostCountToday = (profileViews.guestPostCountToday || 0) + 1;
-                
                 await databases.updateDocument({
                     databaseId: config.databaseId,
                     collectionId: config.usersCollectionId,
                     documentId: currentUserId,
-                    data: { profileViews: JSON.stringify(profileViews) },
+                    data: { profileViews: buildUpdatedGuestPostTracking(userDoc?.profileViews) },
                 });
             } catch (e) {
                 console.warn('[posts.js] Failed to update guest post limit tracking', e);

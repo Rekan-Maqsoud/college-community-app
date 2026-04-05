@@ -20,6 +20,7 @@ import CustomAlert from '../../components/CustomAlert';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { searchUsers, getFriends } from '../../../database/users';
 import { createPrivateChat } from '../../../database/chatHelpers';
+import { canGuestDiscoverChatUser } from '../../utils/guestUtils';
 import { 
   hp, 
   fontSize, 
@@ -49,7 +50,9 @@ const UserSearch = ({ navigation }) => {
 
     try {
       const userFriends = await getFriends(currentUser.$id);
-      const filteredFriends = userFriends.filter(u => u.$id !== currentUser.$id);
+      const filteredFriends = userFriends.filter((candidate) => (
+        candidate.$id !== currentUser.$id && canGuestDiscoverChatUser(currentUser, candidate)
+      ));
       setFriends(filteredFriends);
     } catch (error) {
       setFriends([]);
@@ -76,7 +79,9 @@ const UserSearch = ({ navigation }) => {
 
     try {
       const results = await searchUsers(query, 20);
-      const filteredResults = results.filter(u => u.$id !== currentUser?.$id);
+      const filteredResults = results.filter((candidate) => (
+        candidate.$id !== currentUser?.$id && canGuestDiscoverChatUser(currentUser, candidate)
+      ));
       setUsers(filteredResults);
     } catch (error) {
       setUsers([]);
@@ -100,12 +105,21 @@ const UserSearch = ({ navigation }) => {
   const handleUserPress = async (selectedUser) => {
     if (!currentUser || startingChat) return;
 
+    if (!canGuestDiscoverChatUser(currentUser, selectedUser)) {
+      showAlert({
+        type: 'info',
+        title: t('common.info'),
+        message: t('common.guestChatRestricted'),
+      });
+      return;
+    }
+
     setStartingChat(selectedUser.$id);
 
     try {
       const chat = await createPrivateChat(
-        { $id: currentUser.$id, name: currentUser.fullName },
-        { $id: selectedUser.$id, name: selectedUser.name }
+        { ...currentUser, name: currentUser.fullName || currentUser.name },
+        { ...selectedUser, $id: selectedUser.$id, name: selectedUser.name || selectedUser.fullName }
       );
 
       if (chat) {
@@ -120,7 +134,10 @@ const UserSearch = ({ navigation }) => {
         setStartingChat(null);
       }
     } catch (error) {
-      showAlert({ type: 'error', title: t('common.error'), message: error.message || t('chats.errorCreatingChat') });
+      const message = error?.code === 'GUEST_CHAT_RESTRICTED'
+        ? t('common.guestChatRestricted')
+        : (error?.message || t('chats.errorCreatingChat'));
+      showAlert({ type: 'error', title: t('common.error'), message });
       setStartingChat(null);
     }
   };

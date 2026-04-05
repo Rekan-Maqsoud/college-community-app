@@ -13,7 +13,6 @@ import {
   Alert,
   Animated,
 } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
 import { useIsFocused } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -135,30 +134,42 @@ const Chats = ({ navigation }) => {
   const filterIndicatorAnim = useRef(new Animated.Value(0)).current;
   const hasMeasuredFilterContainerRef = useRef(false);
 
-  const tutorialSteps = useMemo(() => ([
-    {
-      target: 'newChat',
-      title: t('tutorial.chats.newChatTitle'),
-      description: t('tutorial.chats.newChatDescription'),
-    },
-    {
-      target: 'createGroup',
-      title: t('tutorial.chats.groupTitle'),
-      description: t('tutorial.chats.groupDescription'),
-    },
-    {
-      target: 'filters',
-      title: t('tutorial.chats.filterTitle'),
-      description: t('tutorial.chats.filterDescription'),
-    },
-    {
-      target: 'chatList',
-      title: t('tutorial.chats.listTitle'),
-      description: t('tutorial.chats.listDescription'),
-    },
-  ]), [t]);
+  const tutorialSteps = useMemo(() => {
+    const commonSteps = [
+      {
+        target: 'newChat',
+        title: t('tutorial.chats.newChatTitle'),
+        description: t('tutorial.chats.newChatDescription'),
+      },
+      {
+        target: 'filters',
+        title: t('tutorial.chats.filterTitle'),
+        description: t('tutorial.chats.filterDescription'),
+      },
+      {
+        target: 'chatList',
+        title: t('tutorial.chats.listTitle'),
+        description: t('tutorial.chats.listDescription'),
+      },
+    ];
 
-  const tutorial = useScreenTutorial('chats', tutorialSteps);
+    if (isGuestUser) {
+      return commonSteps;
+    }
+
+    return [
+      commonSteps[0],
+      {
+        target: 'createGroup',
+        title: t('tutorial.chats.groupTitle'),
+        description: t('tutorial.chats.groupDescription'),
+      },
+      commonSteps[1],
+      commonSteps[2],
+    ];
+  }, [isGuestUser, t]);
+
+  const tutorial = useScreenTutorial(isGuestUser ? 'chats_guest' : 'chats', tutorialSteps);
 
   useEffect(() => {
     defaultGroupsRef.current = defaultGroups;
@@ -249,7 +260,8 @@ const Chats = ({ navigation }) => {
   }, []);
 
   const sortChatsByActivity = useCallback((chats = []) => {
-    return [...chats].sort((a, b) => {
+    const safeChats = (Array.isArray(chats) ? chats : []).filter((chat) => chat && typeof chat === 'object');
+    return safeChats.sort((a, b) => {
       const dateA = new Date(a.lastMessageAt || a.$createdAt || 0);
       const dateB = new Date(b.lastMessageAt || b.$createdAt || 0);
       return dateB - dateA;
@@ -579,8 +591,12 @@ const Chats = ({ navigation }) => {
   }, [user?.$id]);
 
   const applyChatBuckets = useCallback((chatsPayload) => {
-    const normalizedDefaultGroups = Array.isArray(chatsPayload?.defaultGroups) ? chatsPayload.defaultGroups : [];
-    const normalizedCustomGroups = Array.isArray(chatsPayload?.customGroups) ? chatsPayload.customGroups : [];
+    const normalizedDefaultGroups = isGuestUser
+      ? []
+      : (Array.isArray(chatsPayload?.defaultGroups) ? chatsPayload.defaultGroups : []);
+    const normalizedCustomGroups = isGuestUser
+      ? []
+      : (Array.isArray(chatsPayload?.customGroups) ? chatsPayload.customGroups : []);
     const normalizedPrivateChats = Array.isArray(chatsPayload?.privateChats) ? chatsPayload.privateChats : [];
 
     setDefaultGroups(normalizedDefaultGroups);
@@ -590,6 +606,7 @@ const Chats = ({ navigation }) => {
     const chatBlockedUsers = user?.chatBlockedUsers || [];
     const blockedSet = new Set([...blockedUsers, ...chatBlockedUsers]);
     const filteredPrivateChats = normalizedPrivateChats.filter(c => {
+      if (!c || typeof c !== 'object') return false;
       if (isChatRemovedByUser(c, user?.$id)) return false;
       if (blockedSet.size > 0) {
         const otherUserId = c.otherUser?.$id || c.otherUser?.id || c.participants?.find(id => id !== user?.$id);
@@ -600,12 +617,14 @@ const Chats = ({ navigation }) => {
 
     setPrivateChats(filteredPrivateChats);
 
-    return [
-      ...normalizedDefaultGroups,
-      ...normalizedCustomGroups,
-      ...filteredPrivateChats,
-    ];
-  }, [user?.$id, user?.blockedUsers, user?.chatBlockedUsers]);
+    return isGuestUser
+      ? [...filteredPrivateChats]
+      : [
+          ...normalizedDefaultGroups,
+          ...normalizedCustomGroups,
+          ...filteredPrivateChats,
+        ];
+  }, [isGuestUser, user?.$id, user?.blockedUsers, user?.chatBlockedUsers]);
 
   const loadChats = useCallback(async (options = {}) => {
     const {
@@ -1050,10 +1069,11 @@ const Chats = ({ navigation }) => {
     const blockedSet = new Set([...(user?.blockedUsers || []), ...(user?.chatBlockedUsers || [])]);
     const visiblePrivateChats = blockedSet.size > 0
       ? privateChats.filter(c => {
-          const otherUserId = c.participants?.find(id => id !== user?.$id);
+          if (!c || typeof c !== 'object') return false;
+          const otherUserId = c.otherUser?.$id || c.otherUser?.id || c?.participants?.find(id => id !== user?.$id);
           return !blockedSet.has(otherUserId);
         })
-      : privateChats;
+      : privateChats.filter((c) => c && typeof c === 'object');
 
     const activeDefaultGroups = defaultGroups.filter((chat) => !isArchived(chat));
     const activeCustomGroups = customGroups.filter((chat) => !isArchived(chat));
@@ -1079,7 +1099,7 @@ const Chats = ({ navigation }) => {
       return sections;
     }
 
-    if (shouldIncludeByFilter('class') && activeDefaultGroups.length > 0) {
+    if (!isGuestUser && shouldIncludeByFilter('class') && activeDefaultGroups.length > 0) {
       sections.push({
         key: 'class',
         title: t('chats.classLabel'),
@@ -1089,7 +1109,7 @@ const Chats = ({ navigation }) => {
       });
     }
 
-    if (shouldIncludeByFilter('groups') && activeCustomGroups.length > 0) {
+    if (!isGuestUser && shouldIncludeByFilter('groups') && activeCustomGroups.length > 0) {
       sections.push({
         key: 'groups',
         title: t('chats.groupsLabel'),
@@ -1229,6 +1249,7 @@ const Chats = ({ navigation }) => {
 
   const filterOptions = isGuestUser ? [
     { key: 'all', label: t('chats.filterAll') },
+    { key: 'direct', label: t('chats.filterDirect') },
   ] : [
     { key: 'all', label: t('chats.filterAll') },
     { key: 'class', label: t('chats.filterClass') },
@@ -1242,6 +1263,13 @@ const Chats = ({ navigation }) => {
     ? (filterOptions.length - 1 - selectedFilterIndex)
     : selectedFilterIndex;
   const filterTabWidth = filterContainerWidth > 0 ? (filterContainerWidth / filterOptions.length) : 0;
+
+  useEffect(() => {
+    const isAllowed = filterOptions.some((option) => option.key === activeFilter);
+    if (!isAllowed) {
+      setActiveFilter('all');
+    }
+  }, [activeFilter, filterOptions]);
 
   useEffect(() => {
     if (filterContainerWidth <= 0) {
@@ -1264,10 +1292,7 @@ const Chats = ({ navigation }) => {
     animation.start();
   }, [filterContainerWidth, filterIndicatorAnim, selectedVisualFilterIndex]);
 
-  const filterTranslateX = filterIndicatorAnim.interpolate({
-    inputRange: [0, 1, 2, 3],
-    outputRange: [0, filterTabWidth, filterTabWidth * 2, filterTabWidth * 3],
-  });
+  const filterTranslateX = Animated.multiply(filterIndicatorAnim, filterTabWidth);
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
@@ -1387,7 +1412,7 @@ const Chats = ({ navigation }) => {
         </TouchableOpacity>
       )}
       
-      {(!showArchivedChats && !isGuestUser) && (
+      {!showArchivedChats && (
         <TutorialHighlight
           active={tutorial.activeTarget === 'filters' && tutorial.isVisible}
           theme={theme}
@@ -1491,7 +1516,6 @@ const Chats = ({ navigation }) => {
   }
 
   const sections = getSectionData();
-  const hasContent = sections.some((section) => section.data.length > 0);
 
       return (
         <View style={styles.container}>
@@ -1511,63 +1535,35 @@ const Chats = ({ navigation }) => {
             end={{ x: 1, y: 1 }}>
 
             <View style={[styles.content, { paddingTop: insets.top + spacing.sm }]}> 
-              {hasContent ? (
-                <TutorialHighlight
-                  active={tutorial.activeTarget === 'chatList' && tutorial.isVisible}
-                  theme={theme}
-                  isDarkMode={isDarkMode}
-                  style={styles.tutorialListHighlight}
-                >
-                  <SectionList
-                    sections={sections}
-                    renderItem={renderChatItem}
-                    renderSectionHeader={renderSectionHeader}
-                    keyExtractor={(item) => item.$id}
-                    contentContainerStyle={[styles.listContent, contentStyle]}
-                    ListHeaderComponent={renderHeader}
-                    stickySectionHeadersEnabled={false}
-                    windowSize={11}
-                    maxToRenderPerBatch={10}
-                    initialNumToRender={12}
-                    removeClippedSubviews={Platform.OS === 'android'}
-                    refreshControl={
-                      <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={handleRefresh}
-                        tintColor={theme.primary}
-                        colors={[theme.primary]}
-                      />
-                    }
-                  />
-                </TutorialHighlight>
-              ) : (
-                <TutorialHighlight
-                  active={tutorial.activeTarget === 'chatList' && tutorial.isVisible}
-                  theme={theme}
-                  isDarkMode={isDarkMode}
-                  style={styles.tutorialListHighlight}
-                >
-                  <FlashList
-                    data={[]}
-                    renderItem={() => null}
-                    ListHeaderComponent={renderHeader}
-                    ListEmptyComponent={renderEmpty}
-                    contentContainerStyle={[styles.listContent, contentStyle]}
-                    windowSize={8}
-                    maxToRenderPerBatch={8}
-                    initialNumToRender={1}
-                    removeClippedSubviews={Platform.OS === 'android'}
-                    refreshControl={
-                      <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={handleRefresh}
-                        tintColor={theme.primary}
-                        colors={[theme.primary]}
-                      />
-                    }
-                  />
-                </TutorialHighlight>
-              )}
+              <TutorialHighlight
+                active={tutorial.activeTarget === 'chatList' && tutorial.isVisible}
+                theme={theme}
+                isDarkMode={isDarkMode}
+                style={styles.tutorialListHighlight}
+              >
+                <SectionList
+                  sections={sections}
+                  renderItem={renderChatItem}
+                  renderSectionHeader={renderSectionHeader}
+                  keyExtractor={(item) => item.$id}
+                  contentContainerStyle={[styles.listContent, contentStyle]}
+                  ListHeaderComponent={renderHeader}
+                  ListEmptyComponent={renderEmpty}
+                  stickySectionHeadersEnabled={false}
+                  windowSize={11}
+                  maxToRenderPerBatch={10}
+                  initialNumToRender={12}
+                  removeClippedSubviews={Platform.OS === 'android'}
+                  refreshControl={
+                    <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={handleRefresh}
+                      tintColor={theme.primary}
+                      colors={[theme.primary]}
+                    />
+                  }
+                />
+              </TutorialHighlight>
             </View>
 
             <Modal

@@ -3,12 +3,39 @@ import { ID, Query } from 'appwrite';
 import { CHAT_TYPES, createChat, createGroupChat, getUserGroupChats, decryptChatPreviews, ensureChatParticipant } from './chats';
 import { getUserById } from './users';
 import { chatsCacheManager } from '../app/utils/cacheManager';
-import { canGuestInitiateChat } from '../app/utils/guestUtils';
+import { canGuestInitiateChat, isGuest } from '../app/utils/guestUtils';
 
 export const PRIVATE_CHAT_TYPE = 'private';
 export const CUSTOM_GROUP_TYPE = 'custom_group';
 
 const DEFAULT_INITIALIZE_MEMBERSHIP_CONCURRENCY = 4;
+
+const hydrateUserForGuestChecks = async (user = null) => {
+    if (!user?.$id) {
+        return user;
+    }
+
+    try {
+        const userDoc = await getUserById(user.$id);
+        if (!userDoc) {
+            return user;
+        }
+
+        return {
+            ...userDoc,
+            ...user,
+            $id: user.$id,
+            userId: userDoc.userId || user.$id,
+            name: userDoc.name || userDoc.fullName || user.name || 'User',
+            fullName: userDoc.fullName || userDoc.name || user.fullName || user.name || 'User',
+            role: userDoc.role || user.role || 'student',
+            following: Array.isArray(userDoc.following) ? userDoc.following : (Array.isArray(user.following) ? user.following : []),
+            followers: Array.isArray(userDoc.followers) ? userDoc.followers : (Array.isArray(user.followers) ? user.followers : []),
+        };
+    } catch (error) {
+        return user;
+    }
+};
 
 const mapWithConcurrency = async (items, mapper, concurrency = DEFAULT_INITIALIZE_MEMBERSHIP_CONCURRENCY) => {
     const boundedConcurrency = Math.max(1, Math.min(concurrency, items.length || 1));
@@ -225,7 +252,12 @@ export const createPrivateChat = async (user1, user2) => {
             throw new Error('Invalid user data');
         }
 
-        if (!canGuestInitiateChat(user1, user2)) {
+        const [resolvedUser1, resolvedUser2] = await Promise.all([
+            hydrateUserForGuestChecks(user1),
+            hydrateUserForGuestChecks(user2),
+        ]);
+
+        if (!canGuestInitiateChat(resolvedUser1, resolvedUser2)) {
             const error = new Error('Guests can only chat with students they are mutual friends with.');
             error.code = 'GUEST_CHAT_RESTRICTED';
             throw error;
@@ -234,14 +266,14 @@ export const createPrivateChat = async (user1, user2) => {
         const existingChat = await getPrivateChat(user1.$id, user2.$id);
         if (existingChat) {
             // Return with otherUser populated for proper display
-            return { ...existingChat, otherUser: user2 };
+            return { ...existingChat, otherUser: resolvedUser2 || user2 };
         }
 
         const sortedIds = [user1.$id, user2.$id].sort();
         const chatKey = `${sortedIds[0]}_${sortedIds[1]}`;
 
         const chat = await createChat({
-            name: `${user1.name || 'User'} & ${user2.name || 'User'}`,
+            name: `${resolvedUser1?.name || user1.name || 'User'} & ${resolvedUser2?.name || user2.name || 'User'}`,
             type: PRIVATE_CHAT_TYPE,
             participants: [user1.$id, user2.$id],
             chatKey,
@@ -251,7 +283,7 @@ export const createPrivateChat = async (user1, user2) => {
         });
 
         // Return with otherUser populated for proper display
-        return { ...chat, otherUser: user2 };
+        return { ...chat, otherUser: resolvedUser2 || user2 };
     } catch (error) {
         throw error;
     }
@@ -261,6 +293,13 @@ export const createCustomGroup = async (groupData, creatorId) => {
     try {
         if (!groupData?.name || !creatorId) {
             throw new Error('Group name and creator are required');
+        }
+
+        const creatorDoc = await hydrateUserForGuestChecks({ $id: creatorId });
+        if (isGuest(creatorDoc)) {
+            const error = new Error('Guests cannot create group chats.');
+            error.code = 'GUEST_GROUP_CHAT_RESTRICTED';
+            throw error;
         }
 
         const members = groupData.members || [];

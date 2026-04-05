@@ -22,6 +22,8 @@ import { useIsFocused } from '@react-navigation/native';
 import AnimatedBackground from '../components/AnimatedBackground';
 import MessageBubble from '../components/MessageBubble';
 import MessageInput from '../components/MessageInput';
+import TutorialHighlight from '../components/tutorial/TutorialHighlight';
+import ScreenTutorialCard from '../components/tutorial/ScreenTutorialCard';
 import CustomAlert from '../components/CustomAlert';
 import UnifiedEmptyState from '../components/UnifiedEmptyState';
 import { useCustomAlert } from '../hooks/useCustomAlert';
@@ -33,11 +35,13 @@ import { MuteModal, PinnedMessagesModal, ChatOptionsModal } from './chatRoom/Cha
 import { chatRoomStyles as styles } from './chatRoom/styles';
 import { useChatRoom } from './chatRoom/useChatRoom';
 import { useUserProfile } from '../hooks/useRealtimeSubscription';
+import useScreenTutorial from '../hooks/useScreenTutorial';
 import useLayout from '../hooks/useLayout';
 import PostViewModal from '../components/PostViewModal';
 import { isUserOnline, getLastSeenText } from '../utils/onlineStatus';
 import { getSelectedMessagesLabel } from '../utils/uiUxAuditHelpers';
 import { getUserById } from '../../database/users';
+import { isGuest } from '../utils/guestUtils';
 import { dismissPresentedNotificationsByTarget } from '../../services/pushNotificationService';
 
 const HEADER_ACTION_HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
@@ -201,13 +205,14 @@ ChatMessageItem.displayName = 'ChatMessageItem';
 
 const ChatRoom = ({ route, navigation }) => {
   const { chat } = route.params;
-  const { t, theme, isDarkMode, chatSettings, showActivityStatus, triggerHaptic } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL, chatSettings, showActivityStatus, triggerHaptic } = useAppSettings();
   const { user, refreshUser } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const isFocused = useIsFocused();
   const [shouldRenderMessageInput, setShouldRenderMessageInput] = useState(false);
   const insets = useSafeAreaInsets();
   const { chatStyle } = useLayout();
+  const isGuestUser = isGuest(user);
 
   useEffect(() => {
     let isCancelled = false;
@@ -294,6 +299,7 @@ const ChatRoom = ({ route, navigation }) => {
     saveChatViewport,
     isBlockedByOtherUser,
     isChatBlockedByOtherUser,
+    isGuestFriendRestricted,
   } = useChatRoom({ chat, user, t, navigation, showAlert, refreshUser });
 
   // Blocking check for private chats - did I block them?
@@ -316,6 +322,42 @@ const ChatRoom = ({ route, navigation }) => {
   const isFullyBlockedChat = iBlockedThem || isBlockedByOtherUser;
   const isChatOnlyBlocked = iChatBlockedThem || isChatBlockedByOtherUser;
   const isBlockedChat = isFullyBlockedChat || isChatOnlyBlocked;
+  const showGuestFriendRestrictionBanner = chat?.type === 'private' && isGuestFriendRestricted && !isBlockedChat;
+
+  const tutorialSteps = useMemo(() => {
+    const steps = [
+      {
+        target: 'search',
+        title: t('tutorial.chatRoom.searchTitle'),
+        description: t('tutorial.chatRoom.searchDescription'),
+      },
+      {
+        target: 'messages',
+        title: t('tutorial.chatRoom.messagesTitle'),
+        description: t('tutorial.chatRoom.messagesDescription'),
+      },
+    ];
+
+    if (showGuestFriendRestrictionBanner) {
+      steps.push({
+        target: 'restriction',
+        title: t('tutorial.chatRoom.restrictionTitle'),
+        description: t('tutorial.chatRoom.restrictionDescription'),
+      });
+      return steps;
+    }
+
+    steps.push({
+      target: 'composer',
+      title: t('tutorial.chatRoom.composerTitle'),
+      description: t('tutorial.chatRoom.composerDescription'),
+    });
+
+    return steps;
+  }, [showGuestFriendRestrictionBanner, t]);
+
+  const tutorial = useScreenTutorial(isGuestUser ? 'chat_room_guest' : 'chat_room', tutorialSteps);
+
   const excludedMentionUserIds = useMemo(() => {
     const blockedUsers = Array.isArray(user?.blockedUsers) ? user.blockedUsers : [];
     const chatBlockedUsers = Array.isArray(user?.chatBlockedUsers) ? user.chatBlockedUsers : [];
@@ -597,6 +639,11 @@ const ChatRoom = ({ route, navigation }) => {
     { backgroundColor: isDarkMode ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)' },
   ]), [isDarkMode]);
 
+  const guestFriendRestrictionBannerStyle = useMemo(() => ([
+    styles.warningBanner,
+    { backgroundColor: isDarkMode ? 'rgba(245, 158, 11, 0.18)' : 'rgba(245, 158, 11, 0.12)' },
+  ]), [isDarkMode]);
+
   const selectionToolbarStyle = useMemo(() => ([
     styles.selectionToolbar,
     { backgroundColor: isDarkMode ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)' },
@@ -754,14 +801,21 @@ const ChatRoom = ({ route, navigation }) => {
             hitSlop={HEADER_ACTION_HIT_SLOP}>
             <IoniconSvg name="refresh-outline" size={moderateScale(22)} color={theme.text} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerActionButton}
-            onPress={openSearch}
-            accessibilityRole="button"
-            accessibilityLabel={t('chats.searchInChat')}
-            hitSlop={HEADER_ACTION_HIT_SLOP}>
-            <IoniconSvg name="search-outline" size={moderateScale(22)} color={theme.text} />
-          </TouchableOpacity>
+          <TutorialHighlight
+            active={tutorial.activeTarget === 'search' && tutorial.isVisible}
+            theme={theme}
+            isDarkMode={isDarkMode}
+            borderRadius={moderateScale(12)}
+          >
+            <TouchableOpacity
+              style={styles.headerActionButton}
+              onPress={openSearch}
+              accessibilityRole="button"
+              accessibilityLabel={t('chats.searchInChat')}
+              hitSlop={HEADER_ACTION_HIT_SLOP}>
+              <IoniconSvg name="search-outline" size={moderateScale(22)} color={theme.text} />
+            </TouchableOpacity>
+          </TutorialHighlight>
           {chat.type === 'custom_group' && (
             <TouchableOpacity
               style={styles.headerActionButtonLast}
@@ -775,7 +829,7 @@ const ChatRoom = ({ route, navigation }) => {
         </View>
       ),
     });
-  }, [chat.type, formattedChatTitle, handleChatHeaderPress, handleManualRefresh, handleOpenGroupSettings, headerBackgroundColor, headerOnlineTextStyle, headerSubtitleTextStyle, headerTitleTextStyle, navigation, openSearch, otherUserLastSeen, otherUserOnline, showActivityStatus, t, theme.text]);
+  }, [chat.type, formattedChatTitle, handleChatHeaderPress, handleManualRefresh, handleOpenGroupSettings, headerBackgroundColor, headerOnlineTextStyle, headerSubtitleTextStyle, headerTitleTextStyle, isDarkMode, navigation, openSearch, otherUserLastSeen, otherUserOnline, showActivityStatus, t, theme, theme.text, tutorial.activeTarget, tutorial.isVisible]);
 
   const memoizedMessages = useMemo(() => {
     let filtered = messages;
@@ -1259,22 +1313,30 @@ const ChatRoom = ({ route, navigation }) => {
         </View>
       )}
 
-      <FlashList
-        ref={flatListRef}
-        data={memoizedMessages}
-        estimatedItemSize={70}
-        renderItem={renderMessage}
-        keyExtractor={keyExtractor}
-        initialScrollIndex={initialScrollIndex}
-        contentContainerStyle={[styles.messagesList, chatStyle]}
-        ListEmptyComponent={renderEmpty}
-        onScroll={handleListScroll}
-        onScrollToIndexFailed={handleScrollToIndexFailed}
-        onViewableItemsChanged={handleViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
-        scrollEventThrottle={16}
-        maintainVisibleContentPosition={maintainVisibleContentPosition}
-      />
+      <TutorialHighlight
+        active={tutorial.activeTarget === 'messages' && tutorial.isVisible}
+        theme={theme}
+        isDarkMode={isDarkMode}
+        borderRadius={moderateScale(16)}
+        style={{ flex: 1 }}
+      >
+        <FlashList
+          ref={flatListRef}
+          data={memoizedMessages}
+          estimatedItemSize={70}
+          renderItem={renderMessage}
+          keyExtractor={keyExtractor}
+          initialScrollIndex={initialScrollIndex}
+          contentContainerStyle={[styles.messagesList, chatStyle]}
+          ListEmptyComponent={renderEmpty}
+          onScroll={handleListScroll}
+          onScrollToIndexFailed={handleScrollToIndexFailed}
+          onViewableItemsChanged={handleViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          scrollEventThrottle={16}
+          maintainVisibleContentPosition={maintainVisibleContentPosition}
+        />
+      </TutorialHighlight>
 
       {!selectionMode && memoizedMessages.length > 0 && (!isNearBottom || pendingNewMessageCount > 0) && (
         <TouchableOpacity
@@ -1354,28 +1416,51 @@ const ChatRoom = ({ route, navigation }) => {
         </View>
       )}
 
-      {!selectionMode && !isBlockedChat && isFocused && shouldRenderMessageInput && (
-      <MessageInput 
-        key={`chat-input-${chat?.$id || 'unknown'}`}
-        onSend={handleSendWithHaptic}
-        disabled={!canSend}
-        placeholder={
-          canSend 
-            ? t('chats.typeMessage')
-            : t('chats.cannotSendMessage')
-        }
-        replyingTo={replyingTo}
-        onCancelReply={cancelReply}
-        showMentionButton={chat.type !== 'private'}
-        canMentionEveryone={canMentionEveryone}
-        groupMembers={groupMembers}
-        friends={userFriends}
-        excludedMentionUserIds={excludedMentionUserIds}
-        showAlert={showAlert}
-      />
+      {showGuestFriendRestrictionBanner && (
+        <TutorialHighlight
+          active={tutorial.activeTarget === 'restriction' && tutorial.isVisible}
+          theme={theme}
+          isDarkMode={isDarkMode}
+          borderRadius={moderateScale(14)}
+        >
+          <View style={guestFriendRestrictionBannerStyle}>
+            <Ionicons name="people-outline" size={moderateScale(18)} color={CHAT_ONLY_BLOCKED_COLOR} />
+            <Text style={[styles.warningText, { fontSize: fontSize(12), color: CHAT_ONLY_BLOCKED_COLOR }]}>
+              {t('chats.guestFriendsRequiredBanner')}
+            </Text>
+          </View>
+        </TutorialHighlight>
+      )}
+
+      {!selectionMode && !isBlockedChat && !showGuestFriendRestrictionBanner && isFocused && shouldRenderMessageInput && (
+        <TutorialHighlight
+          active={tutorial.activeTarget === 'composer' && tutorial.isVisible}
+          theme={theme}
+          isDarkMode={isDarkMode}
+          borderRadius={moderateScale(14)}
+        >
+          <MessageInput 
+            key={`chat-input-${chat?.$id || 'unknown'}`}
+            onSend={handleSendWithHaptic}
+            disabled={!canSend}
+            placeholder={
+              canSend 
+                ? t('chats.typeMessage')
+                : t('chats.cannotSendMessage')
+            }
+            replyingTo={replyingTo}
+            onCancelReply={cancelReply}
+            showMentionButton={chat.type !== 'private'}
+            canMentionEveryone={canMentionEveryone}
+            groupMembers={groupMembers}
+            friends={userFriends}
+            excludedMentionUserIds={excludedMentionUserIds}
+            showAlert={showAlert}
+          />
+        </TutorialHighlight>
       )}
     </KeyboardAvoidingView>
-  ), [canMentionEveryone, canSend, cancelReply, chat?.$id, chat.requiresRepresentative, chat.type, chatOnlyBlockedBannerStyle, chatStyle, copySelectionTextStyle, deleteSelectionTextStyle, excludedMentionUserIds, flatListRef, fullBlockedBannerStyle, groupMembers, handleBatchCopy, handleBatchDeleteForMe, handleListScroll, handleScrollToIndexFailed, handleSendWithHaptic, handleViewableItemsChanged, iBlockedThem, iChatBlockedThem, initialScrollIndex, insets.top, isBlockedChat, isChatOnlyBlocked, isFocused, isFullyBlockedChat, isNearBottom, keyExtractor, maintainVisibleContentPosition, memoizedMessages, pendingNewMessageCount, renderEmpty, renderEmptyOverlay, renderLoadingOverlay, renderMessage, renderSearchBar, representativeWarningBannerStyle, replyingTo, scrollToLatest, selectedMessageIds.length, selectedMessagesTextStyle, selectionMode, selectionSummaryLabel, selectionToolbarStyle, shouldRenderMessageInput, showAlert, t, theme.card, theme.primary, theme.text, theme.textSecondary, toggleSelectionMode, userFriends, viewabilityConfig]);
+  ), [canMentionEveryone, canSend, cancelReply, chat?.$id, chat.requiresRepresentative, chat.type, chatOnlyBlockedBannerStyle, chatStyle, copySelectionTextStyle, deleteSelectionTextStyle, excludedMentionUserIds, flatListRef, fullBlockedBannerStyle, groupMembers, guestFriendRestrictionBannerStyle, handleBatchCopy, handleBatchDeleteForMe, handleListScroll, handleScrollToIndexFailed, handleSendWithHaptic, handleViewableItemsChanged, iBlockedThem, iChatBlockedThem, initialScrollIndex, insets.top, isBlockedChat, isChatOnlyBlocked, isDarkMode, isFocused, isFullyBlockedChat, isNearBottom, keyExtractor, maintainVisibleContentPosition, memoizedMessages, pendingNewMessageCount, renderEmpty, renderEmptyOverlay, renderLoadingOverlay, renderMessage, renderSearchBar, representativeWarningBannerStyle, replyingTo, scrollToLatest, selectedMessageIds.length, selectedMessagesTextStyle, selectionMode, selectionSummaryLabel, selectionToolbarStyle, shouldRenderMessageInput, showAlert, showGuestFriendRestrictionBanner, t, theme, theme.card, theme.primary, theme.text, theme.textSecondary, toggleSelectionMode, tutorial.activeTarget, tutorial.isVisible, userFriends, viewabilityConfig]);
 
   return (
     <View style={[styles.container, { backgroundColor: backgroundColors[0] || headerBackgroundColor }]}>
@@ -1403,6 +1488,19 @@ const ChatRoom = ({ route, navigation }) => {
           {renderChatContent()}
         </LinearGradient>
       )}
+
+      <ScreenTutorialCard
+        visible={tutorial.isVisible}
+        theme={theme}
+        isRTL={isRTL}
+        t={t}
+        step={tutorial.currentStep}
+        stepIndex={tutorial.currentIndex}
+        totalSteps={tutorial.totalSteps}
+        onPrev={tutorial.prevStep}
+        onNext={tutorial.nextStep}
+        onSkip={tutorial.skipTutorial}
+      />
 
       <MuteModal
         visible={showMuteModal}

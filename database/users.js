@@ -2,6 +2,7 @@ import { databases, config } from './config';
 import { ID, Query } from 'appwrite';
 import { userCacheManager } from '../app/utils/cacheManager';
 import { assertActorIdentity, enforceRateLimit } from './securityGuards';
+import { GUEST_FOLLOW_RATE_LIMIT, isGuest } from '../app/utils/guestUtils';
 
 const DELETED_ACCOUNT_NAME = 'Deleted Account';
 
@@ -311,18 +312,18 @@ export const followUser = async (followerId, followingId) => {
         }
 
         await assertActorIdentity(followerId);
+        const follower = await getUserById(followerId, true);
+        const isGuestFollower = isGuest(follower);
+
         enforceRateLimit({
             action: 'follow_user',
             userId: followerId,
-            maxActions: 8,
-            windowMs: 60 * 1000,
+            maxActions: isGuestFollower ? GUEST_FOLLOW_RATE_LIMIT.maxActions : 8,
+            windowMs: isGuestFollower ? GUEST_FOLLOW_RATE_LIMIT.windowMs : (60 * 1000),
         });
 
-        // Get both users
-        const [follower, following] = await Promise.all([
-            getUserById(followerId),
-            getUserById(followingId),
-        ]);
+        // Get target user
+        const following = await getUserById(followingId);
 
         if (isDeletedOrUnavailableUser(follower)) {
             throw new Error('Follower account is unavailable');

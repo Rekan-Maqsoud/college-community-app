@@ -33,7 +33,7 @@ import { fontSize as fontSizeUtil, spacing, moderateScale } from '../utils/respo
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
-import { isGuest } from '../utils/guestUtils';
+import { buildUpdatedGuestPostTracking, hasGuestPostedToday, isGuest } from '../utils/guestUtils';
 import { getAllDepartments } from '../data/universitiesData';
 import ModalBackdrop from '../components/ModalBackdrop';
 import { Image } from 'expo-image';
@@ -93,9 +93,10 @@ const Post = () => {
   const insets = useSafeAreaInsets();
   const appSettings = useAppSettings();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
-  const { user } = useUser();
+  const { user, updateUser } = useUser();
   const { contentStyle } = useLayout();
   const successNavigationTimeoutRef = useRef(null);
+  const guestLimitAlertShownRef = useRef(false);
   const visibilityScaleAnim = useRef(new Animated.Value(1)).current;
 
   const theme = appSettings?.theme;
@@ -150,16 +151,31 @@ const Post = () => {
   const allDepartments = useMemo(() => isGuestUser ? getAllDepartments().map(d => ({ key: d, label: d })) : [], [isGuestUser]);
 
   useEffect(() => {
-    if (isGuestUser && user?.profileViews) {
-      try {
-        const viewsData = typeof user.profileViews === 'string' ? JSON.parse(user.profileViews) : user.profileViews;
-        const today = new Date().toISOString().split('T')[0];
-        if (viewsData?.guestLastPostDate === today && (viewsData?.guestPostCountToday || 0) >= 1) {
-          setHasReachedGuestLimit(true);
-        }
-      } catch (e) {}
+    if (!isGuestUser) {
+      setHasReachedGuestLimit(false);
+      return;
     }
+
+    setHasReachedGuestLimit(hasGuestPostedToday(user?.profileViews || null));
   }, [isGuestUser, user?.profileViews]);
+
+  useEffect(() => {
+    if (!isGuestUser || !hasReachedGuestLimit) {
+      guestLimitAlertShownRef.current = false;
+      return;
+    }
+
+    if (guestLimitAlertShownRef.current) {
+      return;
+    }
+
+    guestLimitAlertShownRef.current = true;
+    showAlert({
+      type: 'info',
+      title: t('common.info'),
+      message: t('common.guestLimitReached'),
+    });
+  }, [hasReachedGuestLimit, isGuestUser, showAlert, t]);
 
   useEffect(() => {
     if (isGuestUser) {
@@ -514,6 +530,11 @@ const Post = () => {
   };
 
   const handleCreatePost = async () => {
+    if (isGuestUser && hasReachedGuestLimit) {
+      showAlert({ type: 'info', title: t('common.info'), message: t('common.guestLimitReached') });
+      return;
+    }
+
     if (!validateForm()) return;
 
     setLoading(true);
@@ -597,6 +618,12 @@ const Post = () => {
 
       showAlert({ type: 'success', title: t('common.success'), message: t('post.postCreated') });
 
+      if (isGuestUser) {
+        setHasReachedGuestLimit(true);
+        const nextProfileViews = buildUpdatedGuestPostTracking(user?.profileViews || null);
+        await updateUser({ profileViews: nextProfileViews });
+      }
+
       await requestInAppStoreReview();
 
       if (successNavigationTimeoutRef.current) {
@@ -615,7 +642,8 @@ const Post = () => {
       setImages([]);
       setImageCompressionWarning('');
       setPostType(POST_TYPES.DISCUSSION);
-      setVisibility('department');
+      setVisibility(isGuestUser ? 'public' : 'department');
+      setTargetDepartments([]);
       setCanOthersRepost(true);
       setStage(defaultStageValue);
       setPollChoices(['', '']);
@@ -770,13 +798,13 @@ const Post = () => {
               {isGuestUser && postType === POST_TYPES.QUESTION && (
                 <View style={[styles.compactField, { width: '100%', marginTop: spacing.sm }]}>
                   <Text style={[styles.compactLabel, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
-                    {t('post.targetDepartments', 'Want to ask a specific department? (optional)')}
+                    {t('post.targetDepartments')}
                   </Text>
                   <SearchableDropdownNew
                     items={allDepartments}
                     value={targetDepartments}
                     onSelect={setTargetDepartments}
-                    placeholder={t('post.selectDepartments', 'Select Departments (Up to 3)')}
+                    placeholder={t('post.selectDepartments')}
                     icon="business-outline"
                     disabled={isBusy}
                     compact
@@ -837,6 +865,24 @@ const Post = () => {
               </Text>
             </TutorialHighlight>
           </View>
+          {isGuestUser && hasReachedGuestLimit && (
+            <View style={styles.section}>
+              <View
+                style={[
+                  styles.inlineWarningBanner,
+                  {
+                    backgroundColor: `${theme.warning}15`,
+                    borderColor: `${theme.warning}40`,
+                  },
+                ]}
+              >
+                <IoniconSvg name="alert-circle-outline" size={16} color={theme.warning} />
+                <Text style={[styles.inlineWarningText, { color: theme.warning }]}>
+                  {t('common.guestLimitReached')}
+                </Text>
+              </View>
+            </View>
+          )}
 
           <View style={[styles.section, styles.compactNextSection]}>
             <Text style={[styles.sectionLabel, isRTL && styles.directionalText, { color: theme.text }]}> 

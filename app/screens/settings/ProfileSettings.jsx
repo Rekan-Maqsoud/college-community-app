@@ -16,6 +16,7 @@ import SearchableDropdownNew from '../../components/SearchableDropdownNew';
 import CustomAlert from '../../components/CustomAlert';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
 import { getUniversityKeys, getCollegesForUniversity, getDepartmentsForCollege, getStagesForDepartment } from '../../data/universitiesData';
+import { isEducationalEmail } from '../../constants/academicEmailDomains';
 import { getSettingsHeaderGradient } from './settingsTheme';
 import { Image } from 'expo-image';
 
@@ -76,6 +77,7 @@ const normalizeSocialLinks = (links = {}) => ({
 const buildProfileData = (source = {}) => ({
   fullName: source.fullName || '',
   email: source.email || '',
+  role: source.role || '',
   university: source.university || '',
   college: source.college || '',
   department: source.department || '',
@@ -88,6 +90,15 @@ const buildProfileData = (source = {}) => ({
   socialLinks: normalizeSocialLinks(source.socialLinks),
   socialLinksVisibility: source.socialLinksVisibility || 'everyone',
 });
+
+const shouldExposeAcademicSettings = (roleValue, emailValue) => {
+  const normalizedRole = String(roleValue || '').trim().toLowerCase();
+  if (normalizedRole === 'guest') {
+    return false;
+  }
+
+  return isEducationalEmail(emailValue);
+};
 
 
 
@@ -118,7 +129,17 @@ const ProfileSettings = ({ navigation }) => {
 
   const [initialLoadDone, setInitialLoadDone] = useState(false);
 
+  const canAccessAcademicSettings = useMemo(() => {
+    const effectiveRole = profileData.role || user?.role || '';
+    const effectiveEmail = profileData.email || user?.email || '';
+    return shouldExposeAcademicSettings(effectiveRole, effectiveEmail);
+  }, [profileData.email, profileData.role, user?.email, user?.role]);
+
   const hasAcademicChanges = useMemo(() => {
+    if (!canAccessAcademicSettings) {
+      return false;
+    }
+
     const currentAcademic = normalizeAcademicSnapshot({
       university: profileData.university,
       college: profileData.college,
@@ -131,6 +152,7 @@ const ProfileSettings = ({ navigation }) => {
       || currentAcademic.department !== userAcademic.department
       || currentAcademic.stage !== userAcademic.stage;
   }, [
+    canAccessAcademicSettings,
     profileData.university,
     profileData.college,
     profileData.department,
@@ -706,7 +728,7 @@ const ProfileSettings = ({ navigation }) => {
 
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
-                  {t('auth.collegeEmail')}
+                  {t('profile.email')}
                 </Text>
                 <View
                   style={[
@@ -830,98 +852,102 @@ const ProfileSettings = ({ navigation }) => {
                 />
               </View>
 
-              <View style={styles.divider} />
+              {canAccessAcademicSettings && (
+                <>
+                  <View style={styles.divider} />
 
-              <Text style={[styles.sectionLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
-                {t('settings.academicInfo')}
-              </Text>
+                  <Text style={[styles.sectionLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
+                    {t('settings.academicInfo')}
+                  </Text>
 
-              {!canEditAcademic && cooldownInfo && (
-                <View style={[styles.cooldownBanner, isRTL && styles.rowReverse, { 
-                  backgroundColor: isDarkMode ? 'rgba(255, 149, 0, 0.15)' : 'rgba(255, 149, 0, 0.1)',
-                  borderColor: isDarkMode ? 'rgba(255, 149, 0, 0.3)' : 'rgba(255, 149, 0, 0.2)',
-                }]}>
-                  <Ionicons name="time-outline" size={moderateScale(18)} color="#FF9500" />
-                  <View style={[styles.cooldownTextContainer, isRTL && styles.cooldownTextContainerRtl]}>
-                    <Text style={[styles.cooldownTitle, { color: theme.text }, isRTL && styles.directionalText]}>
-                      {t('settings.academicCooldown')} {cooldownInfo.remainingDays} {cooldownInfo.remainingDays === 1 ? t('settings.dayRemaining') : t('settings.daysRemaining')}
+                  {!canEditAcademic && cooldownInfo && (
+                    <View style={[styles.cooldownBanner, isRTL && styles.rowReverse, {
+                      backgroundColor: isDarkMode ? 'rgba(255, 149, 0, 0.15)' : 'rgba(255, 149, 0, 0.1)',
+                      borderColor: isDarkMode ? 'rgba(255, 149, 0, 0.3)' : 'rgba(255, 149, 0, 0.2)',
+                    }]}>
+                      <Ionicons name="time-outline" size={moderateScale(18)} color="#FF9500" />
+                      <View style={[styles.cooldownTextContainer, isRTL && styles.cooldownTextContainerRtl]}>
+                        <Text style={[styles.cooldownTitle, { color: theme.text }, isRTL && styles.directionalText]}>
+                          {t('settings.academicCooldown')} {cooldownInfo.remainingDays} {cooldownInfo.remainingDays === 1 ? t('settings.dayRemaining') : t('settings.daysRemaining')}
+                        </Text>
+                        <Text style={[styles.cooldownSubtitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
+                          {t('settings.lastUpdated')}: {cooldownInfo.lastUpdate}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {canEditAcademic && (
+                    <View style={[styles.cooldownBanner, isRTL && styles.rowReverse, {
+                      backgroundColor: isDarkMode ? 'rgba(52, 199, 89, 0.15)' : 'rgba(52, 199, 89, 0.1)',
+                      borderColor: isDarkMode ? 'rgba(52, 199, 89, 0.3)' : 'rgba(52, 199, 89, 0.2)',
+                    }]}>
+                      <Ionicons name="checkmark-circle-outline" size={moderateScale(18)} color="#34C759" />
+                      <View style={[styles.cooldownTextContainer, isRTL && styles.cooldownTextContainerRtl]}>
+                        <Text style={[styles.cooldownTitle, { color: theme.text }, isRTL && styles.directionalText]}>
+                          {t('settings.canUpdateNow')}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  <View style={styles.inputGroup}>
+                    <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
+                      {t('auth.selectUniversity')}
                     </Text>
-                    <Text style={[styles.cooldownSubtitle, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
-                      {t('settings.lastUpdated')}: {cooldownInfo.lastUpdate}
-                    </Text>
+                    <SearchableDropdownNew
+                      items={universityOptions}
+                      value={profileData.university}
+                      onSelect={handleUniversityChange}
+                      placeholder={t('auth.selectUniversity')}
+                      icon="school-outline"
+                      disabled={!canEditAcademic}
+                    />
                   </View>
-                </View>
-              )}
 
-              {canEditAcademic && (
-                <View style={[styles.cooldownBanner, isRTL && styles.rowReverse, { 
-                  backgroundColor: isDarkMode ? 'rgba(52, 199, 89, 0.15)' : 'rgba(52, 199, 89, 0.1)',
-                  borderColor: isDarkMode ? 'rgba(52, 199, 89, 0.3)' : 'rgba(52, 199, 89, 0.2)',
-                }]}>
-                  <Ionicons name="checkmark-circle-outline" size={moderateScale(18)} color="#34C759" />
-                  <View style={[styles.cooldownTextContainer, isRTL && styles.cooldownTextContainerRtl]}>
-                    <Text style={[styles.cooldownTitle, { color: theme.text }, isRTL && styles.directionalText]}>
-                      {t('settings.canUpdateNow')}
+                  <View style={styles.inputGroup}>
+                    <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
+                      {t('auth.selectCollege')}
                     </Text>
+                    <SearchableDropdownNew
+                      items={collegeOptions}
+                      value={profileData.college}
+                      onSelect={handleCollegeChange}
+                      placeholder={t('auth.selectCollege')}
+                      icon="library-outline"
+                      disabled={!canEditAcademic || !profileData.university}
+                    />
                   </View>
-                </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
+                      {t('auth.selectDepartment')}
+                    </Text>
+                    <SearchableDropdownNew
+                      items={departmentOptions}
+                      value={profileData.department}
+                      onSelect={handleDepartmentChange}
+                      placeholder={t('auth.selectDepartment')}
+                      icon="briefcase-outline"
+                      disabled={!canEditAcademic || !profileData.college}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
+                      {t('auth.selectStage')}
+                    </Text>
+                    <SearchableDropdownNew
+                      items={stageOptions}
+                      value={profileData.stage}
+                      onSelect={handleStageChange}
+                      placeholder={t('auth.selectStage')}
+                      icon="stats-chart-outline"
+                      disabled={!canEditAcademic}
+                    />
+                  </View>
+                </>
               )}
-
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
-                  {t('auth.selectUniversity')}
-                </Text>
-                <SearchableDropdownNew
-                  items={universityOptions}
-                  value={profileData.university}
-                  onSelect={handleUniversityChange}
-                  placeholder={t('auth.selectUniversity')}
-                  icon="school-outline"
-                  disabled={!canEditAcademic}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
-                  {t('auth.selectCollege')}
-                </Text>
-                <SearchableDropdownNew
-                  items={collegeOptions}
-                  value={profileData.college}
-                  onSelect={handleCollegeChange}
-                  placeholder={t('auth.selectCollege')}
-                  icon="library-outline"
-                  disabled={!canEditAcademic || !profileData.university}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
-                  {t('auth.selectDepartment')}
-                </Text>
-                <SearchableDropdownNew
-                  items={departmentOptions}
-                  value={profileData.department}
-                  onSelect={handleDepartmentChange}
-                  placeholder={t('auth.selectDepartment')}
-                  icon="briefcase-outline"
-                  disabled={!canEditAcademic || !profileData.college}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }, isRTL && styles.directionalText]}>
-                  {t('auth.selectStage')}
-                </Text>
-                <SearchableDropdownNew
-                  items={stageOptions}
-                  value={profileData.stage}
-                  onSelect={handleStageChange}
-                  placeholder={t('auth.selectStage')}
-                  icon="stats-chart-outline"
-                  disabled={!canEditAcademic}
-                />
-              </View>
             </View>
           </GlassCard>
 

@@ -31,11 +31,15 @@ import { REFRESH_TOPICS, publishRefreshEvent } from '../utils/dataRefreshBus';
 import ImageGalleryModal from './postDetails/ImageGalleryModal';
 import ReplyItem from './postDetails/ReplyItem';
 import ReplyInputSection from './postDetails/ReplyInputSection';
+import TutorialHighlight from '../components/tutorial/TutorialHighlight';
+import ScreenTutorialCard from '../components/tutorial/ScreenTutorialCard';
 import { postDetailsStyles as styles } from './postDetails/styles';
 import useLayout from '../hooks/useLayout';
+import useScreenTutorial from '../hooks/useScreenTutorial';
+import { canGuestReply, isGuest } from '../utils/guestUtils';
 
 const PostDetails = ({ navigation, route }) => {
-  const { t, theme, isDarkMode, triggerHaptic } = useAppSettings();
+  const { t, theme, isDarkMode, isRTL, triggerHaptic } = useAppSettings();
   const { user } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { contentStyle } = useLayout();
@@ -65,6 +69,7 @@ const PostDetails = ({ navigation, route }) => {
   const [currentReplyCount, setCurrentReplyCount] = useState(post?.replyCount || 0);
   const [replySortOrder, setReplySortOrder] = useState(effectiveReplyId ? 'newest' : 'top');
   const [highlightedReplyId, setHighlightedReplyId] = useState(effectiveReplyId);
+  const [canGuestReplyToPost, setCanGuestReplyToPost] = useState(() => !isGuest(user));
 
   const scrollViewRef = useRef(null);
   const replyLayoutsRef = useRef({});
@@ -73,6 +78,88 @@ const PostDetails = ({ navigation, route }) => {
 
   // Determine if this is a "view only" navigation (no auto-focus on input)
   const isViewOnlyMode = source === 'shared_post' || source === 'post_like' || source === 'notification_post_like';
+  const isGuestUser = isGuest(user);
+  const showGuestReplyRestriction = !isViewOnlyMode && isGuestUser && !canGuestReplyToPost;
+
+  const tutorialSteps = React.useMemo(() => {
+    const steps = [
+      {
+        target: 'sort',
+        title: t('tutorial.postDetails.sortTitle'),
+        description: t('tutorial.postDetails.sortDescription'),
+      },
+      {
+        target: 'list',
+        title: t('tutorial.postDetails.listTitle'),
+        description: t('tutorial.postDetails.listDescription'),
+      },
+    ];
+
+    if (showGuestReplyRestriction) {
+      steps.push({
+        target: 'restriction',
+        title: t('tutorial.postDetails.restrictionTitle'),
+        description: t('tutorial.postDetails.restrictionDescription'),
+      });
+      return steps;
+    }
+
+    if (!isViewOnlyMode) {
+      steps.push({
+        target: 'composer',
+        title: t('tutorial.postDetails.composeTitle'),
+        description: t('tutorial.postDetails.composeDescription'),
+      });
+    }
+
+    return steps;
+  }, [isViewOnlyMode, showGuestReplyRestriction, t]);
+
+  const tutorial = useScreenTutorial(isGuestUser ? 'post_details_guest' : 'post_details', tutorialSteps);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const resolveGuestReplyPermission = async () => {
+      if (!isGuestUser) {
+        if (isMounted) {
+          setCanGuestReplyToPost(true);
+        }
+        return;
+      }
+
+      if (!post?.userId) {
+        if (isMounted) {
+          setCanGuestReplyToPost(false);
+        }
+        return;
+      }
+
+      if (post.userId === user?.$id) {
+        if (isMounted) {
+          setCanGuestReplyToPost(true);
+        }
+        return;
+      }
+
+      try {
+        const postAuthorDoc = await getUserDocument(post.userId, true);
+        const allowed = canGuestReply(user, postAuthorDoc);
+        if (isMounted) {
+          setCanGuestReplyToPost(allowed);
+        }
+      } catch {
+        if (isMounted) {
+          setCanGuestReplyToPost(false);
+        }
+      }
+    };
+
+    resolveGuestReplyPermission();
+    return () => {
+      isMounted = false;
+    };
+  }, [isGuestUser, post?.userId, user, user?.$id]);
 
   // Handle going back and updating the parent screen with new reply count
   const handleGoBack = useCallback(() => {
@@ -358,6 +445,11 @@ const PostDetails = ({ navigation, route }) => {
   const handleAddReply = async () => {
     if (isSubmitting) return;
 
+    if (isGuestUser && !canGuestReplyToPost) {
+      showAlert(t('common.info'), t('common.guestReplyRestricted'), 'info');
+      return;
+    }
+
     if (!replyText.trim()) {
       showAlert(t('common.error'), t('post.textRequired'), 'error');
       return;
@@ -377,6 +469,7 @@ const PostDetails = ({ navigation, route }) => {
     setIsSubmitting(true);
     triggerHaptic('light');
 
+    let optimisticReplyId = null;
 
 
     try {
@@ -425,6 +518,7 @@ const PostDetails = ({ navigation, route }) => {
         };
 
         const mockNewReplyId = `optimistic-${Date.now()}`;
+        optimisticReplyId = mockNewReplyId;
         const optimisticReply = {
           ...replyData,
           $id: mockNewReplyId,
@@ -455,6 +549,11 @@ const PostDetails = ({ navigation, route }) => {
 
 
     } catch (error) {
+      if (optimisticReplyId) {
+        setReplies(prev => prev.filter(reply => reply.$id !== optimisticReplyId));
+        setCurrentReplyCount(prev => Math.max(0, prev - 1));
+      }
+
       telemetry.recordEvent('post_details_add_reply_failed', {
         postId: post?.$id || '',
         editingReplyId: editingReply?.$id || '',
@@ -465,7 +564,10 @@ const PostDetails = ({ navigation, route }) => {
         response: error?.response || null,
       });
       const serverMessage = typeof error?.message === 'string' ? error.message.trim() : '';
-      showAlert(t('common.error'), serverMessage || t('post.replyError'), 'error');
+      const replyErrorMessage = error?.code === 'GUEST_REPLY_RESTRICTED'
+        ? t('common.guestReplyRestricted')
+        : (serverMessage || t('post.replyError'));
+      showAlert(t('common.error'), replyErrorMessage, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -868,107 +970,174 @@ const PostDetails = ({ navigation, route }) => {
           stickyHeaderIndices={[0]}
         >
           <View style={[styles.repliesStickyHeader, { backgroundColor: theme.background }]}>
-            <View
-              style={[
-                styles.repliesSectionHeader,
-                styles.repliesStickyHeaderCard,
-                {
-                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : '#F9FAFB',
-                  borderColor: theme.border,
-                },
-              ]}
+            <TutorialHighlight
+              active={tutorial.activeTarget === 'sort' && tutorial.isVisible}
+              theme={theme}
+              isDarkMode={isDarkMode}
+              borderRadius={moderateScale(16)}
             >
-              <Ionicons name="chatbubbles-outline" size={moderateScale(22)} color={theme.text} />
-              <View style={styles.repliesHeaderTextBlock}>
-                <Text style={[styles.repliesSectionTitle, { color: theme.text }]}>
-                  {t('post.repliesCount').replace('{count}', replies.length.toString())}
-                </Text>
-                {replies.length > 1 && (
-                  <Text style={[styles.repliesSortSummary, { color: theme.textSecondary }]}>
-                    {replySortOrder === 'newest' ? t('post.sortNewest') : t('post.sortTop')}
+              <View
+                style={[
+                  styles.repliesSectionHeader,
+                  styles.repliesStickyHeaderCard,
+                  {
+                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : '#F9FAFB',
+                    borderColor: theme.border,
+                  },
+                ]}
+              >
+                <Ionicons name="chatbubbles-outline" size={moderateScale(22)} color={theme.text} />
+                <View style={styles.repliesHeaderTextBlock}>
+                  <Text style={[styles.repliesSectionTitle, { color: theme.text }]}> 
+                    {t('post.repliesCount').replace('{count}', replies.length.toString())}
                   </Text>
+                  {replies.length > 1 && (
+                    <Text style={[styles.repliesSortSummary, { color: theme.textSecondary }]}> 
+                      {replySortOrder === 'newest' ? t('post.sortNewest') : t('post.sortTop')}
+                    </Text>
+                  )}
+                </View>
+                {replies.length > 1 && (
+                  <TouchableOpacity
+                    onPress={() => setReplySortOrder(prev => prev === 'top' ? 'newest' : 'top')}
+                    style={[
+                      styles.replySortButton,
+                      {
+                        marginLeft: 'auto',
+                        backgroundColor: isDarkMode ? 'rgba(102,126,234,0.14)' : 'rgba(79,70,229,0.08)',
+                        borderColor: isDarkMode ? 'rgba(102,126,234,0.28)' : 'rgba(79,70,229,0.18)',
+                      },
+                    ]}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={replySortOrder === 'newest' ? t('post.sortNewest') : t('post.sortTop')}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons
+                      name={replySortOrder === 'newest' ? 'time-outline' : 'arrow-up-outline'}
+                      size={moderateScale(16)}
+                      color={theme.primary}
+                    />
+                    <Text style={[styles.replySortButtonText, { color: theme.primary }]}> 
+                      {replySortOrder === 'newest' ? (t('post.sortNewest') || 'Newest') : (t('post.sortTop') || 'Top')}
+                    </Text>
+                  </TouchableOpacity>
                 )}
               </View>
-              {replies.length > 1 && (
-                <TouchableOpacity
-                  onPress={() => setReplySortOrder(prev => prev === 'top' ? 'newest' : 'top')}
-                  style={[
-                    styles.replySortButton,
-                    {
-                      marginLeft: 'auto',
-                      backgroundColor: isDarkMode ? 'rgba(102,126,234,0.14)' : 'rgba(79,70,229,0.08)',
-                      borderColor: isDarkMode ? 'rgba(102,126,234,0.28)' : 'rgba(79,70,229,0.18)',
-                    },
-                  ]}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel={replySortOrder === 'newest' ? t('post.sortNewest') : t('post.sortTop')}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons
-                    name={replySortOrder === 'newest' ? 'time-outline' : 'arrow-up-outline'}
-                    size={moderateScale(16)}
-                    color={theme.primary}
-                  />
-                  <Text style={[styles.replySortButtonText, { color: theme.primary }]}>
-                    {replySortOrder === 'newest' ? (t('post.sortNewest') || 'Newest') : (t('post.sortTop') || 'Top')}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            </TutorialHighlight>
           </View>
 
-          <View style={[styles.repliesSection, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : '#F9FAFB' }]}>
-
-            {isLoadingReplies ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.primary} />
-                <Text style={[styles.loadingText, { color: theme.textSecondary }]}>{t('common.loading')}</Text>
-              </View>
-            ) : replies.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="chatbubble-outline" size={moderateScale(48)} color={theme.textSecondary} />
-                <Text style={[styles.emptyTitle, { color: theme.textSecondary }]}>{t('post.noReplies')}</Text>
-                <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>{t('post.beFirstToReply')}</Text>
-              </View>
-            ) : (
-              <View style={styles.repliesList}>
-                {(repliesByParent[ROOT_REPLY_ID] || []).map((reply) => renderReplyThread(reply, 0))}
-              </View>
-            )}
-          </View>
-        </ScrollView>
-
-        {!isViewOnlyMode && (
-          <ReplyInputSection
-            editingReply={editingReply}
-            replyingTo={replyingTo}
-            replyText={replyText}
-            setReplyText={setReplyText}
-            replyImages={replyImages}
-            replyLinks={replyLinks}
-            linkInput={linkInput}
-            showLinksSection={showLinksSection}
-            isSubmitting={isSubmitting}
+          <TutorialHighlight
+            active={tutorial.activeTarget === 'list' && tutorial.isVisible}
             theme={theme}
             isDarkMode={isDarkMode}
-            t={t}
-            onResetForm={resetForm}
-            onCancelReply={handleCancelReply}
-            onRemoveImage={handleRemoveImage}
-            onRemoveLink={handleRemoveLink}
-            onLinkInputChange={handleLinkInputChange}
-            onAddLink={handleAddLink}
-            onPickImages={handlePickImages}
-            onPickFromGallery={handleGalleryPick}
-            onTakePhoto={handleTakePhoto}
-            onToggleLinksSection={() => setShowLinksSection(!showLinksSection)}
-            onSubmit={handleAddReply}
-            currentUserId={user?.$id}
-            inputRef={replyInputRef}
-          />
+            borderRadius={moderateScale(16)}
+          >
+            <View style={[styles.repliesSection, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : '#F9FAFB' }]}>
+
+              {isLoadingReplies ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={theme.primary} />
+                  <Text style={[styles.loadingText, { color: theme.textSecondary }]}>{t('common.loading')}</Text>
+                </View>
+              ) : replies.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="chatbubble-outline" size={moderateScale(48)} color={theme.textSecondary} />
+                  <Text style={[styles.emptyTitle, { color: theme.textSecondary }]}>{t('post.noReplies')}</Text>
+                  <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>{t('post.beFirstToReply')}</Text>
+                </View>
+              ) : (
+                <View style={styles.repliesList}>
+                  {(repliesByParent[ROOT_REPLY_ID] || []).map((reply) => renderReplyThread(reply, 0))}
+                </View>
+              )}
+            </View>
+          </TutorialHighlight>
+        </ScrollView>
+
+        {showGuestReplyRestriction && (
+          <TutorialHighlight
+            active={tutorial.activeTarget === 'restriction' && tutorial.isVisible}
+            theme={theme}
+            isDarkMode={isDarkMode}
+            borderRadius={moderateScale(14)}
+          >
+            <View style={[
+              styles.inputSection,
+              {
+                borderTopColor: theme.border,
+                backgroundColor: theme.background,
+              },
+            ]}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: moderateScale(8),
+                  borderRadius: moderateScale(12),
+                  paddingHorizontal: moderateScale(12),
+                  paddingVertical: moderateScale(10),
+                  backgroundColor: isDarkMode ? 'rgba(245, 158, 11, 0.16)' : 'rgba(245, 158, 11, 0.1)',
+                }}>
+                <Ionicons name="information-circle-outline" size={moderateScale(18)} color={theme.primary} />
+                <Text style={{ flex: 1, color: theme.text, fontSize: moderateScale(13) }}>
+                  {t('common.guestReplyRestricted')}
+                </Text>
+              </View>
+            </View>
+          </TutorialHighlight>
+        )}
+
+        {!isViewOnlyMode && !showGuestReplyRestriction && (
+          <TutorialHighlight
+            active={tutorial.activeTarget === 'composer' && tutorial.isVisible}
+            theme={theme}
+            isDarkMode={isDarkMode}
+            borderRadius={moderateScale(14)}
+          >
+            <ReplyInputSection
+              editingReply={editingReply}
+              replyingTo={replyingTo}
+              replyText={replyText}
+              setReplyText={setReplyText}
+              replyImages={replyImages}
+              replyLinks={replyLinks}
+              linkInput={linkInput}
+              showLinksSection={showLinksSection}
+              isSubmitting={isSubmitting}
+              theme={theme}
+              isDarkMode={isDarkMode}
+              t={t}
+              onResetForm={resetForm}
+              onCancelReply={handleCancelReply}
+              onRemoveImage={handleRemoveImage}
+              onRemoveLink={handleRemoveLink}
+              onLinkInputChange={handleLinkInputChange}
+              onAddLink={handleAddLink}
+              onPickImages={handlePickImages}
+              onPickFromGallery={handleGalleryPick}
+              onTakePhoto={handleTakePhoto}
+              onToggleLinksSection={() => setShowLinksSection(!showLinksSection)}
+              onSubmit={handleAddReply}
+              currentUserId={user?.$id}
+              inputRef={replyInputRef}
+            />
+          </TutorialHighlight>
         )}
       </KeyboardAvoidingView>
+
+      <ScreenTutorialCard
+        visible={tutorial.isVisible}
+        theme={theme}
+        isRTL={isRTL}
+        t={t}
+        step={tutorial.currentStep}
+        stepIndex={tutorial.currentIndex}
+        totalSteps={tutorial.totalSteps}
+        onPrev={tutorial.prevStep}
+        onNext={tutorial.nextStep}
+        onSkip={tutorial.skipTutorial}
+      />
 
       <ImageGalleryModal
         visible={galleryVisible}

@@ -11,8 +11,8 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
   const motionProfile = context?.motionProfile;
   const compactMode = context?.compactMode;
   
-  // Use more dots: ~60 for normal, ~30 for compact
-  const baseCount = compactMode ? 30 : 60;
+  // Keep enough particles for the effect while reducing visual noise by ~30%
+  const baseCount = compactMode ? 21 : 42;
   // Override incoming particleCount if it's too small for the snow effect
   const finalCount = particleCount < baseCount ? baseCount : particleCount;
   
@@ -30,7 +30,7 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
       return {
         translateX: new Animated.Value(startX),
         translateY: new Animated.Value(startY),
-        opacity: new Animated.Value(Math.random() * 0.4 + 0.2),
+        opacity: new Animated.Value(Math.random() * 0.22 + 0.12),
         size: Math.random() * 3 + 2, 
       };
     })
@@ -79,12 +79,12 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
         : Animated.loop(
             Animated.sequence([
               Animated.timing(particle.opacity, {
-                toValue: Math.random() * 0.3 + 0.5,
+                toValue: Math.random() * 0.16 + 0.3,
                 duration: 3000 + Math.random() * 2000,
                 useNativeDriver: true,
               }),
               Animated.timing(particle.opacity, {
-                toValue: Math.random() * 0.1 + 0.1,
+                toValue: Math.random() * 0.08 + 0.06,
                 duration: 3000 + Math.random() * 2000,
                 useNativeDriver: true,
               }),
@@ -134,8 +134,8 @@ const AnimatedBackground = ({ particleCount = 35 }) => {
                 { translateX: particle.translateX },
                 { translateY: particle.translateY },
               ],
-              opacity: reduceMotion ? 0.2 : particle.opacity,
-              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(255, 255, 255, 0.8)',
+              opacity: reduceMotion ? 0.14 : particle.opacity,
+              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.5)',
               shadowColor: isDarkMode ? '#fff' : '#ffffff',
             },
           ]}
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   particle: {
     position: 'absolute',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
+    shadowOpacity: 0.45,
     shadowRadius: 3,
   },
 });

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { moderateScale, spacing } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
 import {
@@ -22,6 +23,7 @@ const ScreenTutorialCard = ({
   targetRect,
 }) => {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [cardHeight, setCardHeight] = useState(208);
   const [measuredTargetRect, setMeasuredTargetRect] = useState(null);
 
@@ -50,18 +52,20 @@ const ScreenTutorialCard = ({
 
   const cardPositionStyle = useMemo(() => {
     const horizontalPadding = spacing.md;
-    const topSafe = spacing.md;
-    const bottomSafe = spacing.xl;
+    const topSafe = insets.top + spacing.sm;
+    const bottomSafe = insets.bottom + spacing.lg;
     const gap = spacing.sm;
     const maxWidth = 360;
     const usableWidth = Math.max(0, windowWidth - horizontalPadding * 2);
     const cardWidth = Math.min(maxWidth, usableWidth);
+    const maxCardHeight = Math.max(160, windowHeight - topSafe - bottomSafe);
 
     if (!anchorRect || !anchorRect.width || !anchorRect.height) {
       return {
+        width: cardWidth,
+        maxHeight: maxCardHeight,
         left: horizontalPadding,
-        right: horizontalPadding,
-        bottom: spacing.lg,
+        bottom: bottomSafe,
       };
     }
 
@@ -78,6 +82,7 @@ const ScreenTutorialCard = ({
     if (spaceBelow >= cardHeight + gap && belowDoesNotOverlap) {
       return {
         width: cardWidth,
+        maxHeight: maxCardHeight,
         left,
         top: belowTop,
       };
@@ -86,6 +91,7 @@ const ScreenTutorialCard = ({
     if (spaceAbove >= cardHeight + gap && aboveDoesNotOverlap) {
       return {
         width: cardWidth,
+        maxHeight: maxCardHeight,
         left,
         top: aboveTop,
       };
@@ -94,6 +100,7 @@ const ScreenTutorialCard = ({
     if (spaceBelow >= spaceAbove) {
       return {
         width: cardWidth,
+        maxHeight: maxCardHeight,
         left,
         top: cardMaxTop,
       };
@@ -101,10 +108,11 @@ const ScreenTutorialCard = ({
 
     return {
       width: cardWidth,
+      maxHeight: maxCardHeight,
       left,
       top: topSafe,
     };
-  }, [anchorRect, cardHeight, windowHeight, windowWidth]);
+  }, [anchorRect, cardHeight, insets.bottom, insets.top, windowHeight, windowWidth]);
 
   if (!visible || !step) {
     return null;
@@ -198,11 +206,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    zIndex: 9999,
+    elevation: 9999,
   },
   card: {
     borderWidth: 1,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
+    zIndex: 10000,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.18,
     shadowRadius: 20,

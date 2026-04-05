@@ -29,6 +29,7 @@ import telemetry from '../utils/telemetry';
 import safeStorage from '../utils/safeStorage';
 import { getAsyncCollectionState } from '../utils/uiStateHelpers';
 import useScreenTutorial from '../hooks/useScreenTutorial';
+import { isGuest } from '../utils/guestUtils';
 
 const normalizeHexColor = (color, fallback) => {
   if (typeof color !== 'string') {
@@ -57,6 +58,7 @@ const Profile = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { contentStyle } = useLayout();
   const { isUserRepresentative } = useRepDetection(user);
+  const isGuestUser = isGuest(user);
   const isMeRep = isUserRepresentative(user?.$id);
   const [userPosts, setUserPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
@@ -89,7 +91,7 @@ const Profile = ({ navigation, route }) => {
     },
   ]), [t]);
 
-  const tutorial = useScreenTutorial('profile', tutorialSteps);
+  const tutorial = useScreenTutorial(isGuestUser ? 'profile_guest' : 'profile', tutorialSteps);
 
   const getProfileLink = () => {
     return `collegecommunity://profile/${user?.$id}`;

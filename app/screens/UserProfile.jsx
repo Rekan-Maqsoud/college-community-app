@@ -29,7 +29,7 @@ import useLayout from '../hooks/useLayout';
 import telemetry from '../utils/telemetry';
 import { useUserProfile } from '../hooks/useRealtimeSubscription';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { canGuestInitiateChat } from '../utils/guestUtils';
+import { canGuestInitiateChat, isGuest } from '../utils/guestUtils';
 
 const UserProfile = ({ route, navigation }) => {
   const { userId, userData: initialUserData } = route?.params || {};
@@ -55,6 +55,7 @@ const UserProfile = ({ route, navigation }) => {
   const displayName = userData?.fullName || userData?.name || t('errors.unknownUser');
   const { isUserRepresentative } = useRepDetection(currentUser);
   const isThisUserRep = isUserRepresentative(userId);
+  const isCurrentUserGuest = isGuest(currentUser);
 
   const isUserMissingError = useCallback((err) => {
     const code = Number(err?.code ?? err?.response?.code ?? 0);
@@ -420,14 +421,14 @@ const UserProfile = ({ route, navigation }) => {
   const handleDirectMessage = async () => {
     if (messageLoading || !currentUser?.$id || !userId || currentUser.$id === userId) return;
 
-    // Guest restriction: only allow DM to mutual follows
-    if (currentUser?.role === 'guest') {
-      const allowed = await canGuestInitiateChat(currentUser.$id, userId);
+    // Guest restriction is enforced by mutual-friend checks.
+    if (isCurrentUserGuest) {
+      const allowed = canGuestInitiateChat(currentUser, userData);
       if (!allowed) {
         showAlert({
           type: 'info',
           title: t('common.info'),
-          message: t('common.becomeFriendsFirst') || 'Follow each other first to start a conversation.',
+          message: t('common.guestChatRestricted'),
         });
         return;
       }
@@ -437,8 +438,8 @@ const UserProfile = ({ route, navigation }) => {
     try {
       triggerHaptic('light');
       const chat = await createPrivateChat(
-        { $id: currentUser.$id, name: currentUser.fullName || currentUser.name },
-        { $id: userId, name: userData?.fullName || userData?.name }
+        { ...currentUser, name: currentUser.fullName || currentUser.name },
+        { ...userData, $id: userId, name: userData?.fullName || userData?.name }
       );
       
       if (chat) {
@@ -454,7 +455,10 @@ const UserProfile = ({ route, navigation }) => {
         });
       }
     } catch (error) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('chats.errorCreatingChat') || 'Failed to start conversation' });
+      const message = error?.code === 'GUEST_CHAT_RESTRICTED'
+        ? t('common.guestChatRestricted')
+        : (t('chats.errorCreatingChat') || 'Failed to start conversation');
+      showAlert({ type: 'error', title: t('common.error'), message });
     } finally {
       setMessageLoading(false);
     }
@@ -546,7 +550,10 @@ const UserProfile = ({ route, navigation }) => {
   const avatarUri = userData.profilePicture ? userData.profilePicture : defaultAvatar;
   
   const stageKey = getStageKey(userData.stage);
-  const isProfileGuest = userData?.role === 'guest';
+  const isProfileGuest = isGuest(userData);
+  const isGuestMessageRestricted = isCurrentUserGuest
+    && !isProfileGuest
+    && !canGuestInitiateChat(currentUser, userData);
   const stageTranslation = userData.stage ? t(`stages.${stageKey}`) : '';
   const departmentTranslation = userData.department ? t(`departments.${userData.department}`) : '';
   
@@ -824,31 +831,54 @@ const UserProfile = ({ route, navigation }) => {
               </LinearGradient>
             </TouchableOpacity>
 
-            {/* Message Button */}
-            <TouchableOpacity 
-              onPress={handleDirectMessage} 
-              activeOpacity={0.8}
-              disabled={messageLoading}
-              style={styles.actionButton}
-            >
-              <LinearGradient
-                colors={['#10B981', '#059669']}
-                style={styles.actionButtonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+            {!isGuestMessageRestricted ? (
+              <TouchableOpacity 
+                onPress={handleDirectMessage} 
+                activeOpacity={0.8}
+                disabled={messageLoading}
+                style={styles.actionButton}
               >
-                {messageLoading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <IoniconSvg name="chatbubble-outline" size={moderateScale(16)} color="#FFFFFF" />
-                    <Text style={[styles.actionButtonText, { fontSize: fontSize(12) }]}>
-                      {t('profile.message')}
-                    </Text>
-                  </>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={['#10B981', '#059669']}
+                  style={styles.actionButtonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  {messageLoading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <IoniconSvg name="chatbubble-outline" size={moderateScale(16)} color="#FFFFFF" />
+                      <Text style={[styles.actionButtonText, { fontSize: fontSize(12) }]}>
+                        {t('profile.message')}
+                      </Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={() => showAlert({
+                  type: 'info',
+                  title: t('common.info'),
+                  message: t('common.guestChatRestricted'),
+                })}
+                activeOpacity={0.8}
+                style={styles.actionButton}
+              >
+                <LinearGradient
+                  colors={['#6B7280', '#4B5563']}
+                  style={styles.actionButtonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <IoniconSvg name="lock-closed-outline" size={moderateScale(16)} color="#FFFFFF" />
+                  <Text style={[styles.actionButtonText, { fontSize: fontSize(12) }]}>
+                    {t('profile.message')}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
 
             {/* Block Button */}
             <TouchableOpacity 

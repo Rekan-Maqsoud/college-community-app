@@ -249,6 +249,7 @@ export default {
     "blockedByUserBanner": "لا يمكنك إرسال رسائل إلى هذا المستخدم.",
     "messagesOnlyBlockedBanner": "لقد قمت بحظر الرسائل في هذه المحادثة.",
     "messagesOnlyBlockedByUserBanner": "تم حظر الرسائل من قبل هذا المستخدم.",
+    "guestFriendsRequiredBanner": "كوّن صداقة أولاً للدردشة مع الطلاب.",
     "searchComingSoon": "ميزة البحث قادمة قريباً!",
     "blockConfirm": "هل أنت متأكد من حظر {name}؟",
     "userBlocked": "تم حظر المستخدم",

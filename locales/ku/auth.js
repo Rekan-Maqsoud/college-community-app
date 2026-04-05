@@ -16,6 +16,8 @@ export default {
     "fullName": "ناوی تەواو",
     "guestSignUpTitle": "خۆتۆمارکردنی میوان",
     "guestSignUpSubtitle": "بەشداربە بۆ بینینی گفتوگۆ گشتییەکان",
+    "notAStudent": "قوتابی نیت؟",
+    "signUpAsGuest": "وەک میوان خۆتۆمار بکە",
     "age": "تەمەن",
     "selectUniversity": "زانکۆ هەڵبژێرە",
     "selectCollege": "کۆلێژ هەڵبژێرە",

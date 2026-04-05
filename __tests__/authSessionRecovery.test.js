@@ -60,6 +60,12 @@ jest.mock('expo-web-browser', () => ({
   openAuthSessionAsync: (...args) => mockOpenAuthSessionAsync(...args),
 }));
 
+jest.mock('expo-secure-store', () => ({
+  setItemAsync: jest.fn().mockResolvedValue(),
+  getItemAsync: jest.fn().mockResolvedValue(null),
+  deleteItemAsync: jest.fn().mockResolvedValue(),
+}));
+
 jest.mock('../app/utils/safeStorage', () => ({
   __esModule: true,
   default: {

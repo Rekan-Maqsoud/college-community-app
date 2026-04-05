@@ -3,8 +3,10 @@ import { databases, config } from '../config';
 import { sendChatPushNotification } from '../../services/pushNotificationService';
 import { parsePollPayload, applyPollVote } from '../../app/utils/pollUtils';
 import { enforceRateLimit } from '../securityGuards';
+import { getUserById } from '../users';
 import { ensureChatParticipant } from './chatsEncryption';
 import { getChat, canUserSendMessage, restorePrivateChatForUser } from './chatsLifecycle';
+import { GUEST_CHAT_MESSAGE_RATE_LIMIT, isGuest } from '../../app/utils/guestUtils';
 import {
   getAuthenticatedUserId,
   buildParticipantPermissions,
@@ -38,11 +40,19 @@ export const sendMessage = async (chatId, messageData) => {
     const currentUserId = await getAuthenticatedUserId();
     const senderId = currentUserId;
 
+    let isGuestSender = false;
+    try {
+      const senderUserDoc = await getUserById(currentUserId, true);
+      isGuestSender = isGuest(senderUserDoc);
+    } catch {
+      isGuestSender = false;
+    }
+
     enforceRateLimit({
       action: 'send_chat_message',
       userId: currentUserId,
-      maxActions: 15,
-      windowMs: 10 * 1000,
+      maxActions: isGuestSender ? GUEST_CHAT_MESSAGE_RATE_LIMIT.maxActions : 15,
+      windowMs: isGuestSender ? GUEST_CHAT_MESSAGE_RATE_LIMIT.windowMs : (10 * 1000),
     });
 
     const hasContent = messageData.content && messageData.content.trim().length > 0;

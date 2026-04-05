@@ -249,6 +249,7 @@ export default {
     "blockedByUserBanner": "ناتوانیت نامە بنێریت بۆ ئەم بەکارهێنەرە.",
     "messagesOnlyBlockedBanner": "تۆ نامەکانت لەم چاتەدا بلۆک کردووە.",
     "messagesOnlyBlockedByUserBanner": "ناردنی نامە لەلایەن ئەم بەکارهێنەرە بلۆک کراوە.",
+    "guestFriendsRequiredBanner": "سەرەتا هاوڕێ بن بۆ گفتوگۆ لەگەڵ قوتابییان.",
     "searchComingSoon": "تایبەتمەندی گەڕان بەم زووانە بەردەست دەبێت!",
     "blockConfirm": "ئایا دڵنیایت لە بلۆککردنی {name}؟",
     "userBlocked": "بەکارهێنەر بلۆک کرا",

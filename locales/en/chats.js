@@ -251,6 +251,7 @@ export default {
     "blockedByUserBanner": "You cannot send messages to this user.",
     "messagesOnlyBlockedBanner": "You have blocked messages in this chat.",
     "messagesOnlyBlockedByUserBanner": "Messaging is blocked by this user.",
+    "guestFriendsRequiredBanner": "Become friends to chat with students.",
     "searchComingSoon": "Search feature coming soon!",
     "blockConfirm": "Are you sure you want to block {name}?",
     "userBlocked": "User has been blocked",

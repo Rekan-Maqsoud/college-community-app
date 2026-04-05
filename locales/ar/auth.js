@@ -16,6 +16,8 @@ export default {
     "fullName": "الاسم الكامل",
     "guestSignUpTitle": "تسجيل ضيف",
     "guestSignUpSubtitle": "انضم لمشاهدة المناقشات العامة",
+    "notAStudent": "ألست طالبًا؟",
+    "signUpAsGuest": "سجّل كضيف",
     "age": "العمر",
     "selectUniversity": "اختر الجامعة",
     "selectCollege": "اختر الكلية",

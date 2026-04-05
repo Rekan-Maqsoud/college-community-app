@@ -1,12 +1,22 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import safeStorage from '../utils/safeStorage';
 import { getCurrentUser, getCompleteUserData } from '../../database/auth';
+import { isEducationalEmail } from '../constants/academicEmailDomains';
 import { restoreBookmarksFromServer } from '../utils/bookmarkService';
 
 const UserContext = createContext();
 const USER_DATA_CACHE_KEY = 'userData';
 const USER_DATA_META_KEY = 'userDataMeta';
 const USER_CACHE_FRESHNESS_MS = 90 * 1000;
+
+const shouldExposeAcademicFields = (roleValue, emailValue) => {
+  const normalizedRole = String(roleValue || '').trim().toLowerCase();
+  if (normalizedRole === 'guest') {
+    return false;
+  }
+
+  return isEducationalEmail(emailValue);
+};
 
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -81,6 +91,8 @@ export const UserProvider = ({ children }) => {
   const mapCompleteUserData = useCallback((completeUserData, appwriteUser) => {
     // Parse socialLinks from profileViews field (stored as JSON string)
     const socialLinksData = parseProfileMetadata(completeUserData.profileViews);
+    const normalizedRole = normalizeRole(completeUserData.role);
+    const canUseAcademicFields = shouldExposeAcademicFields(normalizedRole, completeUserData.email);
 
     return {
       $id: completeUserData.$id,
@@ -91,11 +103,11 @@ export const UserProvider = ({ children }) => {
       bio: completeUserData.bio || '',
       gender: completeUserData.gender || '',
       profilePicture: completeUserData.profilePicture || '',
-      university: completeUserData.university || '',
-      college: completeUserData.major || '',
-      department: completeUserData.department || '',
-      stage: yearToStage(completeUserData.year),
-      role: normalizeRole(completeUserData.role),
+      university: canUseAcademicFields ? (completeUserData.university || '') : '',
+      college: canUseAcademicFields ? (completeUserData.major || '') : '',
+      department: canUseAcademicFields ? (completeUserData.department || '') : '',
+      stage: canUseAcademicFields ? (yearToStage(completeUserData.year) || '') : '',
+      role: normalizedRole,
       postsCount: completeUserData.postsCount || 0,
       followersCount: completeUserData.followersCount || 0,
       followingCount: completeUserData.followingCount || 0,
@@ -296,11 +308,22 @@ export const UserProvider = ({ children }) => {
       const currentData = await safeStorage.getItem(USER_DATA_CACHE_KEY);
       const parsedData = currentData ? JSON.parse(currentData) : {};
       const freshestUserData = user && typeof user === 'object' ? user : {};
+      const normalizeRole = (roleValue) => String(roleValue || '').trim().toLowerCase();
+
+      const safeUpdates = {
+        ...(updates && typeof updates === 'object' ? updates : {}),
+      };
+
+      const currentRole = normalizeRole(freshestUserData.role || parsedData.role);
+      const nextRole = normalizeRole(safeUpdates.role);
+      if (currentRole === 'guest' && nextRole && nextRole !== 'guest') {
+        delete safeUpdates.role;
+      }
       
       const updatedData = {
         ...parsedData,
         ...freshestUserData,
-        ...updates,
+        ...safeUpdates,
       };
       
       await cacheUserData(
@@ -314,34 +337,43 @@ export const UserProvider = ({ children }) => {
         const { updateUserDocument } = require('../../database/auth');
         
         const appwriteUpdates = {};
-        if (updates.fullName !== undefined) appwriteUpdates.name = updates.fullName;
-        if (updates.bio !== undefined) appwriteUpdates.bio = updates.bio;
-        if (updates.profilePicture !== undefined) appwriteUpdates.profilePicture = updates.profilePicture;
-        if (updates.university !== undefined) appwriteUpdates.university = updates.university;
-        if (updates.college !== undefined) appwriteUpdates.major = updates.college;
-        if (updates.department !== undefined) appwriteUpdates.department = updates.department;
-        if (updates.stage !== undefined) {
-          const mappedYear = stageToYear(updates.stage);
+        if (safeUpdates.fullName !== undefined) appwriteUpdates.name = safeUpdates.fullName;
+        if (safeUpdates.bio !== undefined) appwriteUpdates.bio = safeUpdates.bio;
+        if (safeUpdates.profilePicture !== undefined) appwriteUpdates.profilePicture = safeUpdates.profilePicture;
+        if (safeUpdates.university !== undefined) appwriteUpdates.university = safeUpdates.university;
+        if (safeUpdates.college !== undefined) appwriteUpdates.major = safeUpdates.college;
+        if (safeUpdates.department !== undefined) appwriteUpdates.department = safeUpdates.department;
+        if (safeUpdates.stage !== undefined) {
+          const mappedYear = stageToYear(safeUpdates.stage);
           if (mappedYear !== null) {
             appwriteUpdates.year = mappedYear;
           }
         }
-        if (updates.lastAcademicUpdate !== undefined) appwriteUpdates.lastAcademicUpdate = updates.lastAcademicUpdate;
-        if (updates.gender !== undefined) appwriteUpdates.gender = updates.gender;
+        if (safeUpdates.lastAcademicUpdate !== undefined) appwriteUpdates.lastAcademicUpdate = safeUpdates.lastAcademicUpdate;
+        if (safeUpdates.gender !== undefined) appwriteUpdates.gender = safeUpdates.gender;
+
+        if (safeUpdates.profileViews !== undefined) {
+          appwriteUpdates.profileViews = safeUpdates.profileViews;
+        }
         
         // Store socialLinks and visibility as JSON in profileViews field
-        if (updates.socialLinks !== undefined || updates.socialLinksVisibility !== undefined || updates.academicChangesCount !== undefined) {
+        if (
+          appwriteUpdates.profileViews === undefined
+          && (safeUpdates.socialLinks !== undefined || safeUpdates.socialLinksVisibility !== undefined || safeUpdates.academicChangesCount !== undefined)
+        ) {
           const socialLinksData = {
-            links: updates.socialLinks !== undefined ? updates.socialLinks : updatedData.socialLinks,
-            visibility: updates.socialLinksVisibility !== undefined ? updates.socialLinksVisibility : updatedData.socialLinksVisibility,
-            academicChangesCount: updates.academicChangesCount !== undefined
-              ? updates.academicChangesCount
+            links: safeUpdates.socialLinks !== undefined ? safeUpdates.socialLinks : updatedData.socialLinks,
+            visibility: safeUpdates.socialLinksVisibility !== undefined ? safeUpdates.socialLinksVisibility : updatedData.socialLinksVisibility,
+            academicChangesCount: safeUpdates.academicChangesCount !== undefined
+              ? safeUpdates.academicChangesCount
               : (updatedData.academicChangesCount || 0),
           };
           appwriteUpdates.profileViews = JSON.stringify(socialLinksData);
         }
-        
-        await updateUserDocument(appwriteUser.$id, appwriteUpdates);
+
+        if (Object.keys(appwriteUpdates).length > 0) {
+          await updateUserDocument(appwriteUser.$id, appwriteUpdates);
+        }
       }
       
       return true;

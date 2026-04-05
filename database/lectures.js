@@ -11,6 +11,7 @@ import { getUserById } from './users';
 export const LECTURE_CHANNEL_TYPES = {
   OFFICIAL: 'official',
   COMMUNITY: 'community',
+  GUEST: 'guest',
 };
 
 export const LECTURE_ACCESS_TYPES = {
@@ -78,12 +79,23 @@ const normalizeChannelType = (channelType) => {
   if (channelType === LECTURE_CHANNEL_TYPES.OFFICIAL) {
     return LECTURE_CHANNEL_TYPES.OFFICIAL;
   }
+
+  if (channelType === LECTURE_CHANNEL_TYPES.GUEST) {
+    return LECTURE_CHANNEL_TYPES.GUEST;
+  }
+
   return LECTURE_CHANNEL_TYPES.COMMUNITY;
 };
 
 const normalizeAccessType = (channelType, accessType) => {
-  if (normalizeChannelType(channelType) === LECTURE_CHANNEL_TYPES.OFFICIAL) {
+  const normalizedChannelType = normalizeChannelType(channelType);
+
+  if (normalizedChannelType === LECTURE_CHANNEL_TYPES.OFFICIAL) {
     return LECTURE_ACCESS_TYPES.APPROVAL_REQUIRED;
+  }
+
+  if (normalizedChannelType === LECTURE_CHANNEL_TYPES.GUEST) {
+    return LECTURE_ACCESS_TYPES.OPEN;
   }
 
   if (accessType === LECTURE_ACCESS_TYPES.OPEN) {
@@ -856,7 +868,11 @@ export const getLectureChannels = async ({ search = '', channelType = 'all', lim
     queries.push(Query.search('name', normalizedSearch));
   }
 
-  if (channelType === LECTURE_CHANNEL_TYPES.OFFICIAL || channelType === LECTURE_CHANNEL_TYPES.COMMUNITY) {
+  if (
+    channelType === LECTURE_CHANNEL_TYPES.OFFICIAL
+    || channelType === LECTURE_CHANNEL_TYPES.COMMUNITY
+    || channelType === LECTURE_CHANNEL_TYPES.GUEST
+  ) {
     queries.push(Query.equal('channelType', channelType));
   }
 

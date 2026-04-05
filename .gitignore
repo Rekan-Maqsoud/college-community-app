@@ -51,3 +51,9 @@ build-*.apk
 *.swp
 *.swo
 *~
+
+# local AI tooling and helper artifacts (not app runtime)
+.agent/
+.github/agents/
+*-run-gradlew.txt
+diff_*.txt

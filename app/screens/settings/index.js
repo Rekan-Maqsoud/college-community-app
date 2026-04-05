@@ -9,15 +9,19 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '../../components/icons/CompatIonicon';
 import { useAppSettings } from '../../context/AppSettingsContext';
+import { useUser } from '../../context/UserContext';
 import { GlassCard } from '../../components/GlassComponents';
 import { borderRadius } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '../../utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getSettingsAccentColor, getSettingsHeaderGradient } from './settingsTheme';
+import { isGuest } from '../../utils/guestUtils';
 
 const Settings = ({ navigation }) => {
   const { t, theme, isDarkMode, isRTL } = useAppSettings();
+  const { user } = useUser();
   const insets = useSafeAreaInsets();
+  const isGuestUser = isGuest(user);
   const backIconName = isRTL ? 'arrow-forward' : 'arrow-back';
   const chevronIconName = isRTL ? 'chevron-back' : 'chevron-forward';
 
@@ -77,6 +81,7 @@ const Settings = ({ navigation }) => {
       description: t('settings.classRepresentativeDesc'),
       icon: 'people-outline',
       screen: 'RepVoting',
+      hideForGuest: true,
     },
     {
       id: 'account',
@@ -143,7 +148,9 @@ const Settings = ({ navigation }) => {
         contentContainerStyle={styles.scrollContent}>
 
         <View style={styles.cardsContainer}>
-          {settingsSections.map((section) => (
+          {settingsSections
+            .filter((section) => !(isGuestUser && section.hideForGuest))
+            .map((section) => (
             <SettingCard key={section.id} item={section} />
           ))}
         </View>

@@ -1,10 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
-import { isLiquidGlassSupported } from '@callstack/liquid-glass';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { GlassContainer } from './GlassComponents';
 import { spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
+import { isLiquidGlassEnabled } from '../utils/glassSupport';
+
+const supportsLiquidGlass = isLiquidGlassEnabled;
 
 export const PostCardSkeleton = () => {
   const { isDarkMode } = useAppSettings();
@@ -210,13 +212,13 @@ export const ChatListSkeleton = ({ count = 6 }) => {
           style={[
             styles.listSkeletonCard,
             {
-              backgroundColor: isLiquidGlassSupported ? 'transparent' : cardBackground,
-              borderColor: isLiquidGlassSupported
+              backgroundColor: supportsLiquidGlass ? 'transparent' : cardBackground,
+              borderColor: supportsLiquidGlass
                 ? 'transparent'
                 : isDarkMode
                   ? 'rgba(255,255,255,0.08)'
                   : 'rgba(0,0,0,0.04)',
-              borderWidth: isLiquidGlassSupported ? 0 : 1,
+              borderWidth: supportsLiquidGlass ? 0 : 1,
             },
           ]}
         >

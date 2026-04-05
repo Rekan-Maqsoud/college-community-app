@@ -37,6 +37,21 @@ const getAcademicChangesCountFromProfileViews = (profileViews) => {
   }
 };
 
+const normalizeUserRole = (roleValue) => {
+  if (roleValue === null || roleValue === undefined) return 'student';
+  const text = String(roleValue).trim().toLowerCase();
+  if (!text || text === 'null' || text === 'undefined') return 'student';
+  return text;
+};
+
+const getPostAuthRouteName = (roleValue) => {
+  return normalizeUserRole(roleValue) === 'guest' ? 'GuestTabs' : 'MainTabs';
+};
+
+const shouldExposeAcademicFields = (roleValue, emailValue) => {
+  return normalizeUserRole(roleValue) !== 'guest' && isEducationalEmail(emailValue);
+};
+
 const SignIn = ({ navigation, route }) => {
   const googleLogoUri = 'https://www.gstatic.com/images/branding/product/1x/googleg_48dp.png';
   const [email, setEmail] = useState(route?.params?.prefillEmail || '');
@@ -92,6 +107,97 @@ const SignIn = ({ navigation, route }) => {
     }
   }, [route?.params?.prefillEmail]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const resumePendingOAuthFlow = async () => {
+      const resumeTrace = telemetry.startTrace('auth_resume_pending_oauth');
+
+      try {
+        const existingUser = await getCurrentUser();
+        if (!existingUser) {
+          resumeTrace.finish({ success: true, meta: { hasSession: false } });
+          return;
+        }
+
+        const userCheck = await checkOAuthUserExists(existingUser.$id);
+
+        if (userCheck.exists && userCheck.userDoc) {
+          const completeUserData = await getCompleteUserData();
+          if (completeUserData && isMounted) {
+            const academicChangesCount = getAcademicChangesCountFromProfileViews(completeUserData.profileViews);
+            const canUseAcademicFields = shouldExposeAcademicFields(completeUserData.role, completeUserData.email);
+            const userData = {
+              $id: completeUserData.$id,
+              email: completeUserData.email,
+              fullName: completeUserData.name,
+              bio: completeUserData.bio || '',
+              profilePicture: completeUserData.profilePicture || '',
+              university: canUseAcademicFields ? (completeUserData.university || '') : '',
+              college: canUseAcademicFields ? (completeUserData.major || '') : '',
+              department: canUseAcademicFields ? (completeUserData.department || '') : '',
+              stage: canUseAcademicFields ? (completeUserData.year || '') : '',
+              role: normalizeUserRole(completeUserData.role),
+              postsCount: completeUserData.postsCount || 0,
+              followersCount: completeUserData.followersCount || 0,
+              followingCount: completeUserData.followingCount || 0,
+              isEmailVerified: true,
+              lastAcademicUpdate: completeUserData.lastAcademicUpdate || null,
+              academicChangesCount,
+            };
+
+            await setUserData(userData);
+            navigation.replace(getPostAuthRouteName(userData.role));
+            resumeTrace.finish({ success: true, meta: { path: 'existing_user' } });
+            return;
+          }
+        }
+
+        if (!userCheck.user || !isMounted) {
+          resumeTrace.finish({ success: true, meta: { hasSession: true, profileResolved: false } });
+          return;
+        }
+
+        const oauthResolvedEmail = userCheck.email || userCheck.user.email || '';
+        const oauthResolvedName = userCheck.name || userCheck.user.name || '';
+
+        await storePendingOAuthSignup({
+          userId: userCheck.user.$id,
+          email: oauthResolvedEmail,
+          name: oauthResolvedName,
+        });
+
+        if (!isEducationalEmail(oauthResolvedEmail)) {
+          navigation.replace('GuestSignUp', {
+            oauthMode: true,
+            oauthEmail: oauthResolvedEmail,
+            oauthName: oauthResolvedName,
+            oauthUserId: userCheck.user.$id,
+          });
+          resumeTrace.finish({ success: true, meta: { path: 'guest_signup' } });
+          return;
+        }
+
+        navigation.replace('SignUp', {
+          oauthMode: true,
+          oauthEmail: oauthResolvedEmail,
+          oauthName: oauthResolvedName,
+          oauthUserId: userCheck.user.$id,
+        });
+        resumeTrace.finish({ success: true, meta: { path: 'signup' } });
+      } catch (error) {
+        resumeTrace.finish({ success: false, error });
+        console.error('[SignIn] Failed to resume pending OAuth flow:', error?.message || error);
+      }
+    };
+
+    resumePendingOAuthFlow();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [navigation, setUserData]);
+
   const handleSignIn = async () => {
     if (!email.trim() || !password.trim()) {
       showAlert({ type: 'error', title: t('common.error'), message: t('auth.fillAllFields') });
@@ -119,16 +225,18 @@ const SignIn = ({ navigation, route }) => {
           
           if (completeUserData) {
             const academicChangesCount = getAcademicChangesCountFromProfileViews(completeUserData.profileViews);
+            const canUseAcademicFields = shouldExposeAcademicFields(completeUserData.role, completeUserData.email);
             const userData = {
               $id: completeUserData.$id,
               email: completeUserData.email,
               fullName: completeUserData.name,
               bio: completeUserData.bio || '',
               profilePicture: completeUserData.profilePicture || '',
-              university: completeUserData.university || '',
-              college: completeUserData.major || '',
-              department: completeUserData.department || '',
-              stage: completeUserData.year || '',
+              university: canUseAcademicFields ? (completeUserData.university || '') : '',
+              college: canUseAcademicFields ? (completeUserData.major || '') : '',
+              department: canUseAcademicFields ? (completeUserData.department || '') : '',
+              stage: canUseAcademicFields ? (completeUserData.year || '') : '',
+              role: normalizeUserRole(completeUserData.role),
               postsCount: completeUserData.postsCount || 0,
               followersCount: completeUserData.followersCount || 0,
               followingCount: completeUserData.followingCount || 0,
@@ -139,7 +247,7 @@ const SignIn = ({ navigation, route }) => {
             
             await setUserData(userData);
             signInTrace.finish({ success: true, meta: { reusedSession: true } });
-            navigation.replace('MainTabs');
+            navigation.replace(getPostAuthRouteName(userData.role));
             return;
           }
           // User data couldn't be loaded — clear the stale session and re-authenticate
@@ -175,16 +283,18 @@ const SignIn = ({ navigation, route }) => {
       }
 
       const academicChangesCount = getAcademicChangesCountFromProfileViews(completeUserData.profileViews);
+      const canUseAcademicFields = shouldExposeAcademicFields(completeUserData.role, completeUserData.email);
       const userData = {
         $id: completeUserData.$id,
         email: completeUserData.email,
         fullName: completeUserData.name,
         bio: completeUserData.bio || '',
         profilePicture: completeUserData.profilePicture || '',
-        university: completeUserData.university || '',
-        college: completeUserData.major || '',
-        department: completeUserData.department || '',
-        stage: completeUserData.year || '',
+        university: canUseAcademicFields ? (completeUserData.university || '') : '',
+        college: canUseAcademicFields ? (completeUserData.major || '') : '',
+        department: canUseAcademicFields ? (completeUserData.department || '') : '',
+        stage: canUseAcademicFields ? (completeUserData.year || '') : '',
+        role: normalizeUserRole(completeUserData.role),
         postsCount: completeUserData.postsCount || 0,
         followersCount: completeUserData.followersCount || 0,
         followingCount: completeUserData.followingCount || 0,
@@ -195,7 +305,7 @@ const SignIn = ({ navigation, route }) => {
       
       await setUserData(userData);
       signInTrace.finish({ success: true, meta: { reusedSession: false } });
-      navigation.replace('MainTabs');
+      navigation.replace(getPostAuthRouteName(userData.role));
     } catch (error) {
       signInTrace.finish({ success: false, error });
       let errorMessage = t('auth.signInError');
@@ -236,16 +346,18 @@ const SignIn = ({ navigation, route }) => {
           
           if (completeUserData) {
             const academicChangesCount = getAcademicChangesCountFromProfileViews(completeUserData.profileViews);
+            const canUseAcademicFields = shouldExposeAcademicFields(completeUserData.role, completeUserData.email);
             const userData = {
               $id: completeUserData.$id,
               email: completeUserData.email,
               fullName: completeUserData.name,
               bio: completeUserData.bio || '',
               profilePicture: completeUserData.profilePicture || '',
-              university: completeUserData.university || '',
-              college: completeUserData.major || '',
-              department: completeUserData.department || '',
-              stage: completeUserData.year || '',
+              university: canUseAcademicFields ? (completeUserData.university || '') : '',
+              college: canUseAcademicFields ? (completeUserData.major || '') : '',
+              department: canUseAcademicFields ? (completeUserData.department || '') : '',
+              stage: canUseAcademicFields ? (completeUserData.year || '') : '',
+              role: normalizeUserRole(completeUserData.role),
               postsCount: completeUserData.postsCount || 0,
               followersCount: completeUserData.followersCount || 0,
               followingCount: completeUserData.followingCount || 0,
@@ -256,7 +368,7 @@ const SignIn = ({ navigation, route }) => {
             
             await setUserData(userData);
             googleTrace.finish({ success: true, meta: { path: 'existing_user' } });
-            navigation.replace('MainTabs');
+            navigation.replace(getPostAuthRouteName(userData.role));
           }
         } else if (userCheck.user) {
           const oauthResolvedEmail = userCheck.email || userCheck.user.email || '';
@@ -291,6 +403,14 @@ const SignIn = ({ navigation, route }) => {
             oauthUserId: userCheck.user.$id,
           });
           googleTrace.finish({ success: true, meta: { path: 'needs_profile_completion' } });
+        } else {
+          console.warn('[SignIn.handleGoogleSignIn] OAuth session resolved without user profile context');
+          googleTrace.finish({ success: false, meta: { reason: 'oauth_user_context_missing' } });
+          showAlert({
+            type: 'error',
+            title: t('common.error'),
+            message: t('auth.googleSignInError'),
+          });
         }
       } else if (result.cancelled) {
         googleTrace.finish({ success: true, meta: { cancelled: true } });
@@ -570,9 +690,9 @@ const SignIn = ({ navigation, route }) => {
               onPress={() => navigation.navigate('GuestSignUp')}
             >
               <Text style={[styles.guestSignUpText, { fontSize: fontSize(12) }]}>
-                {t('auth.notAStudent', 'Not a student?')}{' '}
+                {t('auth.notAStudent')}{' '}
                 <Text style={styles.guestSignUpLink}>
-                  {t('auth.signUpAsGuest', 'Sign up as Guest')}
+                  {t('auth.signUpAsGuest')}
                 </Text>
               </Text>
             </TouchableOpacity>

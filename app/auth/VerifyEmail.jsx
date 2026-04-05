@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Linking from 'expo-linking';
+import * as IntentLauncher from 'expo-intent-launcher';
 import {
   MailIcon,
   TimeIcon,
@@ -34,7 +35,8 @@ import {
   resendVerificationEmail, 
   cancelPendingVerification, 
   getCompleteUserData,
-  checkExpiredVerification
+  checkExpiredVerification,
+  isEducationalEmail,
 } from '../../database/auth';
 import { 
   wp, 
@@ -58,6 +60,21 @@ const getAcademicChangesCountFromProfileViews = (profileViews) => {
   } catch (e) {
     return 0;
   }
+};
+
+const normalizeUserRole = (roleValue) => {
+  if (roleValue === null || roleValue === undefined) return 'student';
+  const text = String(roleValue).trim().toLowerCase();
+  if (!text || text === 'null' || text === 'undefined') return 'student';
+  return text;
+};
+
+const getPostAuthRouteName = (roleValue) => {
+  return normalizeUserRole(roleValue) === 'guest' ? 'GuestTabs' : 'MainTabs';
+};
+
+const shouldExposeAcademicFields = (roleValue, emailValue) => {
+  return normalizeUserRole(roleValue) !== 'guest' && isEducationalEmail(emailValue);
 };
 
 const VerifyEmail = ({ route, navigation }) => {
@@ -96,6 +113,20 @@ const VerifyEmail = ({ route, navigation }) => {
       ],
     });
   }, [navigation, showAlert, t]);
+
+  const getVerifyErrorMessage = useCallback((error) => {
+    const rawMessage = String(error?.message || '').trim();
+    if (!rawMessage) {
+      return t('auth.verificationError');
+    }
+
+    const normalized = rawMessage.toLowerCase();
+    if (normalized.includes('no pending verification') || normalized.includes('verification expired')) {
+      return t('auth.verificationExpiredMessage');
+    }
+
+    return rawMessage;
+  }, [t]);
 
   useEffect(() => {
     Animated.parallel([
@@ -174,10 +205,25 @@ const VerifyEmail = ({ route, navigation }) => {
       const result = await checkExpiredVerification();
       if (result.expired) {
         handleExpired();
+        return;
+      }
+
+      if (!result.hasPending) {
+        showAlert({
+          type: 'error',
+          title: t('auth.verificationExpired'),
+          message: t('auth.verificationExpiredMessage'),
+          buttons: [
+            {
+              text: t('common.ok'),
+              onPress: () => navigation.replace('SignUp', { preservedData: formData }),
+            },
+          ],
+        });
       }
     };
     checkExpiration();
-  }, [handleExpired]);
+  }, [formData, handleExpired, navigation, showAlert, t]);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -188,23 +234,46 @@ const VerifyEmail = ({ route, navigation }) => {
   const handleOtpChange = (value, index) => {
     // Only allow numbers
     const numericValue = value.replace(/[^0-9]/g, '');
-    
-    const newOtp = [...otpCode];
-    newOtp[index] = numericValue;
-    setOtpCode(newOtp);
+
+    const nextOtp = [...otpCode];
     setOtpError('');
-    
+
+    if (!numericValue) {
+      nextOtp[index] = '';
+      setOtpCode(nextOtp);
+      return;
+    }
+
+    // Support pasting a full 6-digit code into any field.
+    if (numericValue.length > 1) {
+      const pastedDigits = numericValue.slice(0, 6 - index).split('');
+      pastedDigits.forEach((digit, offset) => {
+        nextOtp[index + offset] = digit;
+      });
+
+      setOtpCode(nextOtp);
+
+      const nextFocusIndex = index + pastedDigits.length;
+      if (nextFocusIndex <= 5) {
+        otpInputRefs.current[nextFocusIndex]?.focus();
+      }
+
+      if (nextOtp.every((digit) => digit && digit.length === 1)) {
+        handleVerifyOTP(nextOtp.join(''));
+      }
+      return;
+    }
+
+    nextOtp[index] = numericValue.slice(-1);
+    setOtpCode(nextOtp);
+
     // Auto-focus next input
-    if (numericValue && index < 5) {
+    if (index < 5 && nextOtp[index]) {
       otpInputRefs.current[index + 1]?.focus();
     }
-    
-    // Auto-verify when all 6 digits are entered
-    if (index === 5 && numericValue) {
-      const fullCode = newOtp.join('');
-      if (fullCode.length === 6) {
-        handleVerifyOTP(fullCode);
-      }
+
+    if (nextOtp.every((digit) => digit && digit.length === 1)) {
+      handleVerifyOTP(nextOtp.join(''));
     }
   };
 
@@ -215,22 +284,34 @@ const VerifyEmail = ({ route, navigation }) => {
   };
 
   const handleVerifyOTP = async (code) => {
+    if (isVerifying) return;
+
     const otpString = code || otpCode.join('');
     
+    console.log('[VerifyEmail.handleVerifyOTP] Verification attempt started');
+    console.log('[VerifyEmail.handleVerifyOTP] OTP code length:', otpString.length);
+    
     if (otpString.length !== 6) {
+      console.warn('[VerifyEmail.handleVerifyOTP] Invalid OTP length, expected 6, got:', otpString.length);
       setOtpError(t('auth.enterCompleteCode'));
       return;
     }
     
+    console.log('[VerifyEmail.handleVerifyOTP] OTP validation passed, starting verification process');
     setIsVerifying(true);
     setOtpError('');
     
     try {
+      console.log('[VerifyEmail.handleVerifyOTP] Calling verifyOTPCode...');
       await verifyOTPCode(otpString);
+      console.log('[VerifyEmail.handleVerifyOTP] OTP verification successful');
 
       const pendingAcademicSuggestion = formData?.academicSuggestionPayload;
+      console.log('[VerifyEmail.handleVerifyOTP] Pending academic suggestion:', !!pendingAcademicSuggestion);
+
       if (pendingAcademicSuggestion?.suggestionText) {
         try {
+          console.log('[VerifyEmail.handleVerifyOTP] Creating academic suggestion...');
           await createSuggestion({
             category: 'other',
             title: t('auth.otherAcademicSuggestionTitle'),
@@ -244,25 +325,36 @@ const VerifyEmail = ({ route, navigation }) => {
             selectedDepartment: pendingAcademicSuggestion.department || undefined,
             selectedStage: pendingAcademicSuggestion.stage || undefined,
           });
+          console.log('[VerifyEmail.handleVerifyOTP] Academic suggestion created successfully');
         } catch (error) {
+          console.error('[VerifyEmail.handleVerifyOTP] Failed to create suggestion:', error.message);
         }
       }
       
+      console.log('[VerifyEmail.handleVerifyOTP] Fetching complete user data...');
       const completeUserData = await getCompleteUserData();
+      
+      console.log('[VerifyEmail.handleVerifyOTP] Complete user data retrieved:', {
+        hasData: !!completeUserData,
+        userId: completeUserData?.$id,
+        email: completeUserData?.email?.substring(0, 5) + '***',
+        role: completeUserData?.role,
+      });
       
       if (completeUserData) {
         const academicChangesCount = getAcademicChangesCountFromProfileViews(completeUserData.profileViews);
+        const canUseAcademicFields = shouldExposeAcademicFields(completeUserData.role, completeUserData.email);
         const userData = {
           $id: completeUserData.$id,
           email: completeUserData.email,
           fullName: completeUserData.name,
           bio: completeUserData.bio || '',
           profilePicture: completeUserData.profilePicture || '',
-          university: completeUserData.university || '',
-          college: completeUserData.major || '',
-          department: completeUserData.department || '',
-          stage: completeUserData.year || '',
-          role: completeUserData.role || 'student',
+          university: canUseAcademicFields ? (completeUserData.university || '') : '',
+          college: canUseAcademicFields ? (completeUserData.major || '') : '',
+          department: canUseAcademicFields ? (completeUserData.department || '') : '',
+          stage: canUseAcademicFields ? (completeUserData.year || '') : '',
+          role: normalizeUserRole(completeUserData.role),
           postsCount: completeUserData.postsCount || 0,
           followersCount: completeUserData.followersCount || 0,
           followingCount: completeUserData.followingCount || 0,
@@ -271,13 +363,34 @@ const VerifyEmail = ({ route, navigation }) => {
           academicChangesCount,
         };
         
+        console.log('[VerifyEmail.handleVerifyOTP] Setting user data with role:', userData.role);
         await setUserData(userData);
+        console.log('[VerifyEmail.handleVerifyOTP] User data set successfully');
+      } else {
+        console.warn('[VerifyEmail.handleVerifyOTP] No complete user data retrieved');
       }
+
+      const nextRouteName = getPostAuthRouteName(completeUserData?.role);
+      console.log('[VerifyEmail.handleVerifyOTP] Navigating to route:', nextRouteName);
+      navigation.replace(nextRouteName);
       
-      navigation.replace('MainTabs');
     } catch (error) {
+      const normalizedMessage = String(error?.message || '').toLowerCase();
+      const isExpectedVerificationError =
+        normalizedMessage.includes('invalid')
+        || normalizedMessage.includes('expired')
+        || normalizedMessage.includes('pending verification')
+        || normalizedMessage.includes('too many verification attempts');
+
+      if (isExpectedVerificationError) {
+        console.warn('[VerifyEmail.handleVerifyOTP] Verification rejected:', error.message || error);
+      } else {
+        console.error('[VerifyEmail.handleVerifyOTP] OTP verification failed:', error.message || error);
+        console.error('[VerifyEmail.handleVerifyOTP] Error stack:', error.stack);
+      }
+
       setIsVerifying(false);
-      setOtpError(t('auth.verificationError'));
+      setOtpError(getVerifyErrorMessage(error));
       // Clear the OTP inputs on error
       setOtpCode(['', '', '', '', '', '']);
       otpInputRefs.current[0]?.focus();
@@ -326,15 +439,24 @@ const VerifyEmail = ({ route, navigation }) => {
         // Opens the default Mail app inbox on iOS
         await Linking.openURL('message://');
       } else {
-        // On Android, try Gmail inbox first, then generic email intent
+        try {
+          await IntentLauncher.startActivityAsync('android.intent.action.MAIN', {
+            category: 'android.intent.category.APP_EMAIL',
+            flags: 268435456,
+          });
+          return;
+        } catch (intentError) {
+          // Continue to fallback options below.
+        }
+
         const gmailUrl = 'googlegmail://';
         const canOpenGmail = await Linking.canOpenURL(gmailUrl);
         if (canOpenGmail) {
           await Linking.openURL(gmailUrl);
-        } else {
-          // Fallback: open device email chooser via intent
-          await Linking.openURL('mailto:');
+          return;
         }
+
+        throw new Error('email_app_unavailable');
       }
     } catch (error) {
       showAlert({
@@ -470,9 +592,11 @@ const VerifyEmail = ({ route, navigation }) => {
                         onChangeText={(value) => handleOtpChange(value, index)}
                         onKeyPress={(e) => handleOtpKeyPress(e, index)}
                         keyboardType="number-pad"
-                        maxLength={1}
+                        maxLength={6}
                         selectTextOnFocus
                         autoFocus={index === 0}
+                        textContentType="oneTimeCode"
+                        autoComplete={Platform.OS === 'android' ? 'sms-otp' : 'one-time-code'}
                       />
                     ))}
                   </View>

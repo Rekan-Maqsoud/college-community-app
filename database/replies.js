@@ -3,6 +3,7 @@ import { ID, Query, Permission, Role } from 'appwrite';
 import { repliesCacheManager } from '../app/utils/cacheManager';
 import { enforceRateLimit } from './securityGuards';
 import { getUserById } from './users';
+import { canGuestReply, GUEST_COMMENT_RATE_LIMIT, isGuest } from '../app/utils/guestUtils';
 import { notifyPostReply, notifyReplyLike, notifyReplyReply } from './notifications';
 import telemetry from '../app/utils/telemetry';
 
@@ -114,6 +115,17 @@ export const createReply = async (replyData) => {
             currentUserId,
         });
 
+        const [currentUserDoc, postAuthorDoc] = await Promise.all([
+            getUserById(currentUserId),
+            getUserById(post.userId),
+        ]);
+
+        if (!canGuestReply(currentUserDoc, postAuthorDoc)) {
+            const restrictionError = new Error('Guests can only reply to posts from students they are friends with.');
+            restrictionError.code = 'GUEST_REPLY_RESTRICTED';
+            throw restrictionError;
+        }
+
         const replyPermissions = [
             Permission.read(Role.users()),
             Permission.update(Role.users()),
@@ -128,11 +140,13 @@ export const createReply = async (replyData) => {
             permissions: uniqueReplyPermissions,
         });
 
+        const isGuestAuthor = isGuest(currentUserDoc);
+
         enforceRateLimit({
             action: 'create_reply',
             userId: currentUserId,
-            maxActions: 8,
-            windowMs: 60 * 1000,
+            maxActions: isGuestAuthor ? GUEST_COMMENT_RATE_LIMIT.maxActions : 8,
+            windowMs: isGuestAuthor ? GUEST_COMMENT_RATE_LIMIT.windowMs : (60 * 1000),
         });
         
         const reply = await databases.createDocument({

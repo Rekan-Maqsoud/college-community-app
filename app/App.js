@@ -18,8 +18,9 @@ import CustomAlert from './components/CustomAlert';
 import { GlobalAlertProvider, useGlobalAlert } from './context/GlobalAlertContext';
 import { wp, normalize, spacing } from './utils/responsive';
 import { borderRadius, shadows } from './theme/designTokens';
-import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 import { BlurView } from 'expo-blur';
+import { isLiquidGlassEnabled } from './utils/glassSupport';
 import telemetry from './utils/telemetry';
 import { initCrashReporting, setCrashReportingUser } from './utils/crashReporting';
 import { REFRESH_TOPICS, publishRefreshEvent, subscribeToRefreshTopic } from './utils/dataRefreshBus';
@@ -30,7 +31,7 @@ import {
   shouldReconnectRealtime,
   tryReconnectRealtime,
 } from './utils/realtimeReconnect';
-import { getCurrentUser, getUserDocument, signOut } from '../database/auth';
+import { getCurrentUser, getUserDocument } from '../database/auth';
 import { getAllUserChats } from '../database/chatHelpers';
 import { getTotalUnreadCount, getChat } from '../database/chats';
 import { updateUserPushToken, updateLastSeen } from '../database/users';
@@ -102,14 +103,64 @@ if (!global.__COLLEGE_CONSOLE_CLEANUP__) {
       .slice(0, 400);
   };
 
-  console.log = () => {};
-  console.debug = () => {};
-  console.warn = () => {};
-  console.error = (...args) => {
-    telemetry.recordEvent('runtime_console_error_suppressed', {
-      message: formatConsoleMessage(args),
-    });
+  const originalConsole = {
+    log: typeof console.log === 'function' ? console.log.bind(console) : () => {},
+    debug: typeof console.debug === 'function' ? console.debug.bind(console) : () => {},
+    warn: typeof console.warn === 'function' ? console.warn.bind(console) : () => {},
+    error: typeof console.error === 'function' ? console.error.bind(console) : () => {},
   };
+
+  if (!__DEV__) {
+    console.log = () => {};
+    console.debug = () => {};
+    console.warn = () => {};
+    console.error = (...args) => {
+      telemetry.recordEvent('runtime_console_error_suppressed', {
+        message: formatConsoleMessage(args),
+      });
+    };
+  } else {
+    console.error = (...args) => {
+      telemetry.recordEvent('runtime_console_error', {
+        message: formatConsoleMessage(args),
+      });
+      originalConsole.error(...args);
+    };
+  }
+
+  // Keep custom global handler forwarding in production only to avoid dev-time reload loops.
+  if (!__DEV__) {
+    try {
+      if (!global.__COLLEGE_GLOBAL_ERROR_HANDLER_INSTALLED__) {
+        global.__COLLEGE_GLOBAL_ERROR_HANDLER_INSTALLED__ = true;
+
+        const previousGlobalHandler = global.ErrorUtils?.getGlobalHandler?.();
+        if (global.ErrorUtils?.setGlobalHandler) {
+          global.ErrorUtils.setGlobalHandler((error, isFatal) => {
+            telemetry.recordEvent('runtime_global_js_error', {
+              isFatal: Boolean(isFatal),
+              message: error?.message || String(error || ''),
+              stack: typeof error?.stack === 'string' ? error.stack.slice(0, 600) : null,
+            });
+
+            if (typeof previousGlobalHandler === 'function') {
+              try {
+                previousGlobalHandler.call(global.ErrorUtils, error, isFatal);
+              } catch (previousHandlerError) {
+                telemetry.recordEvent('runtime_previous_global_handler_failed', {
+                  message: previousHandlerError?.message || String(previousHandlerError),
+                });
+              }
+            }
+          });
+        }
+      }
+    } catch (globalHandlerError) {
+      telemetry.recordEvent('runtime_global_handler_install_failed', {
+        message: globalHandlerError?.message || String(globalHandlerError),
+      });
+    }
+  }
 }
 
 LogBox.ignoreLogs([
@@ -121,6 +172,7 @@ LogBox.ignoreLogs([
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+const supportsLiquidGlass = isLiquidGlassEnabled;
 
 const withActivityBoundary = (ScreenComponent, screenName) => {
   const WrappedScreen = (props) => {
@@ -383,8 +435,9 @@ const TabNavigator = () => {
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: isDarkMode ? 'rgba(255, 255, 255, 0.88)' : (theme.text || theme.textSecondary),
         tabBarStyle: {
-          backgroundColor: 'transparent',
-          borderTopWidth: 0,
+          backgroundColor: isDarkMode ? 'rgba(10, 16, 28, 0.55)' : 'rgba(255, 255, 255, 0.72)',
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: isDarkMode ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.1)',
           elevation: 0,
           height: Platform.OS === 'ios' ? (60 + Math.max(insets.bottom, 20)) : (56 + Math.max(insets.bottom, 10)),
           paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 20) : Math.max(insets.bottom, 10),
@@ -393,7 +446,7 @@ const TabNavigator = () => {
           flexDirection: isRTL ? 'row-reverse' : 'row',
         },
         tabBarBackground: () => (
-          isLiquidGlassSupported ? (
+          supportsLiquidGlass ? (
             <LiquidGlassView
               colorScheme={isDarkMode ? 'dark' : 'light'}
               effect="regular"
@@ -444,6 +497,11 @@ const GuestTabNavigator = () => {
       options: { title: t('tabs.home') },
     },
     {
+      name: 'Chats',
+      component: ChatsWithActivity,
+      options: { title: t('tabs.chats') },
+    },
+    {
       name: 'Post',
       component: PostWithActivity,
       options: {
@@ -467,6 +525,8 @@ const GuestTabNavigator = () => {
 
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Chats') {
+            iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
           } else if (route.name === 'Post') {
             iconName = focused ? 'add-circle' : 'add-circle-outline';
           } else if (route.name === 'Profile') {
@@ -478,8 +538,9 @@ const GuestTabNavigator = () => {
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: isDarkMode ? 'rgba(255, 255, 255, 0.88)' : (theme.text || theme.textSecondary),
         tabBarStyle: {
-          backgroundColor: 'transparent',
-          borderTopWidth: 0,
+          backgroundColor: isDarkMode ? 'rgba(10, 16, 28, 0.55)' : 'rgba(255, 255, 255, 0.72)',
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: isDarkMode ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.1)',
           elevation: 0,
           height: Platform.OS === 'ios' ? (60 + Math.max(insets.bottom, 20)) : (56 + Math.max(insets.bottom, 10)),
           paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 20) : Math.max(insets.bottom, 10),
@@ -488,7 +549,7 @@ const GuestTabNavigator = () => {
           flexDirection: isRTL ? 'row-reverse' : 'row',
         },
         tabBarBackground: () => (
-          isLiquidGlassSupported ? (
+          supportsLiquidGlass ? (
             <LiquidGlassView
               colorScheme={isDarkMode ? 'dark' : 'light'}
               effect="regular"
@@ -551,8 +612,14 @@ const MainStack = () => {
             setUserRole(userDoc.role.toLowerCase());
           }
         } catch (error) {
-          await signOut();
+          telemetry.recordEvent('app_session_user_doc_missing', {
+            userId: user.$id,
+            code: error?.code,
+            type: error?.type,
+            message: error?.message || String(error),
+          });
           setIsAuthenticated(false);
+          setUserRole('student');
         }
       } else {
         setIsAuthenticated(false);

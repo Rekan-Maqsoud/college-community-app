@@ -51,11 +51,11 @@ const FeedSelector = ({ selectedFeed, onFeedChange, height = moderateScale(44) }
       ? Animated.timing(indicatorAnim, {
           toValue: selectedIndex,
           duration: 100,
-          useNativeDriver: true,
+          useNativeDriver: false,
         })
       : Animated.spring(indicatorAnim, {
           toValue: selectedIndex,
-          useNativeDriver: true,
+          useNativeDriver: false,
           tension: 68,
           friction: 12,
         });

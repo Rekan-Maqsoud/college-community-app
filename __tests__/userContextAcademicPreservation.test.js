@@ -135,4 +135,186 @@ describe('UserContext academic preservation', () => {
       tree.unmount();
     });
   });
+
+  it('hides academic fields for guest users during hydration', async () => {
+    let tree;
+
+    getCompleteUserData.mockResolvedValueOnce({
+      $id: 'user-doc-guest',
+      userId: 'account-1',
+      email: 'guest@example.com',
+      name: 'Guest User',
+      bio: '',
+      gender: '',
+      profilePicture: '',
+      university: 'epu',
+      major: 'engineering',
+      department: 'computer_science',
+      year: 1,
+      role: 'guest',
+      postsCount: 0,
+      followersCount: 0,
+      followingCount: 0,
+      emailVerification: true,
+      lastAcademicUpdate: null,
+      profileViews: '',
+      blockedUsers: [],
+      chatBlockedUsers: [],
+    });
+
+    await act(async () => {
+      tree = renderer.create(
+        <UserProvider>
+          <CaptureContext />
+        </UserProvider>
+      );
+      await flushPromises();
+      await flushPromises();
+    });
+
+    expect(latestContext.user.role).toBe('guest');
+    expect(latestContext.user.university).toBe('');
+    expect(latestContext.user.college).toBe('');
+    expect(latestContext.user.department).toBe('');
+    expect(latestContext.user.stage).toBe('');
+
+    act(() => {
+      tree.unmount();
+    });
+  });
+
+  it('hides academic fields for non-academic email domains', async () => {
+    let tree;
+
+    getCompleteUserData.mockResolvedValueOnce({
+      $id: 'user-doc-public',
+      userId: 'account-1',
+      email: 'public@gmail.com',
+      name: 'Public User',
+      bio: '',
+      gender: '',
+      profilePicture: '',
+      university: 'epu',
+      major: 'engineering',
+      department: 'computer_science',
+      year: 4,
+      role: 'student',
+      postsCount: 0,
+      followersCount: 0,
+      followingCount: 0,
+      emailVerification: true,
+      lastAcademicUpdate: null,
+      profileViews: '',
+      blockedUsers: [],
+      chatBlockedUsers: [],
+    });
+
+    await act(async () => {
+      tree = renderer.create(
+        <UserProvider>
+          <CaptureContext />
+        </UserProvider>
+      );
+      await flushPromises();
+      await flushPromises();
+    });
+
+    expect(latestContext.user.role).toBe('student');
+    expect(latestContext.user.university).toBe('');
+    expect(latestContext.user.college).toBe('');
+    expect(latestContext.user.department).toBe('');
+    expect(latestContext.user.stage).toBe('');
+
+    act(() => {
+      tree.unmount();
+    });
+  });
+
+  it('prevents guest role escalation during local update merges', async () => {
+    let tree;
+
+    getCompleteUserData.mockResolvedValueOnce({
+      $id: 'user-doc-guest',
+      userId: 'account-1',
+      email: 'guest@example.com',
+      name: 'Guest User',
+      bio: '',
+      gender: '',
+      profilePicture: '',
+      university: 'epu',
+      major: 'engineering',
+      department: 'computer_science',
+      year: 1,
+      role: 'guest',
+      postsCount: 0,
+      followersCount: 0,
+      followingCount: 0,
+      emailVerification: true,
+      lastAcademicUpdate: null,
+      profileViews: '',
+      blockedUsers: [],
+      chatBlockedUsers: [],
+    });
+
+    await act(async () => {
+      tree = renderer.create(
+        <UserProvider>
+          <CaptureContext />
+        </UserProvider>
+      );
+      await flushPromises();
+      await flushPromises();
+    });
+
+    expect(latestContext.user.role).toBe('guest');
+    const callsBeforeRoleUpdate = updateUserDocument.mock.calls.length;
+
+    await act(async () => {
+      await latestContext.updateUser({ role: 'student' });
+      await flushPromises();
+    });
+
+    expect(latestContext.user.role).toBe('guest');
+    const callsAfterRoleUpdate = updateUserDocument.mock.calls.slice(callsBeforeRoleUpdate);
+    const persistedRoleValues = callsAfterRoleUpdate
+      .map((call) => call?.[1]?.role)
+      .filter((value) => value !== undefined);
+    expect(persistedRoleValues).toEqual([]);
+
+    act(() => {
+      tree.unmount();
+    });
+  });
+
+  it('persists profileViews directly when supplied in updateUser payload', async () => {
+    let tree;
+    const profileViewsPayload = JSON.stringify({
+      guestLastPostDate: '2026-03-12',
+      guestPostCountToday: 1,
+    });
+
+    await act(async () => {
+      tree = renderer.create(
+        <UserProvider>
+          <CaptureContext />
+        </UserProvider>
+      );
+      await flushPromises();
+      await flushPromises();
+    });
+
+    await act(async () => {
+      await latestContext.updateUser({ profileViews: profileViewsPayload });
+      await flushPromises();
+    });
+
+    expect(latestContext.user.profileViews).toBe(profileViewsPayload);
+    expect(updateUserDocument).toHaveBeenCalledWith('account-1', {
+      profileViews: profileViewsPayload,
+    });
+
+    act(() => {
+      tree.unmount();
+    });
+  });
 });

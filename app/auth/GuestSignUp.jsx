@@ -19,13 +19,14 @@ import {
 } from '../components/icons';
 import { Ionicons } from '../components/icons/CompatIonicon';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { useUser } from '../context/UserContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import CustomAlert from '../components/CustomAlert';
 import LanguageDropdown from '../components/LanguageDropdown';
 import SearchableDropdown from '../components/SearchableDropdownNew';
 import AnimatedBackground from '../components/AnimatedBackground';
 import { GlassContainer, GlassInput } from '../components/GlassComponents';
-import { initiateGuestSignup, clearPendingOAuthSignup } from '../../database/auth';
+import { initiateGuestSignup, clearPendingOAuthSignup, completeOAuthSignup } from '../../database/auth';
 import { uploadProfilePicture } from '../../services/imgbbService';
 import { 
   wp, hp, fontSize, spacing, isTablet, moderateScale,
@@ -35,10 +36,28 @@ import useLayout from '../hooks/useLayout';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import telemetry from '../utils/telemetry';
 
+const getAcademicChangesCountFromProfileViews = (profileViews) => {
+  if (!profileViews) return 0;
+
+  try {
+    const parsed = JSON.parse(profileViews);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return 0;
+    return Number(parsed.academicChangesCount) || 0;
+  } catch (e) {
+    return 0;
+  }
+};
+
 const GuestSignUp = ({ navigation, route }) => {
   const oauthMode = route?.params?.oauthMode || false;
   const oauthEmail = route?.params?.oauthEmail || '';
   const oauthName = route?.params?.oauthName || '';
+  
+  console.log('[GuestSignUp] Component mounted with props:', {
+    oauthMode,
+    oauthEmail: oauthEmail?.substring(0, 5) + '***',
+    oauthName,
+  });
   
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { formStyle } = useLayout();
@@ -66,6 +85,7 @@ const GuestSignUp = ({ navigation, route }) => {
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
   
   const { t, theme, isDarkMode, isRTL } = useAppSettings();
+  const { setUserData } = useUser();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -146,69 +166,125 @@ const GuestSignUp = ({ navigation, route }) => {
   const passwordStrength = getPasswordStrength(password);
   
   const validateForm = () => {
+    console.log('[GuestSignUp.validateForm] Validating form with values:', {
+      fullName: fullName?.trim() || '',
+      email: email?.substring(0, 5) + '***',
+      age: age || '',
+      passwordLength: password?.length || 0,
+      confirmPasswordMatches: password === confirmPassword,
+    });
+
     const errors = {};
     
     if (!fullName.trim()) {
+      console.log('[GuestSignUp.validateForm] Missing full name');
       errors.fullName = t('auth.fullNameRequired');
     } else if (!hasTwoNameParts(fullName)) {
+      console.log('[GuestSignUp.validateForm] Full name does not have two parts:', fullName);
       errors.fullName = t('auth.fullNameTwoWordsRequired');
     } else if (hasUnsupportedNameCharacters(fullName)) {
+      console.log('[GuestSignUp.validateForm] Full name has unsupported characters:', fullName);
       errors.fullName = t('auth.fullNameLettersOnly');
+    } else {
+      console.log('[GuestSignUp.validateForm] Full name valid:', fullName);
     }
     
     if (!email.trim()) {
+      console.log('[GuestSignUp.validateForm] Missing email');
       errors.email = t('auth.validEmailRequired');
     } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
+        console.log('[GuestSignUp.validateForm] Invalid email format:', email);
         errors.email = t('auth.validEmailRequired');
+      } else {
+        console.log('[GuestSignUp.validateForm] Email valid:', email.substring(0, 5) + '***');
       }
     }
     
     if (!age) {
+      console.log('[GuestSignUp.validateForm] Missing age');
       errors.age = t('auth.ageRequired');
+    } else {
+      console.log('[GuestSignUp.validateForm] Age valid:', age);
     }
 
     if (password.length < 8) {
+      console.log('[GuestSignUp.validateForm] Password too short:', password.length);
       errors.password = t('auth.passwordTooShort');
     } else if (passwordStrength === 'weak') {
+      console.log('[GuestSignUp.validateForm] Password strength is weak');
       errors.password = t('auth.passwordGuideWeak');
+    } else {
+      console.log('[GuestSignUp.validateForm] Password strength is:', passwordStrength);
     }
 
     if (password !== confirmPassword) {
+      console.log('[GuestSignUp.validateForm] Passwords do not match');
       errors.confirmPassword = t('auth.passwordMismatch');
+    } else {
+      console.log('[GuestSignUp.validateForm] Passwords match');
     }
     
+    console.log('[GuestSignUp.validateForm] Validation complete. Errors:', Object.keys(errors));
     setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
+    const isValid = Object.keys(errors).length === 0;
+    console.log('[GuestSignUp.validateForm] Form is valid:', isValid);
+    return isValid;
   };
 
   const handleFullNameBlur = () => {
+    console.log('[GuestSignUp.handleFullNameBlur] Full name input blur triggered');
+    console.log('[GuestSignUp.handleFullNameBlur] Full name value:', fullName);
+
     setHasBlurredNameField(true);
     setNameFocused(false);
     
     if (!fullName.trim()) {
+      console.log('[GuestSignUp.handleFullNameBlur] Full name is empty');
       setFieldErrors(prev => ({ ...prev, fullName: t('auth.fullNameRequired') }));
       return;
     }
     if (!hasTwoNameParts(fullName)) {
+      console.log('[GuestSignUp.handleFullNameBlur] Full name does not have two parts');
       setFieldErrors(prev => ({ ...prev, fullName: t('auth.fullNameTwoWordsRequired') }));
       return;
     }
     if (hasUnsupportedNameCharacters(fullName)) {
+      console.log('[GuestSignUp.handleFullNameBlur] Full name has unsupported characters');
       setFieldErrors(prev => ({ ...prev, fullName: t('auth.fullNameLettersOnly') }));
+    } else {
+      console.log('[GuestSignUp.handleFullNameBlur] Full name validation passed');
     }
   };
 
   const handleUploadProfilePicture = async () => {
+    console.log('[GuestSignUp.handleUploadProfilePicture] Starting profile picture upload...');
     try {
       setIsUploadingImage(true);
+      console.log('[GuestSignUp.handleUploadProfilePicture] Calling uploadProfilePicture service...');
       const result = await uploadProfilePicture({ t });
+      
+      console.log('[GuestSignUp.handleUploadProfilePicture] Upload result received:', {
+        hasDisplayUrl: !!result?.displayUrl,
+        resultKeys: Object.keys(result || {}),
+      });
+
       if (result && result.displayUrl) {
+        console.log('[GuestSignUp.handleUploadProfilePicture] Picture uploaded successfully');
         setProfilePicture(result.displayUrl);
+      } else {
+        console.warn('[GuestSignUp.handleUploadProfilePicture] No display URL in result:', result);
       }
     } catch (error) {
-      if (error?.code === 'NSFW_IMAGE_BLOCKED' || error?.code === 'NSFW_SCAN_FAILED') return;
+      console.error('[GuestSignUp.handleUploadProfilePicture] Upload error:', error.message || error);
+      console.error('[GuestSignUp.handleUploadProfilePicture] Error code:', error?.code);
+
+      if (error?.code === 'NSFW_IMAGE_BLOCKED' || error?.code === 'NSFW_SCAN_FAILED') {
+        console.log('[GuestSignUp.handleUploadProfilePicture] NSFW image blocked, silently returning');
+        return;
+      }
+
       showAlert({
         type: 'error',
         title: t('common.error'),
@@ -218,12 +294,23 @@ const GuestSignUp = ({ navigation, route }) => {
       });
     } finally {
       setIsUploadingImage(false);
+      console.log('[GuestSignUp.handleUploadProfilePicture] Upload attempt finished');
     }
   };
 
   const handleSignUp = async () => {
+    console.log('[GuestSignUp] handleSignUp started');
+    console.log('[GuestSignUp] Input values:', {
+      email: email?.substring(0, 5) + '***' || '***',
+      fullName,
+      age,
+      oauthMode,
+      profilePictureExists: !!profilePicture,
+    });
+
     if (!validateForm()) {
       const firstErrorKey = Object.keys(fieldErrors)[0];
+      console.log('[GuestSignUp] Form validation failed. First error:', firstErrorKey, fieldErrors[firstErrorKey]);
       if (firstErrorKey) {
         setSubmitError(fieldErrors[firstErrorKey]);
       } else {
@@ -232,11 +319,18 @@ const GuestSignUp = ({ navigation, route }) => {
       return;
     }
     
+    console.log('[GuestSignUp] Form validation passed, proceeding...');
     setIsLoading(true);
     setSubmitError('');
     
     try {
       if (oauthMode) {
+        console.log('[GuestSignUp] OAuth mode detected, handling OAuth flow...');
+        console.log('[GuestSignUp] OAuth params:', {
+          oauthUserId: route.params?.oauthUserId,
+          email: email?.substring(0, 5) + '***' || '***',
+        });
+
         // OAuth mode means the account is already 'created' by Google,
         // we just need to pass the extra info to VerifyEmail, or maybe complete it directly.
         // But since this is guest, the API already generated verify token, so we do the same flow.
@@ -247,48 +341,94 @@ const GuestSignUp = ({ navigation, route }) => {
           additionalData: { age, profilePicture, role: 'guest' },
           timestamp: Date.now(),
         };
-        // Just directly navigate to VerifyEmail in OAuth mode if verification is needed,
-        // Actually Google OAuth doesn't need email verification!
-        // We can just call completeOAuthSignup directly for guests.
-        import('../../database/auth').then(async ({ completeOAuthSignup }) => {
-          try {
-            await completeOAuthSignup(pendingData.userId, email, fullName, pendingData.additionalData);
-            navigation.replace('MainTabs');
-          } catch (error) {
-            setSubmitError(error.message || t('auth.signUpError'));
-            setIsLoading(false);
-          }
-        }).catch(err => {
-          setSubmitError(t('auth.signUpError'));
-          setIsLoading(false);
+        console.log('[GuestSignUp] Pending data prepared:', {
+          userId: pendingData.userId,
+          email: pendingData.email?.substring(0, 5) + '***' || '***',
+          name: pendingData.name,
+          additionalData: pendingData.additionalData,
         });
+
+        console.log('[GuestSignUp] Calling completeOAuthSignup...');
+        const result = await completeOAuthSignup(pendingData.userId, email, fullName, pendingData.additionalData);
+
+        if (result?.success && result?.userDoc) {
+          const academicChangesCount = getAcademicChangesCountFromProfileViews(result.userDoc.profileViews);
+          const userData = {
+            $id: result.userDoc.$id,
+            email: result.userDoc.email,
+            fullName: result.userDoc.name,
+            bio: result.userDoc.bio || '',
+            profilePicture: result.userDoc.profilePicture || '',
+            university: '',
+            college: '',
+            department: '',
+            stage: '',
+            role: String(result.userDoc.role || 'guest').trim().toLowerCase() || 'guest',
+            postsCount: result.userDoc.postsCount || 0,
+            followersCount: result.userDoc.followersCount || 0,
+            followingCount: result.userDoc.followingCount || 0,
+            isEmailVerified: true,
+            lastAcademicUpdate: result.userDoc.lastAcademicUpdate || null,
+            academicChangesCount,
+          };
+
+          await setUserData(userData);
+        }
+
+        console.log('[GuestSignUp] OAuth signup completed successfully, navigating to GuestTabs...');
+        navigation.replace('GuestTabs');
         return;
       }
       
+      console.log('[GuestSignUp] Regular (non-OAuth) flow detected');
       const payload = { stage: age, profilePicture }; // stage holds age temporarily for backend
+      console.log('[GuestSignUp] Calling initiateGuestSignup with:', {
+        email: email?.substring(0, 5) + '***' || '***',
+        fullName,
+        payload,
+      });
+      
       const result = await initiateGuestSignup(email, password, fullName, payload);
       
+      console.log('[GuestSignUp] initiateGuestSignup result:', {
+        success: result?.success,
+        userId: result?.userId,
+      });
+      
       if (result.success) {
+        console.log('[GuestSignUp] Signup successful, recording telemetry event...');
         telemetry.recordEvent('guest_signup_initiated');
+        console.log('[GuestSignUp] Navigating to VerifyEmail screen...');
         navigation.navigate('VerifyEmail', { email: email.trim().toLowerCase() });
+      } else {
+        console.warn('[GuestSignUp] Result indicates failure but no error was thrown:', result);
+        setSubmitError(t('auth.signUpError'));
       }
     } catch (error) {
+      console.error('[GuestSignUp] handleSignUp caught exception:', error.message || error);
+      console.error('[GuestSignUp] Error stack:', error.stack);
+      
       let errorMessage = t('auth.signUpError');
       if (error.message?.includes('already exists') || error.message?.includes('user')) {
+        console.log('[GuestSignUp] Email already exists error detected');
         errorMessage = t('auth.emailInUse', 'This email is already registered.');
       } else if (error.message?.includes('network') || error.message?.includes('Network')) {
+        console.log('[GuestSignUp] Network error detected');
         errorMessage = t('common.networkError');
       } else if (error.message?.includes('Only educational')) {
         // Should not happen since we bypass it for guests, but just in case
+        console.log('[GuestSignUp] Educational email filter triggered (unexpected)');
         errorMessage = error.message;
       } else {
+        console.log('[GuestSignUp] Generic error:', error.message);
         errorMessage = error.message;
       }
+      console.log('[GuestSignUp] Error message to display:', errorMessage);
       setSubmitError(errorMessage);
     } finally {
-      if (!oauthMode) {
-        setIsLoading(false);
-      }
+      console.log('[GuestSignUp] handleSignUp finally block executing, oauthMode:', oauthMode);
+      setIsLoading(false);
+      console.log('[GuestSignUp] Loading state set to false');
     }
   };
 

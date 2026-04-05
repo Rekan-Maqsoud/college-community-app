@@ -15,9 +15,12 @@ import { fontSize, spacing, moderateScale, hp } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { FlashList } from '@shopify/flash-list';
 import { BlurView } from 'expo-blur';
-import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 import { GlassModalCard } from './GlassComponents';
 import { AlertCircleOutlineExactIcon, CloseFilledIcon, HeartOutlineIcon } from './icons';
+import { isLiquidGlassEnabled } from '../utils/glassSupport';
+
+const supportsLiquidGlass = isLiquidGlassEnabled;
 
 const PostLikesModal = ({ visible, onClose, likedByIds }) => {
   const { t, theme, isDarkMode } = useAppSettings();
@@ -106,7 +109,7 @@ const PostLikesModal = ({ visible, onClose, likedByIds }) => {
       onRequestClose={onClose}
     >
       <View style={[styles.overlay, { backgroundColor: 'transparent' }]}>
-        {isLiquidGlassSupported ? (
+        {supportsLiquidGlass ? (
           <LiquidGlassView
             colorScheme={isDarkMode ? 'dark' : 'light'}
             effect="regular"

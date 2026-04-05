@@ -10,6 +10,7 @@ import {
   ensureChatEncryption,
   removeStoredChatKey,
 } from './chatsShared';
+import { canGuestInitiateChat } from '../../app/utils/guestUtils';
 
 export const createGroupChat = async (chatData) => {
   try {
@@ -418,6 +419,11 @@ export const canUserSendMessage = async (chatId, userId) => {
             myChatBlocked.includes(otherUserId) ||
             theirChatBlocked.includes(userId)
           ) {
+            return false;
+          }
+
+          // Guests can only message students when both users follow each other.
+          if (!canGuestInitiateChat(currentUserDoc, otherUserDoc)) {
             return false;
           }
         } catch {

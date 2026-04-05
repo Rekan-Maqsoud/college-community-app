@@ -53,11 +53,13 @@ const CHANNEL_FILTERS = {
   ALL: 'all',
   OFFICIAL: 'official',
   COMMUNITY: 'community',
+  GUEST: 'guest',
 };
 
 const LECTURE_WINDOWS = {
   COMMUNITY: 'community',
   OFFICIAL: 'official',
+  GUEST: 'guest',
 };
 
 const parseLectureSuggestionSettings = (settingsJson) => {
@@ -88,6 +90,56 @@ const parseLectureSuggestionSettings = (settingsJson) => {
   }
 };
 
+const parseLectureWindowSettings = (settingsJson) => {
+  if (!settingsJson) {
+    return {};
+  }
+
+  try {
+    return typeof settingsJson === 'string' ? JSON.parse(settingsJson) : settingsJson;
+  } catch {
+    return {};
+  }
+};
+
+const isGuestLectureChannel = (channel) => {
+  if (!channel || typeof channel !== 'object') {
+    return false;
+  }
+
+  const channelType = String(channel.channelType || '').trim().toLowerCase();
+  if (channelType === LECTURE_WINDOWS.GUEST) {
+    return true;
+  }
+
+  const tags = Array.isArray(channel.tags)
+    ? channel.tags.map(tag => String(tag || '').trim().toLowerCase())
+    : [];
+
+  const hasGuestTag = tags.some(tag => (
+    tag === 'guest'
+    || tag === 'guests'
+    || tag === 'guest-only'
+    || tag === 'guest_only'
+    || tag === 'for-guest'
+    || tag === 'for-guests'
+  ));
+
+  if (hasGuestTag) {
+    return true;
+  }
+
+  const settings = parseLectureWindowSettings(channel.settingsJson);
+  const audience = String(
+    settings?.audience
+    || settings?.targetAudience
+    || settings?.visibility
+    || ''
+  ).trim().toLowerCase();
+
+  return settings?.guestOnly === true || audience === 'guest' || audience === 'guests';
+};
+
 const CreateChannelModal = ({
   visible,
   onClose,
@@ -99,10 +151,13 @@ const CreateChannelModal = ({
   canCreateOfficial,
   canLinkGroups,
   isRTL,
+  isGuestMode,
 }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [channelType, setChannelType] = useState(LECTURE_CHANNEL_TYPES.COMMUNITY);
+  const [channelType, setChannelType] = useState(
+    () => (isGuestMode ? LECTURE_CHANNEL_TYPES.GUEST : LECTURE_CHANNEL_TYPES.COMMUNITY)
+  );
   const [needsApproval, setNeedsApproval] = useState(false);
   const [linkedGroupId, setLinkedGroupId] = useState('');
   const [nameFocused, setNameFocused] = useState(false);
@@ -112,11 +167,19 @@ const CreateChannelModal = ({
 
   const isNameValid = name.trim().length >= 2;
 
+  useEffect(() => {
+    setChannelType(isGuestMode ? LECTURE_CHANNEL_TYPES.GUEST : LECTURE_CHANNEL_TYPES.COMMUNITY);
+  }, [isGuestMode]);
+
   const handleSubmit = async () => {
     if (!isNameValid) return;
 
-    const accessType = channelType === LECTURE_CHANNEL_TYPES.OFFICIAL
+    const resolvedChannelType = isGuestMode ? LECTURE_CHANNEL_TYPES.GUEST : channelType;
+
+    const accessType = resolvedChannelType === LECTURE_CHANNEL_TYPES.OFFICIAL
       ? LECTURE_ACCESS_TYPES.APPROVAL_REQUIRED
+      : isGuestMode
+        ? LECTURE_ACCESS_TYPES.OPEN
       : needsApproval
         ? LECTURE_ACCESS_TYPES.APPROVAL_REQUIRED
         : LECTURE_ACCESS_TYPES.OPEN;
@@ -124,7 +187,7 @@ const CreateChannelModal = ({
     const success = await onCreate({
       name,
       description,
-      channelType,
+      channelType: resolvedChannelType,
       accessType,
       linkedChatId: linkedGroupId,
     });
@@ -132,7 +195,7 @@ const CreateChannelModal = ({
     if (success) {
       setName('');
       setDescription('');
-      setChannelType(LECTURE_CHANNEL_TYPES.COMMUNITY);
+      setChannelType(isGuestMode ? LECTURE_CHANNEL_TYPES.GUEST : LECTURE_CHANNEL_TYPES.COMMUNITY);
       setNeedsApproval(false);
       setLinkedGroupId('');
     }
@@ -148,7 +211,9 @@ const CreateChannelModal = ({
           <View style={[styles.modalHeader, isRTL && styles.rowReverse]}>
             <View style={[styles.modalHeaderLeft, isRTL && styles.rowReverse]}>
               <IoniconSvg name="school-outline" size={20} color={colors.primary} />
-              <Text style={[styles.modalTitle, isRTL && styles.directionalText, { color: colors.text }]}>{t('lectures.createChannel')}</Text>
+              <Text style={[styles.modalTitle, isRTL && styles.directionalText, { color: colors.text }]}> 
+                {isGuestMode ? t('lectures.createGuestChannel') : t('lectures.createChannel')}
+              </Text>
             </View>
             <GlassIconButton
               size={32}
@@ -205,57 +270,61 @@ const CreateChannelModal = ({
             {`${description.length}/${DESCRIPTION_MAX_LENGTH}`}
           </Text>
 
-          <Text style={[styles.sectionLabel, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('lectures.channelTypeLabel')}</Text>
-          <View style={[styles.typeRow, isRTL && styles.rowReverse]}>
-            <TouchableOpacity
-              style={[
-                styles.chip,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: canCreateOfficial
-                    ? (channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? colors.primary : 'transparent')
-                    : colors.inputBackground,
-                  opacity: canCreateOfficial ? 1 : 0.5,
-                },
-              ]}
-              onPress={() => { if (canCreateOfficial) setChannelType(LECTURE_CHANNEL_TYPES.OFFICIAL); }}
-              disabled={!canCreateOfficial}
-              activeOpacity={canCreateOfficial ? 0.7 : 1}>
-                <IoniconSvg
-                  name={canCreateOfficial ? 'shield-checkmark-outline' : 'lock-closed-outline'}
-                  size={14}
-                  color={canCreateOfficial
-                    ? (channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? '#FFFFFF' : colors.text)
-                    : colors.textSecondary}
-                />
-                <Text style={[styles.chipText, isRTL && styles.directionalText, { color: canCreateOfficial
-                    ? (channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? '#FFFFFF' : colors.text)
-                    : colors.textSecondary }]}> 
-                  {t('lectures.official')}
-                </Text>
-              </TouchableOpacity>
+          {!isGuestMode && (
+            <>
+              <Text style={[styles.sectionLabel, isRTL && styles.directionalText, { color: colors.textSecondary }]}>{t('lectures.channelTypeLabel')}</Text>
+              <View style={[styles.typeRow, isRTL && styles.rowReverse]}>
+                <TouchableOpacity
+                  style={[
+                    styles.chip,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: canCreateOfficial
+                        ? (channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? colors.primary : 'transparent')
+                        : colors.inputBackground,
+                      opacity: canCreateOfficial ? 1 : 0.5,
+                    },
+                  ]}
+                  onPress={() => { if (canCreateOfficial) setChannelType(LECTURE_CHANNEL_TYPES.OFFICIAL); }}
+                  disabled={!canCreateOfficial}
+                  activeOpacity={canCreateOfficial ? 0.7 : 1}>
+                    <IoniconSvg
+                      name={canCreateOfficial ? 'shield-checkmark-outline' : 'lock-closed-outline'}
+                      size={14}
+                      color={canCreateOfficial
+                        ? (channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? '#FFFFFF' : colors.text)
+                        : colors.textSecondary}
+                    />
+                    <Text style={[styles.chipText, isRTL && styles.directionalText, { color: canCreateOfficial
+                        ? (channelType === LECTURE_CHANNEL_TYPES.OFFICIAL ? '#FFFFFF' : colors.text)
+                        : colors.textSecondary }]}> 
+                      {t('lectures.official')}
+                    </Text>
+                  </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.chip,
-                {
-                  borderColor: channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? colors.primary : colors.border,
-                  backgroundColor: channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? colors.primary : 'transparent',
-                },
-              ]}
-              onPress={() => setChannelType(LECTURE_CHANNEL_TYPES.COMMUNITY)}>
-              <IoniconSvg name="people-outline" size={14} color={channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? '#FFFFFF' : colors.text} />
-              <Text style={[styles.chipText, isRTL && styles.directionalText, { color: channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? '#FFFFFF' : colors.text }]}> 
-                {t('lectures.community')}
-              </Text>
-            </TouchableOpacity>
-          </View>
+                <TouchableOpacity
+                  style={[
+                    styles.chip,
+                    {
+                      borderColor: channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? colors.primary : colors.border,
+                      backgroundColor: channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? colors.primary : 'transparent',
+                    },
+                  ]}
+                  onPress={() => setChannelType(LECTURE_CHANNEL_TYPES.COMMUNITY)}>
+                  <IoniconSvg name="people-outline" size={14} color={channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? '#FFFFFF' : colors.text} />
+                  <Text style={[styles.chipText, isRTL && styles.directionalText, { color: channelType === LECTURE_CHANNEL_TYPES.COMMUNITY ? '#FFFFFF' : colors.text }]}> 
+                    {t('lectures.community')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
-          {!canCreateOfficial && (
-            <Text style={[styles.officialHint, isRTL && styles.directionalText, { color: colors.textSecondary, fontStyle: 'italic' }]}>{t('lectures.officialHintForStudents')}</Text>
+              {!canCreateOfficial && (
+                <Text style={[styles.officialHint, isRTL && styles.directionalText, { color: colors.textSecondary, fontStyle: 'italic' }]}>{t('lectures.officialHintForStudents')}</Text>
+              )}
+            </>
           )}
 
-          {channelType === LECTURE_CHANNEL_TYPES.COMMUNITY && (
+          {!isGuestMode && channelType === LECTURE_CHANNEL_TYPES.COMMUNITY && (
             <GlassContainer borderRadius={borderRadius.md} style={styles.createModalOptionGlass}>
               <TouchableOpacity
                 style={[styles.toggleRow, isRTL && styles.rowReverse, { borderColor: `${colors.primary}33`, backgroundColor: 'transparent' }]}
@@ -359,7 +428,9 @@ const Lecture = ({ navigation }) => {
   const [search, setSearch] = useState('');
   const [searchVisible, setSearchVisible] = useState(false);
   const [filter, setFilter] = useState(CHANNEL_FILTERS.ALL);
-  const [activeWindow, setActiveWindow] = useState(LECTURE_WINDOWS.COMMUNITY);
+  const [activeWindow, setActiveWindow] = useState(
+    isGuestUser ? LECTURE_WINDOWS.GUEST : LECTURE_WINDOWS.COMMUNITY
+  );
   const [allChannels, setAllChannels] = useState([]);
   const [myChannels, setMyChannels] = useState([]);
   const [pendingChannelIds, setPendingChannelIds] = useState([]);
@@ -373,34 +444,47 @@ const Lecture = ({ navigation }) => {
   const [pinnedChannelIds, setPinnedChannelIds] = useState([]);
   const [joiningChannelId, setJoiningChannelId] = useState(null);
   const [loadChannelsFailed, setLoadChannelsFailed] = useState(false);
+  const [guestWindowInfoOpen, setGuestWindowInfoOpen] = useState(false);
   const lastRealtimeReloadAtRef = useRef(0);
   const realtimeReloadTimeoutRef = useRef(null);
   const loadChannelsInFlightRef = useRef(false);
 
-  const tutorialSteps = useMemo(() => ([
-    {
-      target: 'search',
-      title: t('tutorial.lecture.searchTitle'),
-      description: t('tutorial.lecture.searchDescription'),
-    },
-    {
-      target: 'create',
-      title: t('tutorial.lecture.createTitle'),
-      description: t('tutorial.lecture.createDescription'),
-    },
-    {
-      target: 'window',
-      title: t('tutorial.lecture.windowTitle'),
-      description: t('tutorial.lecture.windowDescription'),
-    },
-    {
-      target: 'channels',
-      title: t('tutorial.lecture.channelsTitle'),
-      description: t('tutorial.lecture.channelsDescription'),
-    },
-  ]), [t]);
+  const tutorialSteps = useMemo(() => {
+    const sharedSteps = [
+      {
+        target: 'search',
+        title: t('tutorial.lecture.searchTitle'),
+        description: t('tutorial.lecture.searchDescription'),
+      },
+      {
+        target: 'window',
+        title: t('tutorial.lecture.windowTitle'),
+        description: t('tutorial.lecture.windowDescription'),
+      },
+      {
+        target: 'channels',
+        title: t('tutorial.lecture.channelsTitle'),
+        description: t('tutorial.lecture.channelsDescription'),
+      },
+    ];
 
-  const tutorial = useScreenTutorial('lecture', tutorialSteps);
+    if (isGuestUser) {
+      return sharedSteps;
+    }
+
+    return [
+      sharedSteps[0],
+      {
+        target: 'create',
+        title: t('tutorial.lecture.createTitle'),
+        description: t('tutorial.lecture.createDescription'),
+      },
+      sharedSteps[1],
+      sharedSteps[2],
+    ];
+  }, [isGuestUser, t]);
+
+  const tutorial = useScreenTutorial(isGuestUser ? 'lecture_guest' : 'lecture', tutorialSteps);
 
   const logLectureTab = useCallback((name, meta = {}) => {
     telemetry.recordEvent(`lecture_${name}`, meta);
@@ -427,7 +511,36 @@ const Lecture = ({ navigation }) => {
     return isClassRepresentative;
   }, [isClassRepresentative, primaryActorId, user?.role]);
 
+  const lectureWindowOptions = useMemo(() => {
+    if (isGuestUser) {
+      return [
+        {
+          type: LECTURE_WINDOWS.GUEST,
+          icon: 'person-outline',
+          label: t('lectures.guestWindow'),
+        },
+      ];
+    }
+
+    return [
+      {
+        type: LECTURE_WINDOWS.COMMUNITY,
+        icon: 'people-outline',
+        label: t('lectures.communityWindow'),
+      },
+      {
+        type: LECTURE_WINDOWS.OFFICIAL,
+        icon: 'school-outline',
+        label: t('lectures.officialWindow'),
+      },
+    ];
+  }, [isGuestUser, t]);
+
   const suggestedChannels = useMemo(() => {
+    if (isGuestUser) {
+      return [];
+    }
+
     if (!Array.isArray(allChannels) || !allChannels.length) {
       return [];
     }
@@ -451,7 +564,7 @@ const Lecture = ({ navigation }) => {
 
       return departmentMatch || stageMatch;
     });
-  }, [allChannels, user?.department, user?.stage, user?.year]);
+  }, [allChannels, isGuestUser, user?.department, user?.stage, user?.year]);
 
   const sortChannelsWithPins = useCallback((channels = []) => {
     const list = Array.isArray(channels) ? [...channels] : [];
@@ -702,7 +815,24 @@ const Lecture = ({ navigation }) => {
   };
 
   React.useEffect(() => {
-    setFilter(activeWindow === LECTURE_WINDOWS.OFFICIAL ? CHANNEL_FILTERS.OFFICIAL : CHANNEL_FILTERS.COMMUNITY);
+    if (isGuestUser) {
+      setActiveWindow(LECTURE_WINDOWS.GUEST);
+      return;
+    }
+
+    setActiveWindow((previous) => (
+      previous === LECTURE_WINDOWS.GUEST ? LECTURE_WINDOWS.COMMUNITY : previous
+    ));
+  }, [isGuestUser]);
+
+  React.useEffect(() => {
+    if (activeWindow === LECTURE_WINDOWS.OFFICIAL) {
+      setFilter(CHANNEL_FILTERS.OFFICIAL);
+    } else if (activeWindow === LECTURE_WINDOWS.GUEST) {
+      setFilter(CHANNEL_FILTERS.GUEST);
+    } else {
+      setFilter(CHANNEL_FILTERS.COMMUNITY);
+    }
     setSearch('');
     setSearchVisible(false);
   }, [activeWindow]);
@@ -881,6 +1011,14 @@ const Lecture = ({ navigation }) => {
         return channel?.channelType === LECTURE_CHANNEL_TYPES.OFFICIAL;
       }
 
+      if (activeWindow === LECTURE_WINDOWS.GUEST) {
+        return isGuestLectureChannel(channel);
+      }
+
+      if (isGuestLectureChannel(channel)) {
+        return false;
+      }
+
       return channel?.channelType !== LECTURE_CHANNEL_TYPES.OFFICIAL;
     });
 
@@ -889,6 +1027,21 @@ const Lecture = ({ navigation }) => {
 
   const channelMenuTargetJoined = !!(channelMenuTarget?.$id && myChannelIds.has(channelMenuTarget.$id));
   const channelMenuTargetPinned = !!(channelMenuTarget?.$id && pinnedChannelIdSet.has(channelMenuTarget.$id));
+  const emptyWindowIconName = activeWindow === LECTURE_WINDOWS.OFFICIAL
+    ? 'school-outline'
+    : activeWindow === LECTURE_WINDOWS.GUEST
+      ? 'person-outline'
+      : 'people-outline';
+  const emptyWindowTitle = activeWindow === LECTURE_WINDOWS.OFFICIAL
+    ? t('lectures.emptyOfficialTitle')
+    : activeWindow === LECTURE_WINDOWS.GUEST
+      ? t('lectures.emptyGuestTitle')
+      : t('lectures.emptyCommunityTitle');
+  const emptyWindowDescription = activeWindow === LECTURE_WINDOWS.OFFICIAL
+    ? t('lectures.emptyOfficialChannels')
+    : activeWindow === LECTURE_WINDOWS.GUEST
+      ? t('lectures.emptyGuestChannels')
+      : t('lectures.emptyCommunityChannels');
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
@@ -925,8 +1078,30 @@ const Lecture = ({ navigation }) => {
               <IoniconSvg name="search" size={moderateScale(18)} color={colors.primary} />
             </GlassIconButton>
           </TutorialHighlight>
+
+          {isGuestUser && (
+            <GlassIconButton
+              size={moderateScale(36)}
+              borderRadiusValue={moderateScale(12)}
+              activeOpacity={0.7}
+              onPress={() => setGuestWindowInfoOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t('lectures.guestWindowInfoTitle')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={[styles.guestHelpIcon, { color: colors.primary }]}>!</Text>
+            </GlassIconButton>
+          )}
           
-          {!isGuestUser && (
+          {isGuestUser ? (
+            <GlassIconButton
+              size={moderateScale(36)}
+              borderRadiusValue={moderateScale(12)}
+              activeOpacity={0.7}
+              onPress={() => setCreateOpen(true)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <IoniconSvg name="add" size={moderateScale(20)} color={colors.primary} />
+            </GlassIconButton>
+          ) : (
             <TutorialHighlight
               active={tutorial.activeTarget === 'create' && tutorial.isVisible}
               theme={colors}
@@ -970,20 +1145,19 @@ const Lecture = ({ navigation }) => {
         </View>
       )}
 
-      {!isGuestUser && (
-        <TutorialHighlight
-          active={tutorial.activeTarget === 'window' && tutorial.isVisible}
-          theme={colors}
-          isDarkMode={isDarkMode}
-          style={styles.windowSwitcher}
-          borderRadius={borderRadius.lg}
-        >
-          <LectureWindowSelector
-            selectedWindow={activeWindow}
-            onWindowChange={setActiveWindow}
-          />
-        </TutorialHighlight>
-      )}
+      <TutorialHighlight
+        active={tutorial.activeTarget === 'window' && tutorial.isVisible}
+        theme={colors}
+        isDarkMode={isDarkMode}
+        style={styles.windowSwitcher}
+        borderRadius={borderRadius.lg}
+      >
+        <LectureWindowSelector
+          selectedWindow={activeWindow}
+          onWindowChange={setActiveWindow}
+          windows={lectureWindowOptions}
+        />
+      </TutorialHighlight>
 
       {suggestedChannels.length > 0 && !searchVisible && (
         <View style={styles.suggestedWrap}>
@@ -1052,25 +1226,25 @@ const Lecture = ({ navigation }) => {
             ) : (
               <View style={styles.emptyWrap}>
                 <IoniconSvg
-                  name={activeWindow === LECTURE_WINDOWS.OFFICIAL ? 'school-outline' : 'people-outline'}
+                  name={emptyWindowIconName}
                   size={48}
                   color={colors.textSecondary}
                   style={{ marginBottom: spacing.md }}
                 />
                 <Text style={[styles.emptyTitle, { color: colors.text }]}> 
-                  {activeWindow === LECTURE_WINDOWS.OFFICIAL ? t('lectures.emptyOfficialTitle') : t('lectures.emptyCommunityTitle')}
+                  {emptyWindowTitle}
                 </Text>
                 <Text style={[styles.emptyText, { color: colors.textSecondary }]}> 
-                  {activeWindow === LECTURE_WINDOWS.OFFICIAL ? t('lectures.emptyOfficialChannels') : t('lectures.emptyCommunityChannels')}
+                  {emptyWindowDescription}
                 </Text>
-                {!isGuestUser && (
-                  <TouchableOpacity
-                    style={[styles.emptyCreateBtn, { backgroundColor: colors.primary }]}
-                    onPress={() => setCreateOpen(true)}>
-                    <IoniconSvg name="add" size={16} color={colors.buttonText || '#FFFFFF'} />
-                    <Text style={[styles.emptyCreateBtnText, { color: colors.buttonText || '#FFFFFF' }]}>{t('lectures.createChannel')}</Text>
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                  style={[styles.emptyCreateBtn, { backgroundColor: colors.primary }]}
+                  onPress={() => setCreateOpen(true)}>
+                  <IoniconSvg name="add" size={16} color={colors.buttonText || '#FFFFFF'} />
+                  <Text style={[styles.emptyCreateBtnText, { color: colors.buttonText || '#FFFFFF' }]}> 
+                    {isGuestUser ? t('lectures.createGuestChannel') : t('lectures.createChannel')}
+                  </Text>
+                </TouchableOpacity>
                 {loadChannelsFailed && (
                   <TouchableOpacity
                     style={[styles.emptyRetryBtn, { borderColor: colors.border, backgroundColor: colors.inputBackground || 'transparent' }]}
@@ -1096,6 +1270,7 @@ const Lecture = ({ navigation }) => {
         canCreateOfficial={canCreateOfficial}
         canLinkGroups={canLinkGroups}
         isRTL={isRTL}
+        isGuestMode={isGuestUser}
       />
 
       <Modal
@@ -1197,6 +1372,43 @@ const Lecture = ({ navigation }) => {
         </ModalBackdrop>
       </Modal>
 
+      <Modal
+        visible={guestWindowInfoOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setGuestWindowInfoOpen(false)}>
+        <ModalBackdrop
+          style={styles.menuBackdrop}
+          overlayColor={colors.overlay}
+          scrimColor={colors.scrim || 'rgba(7, 12, 26, 0.38)'}
+          useBlur
+          blurIntensity={26}
+          onPress={() => setGuestWindowInfoOpen(false)}>
+          <GlassContainer style={[styles.guestInfoCard, { borderColor: colors.border }]} padding={spacing.md}>
+            <View style={[styles.guestInfoHeader, isRTL && styles.rowReverse]}>
+              <View style={[styles.guestInfoIconWrap, { backgroundColor: `${colors.primary}20` }]}>
+                <Text style={[styles.guestInfoIconText, { color: colors.primary }]}>!</Text>
+              </View>
+              <Text style={[styles.guestInfoTitle, isRTL && styles.directionalText, { color: colors.text }]}>
+                {t('lectures.guestWindowInfoTitle')}
+              </Text>
+            </View>
+
+            <Text style={[styles.guestInfoBody, isRTL && styles.directionalText, { color: colors.textSecondary }]}> 
+              {t('lectures.guestWindowInfoBody')}
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.guestInfoButton, { backgroundColor: colors.primary }]}
+              onPress={() => setGuestWindowInfoOpen(false)}>
+              <Text style={[styles.guestInfoButtonText, isRTL && styles.directionalText, { color: colors.buttonText || '#FFFFFF' }]}> 
+                {t('common.ok')}
+              </Text>
+            </TouchableOpacity>
+          </GlassContainer>
+        </ModalBackdrop>
+      </Modal>
+
       <ScreenTutorialCard
         visible={tutorial.isVisible}
         theme={colors}
@@ -1250,6 +1462,11 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(17),
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  guestHelpIcon: {
+    fontSize: fontSize(18),
+    fontWeight: '800',
+    lineHeight: fontSize(18),
   },
   searchWrap: {
     paddingHorizontal: wp(4),
@@ -1693,6 +1910,51 @@ const styles = StyleSheet.create({
   channelMenuItemText: {
     fontSize: fontSize(13),
     fontWeight: '600',
+  },
+  guestInfoCard: {
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    width: '100%',
+    maxWidth: wp(88),
+    alignSelf: 'center',
+  },
+  guestInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  guestInfoIconWrap: {
+    width: moderateScale(26),
+    height: moderateScale(26),
+    borderRadius: moderateScale(13),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  guestInfoIconText: {
+    fontSize: fontSize(16),
+    fontWeight: '800',
+  },
+  guestInfoTitle: {
+    flex: 1,
+    fontSize: fontSize(14),
+    fontWeight: '700',
+  },
+  guestInfoBody: {
+    fontSize: fontSize(12),
+    lineHeight: fontSize(18),
+    marginBottom: spacing.md,
+  },
+  guestInfoButton: {
+    alignSelf: 'flex-end',
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  guestInfoButtonText: {
+    fontSize: fontSize(12),
+    fontWeight: '700',
   },
   directionalText: {
     textAlign: 'right',

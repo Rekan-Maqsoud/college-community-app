@@ -4,6 +4,24 @@
  * All role-based decisions should flow through here.
  */
 
+import { isEducationalEmail } from '../constants/academicEmailDomains';
+
+const normalizeRoleValue = (roleValue) => {
+  if (roleValue === null || roleValue === undefined) return '';
+  return String(roleValue).trim().toLowerCase();
+};
+
+const hasAcademicProfileSignals = (user) => {
+  if (!user || typeof user !== 'object') return false;
+
+  const university = String(user.university || '').trim();
+  const department = String(user.department || '').trim();
+  const stage = String(user.stage || '').trim();
+  const major = String(user.major || user.college || '').trim();
+
+  return Boolean(university || department || stage || major);
+};
+
 /**
  * Returns true if the given user object has the 'guest' role.
  * @param {Object|null} user
@@ -11,7 +29,27 @@
  */
 export const isGuest = (user) => {
   if (!user || typeof user !== 'object') return false;
-  return String(user.role || '').trim().toLowerCase() === 'guest';
+
+  const normalizedRole = normalizeRoleValue(user.role);
+  if (normalizedRole === 'guest') {
+    return true;
+  }
+
+  if (user.isGuest === true || user.accountType === 'guest') {
+    return true;
+  }
+
+  const normalizedEmail = String(user.email || '').trim().toLowerCase();
+  if (!normalizedEmail || isEducationalEmail(normalizedEmail)) {
+    return false;
+  }
+
+  // Fallback for stale cached payloads that may miss role while still being guest accounts.
+  if (!normalizedRole || normalizedRole === 'student') {
+    return !hasAcademicProfileSignals(user);
+  }
+
+  return false;
 };
 
 /**
@@ -21,8 +59,27 @@ export const isGuest = (user) => {
  */
 export const isStudent = (user) => {
   if (!user || typeof user !== 'object') return false;
-  const role = String(user.role || 'student').trim().toLowerCase();
+  if (isGuest(user)) return false;
+
+  const role = normalizeRoleValue(user.role) || 'student';
   return role === 'student' || role === 'teacher';
+};
+
+/**
+ * Guest discovery guard for chat user search.
+ * Guests can only discover other guest accounts in the chat finder.
+ *
+ * @param {Object} viewerUser
+ * @param {Object} targetUser
+ * @returns {boolean}
+ */
+export const canGuestDiscoverChatUser = (viewerUser, targetUser) => {
+  if (!viewerUser || typeof viewerUser !== 'object' || !targetUser || typeof targetUser !== 'object') {
+    return false;
+  }
+
+  if (!isGuest(viewerUser)) return true;
+  return isGuest(targetUser);
 };
 
 // ---------------------------------------------------------------------------
@@ -46,6 +103,12 @@ export const GUEST_COMMENT_RATE_LIMIT = {
   action: 'create_reply',
   maxActions: 3,
   windowMs: 60 * 1000, // 1 minute
+};
+
+export const GUEST_CHAT_MESSAGE_RATE_LIMIT = {
+  action: 'send_chat_message',
+  maxActions: 6,
+  windowMs: 10 * 1000, // 10 seconds
 };
 
 // ---------------------------------------------------------------------------
@@ -122,17 +185,29 @@ export const buildUpdatedGuestPostTracking = (existingProfileViews) => {
  * @returns {boolean}
  */
 export const canGuestInitiateChat = (viewerUser, targetUser) => {
+  if (!viewerUser || typeof viewerUser !== 'object' || !targetUser || typeof targetUser !== 'object') {
+    return false;
+  }
+
   if (!isGuest(viewerUser)) return true; // not a guest, use default logic
 
   // Guest → Guest: allowed without friendship
   if (isGuest(targetUser)) return true;
 
-  // Guest → Student: mutual follow required
+  // Guest → Student: mutual follow required (both directions).
+  const viewerId = String(viewerUser.$id || viewerUser.userId || '').trim();
+  const targetId = String(targetUser.$id || targetUser.userId || '').trim();
+  if (!viewerId || !targetId) {
+    return false;
+  }
+
   const viewerFollowing = Array.isArray(viewerUser.following) ? viewerUser.following : [];
+  const viewerFollowers = Array.isArray(viewerUser.followers) ? viewerUser.followers : [];
+  const targetFollowing = Array.isArray(targetUser.following) ? targetUser.following : [];
   const targetFollowers = Array.isArray(targetUser.followers) ? targetUser.followers : [];
 
-  const viewerFollowsTarget = viewerFollowing.includes(targetUser.$id || targetUser.userId);
-  const targetFollowsViewer = targetFollowers.includes(viewerUser.$id || viewerUser.userId);
+  const viewerFollowsTarget = viewerFollowing.includes(targetId) || targetFollowers.includes(viewerId);
+  const targetFollowsViewer = targetFollowing.includes(viewerId) || viewerFollowers.includes(targetId);
 
   return viewerFollowsTarget && targetFollowsViewer;
 };
@@ -147,17 +222,29 @@ export const canGuestInitiateChat = (viewerUser, targetUser) => {
  * @returns {boolean}
  */
 export const canGuestReply = (viewerUser, postAuthor) => {
+  if (!viewerUser || typeof viewerUser !== 'object' || !postAuthor || typeof postAuthor !== 'object') {
+    return false;
+  }
+
   if (!isGuest(viewerUser)) return true; // non-guests use default rules
 
   // Guest can freely reply to other guests' posts
   if (isGuest(postAuthor)) return true;
 
-  // Guest → Student post: mutual follow required
-  const viewerFollowing = Array.isArray(viewerUser.following) ? viewerUser.following : [];
-  const postAuthorFollowers = Array.isArray(postAuthor.followers) ? postAuthor.followers : [];
+  // Guest → Student post: mutual follow required (both directions).
+  const viewerId = String(viewerUser.$id || viewerUser.userId || '').trim();
+  const authorId = String(postAuthor.$id || postAuthor.userId || '').trim();
+  if (!viewerId || !authorId) {
+    return false;
+  }
 
-  const viewerFollowsAuthor = viewerFollowing.includes(postAuthor.$id || postAuthor.userId);
-  const authorFollowsViewer = postAuthorFollowers.includes(viewerUser.$id || viewerUser.userId);
+  const viewerFollowing = Array.isArray(viewerUser.following) ? viewerUser.following : [];
+  const viewerFollowers = Array.isArray(viewerUser.followers) ? viewerUser.followers : [];
+  const authorFollowing = Array.isArray(postAuthor.following) ? postAuthor.following : [];
+  const authorFollowers = Array.isArray(postAuthor.followers) ? postAuthor.followers : [];
+
+  const viewerFollowsAuthor = viewerFollowing.includes(authorId) || authorFollowers.includes(viewerId);
+  const authorFollowsViewer = authorFollowing.includes(viewerId) || viewerFollowers.includes(authorId);
 
   return viewerFollowsAuthor && authorFollowsViewer;
 };

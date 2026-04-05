@@ -13,36 +13,38 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { wp, fontSize, spacing, moderateScale } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 
-const LECTURE_WINDOWS = {
-  COMMUNITY: 'community',
-  OFFICIAL: 'official',
-};
-
-const LectureWindowSelector = ({ selectedWindow, onWindowChange, height = moderateScale(44) }) => {
+const LectureWindowSelector = ({ selectedWindow, onWindowChange, windows = null, height = moderateScale(44) }) => {
   const { t, theme, isDarkMode, reduceMotion, isRTL } = useAppSettings();
   const indicatorAnim = useRef(new Animated.Value(0)).current;
   const [containerWidth, setContainerWidth] = useState(wp(92));
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 360;
 
-  const windows = [
+  const defaultWindows = [
     {
-      type: LECTURE_WINDOWS.COMMUNITY,
+      type: 'community',
       icon: 'people-outline',
       label: t('lectures.communityWindow'),
       index: 0,
     },
     {
-      type: LECTURE_WINDOWS.OFFICIAL,
+      type: 'official',
       icon: 'school-outline',
       label: t('lectures.officialWindow'),
       index: 1,
     },
   ];
 
-  const selectedIndex = Math.max(0, windows.findIndex(w => w.type === selectedWindow));
-  const visibleWindows = isRTL ? [...windows].reverse() : windows;
-  const selectedVisualIndex = isRTL ? (windows.length - 1 - selectedIndex) : selectedIndex;
+  const resolvedWindows = useMemo(() => {
+    if (Array.isArray(windows) && windows.length > 0) {
+      return windows.map((item, index) => ({ ...item, index }));
+    }
+    return defaultWindows;
+  }, [defaultWindows, windows]);
+
+  const selectedIndex = Math.max(0, resolvedWindows.findIndex(windowItem => windowItem.type === selectedWindow));
+  const visibleWindows = isRTL ? [...resolvedWindows].reverse() : resolvedWindows;
+  const selectedVisualIndex = isRTL ? (resolvedWindows.length - 1 - selectedIndex) : selectedIndex;
 
   useEffect(() => {
     const animation = reduceMotion
@@ -61,12 +63,9 @@ const LectureWindowSelector = ({ selectedWindow, onWindowChange, height = modera
     animation.start();
   }, [indicatorAnim, reduceMotion, selectedVisualIndex]);
 
-  const buttonWidths = useMemo(() => [containerWidth / 2, containerWidth / 2], [containerWidth]);
-  
-  const translateX = indicatorAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, buttonWidths[0]],
-  });
+  const windowCount = Math.max(visibleWindows.length, 1);
+  const buttonWidth = containerWidth / windowCount;
+  const translateX = Animated.multiply(indicatorAnim, buttonWidth);
 
   const textColor = (isSelected) => {
     if (isSelected) return '#FFFFFF';
@@ -103,7 +102,7 @@ const LectureWindowSelector = ({ selectedWindow, onWindowChange, height = modera
             styles.indicator,
             {
               backgroundColor: theme.primary,
-              width: buttonWidths[selectedVisualIndex] || 0,
+              width: buttonWidth,
               transform: [{ translateX }],
             },
           ]}
@@ -116,7 +115,7 @@ const LectureWindowSelector = ({ selectedWindow, onWindowChange, height = modera
               key={w.type}
               style={[
                 styles.feedButton,
-                { width: buttonWidths[index] },
+                { width: buttonWidth },
               ]}
               onPress={() => onWindowChange(w.type)}
               activeOpacity={0.7}

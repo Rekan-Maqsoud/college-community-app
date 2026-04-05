@@ -58,6 +58,21 @@ const getAcademicChangesCountFromProfileViews = (profileViews) => {
   }
 };
 
+const normalizeUserRole = (roleValue) => {
+  if (roleValue === null || roleValue === undefined) return 'student';
+  const text = String(roleValue).trim().toLowerCase();
+  if (!text || text === 'null' || text === 'undefined') return 'student';
+  return text;
+};
+
+const getPostAuthRouteName = (roleValue) => {
+  return normalizeUserRole(roleValue) === 'guest' ? 'GuestTabs' : 'MainTabs';
+};
+
+const shouldExposeAcademicFields = (roleValue, emailValue) => {
+  return normalizeUserRole(roleValue) !== 'guest' && isEducationalEmail(emailValue);
+};
+
 const SignUp = ({ navigation, route }) => {
   const oauthMode = route?.params?.oauthMode || false;
   const oauthEmail = route?.params?.oauthEmail || '';
@@ -708,17 +723,18 @@ const SignUp = ({ navigation, route }) => {
           }
 
           const academicChangesCount = getAcademicChangesCountFromProfileViews(result.userDoc.profileViews);
+          const canUseAcademicFields = shouldExposeAcademicFields(result.userDoc.role, result.userDoc.email);
           const userData = {
             $id: result.userDoc.$id,
             email: result.userDoc.email,
             fullName: result.userDoc.name,
             bio: result.userDoc.bio || '',
             profilePicture: result.userDoc.profilePicture || '',
-            university: result.userDoc.university || '',
-            college: result.userDoc.major || '',
-            department: result.userDoc.department || '',
-            stage: result.userDoc.year || '',
-            role: result.userDoc.role || 'student',
+            university: canUseAcademicFields ? (result.userDoc.university || '') : '',
+            college: canUseAcademicFields ? (result.userDoc.major || '') : '',
+            department: canUseAcademicFields ? (result.userDoc.department || '') : '',
+            stage: canUseAcademicFields ? (result.userDoc.year || '') : '',
+            role: normalizeUserRole(result.userDoc.role),
             postsCount: result.userDoc.postsCount || 0,
             followersCount: result.userDoc.followersCount || 0,
             followingCount: result.userDoc.followingCount || 0,
@@ -729,7 +745,7 @@ const SignUp = ({ navigation, route }) => {
           
           await setUserData(userData);
           signUpTrace.finish({ success: true, meta: { path: 'oauth_complete' } });
-          navigation.replace('MainTabs');
+          navigation.replace(getPostAuthRouteName(userData.role));
         } else {
           setIsLoading(false);
           signUpTrace.finish({ success: false, meta: { path: 'oauth_complete_failed' } });

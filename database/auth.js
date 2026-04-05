@@ -2,6 +2,7 @@ import { account, databases, config } from './config';
 import { ID, Permission, Role, Query, OAuthProvider } from 'appwrite';
 import safeStorage from '../app/utils/safeStorage';
 import * as WebBrowser from 'expo-web-browser';
+import * as SecureStore from 'expo-secure-store';
 import { userCacheManager } from '../app/utils/cacheManager';
 import telemetry from '../app/utils/telemetry';
 import { isEducationalEmail as isEducationalEmailRule } from '../app/constants/academicEmailDomains';
@@ -12,6 +13,8 @@ WebBrowser.maybeCompleteAuthSession();
 const PENDING_VERIFICATION_KEY = 'pending_verification';
 const PENDING_OAUTH_KEY = 'pending_oauth_signup';
 const PENDING_PASSWORD_RESET_KEY = 'pending_password_reset';
+const PENDING_VERIFICATION_BACKUP_KEY = 'cc_auth_pending_verification';
+const PENDING_OAUTH_BACKUP_KEY = 'cc_auth_pending_oauth_signup';
 const VERIFICATION_TIMEOUT = 15 * 60 * 1000; // 15 minutes in milliseconds
 const PASSWORD_RESET_TIMEOUT = 15 * 60 * 1000; // 15 minutes for password reset
 const OTP_MAX_FAILED_ATTEMPTS = 5;
@@ -21,6 +24,45 @@ const OTP_MAX_RESENDS = 5;
 const RESET_REQUEST_WINDOW = 15 * 60 * 1000; // 15 minutes
 const RESET_MAX_REQUESTS = 5;
 const RESET_REQUEST_COOLDOWN = 60 * 1000; // 60 seconds
+
+const setPendingState = async (storageKey, backupKey, value) => {
+    await safeStorage.setItem(storageKey, value);
+
+    try {
+        await SecureStore.setItemAsync(backupKey, value);
+    } catch (_error) {
+        // SecureStore is best-effort backup for restart recovery.
+    }
+};
+
+const getPendingState = async (storageKey, backupKey) => {
+    const primaryValue = await safeStorage.getItem(storageKey);
+    if (primaryValue) {
+        return primaryValue;
+    }
+
+    try {
+        const backupValue = await SecureStore.getItemAsync(backupKey);
+        if (backupValue) {
+            await safeStorage.setItem(storageKey, backupValue);
+            return backupValue;
+        }
+    } catch (_error) {
+        // Ignore backup read errors and treat as missing pending state.
+    }
+
+    return null;
+};
+
+const clearPendingState = async (storageKey, backupKey) => {
+    await safeStorage.removeItem(storageKey);
+
+    try {
+        await SecureStore.deleteItemAsync(backupKey);
+    } catch (_error) {
+        // Ignore cleanup backup errors.
+    }
+};
 
 // Check if email is from an educational institution
 export const isEducationalEmail = (email) => {
@@ -98,14 +140,18 @@ export const initiateSignup = async (email, password, name, additionalData = {})
             additionalData,
             timestamp: Date.now(),
             expiresAt: Date.now() + VERIFICATION_TIMEOUT,
-            otpUserId: tokenResponse.userId,
+            otpUserId: tokenResponse?.userId || userId,
             otpFailedAttempts: 0,
             otpLockedUntil: 0,
             otpResendCount: 0,
             lastOtpSentAt: Date.now(),
         };
 
-        await safeStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingData));
+        await setPendingState(
+            PENDING_VERIFICATION_KEY,
+            PENDING_VERIFICATION_BACKUP_KEY,
+            JSON.stringify(pendingData)
+        );
 
         return {
             userId,
@@ -120,7 +166,10 @@ export const initiateSignup = async (email, password, name, additionalData = {})
 
 export const checkAndCompleteVerification = async () => {
     try {
-        const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
+        const storedData = await getPendingState(
+            PENDING_VERIFICATION_KEY,
+            PENDING_VERIFICATION_BACKUP_KEY
+        );
 
         if (!storedData) {
             throw new Error('No pending verification found');
@@ -131,7 +180,7 @@ export const checkAndCompleteVerification = async () => {
         // Check if user document already exists
         try {
             await getUserDocument(pendingData.userId);
-            await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
+            await clearPendingState(PENDING_VERIFICATION_KEY, PENDING_VERIFICATION_BACKUP_KEY);
             return true;
         } catch (error) {
             // User document not found, need to create one
@@ -144,7 +193,7 @@ export const checkAndCompleteVerification = async () => {
             pendingData.additionalData
         );
 
-        await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
+        await clearPendingState(PENDING_VERIFICATION_KEY, PENDING_VERIFICATION_BACKUP_KEY);
 
         return true;
     } catch (error) {
@@ -155,80 +204,130 @@ export const checkAndCompleteVerification = async () => {
 // Verify OTP code entered by user
 export const verifyOTPCode = async (otpCode) => {
     try {
+        console.log('[verifyOTPCode] Starting OTP verification');
         const normalizedCode = String(otpCode || '').trim();
+        
         if (!/^\d{6}$/.test(normalizedCode)) {
+            console.error('[verifyOTPCode] Invalid OTP format');
             throw new Error('Invalid verification code. Please check and try again.');
         }
 
-        const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
+        console.log('[verifyOTPCode] OTP format is valid');
+
+        console.log('[verifyOTPCode] Retrieving pending verification data...');
+        const storedData = await getPendingState(
+            PENDING_VERIFICATION_KEY,
+            PENDING_VERIFICATION_BACKUP_KEY
+        );
 
         if (!storedData) {
+            console.error('[verifyOTPCode] No pending verification data found in storage');
             throw new Error('No pending verification found');
         }
 
+        console.log('[verifyOTPCode] Pending data found, parsing...');
         const pendingData = JSON.parse(storedData);
         const now = Date.now();
 
+        console.log('[verifyOTPCode] Checking data expiration');
         if (pendingData.expiresAt && now > pendingData.expiresAt) {
-            await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
+            console.warn('[verifyOTPCode] Verification code has expired');
+            await clearPendingState(PENDING_VERIFICATION_KEY, PENDING_VERIFICATION_BACKUP_KEY);
             throw new Error('Verification code expired. Please sign up again.');
         }
 
+        console.log('[verifyOTPCode] Checking OTP lockout status');
         if (pendingData.otpLockedUntil && now < pendingData.otpLockedUntil) {
+            console.warn('[verifyOTPCode] Too many failed attempts, account locked');
             throw new Error('Too many verification attempts. Please wait and try again.');
         }
 
+        console.log('[verifyOTPCode] Attempting to create session with OTP code...');
         // Verify OTP by creating a session with the code
         // The OTP code acts as the "secret" for createSession
         try {
+            const otpUserId = pendingData.otpUserId || pendingData.userId;
+            if (!otpUserId) {
+                throw new Error('No pending verification found');
+            }
+
+            // Backfill older pending records created before otpUserId was stored.
+            if (!pendingData.otpUserId) {
+                pendingData.otpUserId = otpUserId;
+                await setPendingState(
+                    PENDING_VERIFICATION_KEY,
+                    PENDING_VERIFICATION_BACKUP_KEY,
+                    JSON.stringify(pendingData)
+                );
+            }
+
             await account.createSession({
-                userId: pendingData.otpUserId,
+                userId: otpUserId,
                 secret: normalizedCode,
             });
+            console.log('[verifyOTPCode] Session created successfully with OTP');
         } catch (sessionError) {
-            if (sessionError.message?.includes('Invalid') ||
-                sessionError.message?.includes('expired') ||
-                sessionError.code === 401) {
+            const isOtpValidationError = sessionError.message?.includes('Invalid')
+                || sessionError.message?.includes('expired')
+                || sessionError.code === 401;
+
+            if (isOtpValidationError) {
+                console.warn('[verifyOTPCode] Session creation rejected OTP:', sessionError.message || sessionError);
                 const failedAttempts = (pendingData.otpFailedAttempts || 0) + 1;
                 const shouldLock = failedAttempts >= OTP_MAX_FAILED_ATTEMPTS;
+                console.log('[verifyOTPCode] Invalid OTP attempt', { failedAttempts, shouldLock });
+                
                 const updatedPendingData = {
                     ...pendingData,
                     otpFailedAttempts: failedAttempts,
                     otpLockedUntil: shouldLock ? (now + OTP_LOCK_DURATION) : 0,
                 };
-                await safeStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(updatedPendingData));
+                await setPendingState(
+                    PENDING_VERIFICATION_KEY,
+                    PENDING_VERIFICATION_BACKUP_KEY,
+                    JSON.stringify(updatedPendingData)
+                );
                 if (shouldLock) {
                     throw new Error('Too many verification attempts. Please wait and try again.');
                 }
+            } else {
+                console.error('[verifyOTPCode] Session creation failed:', sessionError.message || sessionError);
             }
 
-            if (sessionError.message?.includes('Invalid') ||
-                sessionError.message?.includes('expired') ||
-                sessionError.code === 401) {
+            if (isOtpValidationError) {
                 throw new Error('Invalid or expired verification code. Please try again.');
             }
             throw sessionError;
         }
 
         // OTP verified successfully, now complete the signup
+        console.log('[verifyOTPCode] OTP verified, checking user document...');
         // Check if user document already exists
         try {
             await getUserDocument(pendingData.userId);
+            console.log('[verifyOTPCode] User document already exists');
         } catch (error) {
             // User document not found, create one
+            console.log('[verifyOTPCode] User document not found, creating new one...');
             await createUserDocument(
                 pendingData.userId,
                 pendingData.name,
                 pendingData.email,
                 pendingData.additionalData
             );
+            console.log('[verifyOTPCode] User document created successfully');
         }
 
         // Clean up storage
-        await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
+        console.log('[verifyOTPCode] Cleaning up pending verification data...');
+        await clearPendingState(PENDING_VERIFICATION_KEY, PENDING_VERIFICATION_BACKUP_KEY);
+        console.log('[verifyOTPCode] Verification complete');
 
         return true;
     } catch (error) {
+        console.error('[verifyOTPCode] Verification error:', error.message || error);
+        console.error('[verifyOTPCode] Error stack:', error.stack);
+        
         if (error.message?.includes('Invalid token') ||
             error.message?.includes('Invalid credentials') ||
             error.code === 401) {
@@ -241,7 +340,10 @@ export const verifyOTPCode = async (otpCode) => {
 // Resend OTP verification email
 export const resendVerificationEmail = async () => {
     try {
-        const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
+        const storedData = await getPendingState(
+            PENDING_VERIFICATION_KEY,
+            PENDING_VERIFICATION_BACKUP_KEY
+        );
 
         if (!storedData) {
             throw new Error('No pending verification found');
@@ -251,7 +353,7 @@ export const resendVerificationEmail = async () => {
         const now = Date.now();
 
         if (pendingData.expiresAt && now > pendingData.expiresAt) {
-            await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
+            await clearPendingState(PENDING_VERIFICATION_KEY, PENDING_VERIFICATION_BACKUP_KEY);
             throw new Error('Verification session expired. Please sign up again.');
         }
 
@@ -276,10 +378,14 @@ export const resendVerificationEmail = async () => {
 
         // Update expiration time and token data
         pendingData.expiresAt = Date.now() + VERIFICATION_TIMEOUT;
-        pendingData.otpUserId = tokenResponse.userId;
+        pendingData.otpUserId = tokenResponse?.userId || pendingData.userId;
         pendingData.otpResendCount = resendCount + 1;
         pendingData.lastOtpSentAt = now;
-        await safeStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingData));
+        await setPendingState(
+            PENDING_VERIFICATION_KEY,
+            PENDING_VERIFICATION_BACKUP_KEY,
+            JSON.stringify(pendingData)
+        );
 
         return true;
     } catch (error) {
@@ -291,7 +397,7 @@ export const resendVerificationEmail = async () => {
 
 // Get the Appwrite project ID for OAuth callback
 const getAppwriteProjectId = () => {
-    return process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID || '';
+    return process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID || config.projectId || '';
 };
 
 // Helper to get the correct redirect URL for OAuth
@@ -447,6 +553,14 @@ export const checkOAuthUserExists = async (userId = null) => {
                 isComplete: true
             };
         } catch (docError) {
+            const isMissingDocument = docError?.code === 404
+                || String(docError?.message || '').toLowerCase().includes('not found')
+                || String(docError?.type || '').toLowerCase().includes('document_not_found');
+
+            if (!isMissingDocument) {
+                throw docError;
+            }
+
             // User authenticated with Google but doesn't have a user document
             // They need to complete signup
             return {
@@ -458,6 +572,11 @@ export const checkOAuthUserExists = async (userId = null) => {
             };
         }
     } catch (error) {
+        telemetry.recordEvent('google_auth_user_check_failed', {
+            message: error?.message || String(error),
+            code: error?.code,
+            type: error?.type,
+        });
         return { exists: false, user: null };
     }
 };
@@ -472,7 +591,11 @@ export const storePendingOAuthSignup = async (data) => {
             timestamp: Date.now(),
             isOAuth: true
         };
-        await safeStorage.setItem(PENDING_OAUTH_KEY, JSON.stringify(pendingData));
+        await setPendingState(
+            PENDING_OAUTH_KEY,
+            PENDING_OAUTH_BACKUP_KEY,
+            JSON.stringify(pendingData)
+        );
         return true;
     } catch (error) {
         throw error;
@@ -482,7 +605,7 @@ export const storePendingOAuthSignup = async (data) => {
 // Get pending OAuth signup data
 export const getPendingOAuthSignup = async () => {
     try {
-        const data = await safeStorage.getItem(PENDING_OAUTH_KEY);
+        const data = await getPendingState(PENDING_OAUTH_KEY, PENDING_OAUTH_BACKUP_KEY);
         if (!data) return null;
         return JSON.parse(data);
     } catch (error) {
@@ -493,7 +616,7 @@ export const getPendingOAuthSignup = async () => {
 // Clear pending OAuth signup data
 export const clearPendingOAuthSignup = async () => {
     try {
-        await safeStorage.removeItem(PENDING_OAUTH_KEY);
+        await clearPendingState(PENDING_OAUTH_KEY, PENDING_OAUTH_BACKUP_KEY);
     } catch (error) {
         // Ignore errors
     }
@@ -503,22 +626,50 @@ export const clearPendingOAuthSignup = async () => {
 // If the email is non-educational the user becomes a guest instead of being rejected.
 export const completeOAuthSignup = async (userId, email, name, additionalData = {}) => {
     try {
+        console.log('[completeOAuthSignup] Starting OAuth completion for:', {
+            userId,
+            email: email?.substring(0, 5) + '***',
+            name,
+            additionalDataKeys: Object.keys(additionalData),
+        });
+
         // Verify we have an authenticated user
+        console.log('[completeOAuthSignup] Verifying authenticated user...');
         const user = await account.get();
+        
+        console.log('[completeOAuthSignup] Current user retrieved:', {
+            retrievedUserId: user?.$id,
+            providedUserId: userId,
+            userMatch: user?.$id === userId,
+        });
+
         if (!user || user.$id !== userId) {
+            console.error('[completeOAuthSignup] User authentication mismatch');
             throw new Error('User authentication mismatch');
         }
 
         // Non-educational email → guest role (no rejection; no academic fields needed)
-        const resolvedRole = isEducationalEmail(email)
+        console.log('[completeOAuthSignup] Checking if email is educational:', email);
+        const isEdu = isEducationalEmail(email);
+        console.log('[completeOAuthSignup] Is educational email:', isEdu);
+
+        const resolvedRole = isEdu
             ? (additionalData.role || 'student')
             : 'guest';
+
+        console.log('[completeOAuthSignup] Resolved role:', resolvedRole);
 
         const resolvedData = resolvedRole === 'guest'
             ? { ...additionalData, role: 'guest', university: '', college: '', department: '', stage: '' }
             : additionalData;
 
+        console.log('[completeOAuthSignup] Resolved data:', {
+            role: resolvedData.role,
+            additionalDataKeys: Object.keys(resolvedData),
+        });
+
         // Create user document
+        console.log('[completeOAuthSignup] Creating user document...');
         const userDoc = await createUserDocument(
             userId,
             name,
@@ -526,10 +677,17 @@ export const completeOAuthSignup = async (userId, email, name, additionalData = 
             resolvedData
         );
 
-        // Clear pending data
-        await clearPendingOAuthSignup();
+        console.log('[completeOAuthSignup] User document created:', {
+            docId: userDoc?.$id,
+            docEmail: userDoc?.email,
+        });
 
-        return {
+        // Clear pending data
+        console.log('[completeOAuthSignup] Clearing pending OAuth data...');
+        await clearPendingOAuthSignup();
+        console.log('[completeOAuthSignup] Pending data cleared');
+
+        const result = {
             success: true,
             userId: userId,
             email: email,
@@ -538,7 +696,12 @@ export const completeOAuthSignup = async (userId, email, name, additionalData = 
             isGuest: resolvedRole === 'guest',
             userDoc: userDoc
         };
+
+        console.log('[completeOAuthSignup] OAuth completion successful, returning result');
+        return result;
     } catch (error) {
+        console.error('[completeOAuthSignup] Caught error:', error.message || error);
+        console.error('[completeOAuthSignup] Error stack:', error.stack);
         throw error;
     }
 };
@@ -548,38 +711,66 @@ export const completeOAuthSignup = async (userId, email, name, additionalData = 
  * Mirrors initiateSignup but skips the educational email gate.
  */
 export const initiateGuestSignup = async (email, password, name, additionalData = {}) => {
+    const guestSignupTrace = telemetry.startTrace('auth_guest_signup_initiate', {
+        hasEmail: Boolean(email),
+        emailDomain: String(email || '').includes('@') ? String(email || '').split('@').pop() : 'unknown',
+    });
+
     try {
+        console.log('[initiateGuestSignup] Starting guest signup with:', {
+            email: email?.substring(0, 5) + '***',
+            name,
+            additionalDataKeys: Object.keys(additionalData),
+        });
+
         const sanitizedEmail = sanitizeInput(email).toLowerCase();
         const sanitizedName = sanitizeInput(name);
 
+        console.log('[initiateGuestSignup] Sanitized values:', {
+            email: sanitizedEmail?.substring(0, 5) + '***',
+            name: sanitizedName,
+        });
+
         if (!sanitizedEmail || !sanitizedName) {
+            console.error('[initiateGuestSignup] Invalid input data after sanitization');
             throw new Error('Invalid input data');
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(sanitizedEmail)) {
+            console.error('[initiateGuestSignup] Invalid email format:', sanitizedEmail);
             throw new Error('Invalid email format');
         }
 
         // Explicitly reject edu emails here — they should use the student flow
         if (isEducationalEmail(sanitizedEmail)) {
+            console.error('[initiateGuestSignup] Educational email provided, rejecting:', sanitizedEmail);
             throw new Error('Educational email addresses should use the student sign-up flow.');
         }
 
+        console.log('[initiateGuestSignup] Email validation passed');
+
         if (password.length < 8) {
+            console.error('[initiateGuestSignup] Password too short:', password.length);
             throw new Error('Password must be at least 8 characters');
         }
 
+        console.log('[initiateGuestSignup] Password validation passed');
+
         const userId = ID.unique();
+        console.log('[initiateGuestSignup] Generated userId:', userId);
 
         try {
+            console.log('[initiateGuestSignup] Creating account with Appwrite...');
             await account.create({
                 userId,
                 email: sanitizedEmail,
                 password,
                 name: sanitizedName,
             });
+            console.log('[initiateGuestSignup] Account created successfully');
         } catch (createError) {
+            console.error('[initiateGuestSignup] Account creation failed:', createError.message || createError);
             if (createError.message?.includes('already exists') ||
                 createError.message?.includes('user with the same email')) {
                 throw new Error('An account with this email already exists. Please sign in or use a different email.');
@@ -589,11 +780,14 @@ export const initiateGuestSignup = async (email, password, name, additionalData 
 
         let tokenResponse;
         try {
+            console.log('[initiateGuestSignup] Creating email verification token...');
             tokenResponse = await account.createEmailToken({
                 userId,
                 email: sanitizedEmail,
             });
+            console.log('[initiateGuestSignup] Email token created successfully');
         } catch (otpError) {
+            console.error('[initiateGuestSignup] Email token creation failed:', otpError.message || otpError);
             if (otpError.message?.includes('SMTP') || otpError.message?.includes('email')) {
                 throw new Error('Email service is temporarily unavailable. Please try again later.');
             }
@@ -608,19 +802,48 @@ export const initiateGuestSignup = async (email, password, name, additionalData 
             additionalData: { ...additionalData, role: 'guest' },
             timestamp: Date.now(),
             expiresAt: Date.now() + VERIFICATION_TIMEOUT,
+            otpUserId: tokenResponse?.userId || userId,
+            otpFailedAttempts: 0,
+            otpLockedUntil: 0,
+            otpResendCount: 0,
+            lastOtpSentAt: Date.now(),
             tokenId: tokenResponse?.$id || null,
         };
 
-        await safeStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingData));
+        console.log('[initiateGuestSignup] Storing pending data:', {
+            userId,
+            email: sanitizedEmail?.substring(0, 5) + '***' || '***',
+            additionalData: pendingData.additionalData,
+        });
 
-        return {
+        await setPendingState(
+            PENDING_VERIFICATION_KEY,
+            PENDING_VERIFICATION_BACKUP_KEY,
+            JSON.stringify(pendingData)
+        );
+        console.log('[initiateGuestSignup] Pending data stored successfully');
+
+        const result = {
             success: true,
             userId,
             email: sanitizedEmail,
             name: sanitizedName,
             requiresVerification: true,
         };
+
+        console.log('[initiateGuestSignup] Returning success result');
+        guestSignupTrace.finish({
+            success: true,
+            meta: {
+                userId,
+                requiresVerification: true,
+            },
+        });
+        return result;
     } catch (error) {
+        guestSignupTrace.finish({ success: false, error });
+        console.error('[initiateGuestSignup] Caught error:', error.message || error);
+        console.error('[initiateGuestSignup] Error stack:', error.stack);
         throw error;
     }
 };
@@ -635,19 +858,22 @@ export const cancelPendingVerification = async () => {
         }
 
         // Remove pending verification data
-        await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
+        await clearPendingState(PENDING_VERIFICATION_KEY, PENDING_VERIFICATION_BACKUP_KEY);
 
         return true;
     } catch (error) {
         // Even if there's an error, try to clean up storage
-        await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
+        await clearPendingState(PENDING_VERIFICATION_KEY, PENDING_VERIFICATION_BACKUP_KEY);
         throw error;
     }
 };
 
 export const checkExpiredVerification = async () => {
     try {
-        const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
+        const storedData = await getPendingState(
+            PENDING_VERIFICATION_KEY,
+            PENDING_VERIFICATION_BACKUP_KEY
+        );
 
         if (!storedData) {
             return { expired: false, hasPending: false };
@@ -664,7 +890,7 @@ export const checkExpiredVerification = async () => {
                 // Session might already be deleted
             }
 
-            await safeStorage.removeItem(PENDING_VERIFICATION_KEY);
+            await clearPendingState(PENDING_VERIFICATION_KEY, PENDING_VERIFICATION_BACKUP_KEY);
 
             return { expired: true, hasPending: false };
         }
@@ -683,7 +909,10 @@ export const checkExpiredVerification = async () => {
 
 export const getPendingVerificationData = async () => {
     try {
-        const storedData = await safeStorage.getItem(PENDING_VERIFICATION_KEY);
+        const storedData = await getPendingState(
+            PENDING_VERIFICATION_KEY,
+            PENDING_VERIFICATION_BACKUP_KEY
+        );
 
         if (!storedData) {
             return null;
@@ -792,6 +1021,20 @@ const createSessionWithRecovery = async (sessionFactory) => {
     }
 };
 
+const normalizeUserYear = ({ rawYear, isGuestRole = false }) => {
+    if (isGuestRole) {
+        // The users schema enforces year >= 1. Guest users still need a valid value.
+        return 1;
+    }
+
+    const parsedYear = Number.parseInt(rawYear, 10);
+    if (!Number.isFinite(parsedYear)) {
+        return 1;
+    }
+
+    return Math.min(6, Math.max(1, parsedYear));
+};
+
 const createUserDocument = async (userId, name, email, additionalData = {}) => {
     try {
         const sanitizedName = sanitizeInput(name);
@@ -800,10 +1043,24 @@ const createUserDocument = async (userId, name, email, additionalData = {}) => {
         const rawRole = String(additionalData.role || 'student').trim().toLowerCase();
         const sanitizedRole = ['guest', 'student', 'teacher'].includes(rawRole) ? rawRole : 'student';
         const isGuestRole = sanitizedRole === 'guest';
+        const hasAcademicEmail = isEducationalEmail(sanitizedEmail);
+        const canPersistAcademicDetails = hasAcademicEmail && !isGuestRole;
 
         if (!sanitizedName || !sanitizedEmail) {
             throw new Error('Invalid user data');
         }
+
+        const normalizedYear = normalizeUserYear({
+            rawYear: canPersistAcademicDetails ? additionalData.stage : null,
+            isGuestRole,
+        });
+
+        telemetry.recordEvent('auth_user_document_prepare', {
+            role: sanitizedRole,
+            isGuestRole,
+            hasAcademicEmail,
+            year: normalizedYear,
+        });
 
         const basePayload = {
             userId: userId,
@@ -812,11 +1069,11 @@ const createUserDocument = async (userId, name, email, additionalData = {}) => {
             bio: '',
             profilePicture: sanitizeInput(additionalData.profilePicture || ''),
             isEmailVerified: true,
-            // Guests have no academic affiliation — these fields are kept empty
-            university: isGuestRole ? '' : sanitizeInput(additionalData.university || ''),
-            major: isGuestRole ? '' : sanitizeInput(additionalData.college || ''),
-            department: isGuestRole ? '' : sanitizeInput(additionalData.department || ''),
-            year: isGuestRole ? 0 : (parseInt(additionalData.stage) || 1),
+            // Non-academic emails cannot persist academic details.
+            university: canPersistAcademicDetails ? sanitizeInput(additionalData.university || '') : '',
+            major: canPersistAcademicDetails ? sanitizeInput(additionalData.college || '') : '',
+            department: canPersistAcademicDetails ? sanitizeInput(additionalData.department || '') : '',
+            year: normalizedYear,
             followersCount: 0,
             followingCount: 0,
             postsCount: 0,
@@ -956,30 +1213,51 @@ export const updateUserDocument = async (userId, data) => {
             throw new Error('Invalid user ID');
         }
 
-        if (data.name) {
-            data.name = sanitizeInput(data.name);
+        const nextData = { ...data };
+
+        if (nextData.name) {
+            nextData.name = sanitizeInput(nextData.name);
         }
-        if (data.bio) {
-            data.bio = sanitizeInput(data.bio);
+        if (nextData.bio) {
+            nextData.bio = sanitizeInput(nextData.bio);
         }
-        if (data.pronouns) {
-            data.pronouns = sanitizeInput(data.pronouns);
+        if (nextData.pronouns) {
+            nextData.pronouns = sanitizeInput(nextData.pronouns);
         }
-        if (data.university) {
-            data.university = sanitizeInput(data.university);
+        if (Object.prototype.hasOwnProperty.call(nextData, 'university')) {
+            nextData.university = sanitizeInput(nextData.university || '');
         }
-        if (data.major) {
-            data.major = sanitizeInput(data.major);
+        if (Object.prototype.hasOwnProperty.call(nextData, 'major')) {
+            nextData.major = sanitizeInput(nextData.major || '');
         }
-        if (data.department) {
-            data.department = sanitizeInput(data.department);
+        if (Object.prototype.hasOwnProperty.call(nextData, 'department')) {
+            nextData.department = sanitizeInput(nextData.department || '');
+        }
+
+        const currentUserDoc = await databases.getDocument({
+            databaseId: config.databaseId,
+            collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
+            documentId: userId,
+        });
+
+        const effectiveEmail = sanitizeInput(nextData.email || currentUserDoc?.email || '');
+        const canPersistAcademicDetails = isEducationalEmail(effectiveEmail);
+
+        if (!canPersistAcademicDetails) {
+            nextData.university = '';
+            nextData.major = '';
+            nextData.department = '';
+
+            if (Object.prototype.hasOwnProperty.call(nextData, 'year')) {
+                delete nextData.year;
+            }
         }
 
         const userDoc = await databases.updateDocument({
             databaseId: config.databaseId,
             collectionId: config.usersCollectionId || '68fc7b42001bf7efbba3',
             documentId: userId,
-            data,
+            data: nextData,
         });
 
         // Invalidate user cache

@@ -80,7 +80,11 @@ export const getSecureRandomBytes = (size) => {
   }
 
   if (typeof nacl?.randomBytes === 'function') {
-    return nacl.randomBytes(size);
+    try {
+      return nacl.randomBytes(size);
+    } catch {
+      return null;
+    }
   }
 
   return null;

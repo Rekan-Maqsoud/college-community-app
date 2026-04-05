@@ -21,7 +21,6 @@ import ReanimatedAnimated, { FadeInDown } from 'react-native-reanimated';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import SearchBar from '../components/SearchBar';
-import FeedSelector from '../components/FeedSelector';
 import FilterSortModal, { SORT_OPTIONS, FILTER_TYPES } from '../components/FilterSortModal';
 import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
@@ -64,7 +63,6 @@ import {
   OptionsIcon,
   NotificationsIcon,
   CloseIcon,
-  ArrowUpIcon,
   PeopleIcon,
   SchoolHomeIcon,
   GlobeIcon,
@@ -138,7 +136,6 @@ const Home = ({ navigation, route }) => {
   const [selectedReportPost, setSelectedReportPost] = useState(null);
   const [submittingReportReason, setSubmittingReportReason] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const [showScrollToTop, setShowScrollToTop] = useState(false);
 
   const flatListRef = useRef(null);
   const searchBarRef = useRef(null);
@@ -151,7 +148,6 @@ const Home = ({ navigation, route }) => {
   const lastScrollY = useRef(0);
   const headerVisible = useRef(true);
   const lastTapTime = useRef(0);
-  const scrollToTopOpacity = useRef(new Animated.Value(0)).current;
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 375;
   const isVerySmallScreen = width < 340;
@@ -228,11 +224,6 @@ const Home = ({ navigation, route }) => {
       target: 'search',
       title: t('tutorial.home.searchTitle'),
       description: t('tutorial.home.searchDescription'),
-    },
-    {
-      target: 'feedSelector',
-      title: t('tutorial.home.feedTitle'),
-      description: t('tutorial.home.feedDescription'),
     },
     {
       target: 'filter',
@@ -431,17 +422,6 @@ const Home = ({ navigation, route }) => {
           Animated.timing(headerTranslateY, {
             toValue: 0,
             duration: reduceMotion ? 95 : 170,
-            useNativeDriver: true,
-          }).start();
-        }
-
-        // Show/hide scroll to top button
-        const shouldShow = currentScrollY > 300;
-        if (shouldShow !== showScrollToTop) {
-          setShowScrollToTop(shouldShow);
-          Animated.timing(scrollToTopOpacity, {
-            toValue: shouldShow ? 1 : 0,
-            duration: reduceMotion ? 90 : 200,
             useNativeDriver: true,
           }).start();
         }
@@ -716,10 +696,6 @@ const Home = ({ navigation, route }) => {
 
     return unsubscribe;
   }, [handleRefresh, navigation]);
-
-  const handleScrollToTop = useCallback(() => {
-    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-  }, []);
 
   const handleLoadMore = () => {
     if (!isLoadingMore && hasMore && !isLoadingPosts) {
@@ -1267,21 +1243,6 @@ const Home = ({ navigation, route }) => {
               />
             </TutorialHighlight>
 
-            {!isGuestUser && (
-              <TutorialHighlight
-                active={tutorial.activeTarget === 'feedSelector' && tutorial.isVisible}
-                theme={theme}
-                isDarkMode={isDarkMode}
-                style={[styles.feedSelectorWrapper, { height: headerHeight }]}
-              >
-                <FeedSelector
-                  selectedFeed={selectedFeed}
-                  onFeedChange={handleFeedChange}
-                  height={headerHeight}
-                />
-              </TutorialHighlight>
-            )}
-
             <TutorialHighlight
               active={tutorial.activeTarget === 'filter' && tutorial.isVisible}
               theme={theme}
@@ -1456,36 +1417,6 @@ const Home = ({ navigation, route }) => {
           </GlassModalCard>
         </View>
       </Modal>
-
-      {/* Scroll to Top Button */}
-      <Animated.View
-        style={[
-          styles.scrollToTopButton,
-          {
-            opacity: scrollToTopOpacity,
-            transform: [{
-              scale: scrollToTopOpacity.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.8, 1],
-              })
-            }],
-          }
-        ]}
-        pointerEvents={showScrollToTop ? 'auto' : 'none'}
-      >
-        <TouchableOpacity
-          onPress={handleScrollToTop}
-          activeOpacity={0.8}
-          style={styles.scrollToTopTouchable}
-          accessibilityRole="button"
-          accessibilityLabel={t('home.scrollToTop') || t('common.goBack')}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <GlassIconButton size={moderateScale(48)} tint="dark">
-            <ArrowUpIcon size={moderateScale(22)} color="#FFFFFF" />
-          </GlassIconButton>
-        </TouchableOpacity>
-      </Animated.View>
       <CustomAlert
         visible={alertConfig.visible}
         type={alertConfig.type}
@@ -1540,10 +1471,6 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  feedSelectorWrapper: {
-    flex: 1,
-    minWidth: wp(42),
   },
   sortButton: {
     justifyContent: 'center',
@@ -1662,27 +1589,6 @@ const styles = StyleSheet.create({
   footerLoader: {
     paddingVertical: spacing.lg,
     alignItems: 'center',
-  },
-  scrollToTopButton: {
-    position: 'absolute',
-    bottom: hp(12),
-    right: wp(5),
-    zIndex: 100,
-  },
-  scrollToTopTouchable: {
-    width: moderateScale(48),
-    height: moderateScale(48),
-    borderRadius: moderateScale(24),
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
   },
   reportModalOverlay: {
     flex: 1,
