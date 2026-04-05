@@ -1317,6 +1317,20 @@ export default {
       "composeDescription": "Write a clear response and attach links or images when they help explain your point.",
       "restrictionTitle": "Guest reply protection is active",
       "restrictionDescription": "Guest replies are limited to approved relationships so students are protected from spam."
+    },
+    "settings": {
+      "profileTitle": "Update your personal profile",
+      "profileDescription": "Start here to edit your profile details, bio, and academic information.",
+      "notificationsTitle": "Control your notification behavior",
+      "notificationsDescription": "Adjust push and in-app alerts so you only get updates that matter to you.",
+      "accountTitle": "Protect your account security",
+      "accountDescription": "Use account settings to manage password, privacy, and sensitive account actions."
+    },
+    "notifications": {
+      "actionsTitle": "Manage all notifications quickly",
+      "actionsDescription": "Use this action to mark everything as read or clear history when your inbox is clean.",
+      "listTitle": "Open and act on each notification",
+      "listDescription": "Tap any card to navigate to the source, then long press to apply quick actions."
     }
   }
 };

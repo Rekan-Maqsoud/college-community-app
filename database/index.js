@@ -10,4 +10,5 @@ export * from './lectureCleanup';
 export * from './repElections';
 export * from './repVotes';
 export * from './suggestions';
+export * from './tutorials';
 export { config } from './config';

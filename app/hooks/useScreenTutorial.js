@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import safeStorage from '../utils/safeStorage';
 import { requestGooglePlayReviewAfterGettingStarted } from '../utils/inAppReview';
+import { useUser } from '../context/UserContext';
+import { isGuest } from '../utils/guestUtils';
+import { completeTutorial, hasCompletedTutorial } from '../../database/tutorials';
 
 const TUTORIAL_VERSION = 'v1';
 
-const getCompletionKey = (screenKey) => {
-  return `tutorial.${TUTORIAL_VERSION}.${screenKey}.completed`;
-};
+const getGuestCompletionKey = (screenKey) => `tutorial.${TUTORIAL_VERSION}.${screenKey}.completed`;
 
 const useScreenTutorial = (screenKey, steps = []) => {
+  const { user, sessionChecked } = useUser();
   const [isReady, setIsReady] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const accountId = user?.accountId || user?.$id || null;
+  const isGuestUser = isGuest(user);
 
   const totalSteps = steps.length;
   const currentStep = useMemo(() => {
@@ -28,6 +32,10 @@ const useScreenTutorial = (screenKey, steps = []) => {
     let mounted = true;
 
     const load = async () => {
+      if (!sessionChecked) {
+        return;
+      }
+
       if (!screenKey || !Array.isArray(steps) || steps.length === 0) {
         if (mounted) {
           setIsReady(true);
@@ -37,12 +45,36 @@ const useScreenTutorial = (screenKey, steps = []) => {
       }
 
       try {
-        const completionValue = await safeStorage.getItem(getCompletionKey(screenKey));
+        let completed = false;
+        const legacyLocalKey = getGuestCompletionKey(screenKey);
+
+        if (!isGuestUser && accountId) {
+          completed = await hasCompletedTutorial({
+            accountId,
+            tutorialVersion: TUTORIAL_VERSION,
+            screenKey,
+          });
+
+          if (!completed) {
+            const legacyCompletionValue = await safeStorage.getItem(legacyLocalKey);
+            if (legacyCompletionValue === 'true') {
+              completed = true;
+              await completeTutorial({
+                accountId,
+                tutorialVersion: TUTORIAL_VERSION,
+                screenKey,
+              });
+            }
+          }
+        } else {
+          const completionValue = await safeStorage.getItem(legacyLocalKey);
+          completed = completionValue === 'true';
+        }
+
         if (!mounted) {
           return;
         }
 
-        const completed = completionValue === 'true';
         setIsVisible(!completed);
       } catch (_error) {
         if (mounted) {
@@ -62,7 +94,7 @@ const useScreenTutorial = (screenKey, steps = []) => {
     return () => {
       mounted = false;
     };
-  }, [screenKey, steps]);
+  }, [accountId, isGuestUser, screenKey, sessionChecked, steps]);
 
   const markCompleted = useCallback(async () => {
     if (!screenKey) {
@@ -70,11 +102,19 @@ const useScreenTutorial = (screenKey, steps = []) => {
     }
 
     try {
-      await safeStorage.setItem(getCompletionKey(screenKey), 'true');
+      if (!isGuestUser && accountId) {
+        await completeTutorial({
+          accountId,
+          tutorialVersion: TUTORIAL_VERSION,
+          screenKey,
+        });
+      } else {
+        await safeStorage.setItem(getGuestCompletionKey(screenKey), 'true');
+      }
     } catch (_error) {
       // Ignore persistence errors; tutorial can still continue in-memory.
     }
-  }, [screenKey]);
+  }, [accountId, isGuestUser, screenKey]);
 
   const skipTutorial = useCallback(async () => {
     setIsVisible(false);

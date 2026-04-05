@@ -40,6 +40,10 @@ import { dismissPresentedNotificationsByTarget } from '../../services/pushNotifi
 import * as ExpoNotifications from 'expo-notifications';
 import { REFRESH_TOPICS, subscribeToRefreshTopic } from '../utils/dataRefreshBus';
 import { getGroupedNotificationAvatarState } from '../utils/notificationUiHelpers';
+import TutorialHighlight from '../components/tutorial/TutorialHighlight';
+import ScreenTutorialCard from '../components/tutorial/ScreenTutorialCard';
+import useScreenTutorial from '../hooks/useScreenTutorial';
+import { isGuest } from '../utils/guestUtils';
 
 const NOTIFICATION_TYPES = {
   POST_LIKE: 'post_like',
@@ -606,6 +610,7 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, isRTL, t, 
 const Notifications = ({ navigation }) => {
   const { t, theme, isDarkMode, isRTL, triggerHaptic } = useAppSettings();
   const { user } = useUser();
+  const isGuestUser = isGuest(user);
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const insets = useSafeAreaInsets();
   const { contentStyle } = useLayout();
@@ -994,6 +999,22 @@ const Notifications = ({ navigation }) => {
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
+  const tutorialSteps = useMemo(() => ([
+    {
+      target: 'actions',
+      title: t('tutorial.notifications.actionsTitle'),
+      description: t('tutorial.notifications.actionsDescription'),
+    },
+    {
+      target: 'list',
+      title: t('tutorial.notifications.listTitle'),
+      description: t('tutorial.notifications.listDescription'),
+      centerCard: true,
+    },
+  ]), [t]);
+
+  const tutorial = useScreenTutorial(isGuestUser ? 'notifications_guest' : 'notifications', tutorialSteps);
+
   // Group notifications by post and type
   const groupedNotifications = useMemo(() => {
     return groupNotifications(notifications);
@@ -1087,33 +1108,41 @@ const Notifications = ({ navigation }) => {
             {t('notifications.title') || 'Notifications'}
           </Text>
           
-          {unreadCount > 0 ? (
-            <TouchableOpacity
-              style={styles.markAllButton}
-              onPress={handleMarkAllAsRead}
-              accessibilityRole="button"
-              accessibilityLabel={t('notifications.markAllRead')}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text style={[styles.markAllText, { color: theme.primary }]}>
-                {t('notifications.markAllRead') || 'Mark all read'}
-              </Text>
-            </TouchableOpacity>
-          ) : notifications.length > 0 ? (
-            <TouchableOpacity
-              style={styles.markAllButton}
-              onPress={handleClearAll}
-              accessibilityRole="button"
-              accessibilityLabel={t('notifications.clearAll')}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text style={[styles.markAllText, { color: '#FF3B30' }]}>
-                {t('notifications.clearAll') || 'Clear all'}
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.placeholder} />
-          )}
+          <TutorialHighlight
+            active={tutorial.isVisible && tutorial.activeTarget === 'actions'}
+            theme={theme}
+            isDarkMode={isDarkMode}
+            style={styles.tutorialActionWrap}
+            borderRadius={borderRadius.md}
+          >
+            {unreadCount > 0 ? (
+              <TouchableOpacity
+                style={styles.markAllButton}
+                onPress={handleMarkAllAsRead}
+                accessibilityRole="button"
+                accessibilityLabel={t('notifications.markAllRead')}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={[styles.markAllText, { color: theme.primary }]}>
+                  {t('notifications.markAllRead') || 'Mark all read'}
+                </Text>
+              </TouchableOpacity>
+            ) : notifications.length > 0 ? (
+              <TouchableOpacity
+                style={styles.markAllButton}
+                onPress={handleClearAll}
+                accessibilityRole="button"
+                accessibilityLabel={t('notifications.clearAll')}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={[styles.markAllText, { color: '#FF3B30' }]}>
+                  {t('notifications.clearAll') || 'Clear all'}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.placeholder} />
+            )}
+          </TutorialHighlight>
         </View>
 
         {(notifications.length > 0 || unreadCount > 0) && (
@@ -1139,20 +1168,43 @@ const Notifications = ({ navigation }) => {
           </View>
         )}
 
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <NotificationSkeleton count={7} />
-          </View>
-        ) : (
-          <FlashList
-            data={groupedNotifications}
-            keyExtractor={(item) => item.isGroup ? item.id : item.notification.$id}
-            renderItem={({ item, index }) => {
-              if (item.isGroup) {
+        <TutorialHighlight
+          active={tutorial.isVisible && tutorial.activeTarget === 'list'}
+          theme={theme}
+          isDarkMode={isDarkMode}
+          style={styles.tutorialListWrap}
+          borderRadius={borderRadius.lg}
+          pulseScale={1}
+        >
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <NotificationSkeleton count={7} />
+            </View>
+          ) : (
+            <FlashList
+              data={groupedNotifications}
+              keyExtractor={(item) => item.isGroup ? item.id : item.notification.$id}
+              renderItem={({ item, index }) => {
+                if (item.isGroup) {
+                  return (
+                    <GroupedNotificationItem
+                      group={item}
+                      onPress={handleGroupPress}
+                      theme={theme}
+                      isDarkMode={isDarkMode}
+                      isRTL={isRTL}
+                      t={t}
+                      index={index}
+                    />
+                  );
+                }
                 return (
-                  <GroupedNotificationItem
-                    group={item}
-                    onPress={handleGroupPress}
+                  <NotificationItem
+                    notification={item.notification}
+                    onPress={handleNotificationPress}
+                    onLongPress={handleMarkSingleAsRead}
+                    onDelete={handleDeleteNotification}
+                    onTurnOff={handleTurnOffNotificationType}
                     theme={theme}
                     isDarkMode={isDarkMode}
                     isRTL={isRTL}
@@ -1160,44 +1212,30 @@ const Notifications = ({ navigation }) => {
                     index={index}
                   />
                 );
-              }
-              return (
-                <NotificationItem
-                  notification={item.notification}
-                  onPress={handleNotificationPress}
-                  onLongPress={handleMarkSingleAsRead}
-                  onDelete={handleDeleteNotification}
-                  onTurnOff={handleTurnOffNotificationType}
-                  theme={theme}
-                  isDarkMode={isDarkMode}
-                  isRTL={isRTL}
-                  t={t}
-                  index={index}
+              }}
+              contentContainerStyle={[
+                styles.listContent,
+                groupedNotifications.length === 0 && styles.emptyList,
+                contentStyle,
+              ]}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={handleRefresh}
+                  tintColor={theme.primary}
+                  colors={[theme.primary]}
                 />
-              );
-            }}
-            contentContainerStyle={[
-              styles.listContent,
-              groupedNotifications.length === 0 && styles.emptyList,
-              contentStyle,
-            ]}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefreshing}
-                onRefresh={handleRefresh}
-                tintColor={theme.primary}
-                colors={[theme.primary]}
-              />
-            }
-            onEndReached={handleLoadMore}
-            onEndReachedThreshold={0.5}
-            ListEmptyComponent={renderEmptyState}
-            windowSize={11}
-            maxToRenderPerBatch={10}
-            initialNumToRender={12}
-            removeClippedSubviews={Platform.OS === 'android'}
-          />
-        )}
+              }
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.5}
+              ListEmptyComponent={renderEmptyState}
+              windowSize={11}
+              maxToRenderPerBatch={10}
+              initialNumToRender={12}
+              removeClippedSubviews={Platform.OS === 'android'}
+            />
+          )}
+        </TutorialHighlight>
       </LinearGradient>
       <PostViewModal
         visible={postModalVisible}
@@ -1216,6 +1254,19 @@ const Notifications = ({ navigation }) => {
         message={alertConfig.message}
         buttons={alertConfig.buttons}
         onDismiss={hideAlert}
+      />
+
+      <ScreenTutorialCard
+        visible={tutorial.isVisible}
+        theme={theme}
+        isRTL={isRTL}
+        t={t}
+        step={tutorial.currentStep}
+        stepIndex={tutorial.currentIndex}
+        totalSteps={tutorial.totalSteps}
+        onPrev={tutorial.prevStep}
+        onNext={tutorial.nextStep}
+        onSkip={tutorial.skipTutorial}
       />
     </View>
   );
@@ -1259,6 +1310,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
   },
+  tutorialActionWrap: {
+    minWidth: moderateScale(74),
+    alignItems: 'flex-end',
+  },
   markAllText: {
     fontSize: fontSize(12),
     fontWeight: '600',
@@ -1276,6 +1331,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingBottom: spacing.xl,
     gap: spacing.xs,
+  },
+  tutorialListWrap: {
+    flex: 1,
   },
   summaryRow: {
     flexDirection: 'row',

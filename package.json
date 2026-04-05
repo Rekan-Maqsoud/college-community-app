@@ -28,7 +28,6 @@
     "lint": "expo lint"
   },
   "dependencies": {
-    "@callstack/liquid-glass": "^0.7.0",
     "@giphy/js-fetch-api": "^5.7.0",
     "@gorhom/bottom-sheet": "^5.2.8",
     "@react-native-community/slider": "5.1.2",

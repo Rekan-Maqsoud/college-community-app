@@ -88,6 +88,7 @@ const Profile = ({ navigation, route }) => {
       target: 'posts',
       title: t('tutorial.profile.postsTitle'),
       description: t('tutorial.profile.postsDescription'),
+      centerCard: true,
     },
   ]), [t]);
 

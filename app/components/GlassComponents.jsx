@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LiquidGlassView } from '@callstack/liquid-glass';
+import LiquidGlassView from './LiquidGlassViewCompat';
 import { useAppSettingsSafe } from '../context/AppSettingsContext';
 import { isLiquidGlassEnabled } from '../utils/glassSupport';
 
@@ -18,13 +18,14 @@ const getColorScheme = (isDarkMode) => (isDarkMode ? 'dark' : 'light');
 
 /**
  * Fallback glass container used when LiquidGlassView is not supported.
- * Provides a styled BlurView-based frosted-glass look for older iOS / Expo Go.
+ * Android uses a stable translucent surface (no blur) to avoid animation/theme flicker.
  */
 const FallbackGlassView = ({
   children,
   style,
   borderRadius = 16,
   isDarkMode,
+  theme,
   showBorder = true,
   disableBackgroundOverlay = false,
 }) => {
@@ -32,24 +33,45 @@ const FallbackGlassView = ({
   const ownBackgroundColor = flattenedStyle.backgroundColor;
   const hasOwnBackground = Boolean(ownBackgroundColor && ownBackgroundColor !== 'transparent');
   const showOverlay = !disableBackgroundOverlay && !hasOwnBackground;
+  const isAndroid = Platform.OS === 'android';
+  const shouldUseBlurBackdrop = !isAndroid;
+  const themedGlassBackground = theme?.glass?.background;
+  const themedGlassBorder = theme?.glass?.border;
 
   const overlayColor = isDarkMode
-    ? 'rgba(25, 25, 35, 0.50)'
+    ? isAndroid
+      ? 'transparent'
+      : 'rgba(25, 25, 35, 0.50)'
+    : isAndroid
+    ? 'transparent'
     : 'rgba(255, 255, 255, 0.45)';
 
   const borderStyle = !showBorder
     ? {}
+    : isAndroid
+    ? {
+        borderWidth: 1,
+        borderColor: themedGlassBorder || (isDarkMode ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.70)'),
+      }
     : isDarkMode
     ? {}
     : { borderWidth: 0.5, borderColor: 'rgba(0, 0, 0, 0.10)' };
 
+  const androidSurfaceStyle = isAndroid
+    ? {
+        backgroundColor: themedGlassBackground || (isDarkMode ? 'rgba(18, 26, 40, 0.58)' : 'rgba(244, 248, 255, 0.66)'),
+      }
+    : null;
+
   return (
-    <View style={[{ borderRadius, overflow: 'hidden' }, borderStyle, style]}>
-      <BlurView
-        intensity={isDarkMode ? 50 : 45}
-        tint={isDarkMode ? 'dark' : 'light'}
-        style={StyleSheet.absoluteFill}
-      />
+    <View style={[{ borderRadius, overflow: 'hidden' }, androidSurfaceStyle, borderStyle, style]}>
+      {shouldUseBlurBackdrop ? (
+        <BlurView
+          intensity={isDarkMode ? 50 : 45}
+          tint={isDarkMode ? 'dark' : 'light'}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
       {showOverlay && (
         <View
           pointerEvents="none"
@@ -76,17 +98,21 @@ export const GlassContainer = ({
   children,
   style,
   borderRadius = 16,
+  padding,
   disableBackgroundOverlay = false,
 }) => {
   const context = useAppSettingsSafe();
+  const theme = context?.theme || {};
   const isDarkMode = context?.isDarkMode || false;
+  const paddingStyle = padding !== undefined ? { padding } : null;
 
   if (!supportsLiquidGlass) {
     return (
       <FallbackGlassView
-        style={style}
+        style={[paddingStyle, style]}
         borderRadius={borderRadius}
         isDarkMode={isDarkMode}
+        theme={theme}
         disableBackgroundOverlay={disableBackgroundOverlay}
       >
         {children}
@@ -98,7 +124,7 @@ export const GlassContainer = ({
     <LiquidGlassView
       colorScheme={getColorScheme(isDarkMode)}
       effect="regular"
-      style={[{ borderRadius }, style]}
+      style={[{ borderRadius }, paddingStyle, style]}
     >
       {children}
     </LiquidGlassView>
@@ -117,6 +143,7 @@ export const GlassCard = ({
   disableBackgroundOverlay = false,
 }) => {
   const context = useAppSettingsSafe();
+  const theme = context?.theme || {};
   const isDarkMode = context?.isDarkMode || false;
 
   if (!supportsLiquidGlass) {
@@ -125,6 +152,7 @@ export const GlassCard = ({
         style={[{ padding }, style]}
         borderRadius={borderRadius}
         isDarkMode={isDarkMode}
+        theme={theme}
         disableBackgroundOverlay={disableBackgroundOverlay}
       >
         {children}
@@ -171,7 +199,7 @@ export const GlassInput = ({
 
   if (!supportsLiquidGlass) {
     return (
-      <FallbackGlassView style={[inputStyle, style]} borderRadius={borderRadius} isDarkMode={isDarkMode}>
+      <FallbackGlassView style={[inputStyle, style]} borderRadius={borderRadius} isDarkMode={isDarkMode} theme={theme}>
         {children}
       </FallbackGlassView>
     );
@@ -235,7 +263,7 @@ export const GlassButton = ({
   // Secondary: glass style
   if (!supportsLiquidGlass) {
     return (
-      <FallbackGlassView style={[{ borderRadius }, style]} borderRadius={borderRadius} isDarkMode={isDarkMode}>
+      <FallbackGlassView style={[{ borderRadius }, style]} borderRadius={borderRadius} isDarkMode={isDarkMode} theme={theme}>
         {children}
       </FallbackGlassView>
     );
@@ -296,6 +324,7 @@ export const GlassIconButton = ({
       style={[baseStyle, style]}
       borderRadius={radius}
       isDarkMode={isDarkMode}
+      theme={theme}
       showBorder={!active}
     >
       {active && (
@@ -364,6 +393,7 @@ export const GlassPill = ({
         style={[baseStyle, style]}
         borderRadius={borderRadiusValue}
         isDarkMode={isDarkMode}
+        theme={theme}
         showBorder={!active}
       >
         {active && (
@@ -400,6 +430,7 @@ export const GlassModalCard = ({
   disableBackgroundOverlay = false,
 }) => {
   const context = useAppSettingsSafe();
+  const theme = context?.theme || {};
   const isDarkMode = context?.isDarkMode || false;
 
   if (!supportsLiquidGlass) {
@@ -408,6 +439,7 @@ export const GlassModalCard = ({
         style={style}
         borderRadius={borderRadiusValue}
         isDarkMode={isDarkMode}
+        theme={theme}
         disableBackgroundOverlay={disableBackgroundOverlay}
       >
         {children}

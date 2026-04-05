@@ -428,6 +428,19 @@ export const universitiesData = {
       collegeOfCommerce: { key: 'collegeOfCommerce', departments: [{ key: 'trade', years: 4 }] },
     },
   },
+  sulaimaniPolytechnic: {
+    key: 'sulaimaniPolytechnic',
+    colleges: {
+      technicalCollegeOfInformatic: {
+        key: 'technicalCollegeOfInformatic',
+        departments: [
+          { key: 'informationTechnology', years: 4 },
+          { key: 'networkTechnology', years: 4 },
+          { key: 'databaseTechnology', years: 4 },
+        ],
+      },
+    },
+  },
   duhok: {
     key: 'duhok',
     colleges: {

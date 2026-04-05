@@ -86,7 +86,7 @@ const IONICON_XML_MAP = {
   'ellipsis-vertical': `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><circle cx="256" cy="256" r="48"/><circle cx="256" cy="416" r="48"/><circle cx="256" cy="96" r="48"/></svg>`,
   'flash-outline': `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><path d="M315.27,33,96,304H224L192.49,477.23a2.36,2.36,0,0,0,2.33,2.77h0a2.36,2.36,0,0,0,1.89-.95L416,208H288L319.66,34.75A2.45,2.45,0,0,0,317.22,32h0A2.42,2.42,0,0,0,315.27,33Z" style="fill:none;stroke:#000;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/></svg>`,
   'hand-left-outline': `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><path d="M80,320V144a32,32,0,0,1,32-32h0a32,32,0,0,1,32,32V256" style="fill:none;stroke:#000;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/><path d="M144,256V80a32,32,0,0,1,32-32h0a32,32,0,0,1,32,32V240" style="fill:none;stroke:#000;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/><path d="M272,241V96a32,32,0,0,1,32-32h0a32,32,0,0,1,32,32V320" style="fill:none;stroke:#000;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/><path d="M208,240V48a32,32,0,0,1,32-32h0a32,32,0,0,1,32,32V240" style="fill:none;stroke:#000;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/><path d="M80,320c0,117.4,64,176,152,176s123.71-39.6,144-88l52.71-144c6.66-18.05,3.64-34.79-11.87-43.6h0c-15.52-8.82-35.91-4.28-44.31,11.68L336,320" style="fill:none;stroke:#000;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/></svg>`,
-  'heart': `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><path d="M256,448a32,32,0,0,1-18-5.57c-78.59-53.35-112.62-89.93-131.39-112.8-40-48.75-59.15-98.8-58.61-153C48.63,114.52,98.46,64,159.08,64c44.08,0,74.61,24.83,92.39,45.51a6,6,0,0,0,9.06,0C278.31,88.81,308.84,64,352.92,64,413.54,64,463.37,114.52,464,176.64c.54,54.21-18.63,104.26-58.61,153-18.77,22.87-52.8,59.45-131.39,112.8A32,32,0,0,1,256,448Z"/></svg>`,
+  'heart': `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><path fill="#000" d="M256,448a32,32,0,0,1-18-5.57c-78.59-53.35-112.62-89.93-131.39-112.8-40-48.75-59.15-98.8-58.61-153C48.63,114.52,98.46,64,159.08,64c44.08,0,74.61,24.83,92.39,45.51a6,6,0,0,0,9.06,0C278.31,88.81,308.84,64,352.92,64,413.54,64,463.37,114.52,464,176.64c.54,54.21-18.63,104.26-58.61,153-18.77,22.87-52.8,59.45-131.39,112.8A32,32,0,0,1,256,448Z"/></svg>`,
   'heart-outline': `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><path d="M352.92,80C288,80,256,144,256,144s-32-64-96.92-64C106.32,80,64.54,124.14,64,176.81c-1.1,109.33,86.73,187.08,183,252.42a16,16,0,0,0,18,0c96.26-65.34,184.09-143.09,183-252.42C447.46,124.14,405.68,80,352.92,80Z" style="fill:none;stroke:#000;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/></svg>`,
   'help-circle-outline': `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><path d="M256,80A176,176,0,1,0,432,256,176,176,0,0,0,256,80Z" style="fill:none;stroke:#000;stroke-miterlimit:10;stroke-width:32px"/><path d="M200,202.29s.84-17.5,19.57-32.57C230.68,160.77,244,158.18,256,158c10.93-.14,20.69,1.67,26.53,4.45,10,4.76,29.47,16.38,29.47,41.09,0,26-17,37.81-36.37,50.8S251,281.43,251,296" style="fill:none;stroke:#000;stroke-linecap:round;stroke-miterlimit:10;stroke-width:28px"/><circle cx="250" cy="348" r="20"/></svg>`,
   'mail-outline': `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect x="48" y="96" width="416" height="320" rx="40" ry="40" style="fill:none;stroke:#000;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/><polyline points="112 160 256 272 400 160" style="fill:none;stroke:#000;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/></svg>`,
@@ -196,7 +196,11 @@ const IONICON_XML_MAP = {
 };
 
 const applyColor = (xml, color) => {
-  if (!xml || !color) return xml;
+  if (!xml || typeof color !== 'string') return xml;
+
+  const tint = color.trim();
+  if (!tint) return xml;
+
   const normalized = xml
     // Ionicons web SVGs encode drawing instructions in class names.
     // Preserve all recognized class semantics in one pass so stroke widths aren't dropped.
@@ -220,16 +224,22 @@ const applyColor = (xml, color) => {
     });
 
   const withColor = normalized
-    .replaceAll('currentColor', color)
-    .replace(/stroke:\s*(#000(?:000)?|black)\b/gi, `stroke:${color}`)
-    .replace(/fill:\s*(#000(?:000)?|black)\b/gi, `fill:${color}`)
-    .replace(/stroke="(#000(?:000)?|black)"/gi, `stroke="${color}"`)
-    .replace(/fill="(#000(?:000)?|black)"/gi, `fill="${color}"`)
-    .replace(/stroke='(#000(?:000)?|black)'/gi, `stroke='${color}'`)
-    .replace(/fill='(#000(?:000)?|black)'/gi, `fill='${color}'`);
+    .replaceAll('currentColor', tint)
+    .replace(/#000(?:000)?\b/gi, tint)
+    .replace(/\bblack\b/gi, tint);
 
-  // Inherit tint for both filled and stroked primitives unless a child explicitly overrides it.
-  return withColor.replace(/<svg\b/, `<svg color="${color}" fill="${color}" stroke="${color}"`);
+  // Ensure defaults for icons that rely on inherited paint and omit explicit fill/stroke.
+  return withColor.replace(/<svg\b([^>]*)>/i, (fullMatch, attrs = '') => {
+    const hasColor = /\bcolor\s*=/.test(attrs);
+    const hasFill = /\bfill\s*=/.test(attrs);
+    const hasStroke = /\bstroke\s*=/.test(attrs);
+
+    const colorAttr = hasColor ? '' : ` color="${tint}"`;
+    const fillAttr = hasFill ? '' : ` fill="${tint}"`;
+    const strokeAttr = hasStroke ? '' : ` stroke="${tint}"`;
+
+    return `<svg${colorAttr}${fillAttr}${strokeAttr}${attrs}>`;
+  });
 };
 
 export default function IoniconSvg({ name, size = 24, color = "#111827", style, ...props }) {

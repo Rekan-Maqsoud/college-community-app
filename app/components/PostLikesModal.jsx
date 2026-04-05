@@ -15,7 +15,7 @@ import { fontSize, spacing, moderateScale, hp } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { FlashList } from '@shopify/flash-list';
 import { BlurView } from 'expo-blur';
-import { LiquidGlassView } from '@callstack/liquid-glass';
+import LiquidGlassView from './LiquidGlassViewCompat';
 import { GlassModalCard } from './GlassComponents';
 import { AlertCircleOutlineExactIcon, CloseFilledIcon, HeartOutlineIcon } from './icons';
 import { isLiquidGlassEnabled } from '../utils/glassSupport';

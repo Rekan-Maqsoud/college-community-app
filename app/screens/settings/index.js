@@ -16,6 +16,9 @@ import { wp, hp, fontSize as responsiveFontSize, spacing, moderateScale } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getSettingsAccentColor, getSettingsHeaderGradient } from './settingsTheme';
 import { isGuest } from '../../utils/guestUtils';
+import TutorialHighlight from '../../components/tutorial/TutorialHighlight';
+import ScreenTutorialCard from '../../components/tutorial/ScreenTutorialCard';
+import useScreenTutorial from '../../hooks/useScreenTutorial';
 
 const Settings = ({ navigation }) => {
   const { t, theme, isDarkMode, isRTL } = useAppSettings();
@@ -24,6 +27,27 @@ const Settings = ({ navigation }) => {
   const isGuestUser = isGuest(user);
   const backIconName = isRTL ? 'arrow-forward' : 'arrow-back';
   const chevronIconName = isRTL ? 'chevron-back' : 'chevron-forward';
+
+  const tutorialSteps = React.useMemo(() => ([
+    {
+      target: 'profile',
+      title: t('tutorial.settings.profileTitle'),
+      description: t('tutorial.settings.profileDescription'),
+    },
+    {
+      target: 'notifications',
+      title: t('tutorial.settings.notificationsTitle'),
+      description: t('tutorial.settings.notificationsDescription'),
+    },
+    {
+      target: 'account',
+      title: t('tutorial.settings.accountTitle'),
+      description: t('tutorial.settings.accountDescription'),
+      centerCard: true,
+    },
+  ]), [t]);
+
+  const tutorial = useScreenTutorial(isGuestUser ? 'settings_guest' : 'settings', tutorialSteps);
 
   const settingsSections = [
     {
@@ -96,29 +120,37 @@ const Settings = ({ navigation }) => {
     const accentColor = getSettingsAccentColor(item.screen, theme);
 
     return (
-    <TouchableOpacity
-      onPress={() => navigation.navigate(item.screen)}
-      activeOpacity={0.7}>
-      <GlassCard
-        style={[styles.card]}
-        padding={0}
+      <TutorialHighlight
+        active={tutorial.isVisible && tutorial.activeTarget === item.id}
+        theme={theme}
+        isDarkMode={isDarkMode}
+        style={styles.cardWrapper}
+        borderRadius={borderRadius.lg}
       >
-        <View style={[styles.cardContent, isRTL && styles.rowReverse]}>
-          <View style={[styles.iconContainer, isRTL ? styles.iconContainerRtl : styles.iconContainerLtr, { backgroundColor: `${accentColor}15` }]}>
-            <Ionicons name={item.icon} size={moderateScale(22)} color={accentColor} />
-          </View>
-          <View style={styles.textContainer}>
-            <Text style={[styles.cardTitle, isRTL && styles.directionalText, { color: theme.text }]}>
-              {item.title}
-            </Text>
-            <Text style={[styles.cardDescription, isRTL && styles.directionalText, { color: theme.textSecondary }]}>
-              {item.description}
-            </Text>
-          </View>
-          <Ionicons name={chevronIconName} size={moderateScale(18)} color={theme.textSecondary} />
-        </View>
-      </GlassCard>
-    </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => navigation.navigate(item.screen)}
+          activeOpacity={0.7}>
+          <GlassCard
+            style={[styles.card]}
+            padding={0}
+          >
+            <View style={[styles.cardContent, isRTL && styles.rowReverse]}>
+              <View style={[styles.iconContainer, isRTL ? styles.iconContainerRtl : styles.iconContainerLtr, { backgroundColor: `${accentColor}15` }]}>
+                <Ionicons name={item.icon} size={moderateScale(22)} color={accentColor} />
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={[styles.cardTitle, isRTL && styles.directionalText, { color: theme.text }]}>
+                  {item.title}
+                </Text>
+                <Text style={[styles.cardDescription, isRTL && styles.directionalText, { color: theme.textSecondary }]}>
+                  {item.description}
+                </Text>
+              </View>
+              <Ionicons name={chevronIconName} size={moderateScale(18)} color={theme.textSecondary} />
+            </View>
+          </GlassCard>
+        </TouchableOpacity>
+      </TutorialHighlight>
     );
   };
 
@@ -161,6 +193,19 @@ const Settings = ({ navigation }) => {
           </Text>
         </View>
       </ScrollView>
+
+      <ScreenTutorialCard
+        visible={tutorial.isVisible}
+        theme={theme}
+        isRTL={isRTL}
+        t={t}
+        step={tutorial.currentStep}
+        stepIndex={tutorial.currentIndex}
+        totalSteps={tutorial.totalSteps}
+        onPrev={tutorial.prevStep}
+        onNext={tutorial.nextStep}
+        onSkip={tutorial.skipTutorial}
+      />
     </View>
   );
 };
@@ -209,6 +254,8 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: borderRadius.lg,
+  },
+  cardWrapper: {
     marginBottom: spacing.sm,
   },
   cardContent: {

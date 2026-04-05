@@ -18,7 +18,7 @@ import CustomAlert from './components/CustomAlert';
 import { GlobalAlertProvider, useGlobalAlert } from './context/GlobalAlertContext';
 import { wp, normalize, spacing } from './utils/responsive';
 import { borderRadius, shadows } from './theme/designTokens';
-import { LiquidGlassView } from '@callstack/liquid-glass';
+import LiquidGlassView from './components/LiquidGlassViewCompat';
 import { BlurView } from 'expo-blur';
 import { isLiquidGlassEnabled } from './utils/glassSupport';
 import telemetry from './utils/telemetry';
@@ -452,6 +452,8 @@ const TabNavigator = () => {
               effect="regular"
               style={StyleSheet.absoluteFill}
             />
+          ) : Platform.OS === 'android' ? (
+            <View style={StyleSheet.absoluteFill} />
           ) : (
             <BlurView
               intensity={isDarkMode ? 80 : 75}
@@ -555,6 +557,8 @@ const GuestTabNavigator = () => {
               effect="regular"
               style={StyleSheet.absoluteFill}
             />
+          ) : Platform.OS === 'android' ? (
+            <View style={StyleSheet.absoluteFill} />
           ) : (
             <BlurView
               intensity={isDarkMode ? 80 : 75}

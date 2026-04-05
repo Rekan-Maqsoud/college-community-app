@@ -54,25 +54,44 @@ const ScreenTutorialCard = ({
     const horizontalPadding = spacing.md;
     const topSafe = insets.top + spacing.sm;
     const bottomSafe = insets.bottom + spacing.lg;
+    const bottomClickGuard = bottomSafe + moderateScale(64);
     const gap = spacing.sm;
     const maxWidth = 360;
     const usableWidth = Math.max(0, windowWidth - horizontalPadding * 2);
     const cardWidth = Math.min(maxWidth, usableWidth);
-    const maxCardHeight = Math.max(160, windowHeight - topSafe - bottomSafe);
+    const maxCardHeight = Math.max(160, windowHeight - topSafe - bottomClickGuard);
+
+    const centeredTop = Math.max(
+      topSafe,
+      Math.min((windowHeight - cardHeight) / 2, windowHeight - cardHeight - bottomClickGuard)
+    );
 
     if (!anchorRect || !anchorRect.width || !anchorRect.height) {
       return {
         width: cardWidth,
         maxHeight: maxCardHeight,
         left: horizontalPadding,
-        bottom: bottomSafe,
+        top: centeredTop,
+      };
+    }
+
+    const anchorCenterY = anchorRect.y + anchorRect.height / 2;
+    const forceCenterCard = step?.centerCard === true;
+    const shouldCenterForLowTarget = anchorCenterY >= windowHeight * 0.66;
+
+    if (forceCenterCard || shouldCenterForLowTarget) {
+      return {
+        width: cardWidth,
+        maxHeight: maxCardHeight,
+        left: Math.max(horizontalPadding, Math.min((windowWidth - cardWidth) / 2, windowWidth - cardWidth - horizontalPadding)),
+        top: centeredTop,
       };
     }
 
     const rawLeft = anchorRect.x + anchorRect.width / 2 - cardWidth / 2;
     const left = Math.max(horizontalPadding, Math.min(rawLeft, windowWidth - cardWidth - horizontalPadding));
-    const cardMaxTop = Math.max(topSafe, windowHeight - cardHeight - bottomSafe);
-    const spaceBelow = windowHeight - (anchorRect.y + anchorRect.height) - bottomSafe;
+    const cardMaxTop = Math.max(topSafe, windowHeight - cardHeight - bottomClickGuard);
+    const spaceBelow = windowHeight - (anchorRect.y + anchorRect.height) - bottomClickGuard;
     const spaceAbove = anchorRect.y - topSafe;
     const belowTop = Math.min(anchorRect.y + anchorRect.height + gap, cardMaxTop);
     const aboveTop = Math.max(topSafe, anchorRect.y - cardHeight - gap);
@@ -110,9 +129,9 @@ const ScreenTutorialCard = ({
       width: cardWidth,
       maxHeight: maxCardHeight,
       left,
-      top: topSafe,
+      top: centeredTop,
     };
-  }, [anchorRect, cardHeight, insets.bottom, insets.top, windowHeight, windowWidth]);
+  }, [anchorRect, cardHeight, insets.bottom, insets.top, step?.centerCard, windowHeight, windowWidth]);
 
   if (!visible || !step) {
     return null;
