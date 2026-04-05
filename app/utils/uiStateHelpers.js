@@ -112,6 +112,10 @@ export const hasActiveHomeFilters = ({
   answerStatus !== defaultAnswerStatus
 );
 
+export const shouldShowHomeFeedSelector = ({
+  isGuestUser = true,
+} = {}) => !isGuestUser;
+
 export const shouldScheduleRealtimeNotification = ({
   appState = '',
 } = {}) => appState !== 'active';

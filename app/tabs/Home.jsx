@@ -21,6 +21,7 @@ import ReanimatedAnimated, { FadeInDown } from 'react-native-reanimated';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useUser } from '../context/UserContext';
 import SearchBar from '../components/SearchBar';
+import FeedSelector from '../components/FeedSelector';
 import FilterSortModal, { SORT_OPTIONS, FILTER_TYPES } from '../components/FilterSortModal';
 import PostCard from '../components/PostCard';
 import CustomAlert from '../components/CustomAlert';
@@ -57,7 +58,7 @@ import { isGuest } from '../utils/guestUtils';
 import { sortPostsByScore } from '../utils/postRanking';
 import { REFRESH_TOPICS, subscribeToRefreshTopic } from '../utils/dataRefreshBus';
 import telemetry from '../utils/telemetry';
-import { hasActiveHomeFilters, shouldScheduleRealtimeNotification } from '../utils/uiStateHelpers';
+import { hasActiveHomeFilters, shouldScheduleRealtimeNotification, shouldShowHomeFeedSelector } from '../utils/uiStateHelpers';
 import { formatNotificationBadgeCount } from '../utils/notificationUiHelpers';
 import {
   OptionsIcon,
@@ -177,6 +178,7 @@ const Home = ({ navigation, route }) => {
     college: user?.college,
     department: user?.department,
   });
+  const showFeedSelector = shouldShowHomeFeedSelector({ isGuestUser });
   const scopedDepartment = isAcademicOtherUser ? ACADEMIC_OTHER_KEY : user?.department;
   const hasActiveFilters = hasActiveHomeFilters({
     sortBy,
@@ -1125,6 +1127,14 @@ const Home = ({ navigation, route }) => {
         ]}
         ListHeaderComponent={(
           <View>
+            {showFeedSelector ? (
+              <View style={styles.feedSelectorSection}>
+                <FeedSelector
+                  selectedFeed={selectedFeed}
+                  onFeedChange={handleFeedChange}
+                />
+              </View>
+            ) : null}
             <GreetingBanner />
             <SuggestedFriendsCard
               user={user}

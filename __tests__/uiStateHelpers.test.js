@@ -11,6 +11,7 @@ import {
   getRepVotingCountdownTone,
   hasActiveHomeFilters,
   isArchiveSwipeGestureStart,
+  shouldShowHomeFeedSelector,
   shouldScheduleRealtimeNotification,
   shouldTriggerArchive,
 } from '../app/utils/uiStateHelpers';
@@ -58,6 +59,20 @@ describe('uiStateHelpers', () => {
       expect(hasActiveHomeFilters({ ...defaultState, filterType: 'question' })).toBe(true);
       expect(hasActiveHomeFilters({ ...defaultState, selectedStage: 'stage_2' })).toBe(true);
       expect(hasActiveHomeFilters({ ...defaultState, answerStatus: 'answered' })).toBe(true);
+    });
+  });
+
+  describe('shouldShowHomeFeedSelector', () => {
+    it('shows the selector for student/non-guest users', () => {
+      expect(shouldShowHomeFeedSelector({ isGuestUser: false })).toBe(true);
+    });
+
+    it('hides the selector for guest users', () => {
+      expect(shouldShowHomeFeedSelector({ isGuestUser: true })).toBe(false);
+    });
+
+    it('fails closed when visibility input is missing', () => {
+      expect(shouldShowHomeFeedSelector()).toBe(false);
     });
   });
 

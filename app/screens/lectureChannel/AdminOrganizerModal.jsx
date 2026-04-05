@@ -131,7 +131,7 @@ const AdminOrganizerModal = ({
         style={[styles.backdrop, { backgroundColor: colors.overlay }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       > 
-        <BlurView intensity={34} tint="dark" style={styles.backdropBlur} />
+        {Platform.OS !== 'android' ? <BlurView intensity={34} tint="dark" style={styles.backdropBlur} /> : null}
         <View pointerEvents="none" style={styles.backdropScrim} />
         <GlassContainer borderRadius={24} style={styles.cardGlass} disableBackgroundOverlay>
         <View style={[styles.card, { backgroundColor: 'transparent', borderColor: `${colors.primary}33` }]}> 

@@ -5,7 +5,6 @@ import { moderateScale, spacing } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
 import {
   clearTutorialMeasure,
-  getLatestTutorialMeasure,
   subscribeTutorialMeasure,
 } from './tutorialMeasureStore';
 
@@ -77,9 +76,8 @@ const ScreenTutorialCard = ({
 
     const anchorCenterY = anchorRect.y + anchorRect.height / 2;
     const forceCenterCard = step?.centerCard === true;
-    const shouldCenterForLowTarget = anchorCenterY >= windowHeight * 0.66;
 
-    if (forceCenterCard || shouldCenterForLowTarget) {
+    if (forceCenterCard) {
       return {
         width: cardWidth,
         maxHeight: maxCardHeight,
@@ -98,7 +96,11 @@ const ScreenTutorialCard = ({
     const belowDoesNotOverlap = belowTop >= anchorRect.y + anchorRect.height + gap;
     const aboveDoesNotOverlap = aboveTop + cardHeight <= anchorRect.y - gap;
 
-    if (spaceBelow >= cardHeight + gap && belowDoesNotOverlap) {
+    const prefersBelow = anchorCenterY < windowHeight * 0.45;
+    const canPlaceBelow = spaceBelow >= cardHeight + gap && belowDoesNotOverlap;
+    const canPlaceAbove = spaceAbove >= cardHeight + gap && aboveDoesNotOverlap;
+
+    if (canPlaceBelow && (prefersBelow || !canPlaceAbove)) {
       return {
         width: cardWidth,
         maxHeight: maxCardHeight,
@@ -107,7 +109,7 @@ const ScreenTutorialCard = ({
       };
     }
 
-    if (spaceAbove >= cardHeight + gap && aboveDoesNotOverlap) {
+    if (canPlaceAbove) {
       return {
         width: cardWidth,
         maxHeight: maxCardHeight,
@@ -117,19 +119,26 @@ const ScreenTutorialCard = ({
     }
 
     if (spaceBelow >= spaceAbove) {
+      const targetBottom = anchorRect.y + anchorRect.height + gap;
+      const top = Math.max(topSafe, Math.min(targetBottom, windowHeight - bottomClickGuard));
+      const constrainedHeight = Math.max(0, windowHeight - top - bottomClickGuard);
+
       return {
         width: cardWidth,
-        maxHeight: maxCardHeight,
+        maxHeight: Math.min(maxCardHeight, constrainedHeight),
         left,
-        top: cardMaxTop,
+        top,
       };
     }
 
+    const constrainedHeight = Math.max(0, anchorRect.y - topSafe - gap);
+    const top = Math.max(topSafe, anchorRect.y - constrainedHeight - gap);
+
     return {
       width: cardWidth,
-      maxHeight: maxCardHeight,
+      maxHeight: Math.min(maxCardHeight, constrainedHeight),
       left,
-      top: centeredTop,
+      top,
     };
   }, [anchorRect, cardHeight, insets.bottom, insets.top, step?.centerCard, windowHeight, windowWidth]);
 
@@ -139,8 +148,13 @@ const ScreenTutorialCard = ({
 
   const isLastStep = stepIndex >= totalSteps - 1;
   const nextLabel = isLastStep ? t('tutorial.common.done') : t('tutorial.common.next');
-  const progressTemplate = t('tutorial.common.progress') || 'Step {current} of {total}';
-  const progressLabel = progressTemplate
+  const progressTemplate = t('tutorial.common.progress');
+  const normalizedProgressTemplate = (typeof progressTemplate === 'string'
+    && progressTemplate.includes('{current}')
+    && progressTemplate.includes('{total}'))
+    ? progressTemplate
+    : '{current}/{total}';
+  const progressLabel = normalizedProgressTemplate
     .replace('{current}', String(stepIndex + 1))
     .replace('{total}', String(totalSteps));
 

@@ -38,7 +38,7 @@ const LectureUploadModal = ({
   return (
     <Modal visible={showUploadComposer} transparent animationType="slide" onRequestClose={onClose}>
       <View style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}> 
-        <BlurView intensity={32} tint="dark" style={styles.modalBackdropBlur} />
+        {Platform.OS !== 'android' ? <BlurView intensity={32} tint="dark" style={styles.modalBackdropBlur} /> : null}
         <View pointerEvents="none" style={styles.modalBackdropScrim} />
         <KeyboardAvoidingView
           style={styles.modalKeyboardWrap}

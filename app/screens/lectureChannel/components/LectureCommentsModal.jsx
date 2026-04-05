@@ -28,7 +28,7 @@ const LectureCommentsModal = ({
   return (
     <Modal visible={!!commentsModalAsset} transparent animationType="slide" onRequestClose={closeComments}>
       <View style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}> 
-        <BlurView intensity={32} tint="dark" style={styles.modalBackdropBlur} />
+        {Platform.OS !== 'android' ? <BlurView intensity={32} tint="dark" style={styles.modalBackdropBlur} /> : null}
         <View pointerEvents="none" style={styles.modalBackdropScrim} />
         <KeyboardAvoidingView
           style={[

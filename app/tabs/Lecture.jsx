@@ -7,6 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   Modal,
+  Platform,
   RefreshControl,
   Share,
   ActivityIndicator,
@@ -204,7 +205,7 @@ const CreateChannelModal = ({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}> 
-        <BlurView intensity={34} tint="dark" style={styles.modalBackdropBlur} />
+        {Platform.OS !== 'android' ? <BlurView intensity={34} tint="dark" style={styles.modalBackdropBlur} /> : null}
         <View pointerEvents="none" style={[styles.modalBackdropScrim, { backgroundColor: colors.scrim || 'rgba(7, 12, 26, 0.40)' }]} />
         <GlassContainer borderRadius={borderRadius.xl} style={styles.createModalGlass}>
         <View style={[styles.modalCard, { backgroundColor: 'transparent', borderColor: `${colors.primary}33` }]}> 
@@ -1282,7 +1283,7 @@ const Lecture = ({ navigation }) => {
           style={styles.menuBackdrop}
           overlayColor={colors.overlay}
           scrimColor={colors.scrim || 'rgba(7, 12, 26, 0.38)'}
-          useBlur
+          useBlur={Platform.OS !== 'android'}
           blurIntensity={26}
           onPress={() => setChannelMenuOpen(false)}>
           <GlassContainer style={[styles.channelMenuCard]} padding={spacing.md}> 
@@ -1381,7 +1382,7 @@ const Lecture = ({ navigation }) => {
           style={styles.menuBackdrop}
           overlayColor={colors.overlay}
           scrimColor={colors.scrim || 'rgba(7, 12, 26, 0.38)'}
-          useBlur
+          useBlur={Platform.OS !== 'android'}
           blurIntensity={26}
           onPress={() => setGuestWindowInfoOpen(false)}>
           <GlassContainer style={[styles.guestInfoCard, { borderColor: colors.border }]} padding={spacing.md}>

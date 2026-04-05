@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Modal, ScrollView, Text, TextInput, TouchableOpacity, View, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '../../../components/icons/CompatIonicon';
 import IoniconSvg from '../../../components/icons/IoniconSvg';
@@ -75,7 +75,7 @@ const LectureSettingsModal = ({
   return (
     <Modal visible={settingsOpen} transparent animationType="slide" onRequestClose={() => setSettingsOpen(false)}>
       <View style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}> 
-        <BlurView intensity={34} tint="dark" style={styles.modalBackdropBlur} />
+        {Platform.OS !== 'android' ? <BlurView intensity={34} tint="dark" style={styles.modalBackdropBlur} /> : null}
         <View pointerEvents="none" style={styles.modalBackdropScrim} />
         <GlassContainer borderRadius={24} style={styles.settingsModalGlass} disableBackgroundOverlay>
         <View style={[styles.modalCard, { backgroundColor: 'transparent', borderColor: `${colors.primary}33` }]}> 

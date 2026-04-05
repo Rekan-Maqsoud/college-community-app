@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
+  Platform,
   ActivityIndicator, 
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,12 +16,8 @@ import { fontSize, spacing, moderateScale, hp } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import { FlashList } from '@shopify/flash-list';
 import { BlurView } from 'expo-blur';
-import LiquidGlassView from './LiquidGlassViewCompat';
 import { GlassModalCard } from './GlassComponents';
 import { AlertCircleOutlineExactIcon, CloseFilledIcon, HeartOutlineIcon } from './icons';
-import { isLiquidGlassEnabled } from '../utils/glassSupport';
-
-const supportsLiquidGlass = isLiquidGlassEnabled;
 
 const PostLikesModal = ({ visible, onClose, likedByIds }) => {
   const { t, theme, isDarkMode } = useAppSettings();
@@ -109,21 +106,14 @@ const PostLikesModal = ({ visible, onClose, likedByIds }) => {
       onRequestClose={onClose}
     >
       <View style={[styles.overlay, { backgroundColor: 'transparent' }]}>
-        {supportsLiquidGlass ? (
-          <LiquidGlassView
-            colorScheme={isDarkMode ? 'dark' : 'light'}
-            effect="regular"
-            style={StyleSheet.absoluteFillObject}
-            pointerEvents="none"
-          />
-        ) : (
+        {Platform.OS !== 'android' ? (
           <BlurView
             intensity={isDarkMode ? 50 : 40}
             tint={isDarkMode ? 'dark' : 'light'}
             style={StyleSheet.absoluteFillObject}
             pointerEvents="none"
           />
-        )}
+        ) : null}
         <View
           pointerEvents="none"
           style={[

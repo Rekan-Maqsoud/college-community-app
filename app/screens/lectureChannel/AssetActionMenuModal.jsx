@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '../../components/icons/CompatIonicon';
 import { spacing, fontSize, wp } from '../../utils/responsive';
@@ -26,7 +26,7 @@ const AssetActionMenuModal = ({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity activeOpacity={1} style={[styles.backdrop, { backgroundColor: colors.overlay }]} onPress={onClose}>
-        <BlurView intensity={26} tint="dark" style={styles.backdropBlur} />
+        {Platform.OS !== 'android' ? <BlurView intensity={26} tint="dark" style={styles.backdropBlur} /> : null}
         <View pointerEvents="none" style={styles.backdropScrim} />
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}> 
           <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>{asset.title || t('lectures.file')}</Text>

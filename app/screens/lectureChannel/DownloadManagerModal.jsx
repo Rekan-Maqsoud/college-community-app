@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import IoniconSvg from '../../components/icons/IoniconSvg';
 import { GlassContainer, GlassIconButton } from '../../components/GlassComponents';
@@ -51,7 +51,7 @@ const DownloadManagerModal = ({
       onRequestClose={onClose}
     >
       <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}> 
-        <BlurView intensity={32} tint="dark" style={styles.backdropBlur} />
+        {Platform.OS !== 'android' ? <BlurView intensity={32} tint="dark" style={styles.backdropBlur} /> : null}
         <View pointerEvents="none" style={styles.backdropScrim} />
         <GlassContainer
           borderRadius={24}

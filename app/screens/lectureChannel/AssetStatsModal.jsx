@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '../../components/icons/CompatIonicon';
 import ProfilePicture from '../../components/ProfilePicture';
@@ -83,7 +83,7 @@ const AssetStatsModal = ({ visible, onClose, colors, t, asset, userProfiles = {}
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}> 
-        <BlurView intensity={30} tint="dark" style={styles.backdropBlur} />
+        {Platform.OS !== 'android' ? <BlurView intensity={30} tint="dark" style={styles.backdropBlur} /> : null}
         <View pointerEvents="none" style={styles.backdropScrim} />
         <View style={[styles.cardWrap, { backgroundColor: colors.card, borderColor: colors.border }]}> 
           <View style={styles.headerRow}>

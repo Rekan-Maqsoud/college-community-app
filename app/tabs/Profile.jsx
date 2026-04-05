@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, StatusBar, ActivityIndicator, RefreshControl, Linking, Share, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, StatusBar, ActivityIndicator, RefreshControl, Linking, Share, Modal, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
@@ -30,6 +30,7 @@ import safeStorage from '../utils/safeStorage';
 import { getAsyncCollectionState } from '../utils/uiStateHelpers';
 import useScreenTutorial from '../hooks/useScreenTutorial';
 import { isGuest } from '../utils/guestUtils';
+import { subscribeTutorialMeasure } from '../components/tutorial/tutorialMeasureStore';
 
 const normalizeHexColor = (color, fallback) => {
   if (typeof color !== 'string') {
@@ -68,6 +69,10 @@ const Profile = ({ navigation, route }) => {
   const [showQRModal, setShowQRModal] = useState(false);
   const [isSetupChecklistHidden, setIsSetupChecklistHidden] = useState(false);
   const qrShareCardRef = useRef(null);
+  const postsListRef = useRef(null);
+  const currentScrollOffsetRef = useRef(0);
+  const lastTutorialScrollSignatureRef = useRef('');
+  const { height: windowHeight } = useWindowDimensions();
   const qrBackgroundColor = normalizeHexColor(isDarkMode ? theme.card : theme.background, isDarkMode ? '#2C2C2E' : '#FFFFFF');
   const qrForegroundColor = normalizeHexColor(theme.text, isDarkMode ? '#FFFFFF' : '#1A1A1A');
   const qrAccentPrimary = normalizeHexColor(theme.primary, isDarkMode ? '#0A84FF' : '#007AFF');
@@ -93,6 +98,56 @@ const Profile = ({ navigation, route }) => {
   ]), [t]);
 
   const tutorial = useScreenTutorial(isGuestUser ? 'profile_guest' : 'profile', tutorialSteps);
+
+  const ensureTutorialTargetVisible = useCallback((rect) => {
+    if (!tutorial.isVisible || !rect || !Number.isFinite(rect.y) || !Number.isFinite(rect.height)) {
+      return;
+    }
+
+    const targetTop = rect.y;
+    const targetBottom = rect.y + rect.height;
+    const visibleTop = insets.top + spacing.lg;
+    const reservedCardSpace = Math.max(moderateScale(200), Math.round(windowHeight * 0.34));
+    const visibleBottom = windowHeight - insets.bottom - reservedCardSpace;
+
+    let delta = 0;
+
+    if (targetBottom > visibleBottom) {
+      delta = targetBottom - visibleBottom + spacing.sm;
+    } else if (targetTop < visibleTop) {
+      delta = targetTop - visibleTop - spacing.sm;
+    }
+
+    if (Math.abs(delta) < 6) {
+      return;
+    }
+
+    const nextOffset = Math.max(0, currentScrollOffsetRef.current + delta);
+    const nextSignature = `${tutorial.activeTarget}:${Math.round(nextOffset)}`;
+    if (lastTutorialScrollSignatureRef.current === nextSignature) {
+      return;
+    }
+
+    lastTutorialScrollSignatureRef.current = nextSignature;
+    currentScrollOffsetRef.current = nextOffset;
+    postsListRef.current?.scrollToOffset?.({ offset: nextOffset, animated: true });
+  }, [insets.bottom, insets.top, tutorial.activeTarget, tutorial.isVisible, windowHeight]);
+
+  useEffect(() => {
+    lastTutorialScrollSignatureRef.current = '';
+
+    if (!tutorial.isVisible) {
+      return undefined;
+    }
+
+    const unsubscribe = subscribeTutorialMeasure((rect) => {
+      ensureTutorialTargetVisible(rect);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [ensureTutorialTargetVisible, tutorial.activeTarget, tutorial.isVisible]);
 
   const getProfileLink = () => {
     return `collegecommunity://profile/${user?.$id}`;
@@ -961,6 +1016,7 @@ const Profile = ({ navigation, route }) => {
           publishMeasure={false}
         >
           <FlashList
+            ref={postsListRef}
             data={userPosts || []}
             ListHeaderComponent={renderListHeader}
             ListEmptyComponent={renderEmptyComponent}
@@ -986,6 +1042,10 @@ const Profile = ({ navigation, route }) => {
             )}
             keyExtractor={(item, index) => item.$id || index.toString()}
             estimatedItemSize={250}
+            onScroll={(event) => {
+              currentScrollOffsetRef.current = event?.nativeEvent?.contentOffset?.y || 0;
+            }}
+            scrollEventThrottle={16}
             contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + spacing.sm, paddingBottom: spacing.xl }, contentStyle]}
             showsVerticalScrollIndicator={false}
             refreshControl={

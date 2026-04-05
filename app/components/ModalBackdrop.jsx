@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 
 const ModalBackdrop = ({
@@ -12,13 +12,15 @@ const ModalBackdrop = ({
   blurIntensity = 24,
   blurTint = 'dark',
 }) => {
+  const shouldUseBlur = useBlur && Platform.OS !== 'android';
+
   return (
     <TouchableOpacity
       activeOpacity={1}
       onPress={onPress}
       style={[styles.container, { backgroundColor: overlayColor }, style]}
     >
-      {useBlur ? <BlurView intensity={blurIntensity} tint={blurTint} style={StyleSheet.absoluteFill} /> : null}
+      {shouldUseBlur ? <BlurView intensity={blurIntensity} tint={blurTint} style={StyleSheet.absoluteFill} /> : null}
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: scrimColor }]} />
       {children}
     </TouchableOpacity>
