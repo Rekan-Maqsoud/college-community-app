@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
+  Platform,
 } from 'react-native';
 import IoniconSvg from '../../components/icons/IoniconSvg';
 import { 
@@ -14,6 +15,39 @@ import {
 import { MUTE_DURATIONS, MUTE_TYPES } from '../../../database/userChatSettings';
 import { chatRoomStyles as styles } from './styles';
 import { GlassModalCard } from '../../components/GlassComponents';
+
+const androidCenteredOverlayStyle = Platform.OS === 'android'
+  ? {
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: moderateScale(16),
+      paddingVertical: moderateScale(16),
+    }
+  : null;
+
+const androidCenteredModalCardStyle = Platform.OS === 'android'
+  ? {
+      width: '100%',
+      maxWidth: moderateScale(460),
+      maxHeight: '82%',
+      borderRadius: moderateScale(20),
+      borderTopLeftRadius: moderateScale(20),
+      borderTopRightRadius: moderateScale(20),
+      paddingBottom: moderateScale(20),
+    }
+  : null;
+
+const androidCenteredPinnedCardStyle = Platform.OS === 'android'
+  ? {
+      width: '100%',
+      maxWidth: moderateScale(460),
+      maxHeight: '72%',
+      borderRadius: moderateScale(20),
+      borderTopLeftRadius: moderateScale(20),
+      borderTopRightRadius: moderateScale(20),
+      paddingBottom: moderateScale(20),
+    }
+  : null;
 
 export const MuteModal = ({ 
   visible, 
@@ -31,8 +65,11 @@ export const MuteModal = ({
       transparent={true}
       animationType="slide"
       onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <GlassModalCard style={[styles.modalContent, { backgroundColor: 'transparent' }]}>
+      <View style={[styles.modalOverlay, androidCenteredOverlayStyle]}>
+        <GlassModalCard
+          style={[styles.modalContent, androidCenteredModalCardStyle, { backgroundColor: 'transparent' }]}
+          disableBackgroundOverlay={Platform.OS === 'android'}
+        >
           <Text style={[styles.modalTitle, { color: theme.text, fontSize: fontSize(18) }]}>
             {t('chats.muteOptions')}
           </Text>
@@ -134,8 +171,11 @@ export const PinnedMessagesModal = ({
       transparent={true}
       animationType="slide"
       onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <GlassModalCard style={[styles.pinnedModalContent, { backgroundColor: 'transparent' }]}>
+      <View style={[styles.modalOverlay, androidCenteredOverlayStyle]}>
+        <GlassModalCard
+          style={[styles.pinnedModalContent, androidCenteredPinnedCardStyle, { backgroundColor: 'transparent' }]}
+          disableBackgroundOverlay={Platform.OS === 'android'}
+        >
           <View style={styles.pinnedModalHeader}>
             <Text style={[styles.modalTitle, { color: theme.text, fontSize: fontSize(18), marginBottom: 0 }]}>
               {t('chats.pinnedMessages')}
@@ -219,8 +259,11 @@ export const ChatOptionsModal = ({
       transparent={true}
       animationType="slide"
       onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <GlassModalCard style={[styles.modalContent, { backgroundColor: 'transparent' }]}>
+      <View style={[styles.modalOverlay, androidCenteredOverlayStyle]}>
+        <GlassModalCard
+          style={[styles.modalContent, androidCenteredModalCardStyle, { backgroundColor: 'transparent' }]}
+          disableBackgroundOverlay={Platform.OS === 'android'}
+        >
           <Text style={[styles.modalTitle, { color: theme.text, fontSize: fontSize(18) }]}>
             {chatDisplayName}
           </Text>

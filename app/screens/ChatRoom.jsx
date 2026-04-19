@@ -535,6 +535,15 @@ const ChatRoom = ({ route, navigation }) => {
     setTimeout(() => searchInputRef.current?.focus(), 100);
   }, []);
 
+  useEffect(() => {
+    if (!route?.params?.openSearch) {
+      return;
+    }
+
+    openSearch();
+    navigation.setParams({ openSearch: false });
+  }, [navigation, openSearch, route?.params?.openSearch]);
+
   // Get current search result messageId for highlighting
   const currentSearchMessageId = searchResults.length > 0 
     ? searchResults[currentSearchIndex]?.$id 

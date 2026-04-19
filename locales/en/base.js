@@ -1100,6 +1100,7 @@ export default {
     "noNotificationsDesc": "Notifications will appear here",
     "hintText": "Follow & interact to get updates",
     "markAllRead": "Read all",
+    "unreadLabel": "Unread",
     "clearAll": "Clear",
     "clearAllConfirm": "Are you sure you want to clear all notifications?",
     "likedPost": "liked your post",

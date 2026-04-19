@@ -1101,6 +1101,7 @@ export default {
     "noNotificationsDesc": "ستظهر الإشعارات هنا",
     "hintText": "تابع وتفاعل للتحديثات",
     "markAllRead": "قراءة الكل",
+    "unreadLabel": "غير المقروء",
     "clearAll": "مسح",
     "clearAllConfirm": "هل أنت متأكد أنك تريد مسح جميع الإشعارات؟",
     "likedPost": "أعجب بمنشورك",

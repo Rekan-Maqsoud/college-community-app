@@ -56,6 +56,8 @@ ensureWindowLocalStorageForAppwrite();
 
 const client = new Client();
 
+const DEFAULT_APPWRITE_PUSH_PROVIDER_ID_IOS = '69e515ce00107a36ff1e';
+
 const endpoint = process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT;
 const projectId = process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID;
 
@@ -124,7 +126,7 @@ export const config = {
     notificationsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_NOTIFICATIONS_COLLECTION_ID,
     pushTokensCollectionId: process.env.EXPO_PUBLIC_APPWRITE_PUSH_TOKENS_COLLECTION_ID,
     appwritePushProviderIdAndroid: process.env.EXPO_PUBLIC_APPWRITE_PUSH_PROVIDER_ID_ANDROID,
-    appwritePushProviderIdIos: process.env.EXPO_PUBLIC_APPWRITE_PUSH_PROVIDER_ID_IOS,
+    appwritePushProviderIdIos: process.env.EXPO_PUBLIC_APPWRITE_PUSH_PROVIDER_ID_IOS || DEFAULT_APPWRITE_PUSH_PROVIDER_ID_IOS,
     lectureChannelsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_LECTURE_CHANNELS_COLLECTION_ID,
     lectureMembershipsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_LECTURE_MEMBERSHIPS_COLLECTION_ID,
     lectureAssetsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_LECTURE_ASSETS_COLLECTION_ID,

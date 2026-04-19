@@ -109,4 +109,20 @@ describe('database/config Appwrite bootstrap', () => {
     expect(secondPatchedSend).toBe(firstPatchedSend);
     expect(secondPatchedSend.__ccSafeSendPatched).toBe(true);
   });
+
+  it('uses the bundled iOS push provider ID fallback when env is missing', () => {
+    delete process.env.EXPO_PUBLIC_APPWRITE_PUSH_PROVIDER_ID_IOS;
+
+    const configModule = require('../database/config');
+
+    expect(configModule.config.appwritePushProviderIdIos).toBe('69e515ce00107a36ff1e');
+  });
+
+  it('prefers the iOS push provider ID from env when provided', () => {
+    process.env.EXPO_PUBLIC_APPWRITE_PUSH_PROVIDER_ID_IOS = 'override-ios-provider';
+
+    const configModule = require('../database/config');
+
+    expect(configModule.config.appwritePushProviderIdIos).toBe('override-ios-provider');
+  });
 });

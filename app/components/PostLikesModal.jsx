@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Platform,
   ActivityIndicator, 
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { getUserById } from '../../database/users';
@@ -21,6 +22,7 @@ import { AlertCircleOutlineExactIcon, CloseFilledIcon, HeartOutlineIcon } from '
 
 const PostLikesModal = ({ visible, onClose, likedByIds }) => {
   const { t, theme, isDarkMode } = useAppSettings();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -90,11 +92,22 @@ const PostLikesModal = ({ visible, onClose, likedByIds }) => {
     ? t('post.likesTitleWithCount', { count: uniqueIds.length })
     : t('post.likesTitle');
 
+  const handleUserPress = useCallback((selectedUserId) => {
+    const targetUserId = String(selectedUserId || '').trim();
+    if (!targetUserId) {
+      return;
+    }
+
+    onClose?.();
+    navigation.navigate('UserProfile', { userId: targetUserId });
+  }, [navigation, onClose]);
+
   const renderUser = ({ item }) => (
     <UserCard
       user={item}
       compact
       style={styles.userCard}
+      onPress={() => handleUserPress(item?.$id)}
     />
   );
 

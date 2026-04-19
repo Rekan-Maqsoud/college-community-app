@@ -241,7 +241,7 @@ const formatNotificationTime = (dateString, t) => {
   return date.toLocaleDateString();
 };
 
-const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurnOff, theme, isDarkMode, isRTL, t, index }) => {
+const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurnOff, onSenderPress, theme, isDarkMode, isRTL, t, index }) => {
   const [menuVisible, setMenuVisible] = useState(false);
 
   if (!notification || !notification.$id || !notification.type) {
@@ -252,6 +252,8 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
   const isUnread = !notification.isRead;
   
   const senderName = notification.senderName || t('common.user') || 'User';
+  const senderId = String(notification.senderId || '').trim();
+  const canOpenSenderProfile = !!senderId && senderId.toLowerCase() !== 'system';
   const createdAt = notification.$createdAt;
   const rawPreview = notification.postPreview || '';
   // Strip encoded replyId prefix "[rid:xxx]" if present
@@ -363,7 +365,19 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
               ]}
               numberOfLines={2}
             >
-              <Text style={[styles.senderName, { color: theme.text }]}>{senderName}</Text>
+              <Text
+                style={[styles.senderName, { color: theme.text }]}
+                onPress={canOpenSenderProfile
+                  ? (event) => {
+                      event?.stopPropagation?.();
+                      if (typeof onSenderPress === 'function') {
+                        onSenderPress(notification);
+                      }
+                    }
+                  : undefined}
+              >
+                {senderName}
+              </Text>
               {' '}
               <Text style={{ color: theme.textSecondary }}>{message}</Text>
             </Text>
@@ -438,7 +452,7 @@ const NotificationItem = ({ notification, onPress, onLongPress, onDelete, onTurn
 };
 
 // Grouped notification item for multiple likes/replies on same post
-const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, isRTL, t, index }) => {
+const GroupedNotificationItem = ({ group, onPress, onSenderPress, theme, isDarkMode, isRTL, t, index }) => {
   const icon = getNotificationIcon(group.type);
   const count = group.totalCount || group.notifications.length;
   const cardBackground = group.hasUnread
@@ -471,33 +485,67 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, isRTL, t, 
     })();
 
     if (count > 2 || uniqueCount === 0) {
-      return { name: String(count), action: summaryAction };
+      return { name: String(count), action: summaryAction, senderId: null };
     }
     
     if (group.type === NOTIFICATION_TYPES.POST_LIKE) {
       if (uniqueCount === 1) {
-        return { name: firstName, action: t('notifications.likedPost') || 'liked your post' };
+        const onlySenderId = String(uniqueUsers[0]?.senderId || '').trim();
+        return {
+          name: firstName,
+          action: t('notifications.likedPost') || 'liked your post',
+          senderId: onlySenderId && onlySenderId.toLowerCase() !== 'system' ? onlySenderId : null,
+        };
       } else if (uniqueCount === 2) {
         const secondName = uniqueUsers[1]?.senderName?.split(' ')[0] || '';
-        return { name: `${firstName}, ${secondName}`, action: t('notifications.likedPost') || 'liked your post' };
+        return {
+          name: `${firstName}, ${secondName}`,
+          action: t('notifications.likedPost') || 'liked your post',
+          senderId: null,
+        };
       } else {
-        return { name: `${firstName} +${uniqueCount - 1}`, action: t('notifications.likedPost') || 'liked your post' };
+        return {
+          name: `${firstName} +${uniqueCount - 1}`,
+          action: t('notifications.likedPost') || 'liked your post',
+          senderId: null,
+        };
       }
     } else if (group.type === NOTIFICATION_TYPES.POST_REPLY) {
       if (uniqueCount === 1) {
-        return { name: firstName, action: t('notifications.repliedPost') || 'replied to your post' };
+        const onlySenderId = String(uniqueUsers[0]?.senderId || '').trim();
+        return {
+          name: firstName,
+          action: t('notifications.repliedPost') || 'replied to your post',
+          senderId: onlySenderId && onlySenderId.toLowerCase() !== 'system' ? onlySenderId : null,
+        };
       } else if (uniqueCount === 2) {
         const secondName = uniqueUsers[1]?.senderName?.split(' ')[0] || '';
-        return { name: `${firstName}, ${secondName}`, action: t('notifications.repliedPost') || 'replied to your post' };
+        return {
+          name: `${firstName}, ${secondName}`,
+          action: t('notifications.repliedPost') || 'replied to your post',
+          senderId: null,
+        };
       } else {
-        return { name: `${firstName} +${uniqueCount - 1}`, action: t('notifications.repliedPost') || 'replied to your post' };
+        return {
+          name: `${firstName} +${uniqueCount - 1}`,
+          action: t('notifications.repliedPost') || 'replied to your post',
+          senderId: null,
+        };
       }
     } else if (group.type === NOTIFICATION_TYPES.REPLY_LIKE) {
-      return { name: String(count), action: t('notifications.replyLikesSummary') || 'new likes on your reply' };
+      return {
+        name: String(count),
+        action: t('notifications.replyLikesSummary') || 'new likes on your reply',
+        senderId: null,
+      };
     } else if (group.type === NOTIFICATION_TYPES.REPLY_REPLY) {
-      return { name: String(count), action: t('notifications.replyThreadsSummary') || 'new replies to your reply' };
+      return {
+        name: String(count),
+        action: t('notifications.replyThreadsSummary') || 'new replies to your reply',
+        senderId: null,
+      };
     }
-    return { name: '', action: '' };
+    return { name: '', action: '', senderId: null };
   };
 
   const message = getGroupMessage();
@@ -576,7 +624,17 @@ const GroupedNotificationItem = ({ group, onPress, theme, isDarkMode, isRTL, t, 
                 ]}
                 numberOfLines={1}
               >
-                <Text style={[styles.senderName, { color: theme.text }]}>{message.name}</Text>
+                <Text
+                  style={[styles.senderName, { color: theme.text }]}
+                  onPress={message.senderId ? (event) => {
+                    event?.stopPropagation?.();
+                    if (typeof onSenderPress === 'function') {
+                      onSenderPress({ senderId: message.senderId });
+                    }
+                  } : undefined}
+                >
+                  {message.name}
+                </Text>
                 {' '}
                 <Text style={{ color: theme.textSecondary }}>{message.action}</Text>
               </Text>
@@ -896,6 +954,38 @@ const Notifications = ({ navigation }) => {
     }
   };
 
+  const handleSenderPress = useCallback((notificationData) => {
+    const targetUserId = String(notificationData?.senderId || '').trim();
+    if (!targetUserId || targetUserId.toLowerCase() === 'system') {
+      return;
+    }
+
+    if (notificationData?.$id && notificationData?.isRead === false) {
+      setNotifications(prev =>
+        prev.map(n =>
+          n.$id === notificationData.$id ? { ...n, isRead: true } : n
+        )
+      );
+      markNotificationAsRead(notificationData.$id).catch(() => {
+        setNotifications(prev =>
+          prev.map(n =>
+            n.$id === notificationData.$id ? { ...n, isRead: false } : n
+          )
+        );
+      });
+    }
+
+    if (notificationData?.type === NOTIFICATION_TYPES.FOLLOW) {
+      dismissPresentedNotificationsByTarget({ senderId: targetUserId, types: [NOTIFICATION_TYPES.FOLLOW] }).catch(() => {});
+      markNotificationsAsReadByContext(user?.$id, {
+        senderId: targetUserId,
+        types: [NOTIFICATION_TYPES.FOLLOW],
+      }).catch(() => {});
+    }
+
+    navigation.navigate('UserProfile', { userId: targetUserId });
+  }, [navigation, user?.$id]);
+
   const handleMarkAllAsRead = async () => {
     if (!user?.$id) return;
     
@@ -1151,8 +1241,13 @@ const Notifications = ({ navigation }) => {
               <View style={[styles.summaryIconWrap, { backgroundColor: `${theme.primary}18` }]}>
                 <Ionicons name="mail-unread-outline" size={moderateScale(14)} color={theme.primary} />
               </View>
-              <View>
-                <Text style={[styles.summaryLabel, isRTL && styles.summaryTextRtl, { color: theme.textSecondary }]}>{t('notifications.markAllRead')}</Text>
+              <View style={styles.summaryTextContent}>
+                <Text
+                  style={[styles.summaryLabel, isRTL && styles.summaryTextRtl, { color: theme.textSecondary }]}
+                  numberOfLines={1}
+                >
+                  {t('notifications.unreadLabel') || t('notifications.title')}
+                </Text>
                 <Text style={[styles.summaryValue, isRTL && styles.summaryTextRtl, { color: theme.text }]}>{unreadCount}</Text>
               </View>
             </View>
@@ -1160,8 +1255,13 @@ const Notifications = ({ navigation }) => {
               <View style={[styles.summaryIconWrap, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)' }]}>
                 <IoniconSvg name="notifications-outline" size={moderateScale(14)} color={theme.textSecondary} />
               </View>
-              <View>
-                <Text style={[styles.summaryLabel, isRTL && styles.summaryTextRtl, { color: theme.textSecondary }]}>{t('notifications.title')}</Text>
+              <View style={styles.summaryTextContent}>
+                <Text
+                  style={[styles.summaryLabel, isRTL && styles.summaryTextRtl, { color: theme.textSecondary }]}
+                  numberOfLines={1}
+                >
+                  {t('notifications.title')}
+                </Text>
                 <Text style={[styles.summaryValue, isRTL && styles.summaryTextRtl, { color: theme.text }]}>{notifications.length}</Text>
               </View>
             </View>
@@ -1190,6 +1290,7 @@ const Notifications = ({ navigation }) => {
                     <GroupedNotificationItem
                       group={item}
                       onPress={handleGroupPress}
+                      onSenderPress={handleSenderPress}
                       theme={theme}
                       isDarkMode={isDarkMode}
                       isRTL={isRTL}
@@ -1205,6 +1306,7 @@ const Notifications = ({ navigation }) => {
                     onLongPress={handleMarkSingleAsRead}
                     onDelete={handleDeleteNotification}
                     onTurnOff={handleTurnOffNotificationType}
+                    onSenderPress={handleSenderPress}
                     theme={theme}
                     isDarkMode={isDarkMode}
                     isRTL={isRTL}
@@ -1353,9 +1455,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
     flex: 1,
+    minWidth: 0,
   },
   summaryChipRtl: {
     flexDirection: 'row-reverse',
+  },
+  summaryTextContent: {
+    flex: 1,
+    minWidth: 0,
   },
   summaryTextRtl: {
     textAlign: 'right',
@@ -1371,6 +1478,7 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: fontSize(10),
     fontWeight: '600',
+    flexShrink: 1,
   },
   summaryValue: {
     fontSize: fontSize(14),

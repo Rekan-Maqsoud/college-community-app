@@ -20,7 +20,7 @@ const LAST_GREETING_KEY = '@last_greeting_index';
 const LAST_GREETING_DATE_KEY = '@last_greeting_date';
 
 const GreetingBanner = () => {
-  const { t, isDarkMode, reduceMotion, compactMode, isRTL } = useAppSettings();
+  const { t, theme, isDarkMode, reduceMotion, compactMode, isRTL } = useAppSettings();
   const { user } = useUser();
   const [greeting, setGreeting] = useState({ key: '', icon: 'sunny-outline', appendName: false });
   
@@ -511,6 +511,7 @@ const GreetingBanner = () => {
     inputRange: [0, 1],
     outputRange: [-wp(100), wp(100)],
   });
+  const bannerContentColor = theme?.text || (isDarkMode ? '#FFFFFF' : '#1C1C1E');
 
   return (
     <Animated.View
@@ -566,7 +567,7 @@ const GreetingBanner = () => {
               <Ionicons
                 name={greeting.icon}
                 size={moderateScale(20)}
-                color={isDarkMode ? '#fff' : '#333'}
+                color={bannerContentColor}
               />
             </GlassIconButton>
           </Animated.View>
@@ -577,7 +578,7 @@ const GreetingBanner = () => {
               compactMode && styles.greetingTextCompact,
               isRTL && styles.greetingTextRtl,
               {
-                color: isDarkMode ? '#fff' : '#333',
+                color: bannerContentColor,
               },
             ]}
             numberOfLines={1}

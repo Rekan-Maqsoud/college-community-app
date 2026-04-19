@@ -825,11 +825,20 @@ const Chats = ({ navigation }) => {
     }
   };
 
-  const handleChatPress = (chat) => {
-    setUnreadCounts((prev) => ({ ...prev, [chat.$id]: 0 }));
-    dismissPresentedNotificationsByTarget({ chatId: chat.$id }).catch(() => {});
-    navigation.navigate('ChatRoom', { chat });
-  };
+  const navigateToChatRoom = useCallback((chatToOpen, options = {}) => {
+    if (!chatToOpen?.$id) {
+      return;
+    }
+
+    const { openSearch = false } = options;
+    setUnreadCounts((prev) => ({ ...prev, [chatToOpen.$id]: 0 }));
+    dismissPresentedNotificationsByTarget({ chatId: chatToOpen.$id }).catch(() => {});
+    navigation.navigate('ChatRoom', openSearch ? { chat: chatToOpen, openSearch: true } : { chat: chatToOpen });
+  }, [navigation]);
+
+  const handleChatPress = useCallback((chatToOpen) => {
+    navigateToChatRoom(chatToOpen);
+  }, [navigateToChatRoom]);
 
   const openChatMenu = (chat) => {
     setSelectedChat(chat);
@@ -1418,7 +1427,7 @@ const Chats = ({ navigation }) => {
           theme={theme}
           isDarkMode={isDarkMode}
           style={styles.filterContainer}
-          borderRadius={moderateScale(12)}
+          borderRadius={borderRadius.lg}
         >
           <View
             style={styles.filterContainer}
@@ -1429,7 +1438,7 @@ const Chats = ({ navigation }) => {
               }
             }}
           >
-            <GlassContainer style={StyleSheet.absoluteFill} borderRadius={moderateScale(12)} />
+            <GlassContainer style={StyleSheet.absoluteFill} borderRadius={borderRadius.lg} />
             <View style={styles.filterRow}>
             {filterContainerWidth > 0 && (
               <Animated.View
@@ -1457,7 +1466,8 @@ const Chats = ({ navigation }) => {
                   isRTL && styles.directionalText,
                   {
                     color: activeFilter === filter.key ? '#FFFFFF' : (isDarkMode ? 'rgba(255,255,255,0.84)' : theme.textSecondary),
-                    fontSize: fontSize(11),
+                    fontSize: fontSize(10.5),
+                    fontWeight: activeFilter === filter.key ? '700' : '600',
                   }
                 ]}>
                   {filter.label}
@@ -1648,8 +1658,11 @@ const Chats = ({ navigation }) => {
                   <TouchableOpacity
                     style={styles.menuItem}
                     onPress={() => {
+                      if (!selectedChat) {
+                        return;
+                      }
                       setChatMenuVisible(false);
-                      Alert.alert(t('common.info'), t('chats.searchComingSoon'));
+                      navigateToChatRoom(selectedChat, { openSearch: true });
                     }}
                     accessibilityRole="button"
                     accessibilityLabel={t('chats.searchInChat')}
@@ -1982,8 +1995,8 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     marginTop: spacing.sm,
-    height: moderateScale(40),
-    borderRadius: moderateScale(12),
+    height: moderateScale(44),
+    borderRadius: borderRadius.lg,
     overflow: 'hidden',
   },
   archivedSummaryButton: {
@@ -2015,7 +2028,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    borderRadius: moderateScale(12),
+    borderRadius: borderRadius.lg,
     zIndex: 0,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

@@ -1127,14 +1127,6 @@ const Home = ({ navigation, route }) => {
         ]}
         ListHeaderComponent={(
           <View>
-            {showFeedSelector ? (
-              <View style={styles.feedSelectorSection}>
-                <FeedSelector
-                  selectedFeed={selectedFeed}
-                  onFeedChange={handleFeedChange}
-                />
-              </View>
-            ) : null}
             <GreetingBanner />
             <SuggestedFriendsCard
               user={user}
@@ -1235,82 +1227,103 @@ const Home = ({ navigation, route }) => {
                 height: headerHeight,
                 paddingHorizontal: wp(isVerySmallScreen ? 1 : isSmallScreen ? 2 : 3),
                 gap: isVerySmallScreen ? 2 : isSmallScreen ? spacing.xs * 0.5 : spacing.xs,
+                justifyContent: showFeedSelector ? 'space-between' : 'flex-start',
                 transform: [{ translateY: headerTranslateY }],
               }
             ]}
           >
-            <TutorialHighlight
-              active={tutorial.activeTarget === 'search' && tutorial.isVisible}
-              theme={theme}
-              isDarkMode={isDarkMode}
-              style={[styles.searchIconButton, { width: headerHeight, height: headerHeight }]}
-            >
-              <SearchBar
-                ref={searchBarRef}
-                iconOnly={true}
-                onUserPress={handleUserPress}
-                onPostPress={handlePostPress}
-              />
-            </TutorialHighlight>
+            {showFeedSelector ? (
+              <View style={styles.headerFeedSelectorWrap}>
+                <FeedSelector
+                  selectedFeed={selectedFeed}
+                  onFeedChange={handleFeedChange}
+                  height={headerHeight}
+                />
+              </View>
+            ) : null}
 
-            <TutorialHighlight
-              active={tutorial.activeTarget === 'filter' && tutorial.isVisible}
-              theme={theme}
-              isDarkMode={isDarkMode}
-              style={[styles.sortButton, { height: actionButtonSize, width: actionButtonSize }]}
+            <View
+              style={[
+                styles.headerActionButtons,
+                isRTL && styles.headerActionButtonsRtl,
+                {
+                  gap: isVerySmallScreen ? 2 : isSmallScreen ? spacing.xs * 0.5 : spacing.xs,
+                },
+              ]}
             >
-              <TouchableOpacity
-                style={{ height: actionButtonSize, width: actionButtonSize }}
-                onPress={() => setShowFilterSortModal(true)}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel={t('home.filterSort')}
-                accessibilityState={{ selected: hasActiveFilters }}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              <TutorialHighlight
+                active={tutorial.activeTarget === 'search' && tutorial.isVisible}
+                theme={theme}
+                isDarkMode={isDarkMode}
+                style={[styles.searchIconButton, { width: headerHeight, height: headerHeight }]}
               >
-                <GlassIconButton
-                  size={actionButtonSize}
-                  borderRadiusValue={borderRadius.md}
-                  active={Platform.OS === 'android' ? false : hasActiveFilters}
-                >
-                  <OptionsIcon
-                    size={headerIconSize}
-                    color={hasActiveFilters ? theme.primary : theme.text}
-                  />
-                  {hasActiveFilters && <View style={[styles.filterActiveDot, { backgroundColor: theme.primary }]} />}
-                </GlassIconButton>
-              </TouchableOpacity>
-            </TutorialHighlight>
+                <SearchBar
+                  ref={searchBarRef}
+                  iconOnly={true}
+                  onUserPress={handleUserPress}
+                  onPostPress={handlePostPress}
+                />
+              </TutorialHighlight>
 
-            <TutorialHighlight
-              active={tutorial.activeTarget === 'notifications' && tutorial.isVisible}
-              theme={theme}
-              isDarkMode={isDarkMode}
-              style={[styles.notificationButton, { height: actionButtonSize, width: actionButtonSize }]}
-            >
-              <TouchableOpacity
-                style={{ height: actionButtonSize, width: actionButtonSize }}
-                onPress={() => navigation.navigate('Notifications')}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel={t('notifications.title')}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              <TutorialHighlight
+                active={tutorial.activeTarget === 'filter' && tutorial.isVisible}
+                theme={theme}
+                isDarkMode={isDarkMode}
+                style={[styles.sortButton, { height: actionButtonSize, width: actionButtonSize }]}
               >
-                <GlassIconButton
-                  size={actionButtonSize}
-                  borderRadiusValue={borderRadius.md}
+                <TouchableOpacity
+                  style={{ height: actionButtonSize, width: actionButtonSize }}
+                  onPress={() => setShowFilterSortModal(true)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('home.filterSort')}
+                  accessibilityState={{ selected: hasActiveFilters }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <NotificationsIcon size={headerIconSize} color={theme.text} />
-                  {notificationBadgeText ? (
-                    <View style={styles.notificationBadge}>
-                      <Text style={styles.notificationBadgeText}>
-                        {notificationBadgeText}
-                      </Text>
-                    </View>
-                  ) : null}
-                </GlassIconButton>
-              </TouchableOpacity>
-            </TutorialHighlight>
+                  <GlassIconButton
+                    size={actionButtonSize}
+                    borderRadiusValue={borderRadius.md}
+                    active={Platform.OS === 'android' ? false : hasActiveFilters}
+                  >
+                    <OptionsIcon
+                      size={headerIconSize}
+                      color={hasActiveFilters ? theme.primary : theme.text}
+                    />
+                    {hasActiveFilters && <View style={[styles.filterActiveDot, { backgroundColor: theme.primary }]} />}
+                  </GlassIconButton>
+                </TouchableOpacity>
+              </TutorialHighlight>
+
+              <TutorialHighlight
+                active={tutorial.activeTarget === 'notifications' && tutorial.isVisible}
+                theme={theme}
+                isDarkMode={isDarkMode}
+                style={[styles.notificationButton, { height: actionButtonSize, width: actionButtonSize }]}
+              >
+                <TouchableOpacity
+                  style={{ height: actionButtonSize, width: actionButtonSize }}
+                  onPress={() => navigation.navigate('Notifications')}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('notifications.title')}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <GlassIconButton
+                    size={actionButtonSize}
+                    borderRadiusValue={borderRadius.md}
+                  >
+                    <NotificationsIcon size={headerIconSize} color={theme.text} />
+                    {notificationBadgeText ? (
+                      <View style={styles.notificationBadge}>
+                        <Text style={styles.notificationBadgeText}>
+                          {notificationBadgeText}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </GlassIconButton>
+                </TouchableOpacity>
+              </TutorialHighlight>
+            </View>
           </Animated.View>
 
           <TutorialHighlight
@@ -1472,6 +1485,18 @@ const styles = StyleSheet.create({
   headerRowRtl: {
     flexDirection: 'row-reverse',
   },
+  headerFeedSelectorWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  headerActionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  headerActionButtonsRtl: {
+    flexDirection: 'row-reverse',
+  },
   searchIconButton: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -1528,10 +1553,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   searchSection: {
-    paddingHorizontal: wp(4),
-    marginBottom: spacing.sm,
-  },
-  feedSelectorSection: {
     paddingHorizontal: wp(4),
     marginBottom: spacing.sm,
   },
