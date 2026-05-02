@@ -186,8 +186,8 @@ export const createPost = async (postData) => {
                     documentId: currentUserId,
                     data: { profileViews: buildUpdatedGuestPostTracking(userDoc?.profileViews) },
                 });
-            } catch (e) {
-                console.warn('[posts.js] Failed to update guest post limit tracking', e);
+            } catch {
+                // Non-critical — post already created successfully.
             }
         }
         

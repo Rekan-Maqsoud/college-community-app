@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   ImageBackground,
   TextInput,
-  InteractionManager,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -224,7 +223,7 @@ const ChatRoom = ({ route, navigation }) => {
       return () => {};
     }
 
-    interactionHandle = InteractionManager.runAfterInteractions(() => {
+    interactionHandle = requestIdleCallback(() => {
       timeoutId = setTimeout(() => {
         if (!isCancelled) {
           setShouldRenderMessageInput(true);
@@ -238,7 +237,9 @@ const ChatRoom = ({ route, navigation }) => {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
-      interactionHandle?.cancel?.();
+      if (interactionHandle !== null) {
+        cancelIdleCallback(interactionHandle);
+      }
     };
   }, [isFocused, chat?.$id]);
 

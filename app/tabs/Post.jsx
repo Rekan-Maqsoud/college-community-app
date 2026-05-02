@@ -321,57 +321,21 @@ const Post = () => {
         let blockedCount = 0;
         let unavailableCount = 0;
 
-        setVerificationState({
-          active: true,
-          current: 0,
-          total: result.assets.length,
-        });
-
-        console.log('[Post][NSFW] Selected assets for verification', {
-          count: result.assets.length,
-          uris: result.assets.map((asset) => String(asset?.uri || '').slice(0, 120)),
-        });
+        setVerificationState({ active: true, current: 0, total: result.assets.length });
 
         for (const [assetIndex, asset] of result.assets.entries()) {
-          setVerificationState((previousState) => ({
-            ...previousState,
-            current: assetIndex + 1,
-          }));
-
-          console.log('[Post][NSFW] Verifying selected image', {
-            imageUriPreview: String(asset?.uri || '').slice(0, 120),
-            mimeType: asset?.mimeType || null,
-            fileName: asset?.fileName || null,
-            width: asset?.width || null,
-            height: asset?.height || null,
-          });
+          setVerificationState((prev) => ({ ...prev, current: assetIndex + 1 }));
 
           try {
-            await enforceNsfwImagePolicy({
-              imageUri: asset.uri,
-              t,
-            });
-
+            await enforceNsfwImagePolicy({ imageUri: asset.uri, t });
             acceptedAssets.push(asset);
-            console.log('[Post][NSFW] Image verification succeeded', {
-              imageUriPreview: String(asset?.uri || '').slice(0, 120),
-            });
           } catch (verificationError) {
             const errorCode = verificationError?.code || 'UNKNOWN';
-
             if (errorCode === 'NSFW_IMAGE_BLOCKED') {
               blockedCount += 1;
-            } else if (errorCode === 'NSFW_SCAN_FAILED') {
-              unavailableCount += 1;
             } else {
               unavailableCount += 1;
             }
-
-            console.warn('[Post][NSFW] Image rejected during verification', {
-              code: errorCode,
-              message: verificationError?.message || 'unknown',
-              imageUriPreview: String(asset?.uri || '').slice(0, 120),
-            });
           }
         }
 
@@ -423,12 +387,6 @@ const Post = () => {
         }
       }
     } catch (_error) {
-      console.error('[Post][NSFW] Image selection or verification failed', {
-        code: _error?.code || 'UNKNOWN',
-        message: _error?.message || 'unknown',
-        details: _error?.details || null,
-      });
-
       if (_error?.code === 'NSFW_IMAGE_BLOCKED' || _error?.code === 'NSFW_SCAN_FAILED') {
         if (__DEV__ && _error?.code === 'NSFW_SCAN_FAILED') {
           showAlert({

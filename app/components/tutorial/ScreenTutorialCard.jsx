@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { moderateScale, spacing } from '../../utils/responsive';
 import { borderRadius } from '../../theme/designTokens';
@@ -54,7 +54,7 @@ const ScreenTutorialCard = ({
     const topSafe = insets.top + spacing.sm;
     const bottomSafe = insets.bottom + spacing.lg;
     const bottomClickGuard = bottomSafe + moderateScale(64);
-    const gap = spacing.sm;
+    const gap = spacing.xl || 32; // Increased gap to ensure it doesn't overlap header
     const maxWidth = 360;
     const usableWidth = Math.max(0, windowWidth - horizontalPadding * 2);
     const cardWidth = Math.min(maxWidth, usableWidth);
@@ -64,6 +64,27 @@ const ScreenTutorialCard = ({
       topSafe,
       Math.min((windowHeight - cardHeight) / 2, windowHeight - cardHeight - bottomClickGuard)
     );
+
+    const forceCenterCard = step?.centerCard === true;
+    const forceBottomCard = step?.bottomCard === true;
+
+    if (forceCenterCard) {
+      return {
+        width: cardWidth,
+        maxHeight: maxCardHeight,
+        left: Math.max(horizontalPadding, Math.min((windowWidth - cardWidth) / 2, windowWidth - cardWidth - horizontalPadding)),
+        top: centeredTop,
+      };
+    }
+
+    if (forceBottomCard) {
+      return {
+        width: cardWidth,
+        maxHeight: maxCardHeight,
+        left: Math.max(horizontalPadding, Math.min((windowWidth - cardWidth) / 2, windowWidth - cardWidth - horizontalPadding)),
+        top: Math.max(topSafe, windowHeight - cardHeight - bottomClickGuard),
+      };
+    }
 
     if (!anchorRect || !anchorRect.width || !anchorRect.height) {
       return {
@@ -75,71 +96,32 @@ const ScreenTutorialCard = ({
     }
 
     const anchorCenterY = anchorRect.y + anchorRect.height / 2;
-    const forceCenterCard = step?.centerCard === true;
-
-    if (forceCenterCard) {
-      return {
-        width: cardWidth,
-        maxHeight: maxCardHeight,
-        left: Math.max(horizontalPadding, Math.min((windowWidth - cardWidth) / 2, windowWidth - cardWidth - horizontalPadding)),
-        top: centeredTop,
-      };
-    }
-
     const rawLeft = anchorRect.x + anchorRect.width / 2 - cardWidth / 2;
     const left = Math.max(horizontalPadding, Math.min(rawLeft, windowWidth - cardWidth - horizontalPadding));
-    const cardMaxTop = Math.max(topSafe, windowHeight - cardHeight - bottomClickGuard);
-    const spaceBelow = windowHeight - (anchorRect.y + anchorRect.height) - bottomClickGuard;
-    const spaceAbove = anchorRect.y - topSafe;
-    const belowTop = Math.min(anchorRect.y + anchorRect.height + gap, cardMaxTop);
-    const aboveTop = Math.max(topSafe, anchorRect.y - cardHeight - gap);
-    const belowDoesNotOverlap = belowTop >= anchorRect.y + anchorRect.height + gap;
-    const aboveDoesNotOverlap = aboveTop + cardHeight <= anchorRect.y - gap;
+    
+    const targetBottom = anchorRect.y + anchorRect.height + gap;
+    const targetTop = anchorRect.y - gap;
+    
+    const maxBelowHeight = Math.max(0, windowHeight - targetBottom - bottomClickGuard);
+    const maxAboveHeight = Math.max(0, targetTop - topSafe);
 
     const prefersBelow = anchorCenterY < windowHeight * 0.45;
-    const canPlaceBelow = spaceBelow >= cardHeight + gap && belowDoesNotOverlap;
-    const canPlaceAbove = spaceAbove >= cardHeight + gap && aboveDoesNotOverlap;
 
-    if (canPlaceBelow && (prefersBelow || !canPlaceAbove)) {
-      return {
-        width: cardWidth,
-        maxHeight: maxCardHeight,
-        left,
-        top: belowTop,
-      };
+    if (maxBelowHeight >= cardHeight && (prefersBelow || maxBelowHeight >= maxAboveHeight)) {
+       return { width: cardWidth, maxHeight: Math.min(maxCardHeight, maxBelowHeight), left, top: targetBottom };
     }
-
-    if (canPlaceAbove) {
-      return {
-        width: cardWidth,
-        maxHeight: maxCardHeight,
-        left,
-        top: aboveTop,
-      };
+    
+    if (maxAboveHeight >= cardHeight) {
+       const top = Math.max(topSafe, targetTop - cardHeight);
+       return { width: cardWidth, maxHeight: Math.min(maxCardHeight, maxAboveHeight), left, top };
     }
-
-    if (spaceBelow >= spaceAbove) {
-      const targetBottom = anchorRect.y + anchorRect.height + gap;
-      const top = Math.max(topSafe, Math.min(targetBottom, windowHeight - bottomClickGuard));
-      const constrainedHeight = Math.max(0, windowHeight - top - bottomClickGuard);
-
-      return {
-        width: cardWidth,
-        maxHeight: Math.min(maxCardHeight, constrainedHeight),
-        left,
-        top,
-      };
+    
+    if (maxBelowHeight >= maxAboveHeight) {
+       return { width: cardWidth, maxHeight: Math.min(maxCardHeight, maxBelowHeight), left, top: targetBottom };
     }
-
-    const constrainedHeight = Math.max(0, anchorRect.y - topSafe - gap);
-    const top = Math.max(topSafe, anchorRect.y - constrainedHeight - gap);
-
-    return {
-      width: cardWidth,
-      maxHeight: Math.min(maxCardHeight, constrainedHeight),
-      left,
-      top,
-    };
+    
+    const top = Math.max(topSafe, targetTop - maxAboveHeight);
+    return { width: cardWidth, maxHeight: Math.min(maxCardHeight, maxAboveHeight), left, top };
   }, [anchorRect, cardHeight, insets.bottom, insets.top, step?.centerCard, windowHeight, windowWidth]);
 
   if (!visible || !step) {
@@ -177,17 +159,19 @@ const ScreenTutorialCard = ({
           },
         ]}
       >
-        <Text style={[styles.progress, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
-          {progressLabel}
-        </Text>
+        <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingBottom: spacing.md }} showsVerticalScrollIndicator={false}>
+          <Text style={[styles.progress, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
+            {progressLabel}
+          </Text>
 
-        <Text style={[styles.title, isRTL && styles.directionalText, { color: theme.text }]}>
-          {step.title}
-        </Text>
+          <Text style={[styles.title, isRTL && styles.directionalText, { color: theme.text }]}>
+            {step.title}
+          </Text>
 
-        <Text style={[styles.description, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
-          {step.description}
-        </Text>
+          <Text style={[styles.description, isRTL && styles.directionalText, { color: theme.textSecondary }]}> 
+            {step.description}
+          </Text>
+        </ScrollView>
 
         <View style={[styles.actions, isRTL && styles.actionsRtl]}>
           <TouchableOpacity

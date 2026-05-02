@@ -206,18 +206,19 @@ const Home = ({ navigation, route }) => {
   const guestTutorialSteps = useMemo(() => ([
     {
       target: 'search',
-      title: t('tutorial.home.searchTitle', 'Search'),
-      description: t('tutorial.guest.searchDescription', 'Find public posts and groups easily.'),
+      title: t('tutorial.home.searchTitle'),
+      description: t('tutorial.home.searchDescription'),
     },
     {
       target: 'notifications',
-      title: t('tutorial.home.notificationsTitle', 'Notifications'),
-      description: t('tutorial.guest.notificationsDescription', 'Check notifications for related posts.'),
+      title: t('tutorial.home.notificationsTitle'),
+      description: t('tutorial.home.notificationsDescription'),
     },
     {
-      target: 'posts',
-      title: t('tutorial.home.postsTitle', 'Read Posts'),
-      description: t('tutorial.guest.postsDescription', 'See what students and other guests are sharing.'),
+      target: null,
+      centerCard: true,
+      title: t('tutorial.home.postsTitle'),
+      description: t('tutorial.home.postsDescription'),
     },
   ]), [t]);
 
@@ -397,6 +398,17 @@ const Home = ({ navigation, route }) => {
       listener: (event) => {
         const currentScrollY = event.nativeEvent.contentOffset.y;
         scrollOffsetRef.current = currentScrollY;
+
+        if (tutorial.isVisible) {
+          if (!headerVisible.current) {
+            headerVisible.current = true;
+            headerTranslateY.stopAnimation();
+            headerTranslateY.setValue(0);
+          }
+          lastScrollY.current = currentScrollY;
+          return;
+        }
+
         const diff = currentScrollY - lastScrollY.current;
 
         if (currentScrollY <= 50 && !headerVisible.current) {
@@ -432,6 +444,22 @@ const Home = ({ navigation, route }) => {
       },
     }
   );
+
+  useEffect(() => {
+    if (!tutorial.isVisible) {
+      return;
+    }
+
+    headerVisible.current = true;
+    headerTranslateY.stopAnimation();
+    headerTranslateY.setValue(0);
+    scrollOffsetRef.current = 0;
+    lastScrollY.current = 0;
+
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    });
+  }, [headerTranslateY, tutorial.isVisible]);
 
   useEffect(() => {
     hasAppliedViewportRef.current = false;

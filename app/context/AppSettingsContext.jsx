@@ -358,10 +358,6 @@ export const AppSettingsProvider = ({ children }) => {
           backend: storageBackendInfo.backend,
           reason: storageBackendInfo.reason || '',
         });
-
-        if (__DEV__) {
-          console.warn('[AppSettings] Persistent MMKV storage is unavailable. Settings will reset after app restart.');
-        }
       }
 
       const [savedLanguage, savedThemePreference, savedNotifications, savedNotificationSettings, savedChatSettings, savedFontScale, savedReduceMotion, savedHapticEnabled, savedShowActivityStatus, savedCompactMode, savedQuietHours, savedDarkModeSchedule, savedAccentColor, savedDataSaverMode] = await Promise.all([

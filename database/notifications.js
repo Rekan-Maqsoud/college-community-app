@@ -318,14 +318,6 @@ export const createNotification = async (notificationData) => {
 
         return notification;
     } catch (error) {
-        if (typeof __DEV__ !== 'undefined' && __DEV__) {
-            console.warn('createNotification: primary write failed', {
-                message: error?.message || String(error),
-                type: notificationData?.type,
-                userId: notificationData?.userId,
-                senderId: notificationData?.senderId,
-            });
-        }
         try {
             if (!notificationData?.userId || !notificationData?.type || !config.notificationsCollectionId || !config.databaseId) {
                 return null;
@@ -356,15 +348,7 @@ export const createNotification = async (notificationData) => {
             await notificationsCacheManager.invalidateUserNotifications(notificationData.userId);
 
             return emergencyNotification;
-        } catch (emergencyError) {
-            if (typeof __DEV__ !== 'undefined' && __DEV__) {
-                console.warn('createNotification: emergency write failed', {
-                    message: emergencyError?.message || String(emergencyError),
-                    type: notificationData?.type,
-                    userId: notificationData?.userId,
-                    senderId: notificationData?.senderId,
-                });
-            }
+        } catch {
             return null;
         }
     }

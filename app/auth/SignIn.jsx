@@ -9,7 +9,8 @@ import { useCustomAlert } from '../hooks/useCustomAlert';
 import CustomAlert from '../components/CustomAlert';
 import AnimatedBackground from '../components/AnimatedBackground';
 import { GlassContainer, GlassInput } from '../components/GlassComponents';
-import { signIn, getCurrentUser, signOut, getCompleteUserData, signInWithGoogle, checkOAuthUserExists, storePendingOAuthSignup, isEducationalEmail } from '../../database/auth';
+import safeStorage from '../utils/safeStorage';
+import { signIn, getCurrentUser, signOut, getCompleteUserData, signInWithGoogle, signInWithApple, checkOAuthUserExists, storePendingOAuthSignup, isEducationalEmail } from '../../database/auth';
 import { getAcademicDomainSuggestions, applyDomainToEmail } from '../constants/academicEmailDomains';
 import { 
   wp, 
@@ -24,6 +25,7 @@ import useLayout from '../hooks/useLayout';
 import telemetry from '../utils/telemetry';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
+import { buildOAuthSignupNavigationTarget } from '../utils/authOnboarding';
 
 const getAcademicChangesCountFromProfileViews = (profileViews) => {
   if (!profileViews) return 0;
@@ -53,7 +55,6 @@ const shouldExposeAcademicFields = (roleValue, emailValue) => {
 };
 
 const SignIn = ({ navigation, route }) => {
-  const googleLogoUri = 'https://www.gstatic.com/images/branding/product/1x/googleg_48dp.png';
   const [email, setEmail] = useState(route?.params?.prefillEmail || '');
   const [password, setPassword] = useState('');
   const [emailFocused, setEmailFocused] = useState(false);
@@ -61,9 +62,14 @@ const SignIn = ({ navigation, route }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isAppleLoading, setIsAppleLoading] = useState(false);
   const [emailSuggestions, setEmailSuggestions] = useState([]);
   
   const { t, theme, isDarkMode, isRTL } = useAppSettings();
+  const googleLogoUri = 'https://www.gstatic.com/images/branding/product/1x/googleg_48dp.png';
+  const appleLogoUri = isDarkMode 
+    ? 'https://upload.wikimedia.org/wikipedia/commons/3/31/Apple_logo_white.svg' 
+    : 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg';
   const { setUserData } = useUser();
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { formStyle } = useLayout();
@@ -111,6 +117,8 @@ const SignIn = ({ navigation, route }) => {
     let isMounted = true;
 
     const resumePendingOAuthFlow = async () => {
+      if (route?.params?.preventAutoLogin) return;
+
       const resumeTrace = telemetry.startTrace('auth_resume_pending_oauth');
 
       try {
@@ -147,7 +155,14 @@ const SignIn = ({ navigation, route }) => {
             };
 
             await setUserData(userData);
-            navigation.replace(getPostAuthRouteName(userData.role));
+            
+            const termsAccepted = await safeStorage.getItem('terms_accepted');
+            if (termsAccepted === 'true') {
+              navigation.replace(getPostAuthRouteName(userData.role));
+            } else {
+              navigation.replace('TermsAndConditions');
+            }
+            
             resumeTrace.finish({ success: true, meta: { path: 'existing_user' } });
             return;
           }
@@ -187,7 +202,6 @@ const SignIn = ({ navigation, route }) => {
         resumeTrace.finish({ success: true, meta: { path: 'signup' } });
       } catch (error) {
         resumeTrace.finish({ success: false, error });
-        console.error('[SignIn] Failed to resume pending OAuth flow:', error?.message || error);
       }
     };
 
@@ -247,7 +261,13 @@ const SignIn = ({ navigation, route }) => {
             
             await setUserData(userData);
             signInTrace.finish({ success: true, meta: { reusedSession: true } });
-            navigation.replace(getPostAuthRouteName(userData.role));
+            
+            const termsAccepted = await safeStorage.getItem('terms_accepted');
+            if (termsAccepted === 'true') {
+              navigation.replace(getPostAuthRouteName(userData.role));
+            } else {
+              navigation.replace('TermsAndConditions');
+            }
             return;
           }
           // User data couldn't be loaded — clear the stale session and re-authenticate
@@ -305,7 +325,13 @@ const SignIn = ({ navigation, route }) => {
       
       await setUserData(userData);
       signInTrace.finish({ success: true, meta: { reusedSession: false } });
-      navigation.replace(getPostAuthRouteName(userData.role));
+      
+      const termsAccepted = await safeStorage.getItem('terms_accepted');
+      if (termsAccepted === 'true') {
+        navigation.replace(getPostAuthRouteName(userData.role));
+      } else {
+        navigation.replace('TermsAndConditions');
+      }
     } catch (error) {
       signInTrace.finish({ success: false, error });
       let errorMessage = t('auth.signInError');
@@ -368,7 +394,13 @@ const SignIn = ({ navigation, route }) => {
             
             await setUserData(userData);
             googleTrace.finish({ success: true, meta: { path: 'existing_user' } });
-            navigation.replace(getPostAuthRouteName(userData.role));
+            
+            const termsAccepted = await safeStorage.getItem('terms_accepted');
+            if (termsAccepted === 'true') {
+              navigation.replace(getPostAuthRouteName(userData.role));
+            } else {
+              navigation.replace('TermsAndConditions');
+            }
           }
         } else if (userCheck.user) {
           const oauthResolvedEmail = userCheck.email || userCheck.user.email || '';
@@ -404,7 +436,6 @@ const SignIn = ({ navigation, route }) => {
           });
           googleTrace.finish({ success: true, meta: { path: 'needs_profile_completion' } });
         } else {
-          console.warn('[SignIn.handleGoogleSignIn] OAuth session resolved without user profile context');
           googleTrace.finish({ success: false, meta: { reason: 'oauth_user_context_missing' } });
           showAlert({
             type: 'error',
@@ -431,6 +462,195 @@ const SignIn = ({ navigation, route }) => {
     } finally {
       setIsGoogleLoading(false);
     }
+  };
+
+  const navigateToAuthScreen = (routeName, params) => {
+    try {
+      navigation.navigate(routeName, params);
+      return true;
+    } catch (navigateError) {
+      telemetry.recordEvent('auth_navigation_error', {
+        source: 'SignIn',
+        target: routeName,
+        method: 'navigate',
+        message: navigateError?.message || String(navigateError),
+      });
+
+      try {
+        navigation.replace(routeName, params);
+        return true;
+      } catch (replaceError) {
+        telemetry.recordEvent('auth_navigation_error', {
+          source: 'SignIn',
+          target: routeName,
+          method: 'replace',
+          message: replaceError?.message || String(replaceError),
+        });
+        return false;
+      }
+    }
+  };
+
+  const handleForgotPasswordPress = () => {
+    if (!navigateToAuthScreen('ForgotPassword')) {
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.signInError') });
+    }
+  };
+
+  const handleSignUpPress = () => {
+    if (!navigateToAuthScreen('SignUp')) {
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.signUpError') });
+    }
+  };
+
+  const handleGuestSignUpPress = () => {
+    if (!navigateToAuthScreen('GuestSignUp')) {
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.signUpError') });
+    }
+  };
+
+  const handleSignInPress = () => {
+    handleSignIn().catch((error) => {
+      telemetry.recordEvent('auth_sign_in_unhandled_error', {
+        message: error?.message || String(error),
+      });
+      setIsLoading(false);
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.signInError') });
+    });
+  };
+
+  const handleGoogleSignInPress = () => {
+    handleGoogleSignIn().catch((error) => {
+      telemetry.recordEvent('auth_google_sign_in_unhandled_error', {
+        message: error?.message || String(error),
+      });
+      setIsGoogleLoading(false);
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.googleSignInError') });
+    });
+  };
+
+  const handleAppleSignIn = async () => {
+    if (isAppleLoading) return;
+    const appleTrace = telemetry.startTrace('auth_apple_sign_in');
+    
+    setIsAppleLoading(true);
+    
+    try {
+      const result = await signInWithApple();
+      
+      if (result.success) {
+        const userCheck = await checkOAuthUserExists();
+        
+        if (userCheck.exists && userCheck.userDoc) {
+          const completeUserData = await getCompleteUserData();
+          
+          if (completeUserData) {
+            const academicChangesCount = getAcademicChangesCountFromProfileViews(completeUserData.profileViews);
+            const canUseAcademicFields = shouldExposeAcademicFields(completeUserData.role, completeUserData.email);
+            const userData = {
+              $id: completeUserData.$id,
+              email: completeUserData.email,
+              fullName: completeUserData.name,
+              bio: completeUserData.bio || '',
+              profilePicture: completeUserData.profilePicture || '',
+              university: canUseAcademicFields ? (completeUserData.university || '') : '',
+              college: canUseAcademicFields ? (completeUserData.major || '') : '',
+              department: canUseAcademicFields ? (completeUserData.department || '') : '',
+              stage: canUseAcademicFields ? (completeUserData.year || '') : '',
+              role: normalizeUserRole(completeUserData.role),
+              postsCount: completeUserData.postsCount || 0,
+              followersCount: completeUserData.followersCount || 0,
+              followingCount: completeUserData.followingCount || 0,
+              isEmailVerified: true,
+              lastAcademicUpdate: completeUserData.lastAcademicUpdate || null,
+              academicChangesCount,
+            };
+            
+            await setUserData(userData);
+            appleTrace.finish({ success: true, meta: { path: 'existing_user' } });
+            
+            const termsAccepted = await safeStorage.getItem('terms_accepted');
+            if (termsAccepted === 'true') {
+              navigation.replace(getPostAuthRouteName(userData.role));
+            } else {
+              navigation.replace('TermsAndConditions');
+            }
+            return;
+          }
+
+          appleTrace.finish({ success: false, meta: { reason: 'missing_complete_user_data' } });
+          showAlert({
+            type: 'error',
+            title: t('common.error'),
+            message: t('auth.appleSignInError'),
+          });
+          return;
+        } else if (userCheck.user) {
+          const oauthResolvedEmail = userCheck.email || userCheck.user.email || '';
+
+          const oauthNavigationTarget = buildOAuthSignupNavigationTarget({
+            email: oauthResolvedEmail,
+            oauthEmail: oauthResolvedEmail,
+            oauthName: userCheck.name || userCheck.user.name || '',
+            oauthUserId: userCheck.user.$id,
+            provider: 'apple',
+          });
+
+          await storePendingOAuthSignup({
+            userId: userCheck.user.$id,
+            email: oauthResolvedEmail,
+            name: userCheck.name || userCheck.user.name || '',
+          });
+
+          if (oauthNavigationTarget.routeName === 'GuestSignUp') {
+            showAlert({
+              type: 'info',
+              title: t('auth.appleGuestModeTitle'),
+              message: t('auth.appleGuestModeMessage'),
+            });
+            appleTrace.finish({ success: true, meta: { path: 'guest_signup' } });
+          } else {
+            appleTrace.finish({ success: true, meta: { path: 'needs_profile_completion' } });
+          }
+          
+          navigation.navigate(oauthNavigationTarget.routeName, oauthNavigationTarget.params);
+        } else {
+          appleTrace.finish({ success: false, meta: { reason: 'oauth_user_context_missing' } });
+          showAlert({
+            type: 'error',
+            title: t('common.error'),
+            message: t('auth.appleSignInError'),
+          });
+        }
+      } else if (result.cancelled) {
+        appleTrace.finish({ success: true, meta: { cancelled: true } });
+        setIsAppleLoading(false);
+        return;
+      } else {
+        appleTrace.finish({ success: false, meta: { reason: 'apple_sign_in_unsuccessful' } });
+      }
+    } catch (error) {
+      appleTrace.finish({ success: false, error });
+      let errorMessage = t('auth.appleSignInError');
+      
+      if (error.message?.includes('network') || error.message?.includes('Network')) {
+        errorMessage = t('common.networkError');
+      }
+      
+      showAlert({ type: 'error', title: t('common.error'), message: errorMessage });
+    } finally {
+      setIsAppleLoading(false);
+    }
+  };
+
+  const handleAppleSignInPress = () => {
+    handleAppleSignIn().catch((error) => {
+      telemetry.recordEvent('auth_apple_sign_in_unhandled_error', {
+        message: error?.message || String(error),
+      });
+      setIsAppleLoading(false);
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.appleSignInError') });
+    });
   };
 
   return (
@@ -580,7 +800,7 @@ const SignIn = ({ navigation, route }) => {
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
                     autoCorrect={false}
-                    onSubmitEditing={handleSignIn}
+                    onSubmitEditing={handleSignInPress}
                     contextMenuHidden={false}
                     selectTextOnFocus={false}
                     textContentType="password"
@@ -603,7 +823,7 @@ const SignIn = ({ navigation, route }) => {
               <TouchableOpacity 
                 style={styles.forgotPasswordButton}
                 activeOpacity={0.7}
-                onPress={() => navigation.navigate('ForgotPassword')}
+                onPress={handleForgotPasswordPress}
                 hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
                 <Text style={[styles.forgotPasswordText, { 
                   color: theme.primary,
@@ -615,7 +835,7 @@ const SignIn = ({ navigation, route }) => {
 
               <TouchableOpacity 
                 style={styles.signInButton}
-                onPress={handleSignIn}
+                onPress={handleSignInPress}
                 activeOpacity={0.8}
                 disabled={isLoading || isGoogleLoading || !email.trim() || !password.trim()}>
                 <LinearGradient
@@ -650,7 +870,7 @@ const SignIn = ({ navigation, route }) => {
 
               <TouchableOpacity 
                 style={styles.googleButton}
-                onPress={handleGoogleSignIn}
+                onPress={handleGoogleSignInPress}
                 activeOpacity={0.8}
                 disabled={isGoogleLoading || isLoading}>
                 <View style={[styles.googleButtonContent, { backgroundColor: theme.card }]}>
@@ -670,13 +890,36 @@ const SignIn = ({ navigation, route }) => {
                   )}
                 </View>
               </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.googleButton, { marginTop: spacing.md }]}
+                onPress={handleAppleSignInPress}
+                activeOpacity={0.8}
+                disabled={isAppleLoading || isLoading}>
+                <View style={[styles.googleButtonContent, { backgroundColor: theme.card }]}>
+                  {isAppleLoading ? (
+                    <ActivityIndicator color={theme.text} size="small" />
+                  ) : (
+                    <>
+                      <Image
+                        source={{ uri: appleLogoUri }}
+                        style={styles.googleLogo}
+                        resizeMode="contain"
+                      />
+                      <Text style={[styles.googleButtonText, { color: theme.text, fontSize: fontSize(14) }]}>
+                        {t('auth.continueWithApple')}
+                      </Text>
+                    </>
+                  )}
+                </View>
+              </TouchableOpacity>
             </GlassContainer>
 
             <View style={styles.footer}>
               <Text style={[styles.footerText, { fontSize: fontSize(13) }]}>
                 {t('auth.dontHaveAccount')}
               </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('SignUp')} activeOpacity={0.7}>
+              <TouchableOpacity onPress={handleSignUpPress} activeOpacity={0.7}>
                 <Text style={[styles.footerText, styles.signUpText, { fontSize: fontSize(13) }]}>
                   {t('auth.signUp')}
                 </Text>
@@ -687,7 +930,7 @@ const SignIn = ({ navigation, route }) => {
             <TouchableOpacity
               style={styles.guestSignUpButton}
               activeOpacity={0.7}
-              onPress={() => navigation.navigate('GuestSignUp')}
+              onPress={handleGuestSignUpPress}
             >
               <Text style={[styles.guestSignUpText, { fontSize: fontSize(12) }]}>
                 {t('auth.notAStudent')}{' '}

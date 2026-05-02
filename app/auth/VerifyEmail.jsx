@@ -48,6 +48,7 @@ import {
 } from '../utils/responsive';
 import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
+import safeStorage from '../utils/safeStorage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const getAcademicChangesCountFromProfileViews = (profileViews) => {
@@ -287,31 +288,21 @@ const VerifyEmail = ({ route, navigation }) => {
     if (isVerifying) return;
 
     const otpString = code || otpCode.join('');
-    
-    console.log('[VerifyEmail.handleVerifyOTP] Verification attempt started');
-    console.log('[VerifyEmail.handleVerifyOTP] OTP code length:', otpString.length);
-    
+
     if (otpString.length !== 6) {
-      console.warn('[VerifyEmail.handleVerifyOTP] Invalid OTP length, expected 6, got:', otpString.length);
       setOtpError(t('auth.enterCompleteCode'));
       return;
     }
-    
-    console.log('[VerifyEmail.handleVerifyOTP] OTP validation passed, starting verification process');
+
     setIsVerifying(true);
     setOtpError('');
-    
+
     try {
-      console.log('[VerifyEmail.handleVerifyOTP] Calling verifyOTPCode...');
       await verifyOTPCode(otpString);
-      console.log('[VerifyEmail.handleVerifyOTP] OTP verification successful');
 
       const pendingAcademicSuggestion = formData?.academicSuggestionPayload;
-      console.log('[VerifyEmail.handleVerifyOTP] Pending academic suggestion:', !!pendingAcademicSuggestion);
-
       if (pendingAcademicSuggestion?.suggestionText) {
         try {
-          console.log('[VerifyEmail.handleVerifyOTP] Creating academic suggestion...');
           await createSuggestion({
             category: 'other',
             title: t('auth.otherAcademicSuggestionTitle'),
@@ -325,22 +316,13 @@ const VerifyEmail = ({ route, navigation }) => {
             selectedDepartment: pendingAcademicSuggestion.department || undefined,
             selectedStage: pendingAcademicSuggestion.stage || undefined,
           });
-          console.log('[VerifyEmail.handleVerifyOTP] Academic suggestion created successfully');
-        } catch (error) {
-          console.error('[VerifyEmail.handleVerifyOTP] Failed to create suggestion:', error.message);
+        } catch {
+          // Non-critical — don't block the user from proceeding.
         }
       }
-      
-      console.log('[VerifyEmail.handleVerifyOTP] Fetching complete user data...');
+
       const completeUserData = await getCompleteUserData();
-      
-      console.log('[VerifyEmail.handleVerifyOTP] Complete user data retrieved:', {
-        hasData: !!completeUserData,
-        userId: completeUserData?.$id,
-        email: completeUserData?.email?.substring(0, 5) + '***',
-        role: completeUserData?.role,
-      });
-      
+
       if (completeUserData) {
         const academicChangesCount = getAcademicChangesCountFromProfileViews(completeUserData.profileViews);
         const canUseAcademicFields = shouldExposeAcademicFields(completeUserData.role, completeUserData.email);
@@ -362,36 +344,18 @@ const VerifyEmail = ({ route, navigation }) => {
           lastAcademicUpdate: completeUserData.lastAcademicUpdate || null,
           academicChangesCount,
         };
-        
-        console.log('[VerifyEmail.handleVerifyOTP] Setting user data with role:', userData.role);
         await setUserData(userData);
-        console.log('[VerifyEmail.handleVerifyOTP] User data set successfully');
-      } else {
-        console.warn('[VerifyEmail.handleVerifyOTP] No complete user data retrieved');
       }
 
-      const nextRouteName = getPostAuthRouteName(completeUserData?.role);
-      console.log('[VerifyEmail.handleVerifyOTP] Navigating to route:', nextRouteName);
-      navigation.replace(nextRouteName);
-      
+      const termsAccepted = await safeStorage.getItem('terms_accepted');
+      if (termsAccepted === 'true') {
+        navigation.replace(getPostAuthRouteName(completeUserData?.role));
+      } else {
+        navigation.replace('TermsAndConditions');
+      }
     } catch (error) {
-      const normalizedMessage = String(error?.message || '').toLowerCase();
-      const isExpectedVerificationError =
-        normalizedMessage.includes('invalid')
-        || normalizedMessage.includes('expired')
-        || normalizedMessage.includes('pending verification')
-        || normalizedMessage.includes('too many verification attempts');
-
-      if (isExpectedVerificationError) {
-        console.warn('[VerifyEmail.handleVerifyOTP] Verification rejected:', error.message || error);
-      } else {
-        console.error('[VerifyEmail.handleVerifyOTP] OTP verification failed:', error.message || error);
-        console.error('[VerifyEmail.handleVerifyOTP] Error stack:', error.stack);
-      }
-
       setIsVerifying(false);
       setOtpError(getVerifyErrorMessage(error));
-      // Clear the OTP inputs on error
       setOtpCode(['', '', '', '', '', '']);
       otpInputRefs.current[0]?.focus();
     }

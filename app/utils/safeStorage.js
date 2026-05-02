@@ -39,16 +39,7 @@ const warnVolatileFallbackOnce = () => {
   if (didWarnVolatileFallback) {
     return;
   }
-
   didWarnVolatileFallback = true;
-  const reason = mmkvInitErrorMessage
-    ? ` Reason: ${mmkvInitErrorMessage}`
-    : '';
-
-  // MMKV uses native JSI. If unavailable, fallback is process-memory only.
-  console.warn(
-    `[safeStorage] MMKV unavailable; using volatile memory fallback. Settings/cache will reset after app restart.${reason}`
-  );
 };
 
 const getMmkvStorage = () => {

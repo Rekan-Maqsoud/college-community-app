@@ -466,6 +466,7 @@ const Lecture = ({ navigation }) => {
         target: 'channels',
         title: t('tutorial.lecture.channelsTitle'),
         description: t('tutorial.lecture.channelsDescription'),
+        bottomCard: true,
       },
     ];
 
@@ -1882,6 +1883,11 @@ const styles = StyleSheet.create({
   },
   menuBackdropScrim: {
     ...StyleSheet.absoluteFillObject,
+  },
+  tutorialListHighlight: {
+    flex: 1,
+    borderRadius: moderateScale(14),
+    overflow: 'hidden',
   },
   channelMenuCard: {
     borderWidth: 1,

@@ -3,6 +3,7 @@ import { ID, Permission, Role, Query, OAuthProvider } from 'appwrite';
 import safeStorage from '../app/utils/safeStorage';
 import * as WebBrowser from 'expo-web-browser';
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 import { userCacheManager } from '../app/utils/cacheManager';
 import telemetry from '../app/utils/telemetry';
 import { isEducationalEmail as isEducationalEmailRule } from '../app/constants/academicEmailDomains';
@@ -24,6 +25,21 @@ const OTP_MAX_RESENDS = 5;
 const RESET_REQUEST_WINDOW = 15 * 60 * 1000; // 15 minutes
 const RESET_MAX_REQUESTS = 5;
 const RESET_REQUEST_COOLDOWN = 60 * 1000; // 60 seconds
+
+const toAuthError = (error, fallbackCode) => {
+    if (error instanceof Error) {
+        if (fallbackCode && !error.code) {
+            error.code = fallbackCode;
+        }
+        return error;
+    }
+
+    const normalized = new Error(typeof error === 'string' ? error : 'Authentication request failed');
+    if (fallbackCode) {
+        normalized.code = fallbackCode;
+    }
+    return normalized;
+};
 
 const setPendingState = async (storageKey, backupKey, value) => {
     await safeStorage.setItem(storageKey, value);
@@ -94,6 +110,11 @@ export const initiateSignup = async (email, password, name, additionalData = {})
 
         const userId = ID.unique();
 
+        // Clear any lingering session before creating a new account.
+        // A stale session (e.g. from a previous failed attempt) causes Appwrite
+        // to reject account.create() with a generic 400 error.
+        await clearCurrentSessionIfPresent();
+
         try {
             await account.create({
                 userId,
@@ -160,7 +181,7 @@ export const initiateSignup = async (email, password, name, additionalData = {})
             otpSent: true
         };
     } catch (error) {
-        throw error;
+        throw toAuthError(error, 'AUTH_SIGNUP_FAILED');
     }
 };
 
@@ -204,47 +225,33 @@ export const checkAndCompleteVerification = async () => {
 // Verify OTP code entered by user
 export const verifyOTPCode = async (otpCode) => {
     try {
-        console.log('[verifyOTPCode] Starting OTP verification');
         const normalizedCode = String(otpCode || '').trim();
-        
+
         if (!/^\d{6}$/.test(normalizedCode)) {
-            console.error('[verifyOTPCode] Invalid OTP format');
             throw new Error('Invalid verification code. Please check and try again.');
         }
 
-        console.log('[verifyOTPCode] OTP format is valid');
-
-        console.log('[verifyOTPCode] Retrieving pending verification data...');
         const storedData = await getPendingState(
             PENDING_VERIFICATION_KEY,
             PENDING_VERIFICATION_BACKUP_KEY
         );
 
         if (!storedData) {
-            console.error('[verifyOTPCode] No pending verification data found in storage');
             throw new Error('No pending verification found');
         }
 
-        console.log('[verifyOTPCode] Pending data found, parsing...');
         const pendingData = JSON.parse(storedData);
         const now = Date.now();
 
-        console.log('[verifyOTPCode] Checking data expiration');
         if (pendingData.expiresAt && now > pendingData.expiresAt) {
-            console.warn('[verifyOTPCode] Verification code has expired');
             await clearPendingState(PENDING_VERIFICATION_KEY, PENDING_VERIFICATION_BACKUP_KEY);
             throw new Error('Verification code expired. Please sign up again.');
         }
 
-        console.log('[verifyOTPCode] Checking OTP lockout status');
         if (pendingData.otpLockedUntil && now < pendingData.otpLockedUntil) {
-            console.warn('[verifyOTPCode] Too many failed attempts, account locked');
             throw new Error('Too many verification attempts. Please wait and try again.');
         }
 
-        console.log('[verifyOTPCode] Attempting to create session with OTP code...');
-        // Verify OTP by creating a session with the code
-        // The OTP code acts as the "secret" for createSession
         try {
             const otpUserId = pendingData.otpUserId || pendingData.userId;
             if (!otpUserId) {
@@ -265,18 +272,15 @@ export const verifyOTPCode = async (otpCode) => {
                 userId: otpUserId,
                 secret: normalizedCode,
             });
-            console.log('[verifyOTPCode] Session created successfully with OTP');
         } catch (sessionError) {
             const isOtpValidationError = sessionError.message?.includes('Invalid')
                 || sessionError.message?.includes('expired')
                 || sessionError.code === 401;
 
             if (isOtpValidationError) {
-                console.warn('[verifyOTPCode] Session creation rejected OTP:', sessionError.message || sessionError);
                 const failedAttempts = (pendingData.otpFailedAttempts || 0) + 1;
                 const shouldLock = failedAttempts >= OTP_MAX_FAILED_ATTEMPTS;
-                console.log('[verifyOTPCode] Invalid OTP attempt', { failedAttempts, shouldLock });
-                
+
                 const updatedPendingData = {
                     ...pendingData,
                     otpFailedAttempts: failedAttempts,
@@ -290,44 +294,27 @@ export const verifyOTPCode = async (otpCode) => {
                 if (shouldLock) {
                     throw new Error('Too many verification attempts. Please wait and try again.');
                 }
-            } else {
-                console.error('[verifyOTPCode] Session creation failed:', sessionError.message || sessionError);
-            }
-
-            if (isOtpValidationError) {
                 throw new Error('Invalid or expired verification code. Please try again.');
             }
+
             throw sessionError;
         }
 
-        // OTP verified successfully, now complete the signup
-        console.log('[verifyOTPCode] OTP verified, checking user document...');
-        // Check if user document already exists
+        // OTP verified — ensure the user document exists.
         try {
             await getUserDocument(pendingData.userId);
-            console.log('[verifyOTPCode] User document already exists');
         } catch (error) {
-            // User document not found, create one
-            console.log('[verifyOTPCode] User document not found, creating new one...');
             await createUserDocument(
                 pendingData.userId,
                 pendingData.name,
                 pendingData.email,
                 pendingData.additionalData
             );
-            console.log('[verifyOTPCode] User document created successfully');
         }
 
-        // Clean up storage
-        console.log('[verifyOTPCode] Cleaning up pending verification data...');
         await clearPendingState(PENDING_VERIFICATION_KEY, PENDING_VERIFICATION_BACKUP_KEY);
-        console.log('[verifyOTPCode] Verification complete');
-
         return true;
     } catch (error) {
-        console.error('[verifyOTPCode] Verification error:', error.message || error);
-        console.error('[verifyOTPCode] Error stack:', error.stack);
-        
         if (error.message?.includes('Invalid token') ||
             error.message?.includes('Invalid credentials') ||
             error.code === 401) {
@@ -400,16 +387,50 @@ const getAppwriteProjectId = () => {
     return process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID || config.projectId || '';
 };
 
+const getConfiguredSchemes = () => {
+    try {
+        const rawScheme = Constants?.expoConfig?.scheme;
+        if (Array.isArray(rawScheme)) {
+            return rawScheme.filter((value) => typeof value === 'string' && value.trim().length > 0);
+        }
+
+        if (typeof rawScheme === 'string' && rawScheme.trim().length > 0) {
+            return [rawScheme.trim()];
+        }
+    } catch (_error) {
+        // Ignore config read issues and fall through to env/config-based callback.
+    }
+
+    return [];
+};
+
 // Helper to get the correct redirect URL for OAuth
 // Appwrite expects callbacks in the format: appwrite-callback-[PROJECT_ID]://
 const getOAuthRedirectUrl = () => {
-    const projectId = getAppwriteProjectId();
-    const appwriteCallbackUrl = `appwrite-callback-${projectId}://`;
-
     // Appwrite validates success/failure URLs against project platforms.
     // During migrations, this can be overridden via env without code changes.
     const overrideRedirectUrl = (process.env.EXPO_PUBLIC_APPWRITE_OAUTH_REDIRECT_URL || '').trim();
-    return overrideRedirectUrl || appwriteCallbackUrl;
+    if (overrideRedirectUrl) {
+        return overrideRedirectUrl;
+    }
+
+    const configuredSchemes = getConfiguredSchemes();
+    const registeredAppwriteScheme = configuredSchemes.find((scheme) => scheme.startsWith('appwrite-callback-'));
+    if (registeredAppwriteScheme) {
+        return `${registeredAppwriteScheme}://`;
+    }
+
+    const projectId = getAppwriteProjectId();
+    if (projectId) {
+        return `appwrite-callback-${projectId}://`;
+    }
+
+    const fallbackScheme = configuredSchemes[0];
+    if (fallbackScheme) {
+        return `${fallbackScheme}://oauth-callback`;
+    }
+
+    return 'collegecommunity://oauth-callback';
 };
 
 const parseOAuthCallbackParams = (callbackUrl = '') => {
@@ -433,6 +454,17 @@ const parseOAuthCallbackParams = (callbackUrl = '') => {
         const secret = querySecret || hashSecret;
         const userId = queryUserId || hashUserId;
         const error = queryError || hashError;
+
+        if (!secret && !userId) {
+            const nestedCallbackUrl = parsedUrl.searchParams.get('url')
+                || parsedUrl.searchParams.get('redirect')
+                || parsedUrl.searchParams.get('redirect_url')
+                || parsedUrl.searchParams.get('callback');
+
+            if (nestedCallbackUrl) {
+                return parseOAuthCallbackParams(decodeURIComponent(nestedCallbackUrl));
+            }
+        }
 
         return { secret, userId, error };
     } catch (parseError) {
@@ -519,6 +551,102 @@ export const signInWithGoogle = async () => {
         return { success: false };
     } catch (error) {
         telemetry.recordEvent('google_auth_threw_error', {
+            code: error?.code,
+            type: error?.type,
+            message: error?.message,
+        });
+        if (error.code === 401) {
+            return { success: false, cancelled: true };
+        }
+        throw error;
+    }
+};
+
+// Start Apple OAuth flow using the Token-based approach (recommended for React Native)
+export const signInWithApple = async () => {
+    try {
+        const redirectUrl = getOAuthRedirectUrl();
+        telemetry.recordEvent('apple_auth_start', {
+            redirectUrl,
+            redirectUrlKind: redirectUrl?.startsWith('appwrite-callback-') ? 'appwrite-callback' : 'app-scheme',
+            projectId: getAppwriteProjectId(),
+            endpoint: config.endpoint,
+        });
+
+        await clearCurrentSessionIfPresent();
+
+        // Use createOAuth2Token for React Native - it returns userId and secret
+        // that we use to create a session manually
+        const authUrl = account.createOAuth2Token({
+            provider: OAuthProvider.Apple,
+            success: redirectUrl, // success URL
+            failure: redirectUrl,  // failure URL (same, we parse the result)
+        });
+
+        // Open the browser for OAuth authentication
+        const result = await WebBrowser.openAuthSessionAsync(
+            authUrl.toString(),
+            redirectUrl,
+            {
+                showInRecents: true,
+            }
+        );
+
+        telemetry.recordEvent('apple_auth_browser_session_result', {
+            type: result?.type,
+            hasUrl: Boolean(result?.url),
+            urlPreview: result?.url ? String(result.url).slice(0, 120) : null,
+        });
+
+        // Apple's OAuth browser can close before the custom-scheme redirect fires,
+        // so the result can come back as 'dismiss' even on a successful auth.
+        // We must try to parse the callback URL regardless of result.type.
+        const callbackUrl = result?.url;
+        if ((result.type === 'success' || result.type === 'dismiss') && callbackUrl) {
+            const { secret, userId, error } = parseOAuthCallbackParams(callbackUrl);
+
+            telemetry.recordEvent('apple_auth_callback_parsed', {
+                resultType: result.type,
+                hasSecret: Boolean(secret),
+                hasUserId: Boolean(userId),
+                hasError: Boolean(error),
+            });
+
+            if (secret && userId) {
+                // Create a session using the token
+                await createSessionWithRecovery(() => account.createSession({ userId, secret }));
+                telemetry.recordEvent('apple_auth_session_created', {
+                    userId,
+                });
+                return { success: true };
+            }
+
+            // Check for error in URL parameters
+            if (error) {
+                telemetry.recordEvent('apple_auth_provider_error', { error });
+                return { success: false, error: error };
+            }
+
+            telemetry.recordEvent('apple_auth_callback_missing_params', {
+                resultType: result.type,
+                hasSecret: Boolean(secret),
+                hasUserId: Boolean(userId),
+            });
+        }
+
+        if (result.type === 'cancel' || (result.type === 'dismiss' && !callbackUrl)) {
+            telemetry.recordEvent('apple_auth_cancelled', {
+                type: result.type,
+            });
+            return { success: false, cancelled: true };
+        }
+
+        telemetry.recordEvent('apple_auth_unsuccessful', {
+            resultType: result?.type || 'unknown',
+        });
+        return { success: false };
+    } catch (error) {
+        telemetry.recordEvent('apple_auth_threw_error', {
             code: error?.code,
             type: error?.type,
             message: error?.message,
@@ -626,83 +754,33 @@ export const clearPendingOAuthSignup = async () => {
 // If the email is non-educational the user becomes a guest instead of being rejected.
 export const completeOAuthSignup = async (userId, email, name, additionalData = {}) => {
     try {
-        console.log('[completeOAuthSignup] Starting OAuth completion for:', {
-            userId,
-            email: email?.substring(0, 5) + '***',
-            name,
-            additionalDataKeys: Object.keys(additionalData),
-        });
-
-        // Verify we have an authenticated user
-        console.log('[completeOAuthSignup] Verifying authenticated user...');
         const user = await account.get();
-        
-        console.log('[completeOAuthSignup] Current user retrieved:', {
-            retrievedUserId: user?.$id,
-            providedUserId: userId,
-            userMatch: user?.$id === userId,
-        });
 
         if (!user || user.$id !== userId) {
-            console.error('[completeOAuthSignup] User authentication mismatch');
             throw new Error('User authentication mismatch');
         }
 
         // Non-educational email → guest role (no rejection; no academic fields needed)
-        console.log('[completeOAuthSignup] Checking if email is educational:', email);
         const isEdu = isEducationalEmail(email);
-        console.log('[completeOAuthSignup] Is educational email:', isEdu);
-
-        const resolvedRole = isEdu
-            ? (additionalData.role || 'student')
-            : 'guest';
-
-        console.log('[completeOAuthSignup] Resolved role:', resolvedRole);
-
+        const resolvedRole = isEdu ? (additionalData.role || 'student') : 'guest';
         const resolvedData = resolvedRole === 'guest'
             ? { ...additionalData, role: 'guest', university: '', college: '', department: '', stage: '' }
             : additionalData;
 
-        console.log('[completeOAuthSignup] Resolved data:', {
-            role: resolvedData.role,
-            additionalDataKeys: Object.keys(resolvedData),
-        });
-
-        // Create user document
-        console.log('[completeOAuthSignup] Creating user document...');
-        const userDoc = await createUserDocument(
-            userId,
-            name,
-            email,
-            resolvedData
-        );
-
-        console.log('[completeOAuthSignup] User document created:', {
-            docId: userDoc?.$id,
-            docEmail: userDoc?.email,
-        });
-
-        // Clear pending data
-        console.log('[completeOAuthSignup] Clearing pending OAuth data...');
+        const userDoc = await createUserDocument(userId, name, email, resolvedData);
         await clearPendingOAuthSignup();
-        console.log('[completeOAuthSignup] Pending data cleared');
 
-        const result = {
+        return {
             success: true,
-            userId: userId,
-            email: email,
-            name: name,
+            userId,
+            email,
+            name,
             role: resolvedRole,
             isGuest: resolvedRole === 'guest',
-            userDoc: userDoc
+            userDoc,
         };
-
-        console.log('[completeOAuthSignup] OAuth completion successful, returning result');
-        return result;
     } catch (error) {
-        console.error('[completeOAuthSignup] Caught error:', error.message || error);
-        console.error('[completeOAuthSignup] Error stack:', error.stack);
-        throw error;
+        throw toAuthError(error, 'AUTH_OAUTH_COMPLETE_FAILED');
     }
 };
 
@@ -717,62 +795,55 @@ export const initiateGuestSignup = async (email, password, name, additionalData 
     });
 
     try {
-        console.log('[initiateGuestSignup] Starting guest signup with:', {
-            email: email?.substring(0, 5) + '***',
-            name,
-            additionalDataKeys: Object.keys(additionalData),
-        });
-
         const sanitizedEmail = sanitizeInput(email).toLowerCase();
         const sanitizedName = sanitizeInput(name);
 
-        console.log('[initiateGuestSignup] Sanitized values:', {
-            email: sanitizedEmail?.substring(0, 5) + '***',
-            name: sanitizedName,
-        });
-
         if (!sanitizedEmail || !sanitizedName) {
-            console.error('[initiateGuestSignup] Invalid input data after sanitization');
             throw new Error('Invalid input data');
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(sanitizedEmail)) {
-            console.error('[initiateGuestSignup] Invalid email format:', sanitizedEmail);
             throw new Error('Invalid email format');
         }
 
-        // Explicitly reject edu emails here — they should use the student flow
+        // Explicitly reject edu emails — they should use the student flow
         if (isEducationalEmail(sanitizedEmail)) {
-            console.error('[initiateGuestSignup] Educational email provided, rejecting:', sanitizedEmail);
             throw new Error('Educational email addresses should use the student sign-up flow.');
         }
 
-        console.log('[initiateGuestSignup] Email validation passed');
-
         if (password.length < 8) {
-            console.error('[initiateGuestSignup] Password too short:', password.length);
             throw new Error('Password must be at least 8 characters');
         }
 
-        console.log('[initiateGuestSignup] Password validation passed');
-
         const userId = ID.unique();
-        console.log('[initiateGuestSignup] Generated userId:', userId);
+
+        // Clear any lingering session before creating a new account.
+        // A stale session (e.g. from a previous failed signup attempt or a prior
+        // createEmailToken call) causes Appwrite to reject account.create() with
+        // a generic "There was an error processing your request" 400 error.
+        await clearCurrentSessionIfPresent();
 
         try {
-            console.log('[initiateGuestSignup] Creating account with Appwrite...');
             await account.create({
                 userId,
                 email: sanitizedEmail,
                 password,
                 name: sanitizedName,
             });
-            console.log('[initiateGuestSignup] Account created successfully');
         } catch (createError) {
-            console.error('[initiateGuestSignup] Account creation failed:', createError.message || createError);
-            if (createError.message?.includes('already exists') ||
-                createError.message?.includes('user with the same email')) {
+            console.error('[initiateGuestSignup] account.create failed:', {
+                message: createError.message,
+                code: createError.code,
+                type: createError.type,
+            });
+            if (
+                createError.code === 409 ||
+                createError.message?.includes('already exists') ||
+                createError.message?.includes('user with the same email') ||
+                createError.type?.includes('user_already_exists') ||
+                createError.type?.includes('user_email_already_exists')
+            ) {
                 throw new Error('An account with this email already exists. Please sign in or use a different email.');
             }
             throw createError;
@@ -780,14 +851,12 @@ export const initiateGuestSignup = async (email, password, name, additionalData 
 
         let tokenResponse;
         try {
-            console.log('[initiateGuestSignup] Creating email verification token...');
             tokenResponse = await account.createEmailToken({
                 userId,
                 email: sanitizedEmail,
             });
-            console.log('[initiateGuestSignup] Email token created successfully');
         } catch (otpError) {
-            console.error('[initiateGuestSignup] Email token creation failed:', otpError.message || otpError);
+            console.error('[initiateGuestSignup] createEmailToken failed:', otpError.message);
             if (otpError.message?.includes('SMTP') || otpError.message?.includes('email')) {
                 throw new Error('Email service is temporarily unavailable. Please try again later.');
             }
@@ -810,41 +879,28 @@ export const initiateGuestSignup = async (email, password, name, additionalData 
             tokenId: tokenResponse?.$id || null,
         };
 
-        console.log('[initiateGuestSignup] Storing pending data:', {
-            userId,
-            email: sanitizedEmail?.substring(0, 5) + '***' || '***',
-            additionalData: pendingData.additionalData,
-        });
-
         await setPendingState(
             PENDING_VERIFICATION_KEY,
             PENDING_VERIFICATION_BACKUP_KEY,
             JSON.stringify(pendingData)
         );
-        console.log('[initiateGuestSignup] Pending data stored successfully');
 
-        const result = {
+        guestSignupTrace.finish({
+            success: true,
+            meta: { userId, requiresVerification: true },
+        });
+
+        return {
             success: true,
             userId,
             email: sanitizedEmail,
             name: sanitizedName,
             requiresVerification: true,
         };
-
-        console.log('[initiateGuestSignup] Returning success result');
-        guestSignupTrace.finish({
-            success: true,
-            meta: {
-                userId,
-                requiresVerification: true,
-            },
-        });
-        return result;
     } catch (error) {
         guestSignupTrace.finish({ success: false, error });
-        console.error('[initiateGuestSignup] Caught error:', error.message || error);
-        console.error('[initiateGuestSignup] Error stack:', error.stack);
-        throw error;
+        console.error('[initiateGuestSignup] Failed:', error.message, { code: error.code, type: error.type });
+        throw toAuthError(error, 'AUTH_GUEST_SIGNUP_FAILED');
     }
 };
 
@@ -1135,7 +1191,7 @@ export const signIn = async (email, password) => {
         }));
         return session;
     } catch (error) {
-        throw error;
+        throw toAuthError(error, 'AUTH_SIGNIN_FAILED');
     }
 };
 
@@ -1620,37 +1676,21 @@ const getRecoveryRedirectUrl = () => {
     const fallbackUrl = 'https://collegecommunity.app/reset-password';
     const rawUrl = (configuredUrl || fallbackUrl || '').trim();
 
-    console.log('[reset-password][getRecoveryRedirectUrl] inputs', {
-        configuredUrl,
-        fallbackUrl,
-        rawUrl,
-    });
-
     if (!rawUrl) {
-        const defaultUrl = 'https://collegecommunity.app/reset-password';
-        console.log('[reset-password][getRecoveryRedirectUrl] return (empty rawUrl)', defaultUrl);
-        return defaultUrl;
+        return 'https://collegecommunity.app/reset-password';
     }
 
     if (/^https?:\/\//i.test(rawUrl)) {
-        console.log('[reset-password][getRecoveryRedirectUrl] return (already absolute)', rawUrl);
         return rawUrl;
     }
 
-    const normalizedUrl = `https://${rawUrl.replace(/^\/+/, '')}`;
-    console.log('[reset-password][getRecoveryRedirectUrl] return (normalized)', normalizedUrl);
-    return normalizedUrl;
+    return `https://${rawUrl.replace(/^\/+/, '')}`;
 };
 
 // Send password reset email using Appwrite Recovery
 export const sendPasswordResetOTP = async (email) => {
     try {
         const sanitizedEmail = sanitizeInput(email).toLowerCase();
-
-        console.log('[reset-password][sendPasswordResetOTP] called', {
-            providedEmail: email,
-            sanitizedEmail,
-        });
 
         if (!sanitizedEmail) {
             throw new Error('Invalid email');
@@ -1664,11 +1704,6 @@ export const sendPasswordResetOTP = async (email) => {
         // Use Appwrite's Recovery feature - do not expose whether an account exists
         const redirectUrl = getRecoveryRedirectUrl();
         const now = Date.now();
-
-        console.log('[reset-password][sendPasswordResetOTP] redirect URL resolved', {
-            redirectUrl,
-            hasCustomRecoveryUrl: Boolean(process.env.EXPO_PUBLIC_APPWRITE_RECOVERY_REDIRECT_URL),
-        });
 
         try {
             const existing = await safeStorage.getItem(PENDING_PASSWORD_RESET_KEY);
@@ -1721,43 +1756,19 @@ export const sendPasswordResetOTP = async (email) => {
         };
 
         try {
-            console.log('[reset-password][sendPasswordResetOTP] createRecovery request', {
-                email: sanitizedEmail,
-                redirectUrl,
-            });
-            const recoveryResult = await account.createRecovery({
+            await account.createRecovery({
                 email: sanitizedEmail,
                 url: redirectUrl,
             });
-            console.log('[reset-password][sendPasswordResetOTP] createRecovery success', recoveryResult);
 
             await saveResetAttempt();
 
-            const result = {
-                success: true,
-                email: sanitizedEmail,
-                useDeepLink: true,
-            };
-            console.log('[reset-password][sendPasswordResetOTP] return', result);
-            return result;
+            return { success: true, email: sanitizedEmail, useDeepLink: true };
         } catch (recoveryError) {
-            console.log('[reset-password][sendPasswordResetOTP] createRecovery error', {
-                code: recoveryError?.code,
-                type: recoveryError?.type,
-                message: recoveryError?.message,
-                response: recoveryError?.response,
-                redirectUrl,
-            });
             // Prevent account enumeration: treat unknown accounts as success.
             if (recoveryError.code === 404 || recoveryError.message?.includes('User not found')) {
                 await saveResetAttempt();
-                const result = {
-                    success: true,
-                    email: sanitizedEmail,
-                    useDeepLink: true,
-                };
-                console.log('[reset-password][sendPasswordResetOTP] return (masked not found)', result);
-                return result;
+                return { success: true, email: sanitizedEmail, useDeepLink: true };
             }
 
             // Throw a more descriptive error
@@ -1777,12 +1788,6 @@ export const sendPasswordResetOTP = async (email) => {
 // Complete password reset using recovery token from deep link
 export const completePasswordReset = async (userId, secret, newPassword) => {
     try {
-        console.log('[reset-password][completePasswordReset] called', {
-            userId,
-            hasSecret: Boolean(secret),
-            passwordLength: newPassword?.length,
-        });
-
         if (!userId || !secret) {
             throw new Error('Invalid recovery link. Please request a new password reset.');
         }
@@ -1791,33 +1796,11 @@ export const completePasswordReset = async (userId, secret, newPassword) => {
             throw new Error('Password must be at least 8 characters');
         }
 
-        // Use Appwrite's updateRecovery to set the new password
-        console.log('[reset-password][completePasswordReset] updateRecovery request', {
-            userId,
-            hasSecret: Boolean(secret),
-        });
-        const updateRecoveryResult = await account.updateRecovery({
-            userId,
-            secret,
-            password: newPassword,
-        });
-        console.log('[reset-password][completePasswordReset] updateRecovery success', updateRecoveryResult);
-
-        // Clean up stored data
+        await account.updateRecovery({ userId, secret, password: newPassword });
         await safeStorage.removeItem(PENDING_PASSWORD_RESET_KEY);
 
-        const result = {
-            success: true,
-        };
-        console.log('[reset-password][completePasswordReset] return', result);
-        return result;
+        return { success: true };
     } catch (error) {
-        console.log('[reset-password][completePasswordReset] error', {
-            code: error?.code,
-            type: error?.type,
-            message: error?.message,
-            response: error?.response,
-        });
         if (error.message?.includes('expired') || error.code === 401) {
             throw new Error('Recovery link has expired. Please request a new password reset.');
         }

@@ -1918,6 +1918,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(4),
   },
   tutorialListHighlight: {
+    flex: 1,
     borderRadius: moderateScale(14),
     overflow: 'hidden',
   },

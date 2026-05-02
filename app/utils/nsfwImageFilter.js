@@ -60,23 +60,10 @@ const createModerationError = (code, details = {}) => {
   return error;
 };
 
-const logNsfwDebug = (message, details) => {
-  if (details !== undefined) {
-    console.log(`[NSFW] ${message}`, details);
-    return;
-  }
-
-  console.log(`[NSFW] ${message}`);
-};
-
-const logNsfwError = (message, details) => {
-  if (details !== undefined) {
-    console.error(`[NSFW] ${message}`, details);
-    return;
-  }
-
-  console.error(`[NSFW] ${message}`);
-};
+// eslint-disable-next-line no-unused-vars
+const logNsfwDebug = (_message, _details) => {};
+// eslint-disable-next-line no-unused-vars
+const logNsfwError = (_message, _details) => {};
 
 const ensureTfBackendReady = async () => {
   if (!tfReadyPromise) {

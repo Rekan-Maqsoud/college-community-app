@@ -12,8 +12,11 @@ import {
   Animated,
   ActivityIndicator,
   useWindowDimensions,
+  Linking,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { 
   PersonIcon, MailIcon, LockIcon, LockFilledIcon, EyeIcon, 
   EyeOffIcon, CheckmarkCircleIcon, CloseCircleIcon, EllipseIcon, 
@@ -29,9 +32,10 @@ import SearchableDropdown from '../components/SearchableDropdownNew';
 import AnimatedBackground from '../components/AnimatedBackground';
 import { GlassContainer, GlassInput } from '../components/GlassComponents';
 import { getUniversityKeys, getCollegesForUniversity, getDepartmentsForCollege, getStagesForDepartment } from '../data/universitiesData';
-import { initiateSignup, isEducationalEmail, completeOAuthSignup, clearPendingOAuthSignup } from '../../database/auth';
+import { initiateSignup, isEducationalEmail, completeOAuthSignup, clearPendingOAuthSignup, signOut } from '../../database/auth';
 import { getAcademicDomainSuggestions, applyDomainToEmail, getUniversityKeyByEmailDomain } from '../constants/academicEmailDomains';
 import { createSuggestion } from '../../database/suggestions';
+import { uploadProfilePicture } from '../../services/imgbbService';
 import { ACADEMIC_OTHER_KEY, hasAcademicOtherSelection } from '../utils/academicSelection';
 import { 
   wp, 
@@ -43,8 +47,11 @@ import {
 } from '../utils/responsive';
 import { borderRadius, shadows } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
+import safeStorage from '../utils/safeStorage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import telemetry from '../utils/telemetry';
+import { buildOAuthSignupNavigationTarget } from '../utils/authOnboarding';
+import TermsAndConditions from '../screens/TermsAndConditions';
 
 const getAcademicChangesCountFromProfileViews = (profileViews) => {
   if (!profileViews) return 0;
@@ -78,6 +85,8 @@ const SignUp = ({ navigation, route }) => {
   const oauthEmail = route?.params?.oauthEmail || '';
   const oauthName = route?.params?.oauthName || '';
   const oauthUserId = route?.params?.oauthUserId || '';
+  const oauthProvider = route?.params?.oauthProvider || 'social';
+  const allowEmailEdit = route?.params?.allowEmailEdit || false;
   const preservedData = route?.params?.preservedData || null;
   
   const { setUserData } = useUser();
@@ -88,6 +97,7 @@ const SignUp = ({ navigation, route }) => {
   const [fullName, setFullName] = useState(preservedData?.fullName || oauthName);
   const [email, setEmail] = useState(preservedData?.email || oauthEmail);
   const [age, setAge] = useState(preservedData?.age || '');
+  const [profilePicture, setProfilePicture] = useState(preservedData?.profilePicture || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [university, setUniversity] = useState(preservedData?.university || '');
@@ -104,7 +114,9 @@ const SignUp = ({ navigation, route }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [emailSuggestions, setEmailSuggestions] = useState([]);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
   const [hasBlurredNameField, setHasBlurredNameField] = useState(false);
@@ -115,10 +127,13 @@ const SignUp = ({ navigation, route }) => {
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
   
   const { t, theme, isDarkMode, isRTL } = useAppSettings();
+  const canEditOAuthEmail = !oauthMode || allowEmailEdit || !String(email || '').trim();
   const isCompactPhone = hp(100) < 700;
   const isWidePhone = !isTablet() && wp(100) > 430;
   const isLargeScreen = windowWidth >= 900;
   const isShortScreen = hp(100) < 760;
+  const termsOfUseUrl = (process.env.EXPO_PUBLIC_TERMS_URL || 'https://collegecommunity.app/terms.html').trim();
+  const eulaUrl = (process.env.EXPO_PUBLIC_EULA_URL || 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/').trim();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -204,24 +219,33 @@ const SignUp = ({ navigation, route }) => {
     const handleOAuthDomainGuard = async () => {
       if (!oauthMode || !oauthEmail) return;
 
-      if (!isEducationalEmail(oauthEmail)) {
+      if (!isEducationalEmail(oauthEmail) || oauthProvider === 'apple') {
         showAlert({
-          type: 'error',
-          title: t('common.error'),
-          message: t('auth.educationalEmailRequired'),
+          type: 'info',
+          title: oauthProvider === 'apple' ? t('auth.appleGuestModeTitle') : t('auth.socialGuestModeTitle'),
+          message: oauthProvider === 'apple' ? t('auth.appleGuestModeMessage') : t('auth.socialGuestModeMessage'),
         });
 
-        try {
-          await clearPendingOAuthSignup();
-        } catch (error) {
+        const oauthNavigationTarget = buildOAuthSignupNavigationTarget({
+          email: oauthEmail,
+          oauthEmail,
+          oauthName,
+          oauthUserId,
+          provider: oauthProvider,
+        });
+        const didNavigate = navigateToAuthScreen(
+          oauthNavigationTarget.routeName,
+          oauthNavigationTarget.params,
+          true
+        );
+        if (!didNavigate) {
+          setSubmitError(t('auth.signUpError'));
         }
-
-        navigation.replace('SignIn');
       }
     };
 
     handleOAuthDomainGuard();
-  }, [oauthMode, oauthEmail, navigation, showAlert, t]);
+  }, [oauthMode, oauthEmail, oauthName, oauthUserId, oauthProvider, showAlert, t]);
 
   useEffect(() => {
     Animated.parallel([
@@ -464,6 +488,31 @@ const SignUp = ({ navigation, route }) => {
     clearFieldError('fullName');
   };
 
+  const handleUploadProfilePicture = async () => {
+    try {
+      setIsUploadingImage(true);
+      const result = await uploadProfilePicture({ t });
+
+      if (result?.displayUrl) {
+        setProfilePicture(result.displayUrl);
+      }
+    } catch (error) {
+      if (error?.code === 'NSFW_IMAGE_BLOCKED' || error?.code === 'NSFW_SCAN_FAILED') {
+        return;
+      }
+
+      showAlert({
+        type: 'error',
+        title: t('common.error'),
+        message: error?.message === 'Permission to access camera roll is required!'
+          ? t('settings.cameraPermissionRequired', 'Camera roll permission is required')
+          : t('settings.profilePictureUploadError', 'Failed to upload picture'),
+      });
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   const validateStepOne = () => {
     clearSubmitError();
     clearFieldErrors(stepOneFieldKeys);
@@ -577,8 +626,7 @@ const SignUp = ({ navigation, route }) => {
   const handleNextStep = () => {
     clearSubmitError();
     if (currentStep === 1 && !validateStepOne()) return;
-    if (currentStep === 2 && !validateStepTwo()) return;
-    setCurrentStep(prev => Math.min(prev + 1, 3));
+    setCurrentStep(prev => Math.min(prev + 1, 2));
   };
 
   const promptExistingAccountSignIn = () => {
@@ -596,7 +644,12 @@ const SignUp = ({ navigation, route }) => {
         {
           text: t('common.yes'),
           style: 'primary',
-          onPress: () => navigation.replace('SignIn', { prefillEmail: email.trim().toLowerCase() }),
+          onPress: () => {
+            const didNavigate = navigateToAuthScreen('SignIn', { prefillEmail: email.trim().toLowerCase() }, true);
+            if (!didNavigate) {
+              setSubmitError(t('auth.signUpError'));
+            }
+          },
         },
       ],
     });
@@ -679,6 +732,7 @@ const SignUp = ({ navigation, route }) => {
         department,
         stage: stageYear,
         role: accountRole,
+        profilePicture,
       };
 
       const mergedAcademicSuggestion = buildMergedAcademicSuggestionText();
@@ -745,7 +799,13 @@ const SignUp = ({ navigation, route }) => {
           
           await setUserData(userData);
           signUpTrace.finish({ success: true, meta: { path: 'oauth_complete' } });
-          navigation.replace(getPostAuthRouteName(userData.role));
+          
+          const termsAccepted = await safeStorage.getItem('terms_accepted');
+          if (termsAccepted === 'true') {
+            navigation.replace(getPostAuthRouteName(userData.role));
+          } else {
+            navigation.replace('TermsAndConditions');
+          }
         } else {
           setIsLoading(false);
           signUpTrace.finish({ success: false, meta: { path: 'oauth_complete_failed' } });
@@ -775,6 +835,7 @@ const SignUp = ({ navigation, route }) => {
             customCollegeName,
             customDepartmentName,
             customDepartmentYears,
+            profilePicture,
             academicSuggestionPayload,
           }
         });
@@ -829,6 +890,46 @@ const SignUp = ({ navigation, route }) => {
       }
 
       setSubmitError(error.message || t('auth.signUpError'));
+    }
+  };
+
+  const navigateToAuthScreen = (routeName, params, useReplace = false) => {
+    try {
+      if (useReplace) {
+        navigation.replace(routeName, params);
+      } else {
+        navigation.navigate(routeName, params);
+      }
+      return true;
+    } catch (navigationError) {
+      telemetry.recordEvent('auth_navigation_error', {
+        source: 'SignUp',
+        target: routeName,
+        method: useReplace ? 'replace' : 'navigate',
+        message: navigationError?.message || String(navigationError),
+      });
+      return false;
+    }
+  };
+
+  const handleSignUpPress = () => {
+    if (!validateForm()) return;
+    setShowTermsModal(true);
+  };
+
+  const handleOpenLegalLink = async (url) => {
+    try {
+      if (!url) {
+        throw new Error('missing_url');
+      }
+
+      await Linking.openURL(url);
+    } catch (_error) {
+      showAlert({
+        type: 'error',
+        title: t('common.error'),
+        message: t('auth.legalLinkOpenError'),
+      });
     }
   };
 
@@ -980,7 +1081,7 @@ const SignUp = ({ navigation, route }) => {
               disableBackgroundOverlay
             >
               <View style={styles.stepIndicatorRow}>
-                {[1, 2, 3].map((step) => (
+                {[1, 2].map((step) => (
                   <View key={step} style={styles.stepIndicatorItem}>
                     <View
                       style={[
@@ -992,7 +1093,7 @@ const SignUp = ({ navigation, route }) => {
                     >
                       <Text style={styles.stepIndicatorText}>{step}</Text>
                     </View>
-                    {step < 3 && (
+                    {step < 2 && (
                       <View
                         style={[
                           styles.stepIndicatorLine,
@@ -1016,10 +1117,16 @@ const SignUp = ({ navigation, route }) => {
                       style={styles.profilePictureWrapper}
                     >
                       {profilePicture ? (
-                        <Image source={{ uri: profilePicture }} style={styles.profilePicture} resizeMode="cover" />
+                        <Image
+                          source={{ uri: profilePicture }}
+                          style={styles.profilePicture}
+                          contentFit="cover"
+                          transition={120}
+                          cachePolicy="none"
+                        />
                       ) : (
                         <View style={[styles.profilePicturePlaceholder, { backgroundColor: isDarkMode ? 'rgba(10, 132, 255, 0.2)' : 'rgba(0, 122, 255, 0.2)' }]}>
-                          <PersonIcon size={moderateScale(40)} color={theme.primary} />
+                          <PersonIcon size={moderateScale(36)} color={theme.primary} />
                         </View>
                       )}
                       <View style={[styles.uploadBadge, { backgroundColor: theme.primary }]}>
@@ -1122,10 +1229,10 @@ const SignUp = ({ navigation, route }) => {
                             writingDirection: isRTL ? 'rtl' : 'ltr',
                           },
                         ]}
-                        placeholder={oauthMode ? t('auth.emailFromGoogle') : t('auth.collegeEmail')}
+                            placeholder={oauthMode ? t('auth.emailFromSocial') : t('auth.collegeEmail')}
                         placeholderTextColor={theme.input.placeholder}
                         value={email}
-                        onChangeText={oauthMode ? null : (value) => {
+                        onChangeText={!canEditOAuthEmail ? null : (value) => {
                           handleEmailChange(value);
                           clearFieldError('email');
                           clearSubmitError();
@@ -1138,12 +1245,12 @@ const SignUp = ({ navigation, route }) => {
                         keyboardType="email-address"
                         autoCapitalize="none"
                         autoCorrect={false}
-                        editable={!oauthMode}
+                        editable={canEditOAuthEmail}
                         contextMenuHidden={false}
                         selectTextOnFocus={false}
                         textContentType="emailAddress"
                       />
-                      {oauthMode ? (
+                      {!canEditOAuthEmail ? (
                         <LockFilledIcon
                           size={moderateScale(18)}
                           color={theme.textSecondary}
@@ -1678,73 +1785,6 @@ const SignUp = ({ navigation, route }) => {
                 </>
               )}
 
-              {currentStep === 3 && (
-                <>
-                  <Text style={[styles.roleLabel, { color: theme.text }]}>{t('auth.chooseAccountType')}</Text>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.roleOption,
-                      {
-                        borderColor: accountRole === 'student' ? theme.primary : theme.border,
-                      },
-                    ]}
-                    onPress={() => setAccountRole('student')}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.roleOptionContent}>
-                      <SchoolIcon size={moderateScale(20)} color={theme.text} />
-                      <Text style={[styles.roleOptionText, { color: theme.text }]}>{t('auth.studentRole')}</Text>
-                    </View>
-                    {accountRole === 'student' && (
-                      <CheckmarkCircleIcon size={moderateScale(20)} color={theme.primary} />
-                    )}
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.roleOption,
-                      !isTeacherSignupEnabled && styles.roleOptionDisabled,
-                      {
-                        borderColor: (!isTeacherSignupEnabled || accountRole !== 'teacher') ? theme.border : theme.primary,
-                      },
-                    ]}
-                    disabled={!isTeacherSignupEnabled}
-                    onPress={() => {
-                      if (isTeacherSignupEnabled) {
-                        setAccountRole('teacher');
-                      }
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.roleOptionContent}>
-                      <BookIcon
-                        size={moderateScale(20)}
-                        color={!isTeacherSignupEnabled ? theme.textSecondary : theme.text}
-                      />
-                      <View style={styles.roleTextContainer}>
-                        <Text
-                          style={[
-                            styles.roleOptionText,
-                            { color: !isTeacherSignupEnabled ? theme.textSecondary : theme.text },
-                          ]}
-                        >
-                          {t('auth.teacherRole')}
-                        </Text>
-                        {!isTeacherSignupEnabled && (
-                          <Text style={[styles.roleOptionMeta, { color: theme.textSecondary }]}>
-                            {t('auth.teacherSignupComingSoon')}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                    {isTeacherSignupEnabled && accountRole === 'teacher' && (
-                      <CheckmarkCircleIcon size={moderateScale(20)} color={theme.primary} />
-                    )}
-                  </TouchableOpacity>
-                </>
-              )}
-
               {!!submitError && (
                 <Text style={[styles.submitErrorText, { color: theme.danger }]}>{submitError}</Text>
               )}
@@ -1773,12 +1813,12 @@ const SignUp = ({ navigation, route }) => {
                     { flex: 1 },
                     isCompactPhone && styles.signUpButtonCompact,
                   ]}
-                  onPress={currentStep < 3 ? handleNextStep : handleSignUp}
-                  disabled={isLoading || (currentStep === 3 && !isFormValid())}
+                  onPress={currentStep < 2 ? handleNextStep : handleSignUpPress}
+                  disabled={isLoading || (currentStep === 2 && !isFormValid())}
                   activeOpacity={0.85}
                 >
                   <LinearGradient
-                    colors={(currentStep === 3 && !isFormValid()) ? ['#999', '#666'] : theme.gradient}
+                    colors={(currentStep === 2 && !isFormValid()) ? ['#999', '#666'] : theme.gradient}
                     style={styles.buttonGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
@@ -1792,11 +1832,11 @@ const SignUp = ({ navigation, route }) => {
                             styles.signUpButtonText,
                             {
                               fontSize: fontSize(17),
-                              opacity: (currentStep === 3 && !isFormValid()) ? 0.6 : 1,
+                              opacity: (currentStep === 2 && !isFormValid()) ? 0.6 : 1,
                             },
                           ]}
                         >
-                          {currentStep < 3
+                          {currentStep < 2
                             ? t('common.next')
                             : (oauthMode ? t('common.next') : t('auth.createAccount'))}
                         </Text>
@@ -1804,7 +1844,7 @@ const SignUp = ({ navigation, route }) => {
                           <ArrowForwardIcon
                             size={moderateScale(20)}
                             color="#FFFFFF"
-                            style={[styles.buttonIcon, { opacity: (currentStep === 3 && !isFormValid()) ? 0.6 : 1 }]}
+                            style={[styles.buttonIcon, { opacity: (currentStep === 2 && !isFormValid()) ? 0.6 : 1 }]}
                           />
                         )}
                       </>
@@ -1815,28 +1855,54 @@ const SignUp = ({ navigation, route }) => {
             </GlassContainer>
 
             <View style={[styles.footer, isCompactPhone && styles.footerCompact, isRTL && styles.footerRtl]}>
-              <Text style={[
-                styles.footerText, 
-                isRTL && styles.footerTextRtl,
-                { fontSize: fontSize(15) }
-              ]}>
-                {t('auth.alreadyHaveAccount')}
-              </Text>
-              <TouchableOpacity 
-                onPress={() => navigation.navigate('SignIn')} 
-                activeOpacity={0.7}
-              >
-                <Text style={[
-                  styles.signInText, 
-                  isRTL && styles.footerTextRtl,
-                  { 
-                    color: '#FFFFFF',
-                    fontSize: fontSize(15),
-                  }
-                ]}>
-                  {t('auth.signIn')}
-                </Text>
-              </TouchableOpacity>
+              {oauthMode ? (
+                <TouchableOpacity 
+                  style={{ padding: spacing.sm }}
+                  onPress={async () => {
+                    setIsLoading(true);
+                    await signOut().catch(() => {});
+                    try { await clearPendingOAuthSignup(); } catch (_) {}
+                    await safeStorage.setItem('preventAutoLogin', 'true');
+                    setIsLoading(false);
+                    navigateToAuthScreen('SignIn', undefined, true);
+                  }} 
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.signInText, isRTL && styles.footerTextRtl, { color: '#FFFFFF', fontSize: fontSize(15) }]}>
+                    {t('common.cancel', 'Cancel Sign Up')}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <>
+                  <Text style={[
+                    styles.footerText, 
+                    isRTL && styles.footerTextRtl,
+                    { fontSize: fontSize(15) }
+                  ]}>
+                    {t('auth.alreadyHaveAccount')}
+                  </Text>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      const didNavigate = navigateToAuthScreen('SignIn');
+                      if (!didNavigate) {
+                        setSubmitError(t('auth.signUpError'));
+                      }
+                    }} 
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[
+                      styles.signInText, 
+                      isRTL && styles.footerTextRtl,
+                      { 
+                        color: '#FFFFFF',
+                        fontSize: fontSize(15),
+                      }
+                    ]}>
+                      {t('auth.signIn')}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </Animated.View>
 
@@ -1852,6 +1918,32 @@ const SignUp = ({ navigation, route }) => {
         buttons={alertConfig.buttons}
         onDismiss={hideAlert}
       />
+
+      <Modal visible={showTermsModal} animationType="slide" transparent={false}>
+        <TermsAndConditions
+          navigation={{
+            goBack: () => setShowTermsModal(false),
+            navigate: navigation.navigate,
+            replace: navigation.replace,
+          }}
+          route={{
+            params: {
+              isModal: true,
+              onAccept: async () => {
+                setShowTermsModal(false);
+                handleSignUp().catch((error) => {
+                  telemetry.recordEvent('auth_sign_up_unhandled_error', {
+                    source: 'SignUp',
+                    message: error?.message || String(error),
+                  });
+                  setIsLoading(false);
+                  setSubmitError(t('auth.signUpError'));
+                });
+              },
+            },
+          }}
+        />
+      </Modal>
     </View>
   );
 };
@@ -2168,6 +2260,29 @@ const styles = StyleSheet.create({
     fontSize: fontSize(12),
     fontWeight: '500',
   },
+  legalConsentRow: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  legalConsentText: {
+    flex: 1,
+    fontSize: fontSize(13),
+    fontWeight: '500',
+  },
+  legalLinksRow: {
+    marginTop: spacing.xs,
+    marginLeft: moderateScale(28),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  legalLinkText: {
+    fontSize: fontSize(12),
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
   signUpButtonText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
@@ -2206,6 +2321,58 @@ const styles = StyleSheet.create({
   signInText: {
     fontWeight: 'bold',
     textDecorationLine: 'underline',
+  },
+  profilePictureContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  profilePictureWrapper: {
+    width: moderateScale(108),
+    height: moderateScale(108),
+    borderRadius: moderateScale(54),
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  profilePicture: {
+    width: '100%',
+    height: '100%',
+    borderRadius: moderateScale(54),
+  },
+  profilePicturePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: moderateScale(54),
+  },
+  uploadBadge: {
+    position: 'absolute',
+    right: spacing.xs,
+    bottom: spacing.xs,
+    width: moderateScale(28),
+    height: moderateScale(28),
+    borderRadius: moderateScale(14),
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  uploadHint: {
+    marginTop: spacing.sm,
+    fontSize: fontSize(12),
+    opacity: 0.85,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });
 

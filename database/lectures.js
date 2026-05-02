@@ -25,17 +25,10 @@ export const LECTURE_UPLOAD_TYPES = {
   LINK: 'link',
 };
 
-const logLecturesDb = (event, payload = {}) => {
-  console.log('[LecturesDB]', event, payload);
-};
-
-const logLecturesDbError = (event, error, payload = {}) => {
-  console.error('[LecturesDB]', event, {
-    ...payload,
-    errorMessage: error?.message || String(error || ''),
-    errorCode: error?.code || error?.status || '',
-  });
-};
+// eslint-disable-next-line no-unused-vars
+const logLecturesDb = (_event, _payload) => {};
+// eslint-disable-next-line no-unused-vars
+const logLecturesDbError = (_event, _error, _payload) => {};
 
 const isMissingDocumentError = (error) => {
   const code = Number(error?.code || error?.status || 0);

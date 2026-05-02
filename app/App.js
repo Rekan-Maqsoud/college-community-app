@@ -22,6 +22,7 @@ import LiquidGlassView from './components/LiquidGlassViewCompat';
 import { BlurView } from 'expo-blur';
 import { isLiquidGlassEnabled } from './utils/glassSupport';
 import telemetry from './utils/telemetry';
+import safeStorage from './utils/safeStorage';
 import { initCrashReporting, setCrashReportingUser } from './utils/crashReporting';
 import { REFRESH_TOPICS, publishRefreshEvent, subscribeToRefreshTopic } from './utils/dataRefreshBus';
 import { warmupNsfwModel } from './utils/nsfwImageFilter';
@@ -51,6 +52,7 @@ import SignUp from './auth/SignUp';
 import GuestSignUp from './auth/GuestSignUp';
 import VerifyEmail from './auth/VerifyEmail';
 import ForgotPassword from './auth/ForgotPassword';
+import TermsAndConditions from './screens/TermsAndConditions';
 
 import Home from './tabs/Home';
 import Chats from './tabs/Chats';
@@ -238,6 +240,7 @@ const SignUpWithActivity = withActivityBoundary(SignUp, 'SignUp');
 const GuestSignUpWithActivity = withActivityBoundary(GuestSignUp, 'GuestSignUp');
 const VerifyEmailWithActivity = withActivityBoundary(VerifyEmail, 'VerifyEmail');
 const ForgotPasswordWithActivity = withActivityBoundary(ForgotPassword, 'ForgotPassword');
+const TermsAndConditionsWithActivity = withActivityBoundary(TermsAndConditions, 'TermsAndConditions');
 const SettingsWithActivity = withActivityBoundary(Settings, 'Settings');
 const ProfileSettingsWithActivity = withActivityBoundary(ProfileSettings, 'ProfileSettings');
 const PersonalizationSettingsWithActivity = withActivityBoundary(PersonalizationSettings, 'PersonalizationSettings');
@@ -598,15 +601,27 @@ const MainStack = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState('student');
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   useEffect(() => {
-    checkSession();
+    checkTermsAndSession();
   }, []);
 
-  const checkSession = async () => {
+  const checkTermsAccepted = async () => {
+    try {
+      const accepted = await safeStorage.getItem('terms_accepted');
+      return accepted === 'true';
+    } catch (_error) {
+      return false;
+    }
+  };
+
+  const checkTermsAndSession = async () => {
     const sessionTrace = telemetry.startTrace('app_check_session');
     try {
       const user = await getCurrentUser();
+      const termsOk = await checkTermsAccepted();
+      setTermsAccepted(termsOk);
       
       if (user) {
         try {
@@ -632,6 +647,7 @@ const MainStack = () => {
         success: true,
         meta: {
           isAuthenticated: Boolean(user),
+          termsAccepted: termsOk,
         },
       });
     } catch (error) {
@@ -662,7 +678,13 @@ const MainStack = () => {
         cardStyle: { backgroundColor: theme.background },
         contentStyle: { backgroundColor: theme.background },
       }}
-      initialRouteName={isAuthenticated ? (userRole === 'guest' ? 'GuestTabs' : 'MainTabs') : 'SignIn'}
+      initialRouteName={
+        !isAuthenticated 
+          ? 'SignIn' 
+          : !termsAccepted 
+            ? 'TermsAndConditions' 
+            : (userRole === 'guest' ? 'GuestTabs' : 'MainTabs')
+      }
     >
       <Stack.Screen 
         name="SignIn" 
@@ -683,6 +705,10 @@ const MainStack = () => {
       <Stack.Screen 
         name="ForgotPassword" 
         component={ForgotPasswordWithActivity}
+      />
+      <Stack.Screen 
+        name="TermsAndConditions" 
+        component={TermsAndConditionsWithActivity}
       />
       <Stack.Screen 
         name="MainTabs" 

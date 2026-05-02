@@ -11,6 +11,8 @@ import {
   StatusBar,
   Animated,
   ActivityIndicator,
+  Linking,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
@@ -26,7 +28,7 @@ import LanguageDropdown from '../components/LanguageDropdown';
 import SearchableDropdown from '../components/SearchableDropdownNew';
 import AnimatedBackground from '../components/AnimatedBackground';
 import { GlassContainer, GlassInput } from '../components/GlassComponents';
-import { initiateGuestSignup, clearPendingOAuthSignup, completeOAuthSignup } from '../../database/auth';
+import { initiateGuestSignup, clearPendingOAuthSignup, completeOAuthSignup, signOut } from '../../database/auth';
 import { uploadProfilePicture } from '../../services/imgbbService';
 import { 
   wp, hp, fontSize, spacing, isTablet, moderateScale,
@@ -35,6 +37,9 @@ import { borderRadius } from '../theme/designTokens';
 import useLayout from '../hooks/useLayout';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import telemetry from '../utils/telemetry';
+import safeStorage from '../utils/safeStorage';
+import { buildOAuthSignupNavigationTarget } from '../utils/authOnboarding';
+import TermsAndConditions from '../screens/TermsAndConditions';
 
 const getAcademicChangesCountFromProfileViews = (profileViews) => {
   if (!profileViews) return 0;
@@ -52,12 +57,9 @@ const GuestSignUp = ({ navigation, route }) => {
   const oauthMode = route?.params?.oauthMode || false;
   const oauthEmail = route?.params?.oauthEmail || '';
   const oauthName = route?.params?.oauthName || '';
-  
-  console.log('[GuestSignUp] Component mounted with props:', {
-    oauthMode,
-    oauthEmail: oauthEmail?.substring(0, 5) + '***',
-    oauthName,
-  });
+  const oauthProvider = route?.params?.oauthProvider || 'social';
+  const showGuestModeNotice = route?.params?.showGuestModeNotice || false;
+  const allowEmailEdit = route?.params?.allowEmailEdit || false;
   
   const { alertConfig, showAlert, hideAlert } = useCustomAlert();
   const { formStyle } = useLayout();
@@ -75,6 +77,7 @@ const GuestSignUp = ({ navigation, route }) => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
   const [hasBlurredNameField, setHasBlurredNameField] = useState(false);
@@ -86,6 +89,7 @@ const GuestSignUp = ({ navigation, route }) => {
   
   const { t, theme, isDarkMode, isRTL } = useAppSettings();
   const { setUserData } = useUser();
+  const canEditOAuthEmail = !oauthMode || allowEmailEdit || !String(email || '').trim();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -139,6 +143,10 @@ const GuestSignUp = ({ navigation, route }) => {
     if (submitError) setSubmitError('');
   };
 
+  const setSingleFieldError = (field, message) => {
+    setFieldErrors(prev => ({ ...prev, [field]: message }));
+  };
+
   const hasTwoNameParts = (name) => {
     const parts = (name || '').trim().split(/\s+/);
     return parts.length >= 2 && parts[0].length > 0 && parts[1].length > 0;
@@ -166,125 +174,73 @@ const GuestSignUp = ({ navigation, route }) => {
   const passwordStrength = getPasswordStrength(password);
   
   const validateForm = () => {
-    console.log('[GuestSignUp.validateForm] Validating form with values:', {
-      fullName: fullName?.trim() || '',
-      email: email?.substring(0, 5) + '***',
-      age: age || '',
-      passwordLength: password?.length || 0,
-      confirmPasswordMatches: password === confirmPassword,
-    });
-
     const errors = {};
     
     if (!fullName.trim()) {
-      console.log('[GuestSignUp.validateForm] Missing full name');
       errors.fullName = t('auth.fullNameRequired');
     } else if (!hasTwoNameParts(fullName)) {
-      console.log('[GuestSignUp.validateForm] Full name does not have two parts:', fullName);
       errors.fullName = t('auth.fullNameTwoWordsRequired');
     } else if (hasUnsupportedNameCharacters(fullName)) {
-      console.log('[GuestSignUp.validateForm] Full name has unsupported characters:', fullName);
       errors.fullName = t('auth.fullNameLettersOnly');
-    } else {
-      console.log('[GuestSignUp.validateForm] Full name valid:', fullName);
     }
     
     if (!email.trim()) {
-      console.log('[GuestSignUp.validateForm] Missing email');
       errors.email = t('auth.validEmailRequired');
     } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
-        console.log('[GuestSignUp.validateForm] Invalid email format:', email);
         errors.email = t('auth.validEmailRequired');
-      } else {
-        console.log('[GuestSignUp.validateForm] Email valid:', email.substring(0, 5) + '***');
       }
     }
     
     if (!age) {
-      console.log('[GuestSignUp.validateForm] Missing age');
       errors.age = t('auth.ageRequired');
-    } else {
-      console.log('[GuestSignUp.validateForm] Age valid:', age);
     }
 
-    if (password.length < 8) {
-      console.log('[GuestSignUp.validateForm] Password too short:', password.length);
-      errors.password = t('auth.passwordTooShort');
-    } else if (passwordStrength === 'weak') {
-      console.log('[GuestSignUp.validateForm] Password strength is weak');
-      errors.password = t('auth.passwordGuideWeak');
-    } else {
-      console.log('[GuestSignUp.validateForm] Password strength is:', passwordStrength);
-    }
+    if (!oauthMode) {
+      if (password.length < 8) {
+        errors.password = t('auth.passwordTooShort');
+      } else if (passwordStrength === 'weak') {
+        errors.password = t('auth.passwordGuideWeak');
+      }
 
-    if (password !== confirmPassword) {
-      console.log('[GuestSignUp.validateForm] Passwords do not match');
-      errors.confirmPassword = t('auth.passwordMismatch');
-    } else {
-      console.log('[GuestSignUp.validateForm] Passwords match');
+      if (password !== confirmPassword) {
+        errors.confirmPassword = t('auth.passwordMismatch');
+      }
     }
     
-    console.log('[GuestSignUp.validateForm] Validation complete. Errors:', Object.keys(errors));
     setFieldErrors(errors);
-    const isValid = Object.keys(errors).length === 0;
-    console.log('[GuestSignUp.validateForm] Form is valid:', isValid);
-    return isValid;
+    return Object.keys(errors).length === 0;
   };
 
   const handleFullNameBlur = () => {
-    console.log('[GuestSignUp.handleFullNameBlur] Full name input blur triggered');
-    console.log('[GuestSignUp.handleFullNameBlur] Full name value:', fullName);
-
     setHasBlurredNameField(true);
     setNameFocused(false);
     
     if (!fullName.trim()) {
-      console.log('[GuestSignUp.handleFullNameBlur] Full name is empty');
       setFieldErrors(prev => ({ ...prev, fullName: t('auth.fullNameRequired') }));
       return;
     }
     if (!hasTwoNameParts(fullName)) {
-      console.log('[GuestSignUp.handleFullNameBlur] Full name does not have two parts');
       setFieldErrors(prev => ({ ...prev, fullName: t('auth.fullNameTwoWordsRequired') }));
       return;
     }
     if (hasUnsupportedNameCharacters(fullName)) {
-      console.log('[GuestSignUp.handleFullNameBlur] Full name has unsupported characters');
       setFieldErrors(prev => ({ ...prev, fullName: t('auth.fullNameLettersOnly') }));
-    } else {
-      console.log('[GuestSignUp.handleFullNameBlur] Full name validation passed');
     }
   };
 
   const handleUploadProfilePicture = async () => {
-    console.log('[GuestSignUp.handleUploadProfilePicture] Starting profile picture upload...');
     try {
       setIsUploadingImage(true);
-      console.log('[GuestSignUp.handleUploadProfilePicture] Calling uploadProfilePicture service...');
       const result = await uploadProfilePicture({ t });
-      
-      console.log('[GuestSignUp.handleUploadProfilePicture] Upload result received:', {
-        hasDisplayUrl: !!result?.displayUrl,
-        resultKeys: Object.keys(result || {}),
-      });
-
       if (result && result.displayUrl) {
-        console.log('[GuestSignUp.handleUploadProfilePicture] Picture uploaded successfully');
         setProfilePicture(result.displayUrl);
-      } else {
-        console.warn('[GuestSignUp.handleUploadProfilePicture] No display URL in result:', result);
       }
     } catch (error) {
-      console.error('[GuestSignUp.handleUploadProfilePicture] Upload error:', error.message || error);
-      console.error('[GuestSignUp.handleUploadProfilePicture] Error code:', error?.code);
-
       if (error?.code === 'NSFW_IMAGE_BLOCKED' || error?.code === 'NSFW_SCAN_FAILED') {
-        console.log('[GuestSignUp.handleUploadProfilePicture] NSFW image blocked, silently returning');
         return;
       }
-
       showAlert({
         type: 'error',
         title: t('common.error'),
@@ -294,62 +250,32 @@ const GuestSignUp = ({ navigation, route }) => {
       });
     } finally {
       setIsUploadingImage(false);
-      console.log('[GuestSignUp.handleUploadProfilePicture] Upload attempt finished');
     }
   };
 
   const handleSignUp = async () => {
-    console.log('[GuestSignUp] handleSignUp started');
-    console.log('[GuestSignUp] Input values:', {
-      email: email?.substring(0, 5) + '***' || '***',
-      fullName,
-      age,
-      oauthMode,
-      profilePictureExists: !!profilePicture,
-    });
-
     if (!validateForm()) {
       const firstErrorKey = Object.keys(fieldErrors)[0];
-      console.log('[GuestSignUp] Form validation failed. First error:', firstErrorKey, fieldErrors[firstErrorKey]);
-      if (firstErrorKey) {
-        setSubmitError(fieldErrors[firstErrorKey]);
-      } else {
-        setSubmitError(t('auth.pleaseFixErrors', 'Please fix all formulation errors'));
-      }
+      setSubmitError(
+        firstErrorKey
+          ? fieldErrors[firstErrorKey]
+          : t('auth.pleaseFixErrors', 'Please fix all errors before submitting')
+      );
       return;
     }
     
-    console.log('[GuestSignUp] Form validation passed, proceeding...');
     setIsLoading(true);
     setSubmitError('');
     
     try {
       if (oauthMode) {
-        console.log('[GuestSignUp] OAuth mode detected, handling OAuth flow...');
-        console.log('[GuestSignUp] OAuth params:', {
-          oauthUserId: route.params?.oauthUserId,
-          email: email?.substring(0, 5) + '***' || '***',
-        });
-
-        // OAuth mode means the account is already 'created' by Google,
-        // we just need to pass the extra info to VerifyEmail, or maybe complete it directly.
-        // But since this is guest, the API already generated verify token, so we do the same flow.
-        const pendingData = {
-          userId: route.params.oauthUserId,
+        const additionalData = { age, profilePicture, role: 'guest' };
+        const result = await completeOAuthSignup(
+          route.params.oauthUserId,
           email,
-          name: fullName,
-          additionalData: { age, profilePicture, role: 'guest' },
-          timestamp: Date.now(),
-        };
-        console.log('[GuestSignUp] Pending data prepared:', {
-          userId: pendingData.userId,
-          email: pendingData.email?.substring(0, 5) + '***' || '***',
-          name: pendingData.name,
-          additionalData: pendingData.additionalData,
-        });
-
-        console.log('[GuestSignUp] Calling completeOAuthSignup...');
-        const result = await completeOAuthSignup(pendingData.userId, email, fullName, pendingData.additionalData);
+          fullName,
+          additionalData
+        );
 
         if (result?.success && result?.userDoc) {
           const academicChangesCount = getAcademicChangesCountFromProfileViews(result.userDoc.profileViews);
@@ -371,65 +297,89 @@ const GuestSignUp = ({ navigation, route }) => {
             lastAcademicUpdate: result.userDoc.lastAcademicUpdate || null,
             academicChangesCount,
           };
-
           await setUserData(userData);
         }
 
-        console.log('[GuestSignUp] OAuth signup completed successfully, navigating to GuestTabs...');
-        navigation.replace('GuestTabs');
+        const termsAccepted = await safeStorage.getItem('terms_accepted');
+        const routeName = termsAccepted === 'true' ? 'GuestTabs' : 'TermsAndConditions';
+        const didNavigate = navigateToAuthScreen(routeName, undefined, true);
+        
+        if (!didNavigate) setSubmitError(t('auth.signUpError'));
         return;
       }
       
-      console.log('[GuestSignUp] Regular (non-OAuth) flow detected');
-      const payload = { stage: age, profilePicture }; // stage holds age temporarily for backend
-      console.log('[GuestSignUp] Calling initiateGuestSignup with:', {
-        email: email?.substring(0, 5) + '***' || '***',
-        fullName,
-        payload,
-      });
-      
+      // stage holds the age value for the backend
+      const payload = { stage: age, profilePicture };
       const result = await initiateGuestSignup(email, password, fullName, payload);
       
-      console.log('[GuestSignUp] initiateGuestSignup result:', {
-        success: result?.success,
-        userId: result?.userId,
-      });
-      
       if (result.success) {
-        console.log('[GuestSignUp] Signup successful, recording telemetry event...');
         telemetry.recordEvent('guest_signup_initiated');
-        console.log('[GuestSignUp] Navigating to VerifyEmail screen...');
-        navigation.navigate('VerifyEmail', { email: email.trim().toLowerCase() });
+        const didNavigate = navigateToAuthScreen('VerifyEmail', { email: email.trim().toLowerCase() });
+        if (!didNavigate) setSubmitError(t('auth.signUpError'));
       } else {
-        console.warn('[GuestSignUp] Result indicates failure but no error was thrown:', result);
         setSubmitError(t('auth.signUpError'));
       }
     } catch (error) {
-      console.error('[GuestSignUp] handleSignUp caught exception:', error.message || error);
-      console.error('[GuestSignUp] Error stack:', error.stack);
       
-      let errorMessage = t('auth.signUpError');
-      if (error.message?.includes('already exists') || error.message?.includes('user')) {
-        console.log('[GuestSignUp] Email already exists error detected');
+      let errorMessage;
+      if (
+        error.code === 409 ||
+        error.message?.includes('already exists') ||
+        error.type?.includes('user_already_exists') ||
+        error.type?.includes('user_email_already_exists')
+      ) {
         errorMessage = t('auth.emailInUse', 'This email is already registered.');
       } else if (error.message?.includes('network') || error.message?.includes('Network')) {
-        console.log('[GuestSignUp] Network error detected');
         errorMessage = t('common.networkError');
       } else if (error.message?.includes('Only educational')) {
-        // Should not happen since we bypass it for guests, but just in case
-        console.log('[GuestSignUp] Educational email filter triggered (unexpected)');
         errorMessage = error.message;
       } else {
-        console.log('[GuestSignUp] Generic error:', error.message);
-        errorMessage = error.message;
+        errorMessage = error.message || t('auth.signUpError');
       }
-      console.log('[GuestSignUp] Error message to display:', errorMessage);
       setSubmitError(errorMessage);
     } finally {
-      console.log('[GuestSignUp] handleSignUp finally block executing, oauthMode:', oauthMode);
       setIsLoading(false);
-      console.log('[GuestSignUp] Loading state set to false');
     }
+  };
+
+  const handleOpenLegalLink = async (url) => {
+    try {
+      if (!url) {
+        throw new Error('missing_url');
+      }
+
+      await Linking.openURL(url);
+    } catch (_error) {
+      showAlert({
+        type: 'error',
+        title: t('common.error'),
+        message: t('auth.legalLinkOpenError'),
+      });
+    }
+  };
+
+  const navigateToAuthScreen = (routeName, params, useReplace = false) => {
+    try {
+      if (useReplace) {
+        navigation.replace(routeName, params);
+      } else {
+        navigation.navigate(routeName, params);
+      }
+      return true;
+    } catch (navigationError) {
+      telemetry.recordEvent('auth_navigation_error', {
+        source: 'GuestSignUp',
+        target: routeName,
+        method: useReplace ? 'replace' : 'navigate',
+        message: navigationError?.message || String(navigationError),
+      });
+      return false;
+    }
+  };
+
+  const handleGuestSignUpPress = () => {
+    if (!validateForm()) return;
+    setShowTermsModal(true);
   };
 
   return (
@@ -460,6 +410,16 @@ const GuestSignUp = ({ navigation, route }) => {
                 <Text style={[styles.subHeaderText, { fontSize: fontSize(14) }]}>
                   {oauthMode ? t('auth.finishSetup', 'Complete your profile') : t('auth.guestSignUpSubtitle', 'Join to view public discussions')}
                 </Text>
+                {oauthMode && showGuestModeNotice ? (
+                  <View style={[styles.guestNoticeCard, { borderColor: 'rgba(245, 158, 11, 0.5)', backgroundColor: isDarkMode ? 'rgba(245, 158, 11, 0.18)' : 'rgba(245, 158, 11, 0.12)' }]}>
+                    <Text style={[styles.guestNoticeTitle, { color: '#F59E0B' }]}>
+                      {oauthProvider === 'apple' ? t('auth.appleGuestModeTitle') : t('auth.socialGuestModeTitle')}
+                    </Text>
+                    <Text style={[styles.guestNoticeBody, { color: theme.text }]}>
+                      {oauthProvider === 'apple' ? t('auth.appleGuestModeMessage') : t('auth.socialGuestModeMessage')}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
 
               <GlassContainer style={styles.formContainer} intensity={isTablet() ? 30 : 25} borderRadius={borderRadius.xl} disableBackgroundOverlay>
@@ -536,10 +496,10 @@ const GuestSignUp = ({ navigation, route }) => {
                     <MailIcon size={moderateScale(20)} color={emailFocused ? theme.primary : theme.textSecondary} style={[styles.inputIcon, isRTL && styles.inputIconRtl]} />
                     <TextInput
                        style={[styles.input, isRTL && styles.inputRtl, { color: oauthMode ? theme.textSecondary : theme.text, fontSize: fontSize(15), textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' }]}
-                       placeholder={oauthMode ? t('auth.emailFromGoogle') : t('auth.email', 'Email Address')}
+                       placeholder={oauthMode ? t('auth.emailFromSocial') : t('auth.email', 'Email Address')}
                        placeholderTextColor={theme.input.placeholder}
                        value={email}
-                       onChangeText={oauthMode ? undefined : (value) => {
+                       onChangeText={!canEditOAuthEmail ? undefined : (value) => {
                          setEmail(value);
                          clearFieldError('email');
                          clearSubmitError();
@@ -548,7 +508,7 @@ const GuestSignUp = ({ navigation, route }) => {
                        onBlur={() => setEmailFocused(false)}
                        keyboardType="email-address"
                        autoCapitalize="none"
-                       editable={!oauthMode}
+                          editable={canEditOAuthEmail}
                     />
                   </View>
                 </GlassInput>
@@ -629,7 +589,7 @@ const GuestSignUp = ({ navigation, route }) => {
 
                 <TouchableOpacity 
                    style={styles.actionButton}
-                   onPress={handleSignUp}
+                   onPress={handleGuestSignUpPress}
                    activeOpacity={0.8}
                    disabled={isLoading || isUploadingImage}>
                    <LinearGradient
@@ -654,7 +614,24 @@ const GuestSignUp = ({ navigation, route }) => {
                    <Text style={[styles.footerText, { fontSize: fontSize(13) }]}>
                      {t('auth.alreadyHaveAccount', 'Already have an account?')}
                    </Text>
-                   <TouchableOpacity onPress={() => navigation.navigate('SignIn')} activeOpacity={0.7}>
+                   <TouchableOpacity
+                     onPress={async () => {
+                       if (oauthMode) {
+                         setIsLoading(true);
+                         try { await clearPendingOAuthSignup(); } catch (_) {}
+                         await signOut().catch(() => {});
+                         await safeStorage.setItem('preventAutoLogin', 'true');
+                         setIsLoading(false);
+                         navigateToAuthScreen('SignIn', undefined, true);
+                       } else {
+                         const didNavigate = navigateToAuthScreen('SignIn');
+                         if (!didNavigate) {
+                           setSubmitError(t('auth.signUpError'));
+                         }
+                       }
+                     }}
+                     activeOpacity={0.7}
+                   >
                      <Text style={[styles.footerText, styles.signInText, { fontSize: fontSize(13) }]}>
                        {t('auth.signIn', 'Sign In')}
                      </Text>
@@ -666,6 +643,31 @@ const GuestSignUp = ({ navigation, route }) => {
         </KeyboardAvoidingView>
       </LinearGradient>
       <CustomAlert visible={alertConfig.visible} type={alertConfig.type} title={alertConfig.title} message={alertConfig.message} buttons={alertConfig.buttons} onDismiss={hideAlert} />
+
+      <Modal visible={showTermsModal} animationType="slide" transparent={false}>
+        <TermsAndConditions
+          navigation={{
+            goBack: () => setShowTermsModal(false),
+            navigate: navigation.navigate,
+            replace: navigation.replace,
+          }}
+          route={{
+            params: {
+              isModal: true,
+              onAccept: async () => {
+                setShowTermsModal(false);
+                handleSignUp().catch((error) => {
+                  telemetry.recordEvent('auth_guest_sign_up_unhandled_error', {
+                    message: error?.message || String(error),
+                  });
+                  setIsLoading(false);
+                  setSubmitError(t('auth.signUpError'));
+                });
+              },
+            },
+          }}
+        />
+      </Modal>
     </View>
   );
 };
@@ -679,6 +681,25 @@ const styles = StyleSheet.create({
   languageContainerRtl: { right: 'auto', left: wp(5) },
   content: { flex: 1, alignItems: 'center' },
   headerContainer: { marginBottom: spacing.lg, alignItems: 'center', maxWidth: isTablet() ? 700 : '95%', marginTop: hp(4) },
+  guestNoticeCard: {
+    width: '100%',
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  guestNoticeTitle: {
+    fontSize: fontSize(14),
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+    textAlign: 'left',
+  },
+  guestNoticeBody: {
+    fontSize: fontSize(13),
+    lineHeight: fontSize(18),
+    textAlign: 'left',
+  },
   headerText: { fontWeight: 'bold', marginBottom: spacing.sm, letterSpacing: 0.5, color: '#FFFFFF', textAlign: 'center', textShadowColor: 'rgba(0, 0, 0, 0.3)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
   subHeaderText: { opacity: 0.9, color: '#FFFFFF', textAlign: 'center' },
   formContainer: { padding: spacing.lg, maxWidth: isTablet() ? 700 : '95%', width: '100%' },
@@ -710,6 +731,29 @@ const styles = StyleSheet.create({
   profilePicturePlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
   uploadBadge: { position: 'absolute', bottom: 0, width: '100%', height: '30%', justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
   uploadHint: { marginTop: spacing.sm, fontSize: fontSize(12), opacity: 0.8 },
+  legalConsentRow: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  legalConsentText: {
+    flex: 1,
+    fontSize: fontSize(13),
+    fontWeight: '500',
+  },
+  legalLinksRow: {
+    marginTop: spacing.xs,
+    marginLeft: moderateScale(28),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  legalLinkText: {
+    fontSize: fontSize(12),
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
 });
 
 export default GuestSignUp;

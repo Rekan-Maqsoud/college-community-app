@@ -169,6 +169,7 @@ const SearchableDropdownNew = ({
         visible={isOpen}
         transparent
         animationType="fade"
+        presentationStyle={Platform.OS === 'ios' ? 'overFullScreen' : undefined}
         onRequestClose={closeModal}
       >
         <View style={styles.modalOverlay}>

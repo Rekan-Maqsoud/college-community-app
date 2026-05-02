@@ -38,6 +38,7 @@ const LanguageDropdown = () => {
         visible={isOpen}
         transparent
         animationType="fade"
+        presentationStyle="overFullScreen"
         onRequestClose={() => setIsOpen(false)}>
         <TouchableOpacity
           style={styles.modalOverlay}

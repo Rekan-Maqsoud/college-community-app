@@ -21,6 +21,7 @@ import { useUser } from '../../context/UserContext';
 import { signOut, deleteAccount } from '../../../database/auth';
 import { deleteUserPushToken } from '../../../database/users';
 import { cacheManager } from '../../utils/cacheManager';
+import safeStorage from '../../utils/safeStorage';
 import telemetry from '../../utils/telemetry';
 import { borderRadius, shadows } from '../../theme/designTokens';
 import { wp, hp, fontSize as responsiveFontSize, spacing } from '../../utils/responsive';
@@ -129,7 +130,7 @@ const AccountSettings = ({ navigation }) => {
     setShowDeleteModal(true);
   };
 
-  const confirmDeleteAccount = async () => {
+  const confirmDeleteAccount = () => {
     if (isDeleting) {
       return;
     }
@@ -142,45 +143,42 @@ const AccountSettings = ({ navigation }) => {
     setIsDeleting(true);
     setDeleteError('');
 
-    let didNavigateAfterSuccess = false;
-
-    try {
-      await deleteAccount(deletePassword);
-
-      setShowDeleteModal(false);
-      setDeletePassword('');
-      setDeleteError('');
-      didNavigateAfterSuccess = true;
-
-      // Navigation should not be blocked by storage cleanup.
-      clearUser().catch(() => {});
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'SignIn' }],
-      });
-      return;
-    } catch (error) {
-      telemetry.recordEvent('account_settings_delete_account_failed', {
-        code: error?.code ?? null,
-        type: error?.type ?? null,
-        message: error?.message ?? 'Unknown error',
-        responseCode: error?.response?.code ?? null,
-        responseType: error?.response?.type ?? null,
-        responseMessage: error?.response?.message ?? null,
+    // Start server-side deletion
+    deleteAccount(deletePassword)
+      .catch((error) => {
+        telemetry.recordEvent('account_settings_delete_account_failed', {
+          code: error?.code ?? null,
+          type: error?.type ?? null,
+          message: error?.message ?? 'Unknown error',
+          responseCode: error?.response?.code ?? null,
+          responseType: error?.response?.type ?? null,
+          responseMessage: error?.response?.message ?? null,
+        });
+      })
+      .finally(() => {
+        // Sign out AFTER the deletion process has finished (or failed)
+        // so we don't invalidate the session while deletion is running.
+        signOut().catch(() => {});
       });
 
-      const code = String(error?.code || error?.message || '');
-      const errorMessage = code === 'DELETE_ACCOUNT_INVALID_PASSWORD'
-        ? t('settings.incorrectPassword')
-        : code === 'DELETE_ACCOUNT_REAUTH_RATE_LIMITED'
-          ? t('settings.deleteAccountRateLimited')
-          : t('settings.deleteAccountError');
-      setDeleteError(errorMessage);
-    } finally {
-      if (!didNavigateAfterSuccess) {
-        setIsDeleting(false);
-      }
+    // Close modal and immediately process cache clearance
+    setShowDeleteModal(false);
+    setDeletePassword('');
+    setDeleteError('');
+
+    // Fire and forget cleanup
+    if (user?.$id) {
+      deleteUserPushToken(user.$id).catch(() => {});
     }
+    
+    cacheManager.clear().catch(() => {});
+    safeStorage.getAllKeys().then(keys => safeStorage.multiRemove(keys)).catch(() => {});
+    clearUser().catch(() => {});
+
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'SignIn', params: { preventAutoLogin: true } }],
+    });
   };
 
   const SettingItem = ({ icon, title, description, onPress, danger, iconColor }) => (
@@ -291,18 +289,18 @@ const AccountSettings = ({ navigation }) => {
             />
             <View style={[styles.divider, isRTL ? styles.dividerRtl : styles.dividerLtr, { backgroundColor: theme.border }]} />
             <SettingItem
-              icon="log-out-outline"
-              title={t('settings.logout')}
-              description={t('settings.logoutDesc')}
-              onPress={handleLogout}
-              danger
-            />
-            <View style={[styles.divider, isRTL ? styles.dividerRtl : styles.dividerLtr, { backgroundColor: theme.border }]} />
-            <SettingItem
               icon="trash-outline"
               title={t('settings.deleteAccount')}
               description={t('settings.deleteAccountDesc')}
               onPress={handleDeleteAccount}
+              danger
+            />
+            <View style={[styles.divider, isRTL ? styles.dividerRtl : styles.dividerLtr, { backgroundColor: theme.border }]} />
+            <SettingItem
+              icon="log-out-outline"
+              title={t('settings.logout')}
+              description={t('settings.logoutDesc')}
+              onPress={handleLogout}
               danger
             />
           </GlassCard>

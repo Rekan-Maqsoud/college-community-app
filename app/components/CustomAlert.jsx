@@ -114,6 +114,7 @@ const CustomAlert = ({
       visible={visible}
       transparent
       animationType="none"
+      presentationStyle={Platform.OS === 'ios' ? 'overFullScreen' : undefined}
       onRequestClose={handleDismiss}
       statusBarTranslucent>
       <Animated.View

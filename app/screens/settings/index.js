@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -48,6 +48,15 @@ const Settings = ({ navigation }) => {
   ]), [t]);
 
   const tutorial = useScreenTutorial(isGuestUser ? 'settings_guest' : 'settings', tutorialSteps);
+  const scrollViewRef = useRef(null);
+
+  useEffect(() => {
+    if (tutorial.isVisible && tutorial.activeTarget === 'account' && scrollViewRef.current) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 150);
+    }
+  }, [tutorial.isVisible, tutorial.activeTarget]);
 
   const settingsSections = [
     {
@@ -175,6 +184,7 @@ const Settings = ({ navigation }) => {
       </View>
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}>

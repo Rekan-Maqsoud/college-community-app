@@ -1013,6 +1013,16 @@ export default {
     "oldest": "Oldest",
     "popular": "Popular"
   },
+  "terms": {
+    "title": "Terms and Conditions",
+    "subtitle": "Please read and accept our terms",
+    "accept": "Accept & Continue",
+    "decline": "Decline",
+    "declineTitle": "Decline Terms",
+    "declineMessage": "You must accept the Terms and Conditions to use this app.",
+    "acceptError": "Failed to accept terms. Please try again.",
+    "scrollToBottom": "↓ Scroll to bottom to continue"
+  },
   "common": {
     "save": "Save",
     "send": "Send",
